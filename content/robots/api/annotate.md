@@ -168,19 +168,19 @@ A row changed in the sync client's cache, with the reason it changed.
 
 ## `Recorder`
 
-Kind: class. Source: [packages/wheel/src/annotate/recorder.ts:164](../../../packages/wheel/src/annotate/recorder.ts#L164).
+Kind: class. Source: [packages/wheel/src/annotate/recorder.ts:174](../../../packages/wheel/src/annotate/recorder.ts#L174).
 
 The event buffer plus its taps. One per app; `AnnotateService` owns it. Always-on in dev (the retro buffer), explicitly bounded when a clip is running. `install()` / `uninstall()` are the only things that touch global state, and both are idempotent.
 
 ## `RecorderOptions`
 
-Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:70](../../../packages/wheel/src/annotate/recorder.ts#L70).
+Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:80](../../../packages/wheel/src/annotate/recorder.ts#L80).
 
 Runtime seams the recorder needs, so tests can drive it without a browser or a real clock.
 
 ## `RecorderStreams`
 
-Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:82](../../../packages/wheel/src/annotate/recorder.ts#L82).
+Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:92](../../../packages/wheel/src/annotate/recorder.ts#L92).
 
 Which optional streams a recording captures. Both default ON (the 021 ruling: maximal capture).
 
@@ -246,7 +246,7 @@ Start listening: transcript from speech recognition, audio from the microphone. 
 
 ## `stateTreeSnapshot`
 
-Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:482](../../../packages/wheel/src/annotate/recorder.ts#L482).
+Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:497](../../../packages/wheel/src/annotate/recorder.ts#L497).
 
 Every service's atoms and computed values right now, keyed by service name. A clip stores this as its START STATE — a timeline of actions is only re-runnable against a known starting point, which is what makes replay reachable later.
 

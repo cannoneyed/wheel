@@ -198,6 +198,25 @@ describe('Recorder', () => {
     expect(recorder.timeline().some((event) => event.at === 1_000)).toBe(true);
   });
 
+  it('stays bounded during a long clip without re-copying the buffer per write', () => {
+    const { board, recorder, tick } = harness();
+    recorder.install({ input: false, network: false });
+    recorder.startClip();
+    // Past the hard cap. The buffer used to re-slice itself on EVERY write
+    // once full, which measured 17µs per action; a head pointer keeps the
+    // bound exact and the compaction amortized.
+    for (let i = 0; i < 25_000; i += 1) {
+      board.selection.set([`cell-${i}`]);
+      tick(200);
+    }
+    recorder.uninstall();
+
+    const timeline = recorder.timeline();
+    expect(timeline.length).toBeLessThanOrEqual(20_000);
+    // The newest events survive; the oldest are the ones dropped.
+    expect(timeline[timeline.length - 1]).toMatchObject({ to: ['cell-24999'] });
+  });
+
   it('merges harvested streams into one time-ordered slice', () => {
     const { board, recorder, tick } = harness();
     recorder.install({ input: false, network: false });

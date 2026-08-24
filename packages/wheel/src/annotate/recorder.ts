@@ -60,6 +60,16 @@ const RETRO_WINDOW_MS = 60_000;
 /** How many events the retro buffer keeps when no clip is running. */
 const RETRO_CAPACITY = 2_000;
 
+/**
+ * How many logically-dropped entries accumulate before the buffer is compacted.
+ *
+ * Dropping one entry per write by re-slicing the array is O(n) PER WRITE, and
+ * at capacity that is the single most expensive thing a recording does — it
+ * measured 17µs per action once the buffer filled. Advancing a head pointer
+ * instead keeps pruning exact and makes compaction amortized O(1).
+ */
+const COMPACT_BATCH = 512;
+
 /** Depth used for action arguments and atom values — shallower than a bridge read, on purpose. */
 const VALUE_DEPTH = 4;
 
@@ -164,6 +174,8 @@ function mergeState(existing: RecordedState, incoming: RecordedState): RecordedS
 export class Recorder {
   private readonly options: RecorderOptions;
   private events: RecordedEvent[] = [];
+  /** Entries before this index are dropped; the array is compacted in batches. */
+  private head = 0;
   private streams: RecorderStreams = { network: true, input: true };
   private clipStart: number | null = null;
   private running = false;
@@ -183,7 +195,7 @@ export class Recorder {
 
   /** The current buffer, oldest first. */
   timeline(): readonly RecordedEvent[] {
-    return this.events;
+    return this.head === 0 ? this.events : this.events.slice(this.head);
   }
 
   /**
@@ -222,6 +234,7 @@ export class Recorder {
   /** Drop everything buffered. */
   clear(): void {
     this.events = [];
+    this.head = 0;
   }
 
   /**
@@ -250,7 +263,7 @@ export class Recorder {
    * the sync client and the error buffer, which the recorder does not own.
    */
   harvest(from: number, to: number, extra: readonly RecordedEvent[] = []): RecordedEvent[] {
-    return [...this.events, ...extra]
+    return [...this.timeline(), ...extra]
       .filter((event) => event.at >= from && event.at <= to)
       .sort((a, b) => a.at - b.at);
   }
@@ -272,7 +285,7 @@ export class Recorder {
    * 400-frame drag would fill the buffer.
    */
   private coalesceState(event: RecordedState): boolean {
-    for (let index = this.events.length - 1; index >= 0; index -= 1) {
+    for (let index = this.events.length - 1; index >= this.head; index -= 1) {
       if (this.events.length - index > COALESCE_SCAN) break;
       const candidate = this.events[index]!;
       if (event.at - candidate.at > COALESCE_MS) break;
@@ -301,7 +314,7 @@ export class Recorder {
    */
   private insertAction(event: RecordedEvent): void {
     let index = this.events.length;
-    while (index > 0 && this.events.length - index < ORDER_SCAN) {
+    while (index > this.head && this.events.length - index < ORDER_SCAN) {
       const candidate = this.events[index - 1]!;
       if (candidate.at < event.at) break;
       if (candidate.at === event.at && (candidate.kind === 'action' || candidate.kind === 'input')) break;
@@ -316,17 +329,19 @@ export class Recorder {
    * the buffer is a rolling 60-second window.
    */
   private prune(): void {
-    if (this.events.length > HARD_CAPACITY) {
-      this.events = this.events.slice(this.events.length - HARD_CAPACITY);
+    const live = this.events.length - this.head;
+    if (live > HARD_CAPACITY) this.head += live - HARD_CAPACITY;
+    if (this.clipStart === null) {
+      const cutoff = this.options.now() - RETRO_WINDOW_MS;
+      while (this.head < this.events.length && this.events[this.head]!.at < cutoff) this.head += 1;
+      const overflow = this.events.length - this.head - RETRO_CAPACITY;
+      if (overflow > 0) this.head += overflow;
     }
-    if (this.clipStart !== null) return;
-    const cutoff = this.options.now() - RETRO_WINDOW_MS;
-    let start = 0;
-    while (start < this.events.length && this.events[start]!.at < cutoff) start += 1;
-    if (this.events.length - start > RETRO_CAPACITY) {
-      start = this.events.length - RETRO_CAPACITY;
+    // Reclaim only once enough entries are dead, so the copy is amortized.
+    if (this.head >= COMPACT_BATCH) {
+      this.events = this.events.slice(this.head);
+      this.head = 0;
     }
-    if (start > 0) this.events = this.events.slice(start);
   }
 
   /**
