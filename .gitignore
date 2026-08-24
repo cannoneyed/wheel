@@ -13,6 +13,9 @@ blob-report/
 .claude/worktrees/
 recordings/
 
+# Wheel dev-server output: rich snapshots and annotation notes (per-machine)
+.wheel/
+
 # Cache files
 .cache/
 .artifacts/

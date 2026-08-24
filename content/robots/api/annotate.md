@@ -30,19 +30,19 @@ Anchor a note to a dragged rectangle; the innermost component under it names the
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:96](../../../packages/wheel/src/annotate/annotate-service.ts#L96).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:97](../../../packages/wheel/src/annotate/annotate-service.ts#L97).
 
 Injected capture seams, so the service runs headless in tests.
 
 ## `AnnotateMode`
 
-Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:53](../../../packages/wheel/src/annotate/annotate-service.ts#L53).
+Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:54](../../../packages/wheel/src/annotate/annotate-service.ts#L54).
 
 Where the flow currently is.
 
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:107](../../../packages/wheel/src/annotate/annotate-service.ts#L107).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:108](../../../packages/wheel/src/annotate/annotate-service.ts#L108).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
 
@@ -72,7 +72,7 @@ What a note is attached to. `instance` is the good case and the one to aim for: 
 
 ## `NoteDraft`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:56](../../../packages/wheel/src/annotate/annotate-service.ts#L56).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:57](../../../packages/wheel/src/annotate/annotate-service.ts#L57).
 
 A note being written: everything captured so far, none of it saved yet.
 
@@ -168,7 +168,7 @@ A row changed in the sync client's cache, with the reason it changed.
 
 ## `Recorder`
 
-Kind: class. Source: [packages/wheel/src/annotate/recorder.ts:148](../../../packages/wheel/src/annotate/recorder.ts#L148).
+Kind: class. Source: [packages/wheel/src/annotate/recorder.ts:164](../../../packages/wheel/src/annotate/recorder.ts#L164).
 
 The event buffer plus its taps. One per app; `AnnotateService` owns it. Always-on in dev (the retro buffer), explicitly bounded when a clip is running. `install()` / `uninstall()` are the only things that touch global state, and both are idempotent.
 
@@ -204,7 +204,7 @@ What re-finding an anchor produced: how good the match was, and the instance if 
 
 ## `SavedNote`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:88](../../../packages/wheel/src/annotate/annotate-service.ts#L88).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:89](../../../packages/wheel/src/annotate/annotate-service.ts#L89).
 
 A saved note as the dev server hands it back, for rendering pins.
 
@@ -246,7 +246,7 @@ Start listening: transcript from speech recognition, audio from the microphone. 
 
 ## `stateTreeSnapshot`
 
-Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:460](../../../packages/wheel/src/annotate/recorder.ts#L460).
+Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:482](../../../packages/wheel/src/annotate/recorder.ts#L482).
 
 Every service's atoms and computed values right now, keyed by service name. A clip stores this as its START STATE — a timeline of actions is only re-runnable against a known starting point, which is what makes replay reachable later.
 
@@ -288,6 +288,6 @@ A capture in progress.
 
 ## `WheelAnnotate`
 
-Kind: function. Source: [packages/wheel/src/annotate/annotate-system.tsx:188](../../../packages/wheel/src/annotate/annotate-system.tsx#L188).
+Kind: function. Source: [packages/wheel/src/annotate/annotate-system.tsx:190](../../../packages/wheel/src/annotate/annotate-system.tsx#L190).
 
 Mount the annotation chrome. Renders nothing until it is armed, apart from the chip that arms it.

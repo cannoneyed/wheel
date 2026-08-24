@@ -44,7 +44,8 @@ Bounds:
 
 - writes to one atom within 80ms coalesce into one entry with a count;
 - object changes store the top-level keys that differ, not both values;
-- an action is inserted before the writes it caused, because the kernel can only time it on return;
+- an action is placed after the input that ran it and before the writes it caused, because the kernel can only time it on return;
+- a merge that would erase the change is refused, so a value that leaves and returns inside the window stays two entries;
 - the buffer is a rolling 60-second window until a clip pins it; the hard cap is 20000 events;
 - services in the `debug` group are excluded, so the recorder never records itself.
 

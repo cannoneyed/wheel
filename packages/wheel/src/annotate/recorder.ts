@@ -120,14 +120,29 @@ function diffValues(previous: unknown, next: unknown): Pick<RecordedState, 'from
   return { changed };
 }
 
-/** Merge a newer state entry into the one it coalesces with: keep the oldest `from`, take the newest `to`. */
-function mergeState(existing: RecordedState, incoming: RecordedState): RecordedState {
+/** Structural equality over already-projected values. */
+function sameValue(a: unknown, b: unknown): boolean {
+  return Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Merge a newer state entry into the one it coalesces with: keep the oldest
+ * `from`, take the newest `to`. Returns null when merging would ERASE the
+ * change.
+ *
+ * The null case matters. A value that goes `null → id → null` inside the
+ * coalesce window merges to `null → null`, which reads as "nothing happened"
+ * — the exact opposite of the truth. Refusing the merge keeps the churn
+ * visible as two entries.
+ */
+function mergeState(existing: RecordedState, incoming: RecordedState): RecordedState | null {
   const count = (existing.count ?? 1) + (incoming.count ?? 1);
   if (existing.changed && incoming.changed) {
     const changed = { ...existing.changed };
     for (const [key, value] of Object.entries(incoming.changed)) {
       changed[key] = { from: changed[key]?.from ?? value.from, to: value.to };
     }
+    if (Object.values(changed).every((entry) => sameValue(entry.from, entry.to))) return null;
     return { ...existing, at: incoming.at, changed, count };
   }
   if (existing.changed || incoming.changed) {
@@ -135,6 +150,7 @@ function mergeState(existing: RecordedState, incoming: RecordedState): RecordedS
     // newer entry is the honest one; keep it and carry the count.
     return { ...incoming, count };
   }
+  if (sameValue(existing.from, incoming.to)) return null;
   return { ...existing, at: incoming.at, to: incoming.to, count };
 }
 
@@ -261,7 +277,9 @@ export class Recorder {
       const candidate = this.events[index]!;
       if (event.at - candidate.at > COALESCE_MS) break;
       if (candidate.kind === 'state' && candidate.service === event.service && candidate.atom === event.atom) {
-        this.events[index] = mergeState(candidate, event);
+        const merged = mergeState(candidate, event);
+        if (!merged) return false;
+        this.events[index] = merged;
         return true;
       }
     }
@@ -269,20 +287,24 @@ export class Recorder {
   }
 
   /**
-   * Put an action where it belongs: BEFORE the writes it caused.
+   * Put an action where it belongs: after its CAUSE, before its EFFECTS.
    *
    * The kernel taps an action when it RETURNS (that is the only place its
    * duration is known), so by then its own state changes are already buffered.
    * Appending would print every effect above its cause — the one thing a
    * timeline must never do.
+   *
+   * The move stops at anything that is itself a cause: an input at the same
+   * millisecond is the click that RAN this action, and an action at the same
+   * millisecond is the outer call that invoked it. Only writes, state changes
+   * and requests get stepped over.
    */
   private insertAction(event: RecordedEvent): void {
     let index = this.events.length;
     while (index > 0 && this.events.length - index < ORDER_SCAN) {
       const candidate = this.events[index - 1]!;
       if (candidate.at < event.at) break;
-      // An earlier action at the same instant is the OUTER call; stay after it.
-      if (candidate.at === event.at && candidate.kind === 'action') break;
+      if (candidate.at === event.at && (candidate.kind === 'action' || candidate.kind === 'input')) break;
       index -= 1;
     }
     this.events.splice(index, 0, event);

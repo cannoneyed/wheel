@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * The recorder is the part that could quietly ruin an app: it sits in the two
  * hottest paths in the kernel (every action, every atom write). These tests
@@ -116,6 +117,40 @@ describe('Recorder', () => {
     const state = recorder.timeline().find((event): event is RecordedState => event.kind === 'state')!;
     expect(state.changed).toEqual({ name: { from: 'a', to: 'c' } });
     expect(state.count).toBe(2);
+  });
+
+  it('refuses a merge that would erase the change', () => {
+    const { board, recorder, tick } = harness();
+    recorder.install({ input: false, network: false });
+    // A value that leaves and comes back inside the window: merging would
+    // print `[] -> []`, which reads as "nothing happened".
+    board.selection.set(['a']);
+    tick(10);
+    board.selection.set([]);
+    recorder.uninstall();
+
+    const states = recorder.timeline().filter((event): event is RecordedState => event.kind === 'state');
+    expect(states).toHaveLength(2);
+    expect(states[0]!.to).toEqual(['a']);
+    expect(states[1]!.to).toEqual([]);
+  });
+
+  it('places an action after the input that ran it and before the writes it caused', () => {
+    const { board, recorder } = harness();
+    recorder.install({ network: false });
+
+    // One millisecond on the fake clock holds all three, which is exactly the
+    // case the ordering rule exists for: the click is the CAUSE of the action,
+    // and the atom write is its EFFECT.
+    const button = document.createElement('button');
+    document.body.appendChild(button);
+    button.addEventListener('click', () => board.toggleCell('3-7'));
+    button.click();
+    recorder.uninstall();
+    button.remove();
+
+    const kinds = recorder.timeline().map((event) => event.kind);
+    expect(kinds).toEqual(['input', 'action', 'state']);
   });
 
   it('separates writes that are far enough apart to be different moments', () => {

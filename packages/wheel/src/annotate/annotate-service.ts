@@ -7,10 +7,11 @@
  *
  * Two things are worth knowing before reading the code:
  *
- * **The recorder runs before you press anything.** In dev the taps are
- * installed as soon as annotation mode arms, keeping a rolling 60-second
- * buffer, so "that just happened and I didn't hit record" is recoverable —
- * `saveRetro()` turns the last minute into a clip after the fact.
+ * **The recorder runs before you press anything.** In dev the taps go in when
+ * `WheelAnnotate` MOUNTS, keeping a rolling 60-second buffer for the whole
+ * session — so "that just happened and I didn't hit record" is recoverable
+ * with `saveRetro()`. Starting the buffer at arm time would be useless: by
+ * then the thing you wanted has already happened.
  *
  * **Saving is a plain POST to the dev server**, which writes a directory of
  * files under `.wheel/notes/`. That is the whole delivery mechanism: an agent
@@ -161,29 +162,46 @@ export class AnnotateService extends Service {
   }, 'attach');
 
   /**
-   * Turn annotation mode on: pins appear, the picker goes live, and — in dev —
-   * the rolling retro buffer starts so the last minute is always recoverable.
+   * Start the rolling retro buffer. `WheelAnnotate` calls this on MOUNT, not
+   * on arm — "save the last minute" is worthless if the minute only starts
+   * once you have already noticed the bug. Dev only; a production build
+   * records nothing until someone presses record.
    */
+  readonly beginSession = this.action(() => {
+    if (isWheelDevMode()) this.recorder.install();
+  }, 'beginSession');
+
+  /** Turn annotation mode on: pins appear and the picker goes live. */
   readonly arm = this.action(() => {
     if (this.mode.get() !== 'off') return;
     this.mode.set('armed');
-    if (isWheelDevMode()) this.recorder.install();
     this.probe();
     this.loadNotes();
   }, 'arm');
 
-  /** Leave annotation mode entirely: drops any draft, stops any recording, removes the taps. */
+  /**
+   * Leave annotation mode: drops any draft and stops any recording.
+   *
+   * In dev the taps stay installed, because the retro buffer is a property of
+   * the session rather than of the chrome. In production they come out.
+   */
   readonly disarm = this.action(() => {
     this.cancelVoice();
     this.video.get()?.cancel();
     this.video.set(null);
     this.recorder.endClip();
-    this.recorder.uninstall();
     this.recording.set(false);
+    if (!isWheelDevMode()) this.recorder.uninstall();
     this.draft.set(null);
     this.hovered.set(null);
     this.mode.set('off');
   }, 'disarm');
+
+  /** Unmount: disarm and remove the taps, whatever mode the session is in. */
+  readonly endSession = this.action(() => {
+    this.disarm();
+    this.recorder.uninstall();
+  }, 'endSession');
 
   /** Highlight-follows-cursor while the picker is live. */
   readonly hover = this.action((instanceId: string | null) => {

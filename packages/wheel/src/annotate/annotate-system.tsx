@@ -6,11 +6,13 @@
  *     <WheelAnnotate />
  *   </WheelApp>
  *
- * Mount it and a ✎ chip appears in the bottom-left corner (⌘⇧A / Ctrl+Shift+A
- * toggles it). Arming does four things: pins for existing notes appear, the
- * picker highlights whatever component is under the cursor, a small toolbar
- * offers the other capture modes, and — in dev — the recorder starts its
- * rolling 60-second buffer.
+ * Mounting it starts the rolling 60-second recorder in dev, and puts a ✎ chip
+ * in the bottom-left corner (⌘⇧A / Ctrl+Shift+A toggles it). Arming shows the
+ * chrome: pins for existing notes, a picker that highlights the component
+ * under the cursor, and a toolbar with the other capture modes.
+ *
+ * The picker's shield swallows every press, so it steps aside while a clip is
+ * recording — a clip is made by USING the app.
  *
  * Click a component and the composer opens, already holding that component's
  * live state, its screenshot, and its place in the tree. Type or talk, press
@@ -215,7 +217,8 @@ export function WheelAnnotate(): JSX.Element {
     onCleanup(() => document.removeEventListener('keydown', onKeyDown));
   });
 
-  onCleanup(() => service.disarm());
+  service.beginSession();
+  onCleanup(() => service.endSession());
 
   return (
     <Portal>
@@ -233,7 +236,11 @@ export function WheelAnnotate(): JSX.Element {
       </button>
       <Show when={service.mode.get() === 'armed'}>
         <Toolbar service={service} />
-        <Picker service={service} />
+        {/* No picker while recording: a clip is made by USING the app, and the
+            picker's shield deliberately swallows every press. */}
+        <Show when={!service.recording.get()}>
+          <Picker service={service} />
+        </Show>
       </Show>
       <Show when={service.mode.get() !== 'off'}>
         <Pins service={service} />
@@ -283,6 +290,9 @@ function Toolbar(props: { service: AnnotateService }): JSX.Element {
       <button type="button" style={styles.button} onClick={() => props.service.saveRetro()}>
         ⏮ last minute
       </button>
+      <Show when={props.service.recording.get()}>
+        <span style={styles.dim}>use the app, then press stop</span>
+      </Show>
     </div>
   );
 }

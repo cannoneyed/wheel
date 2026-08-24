@@ -130,8 +130,11 @@ Three things keep a recording from becoming the bug:
 - **Hot atoms coalesce.** Writes to one atom within 80ms collapse into a single entry that keeps
   the first value, the latest value, and a count — a 400-frame drag is one line saying `×400`.
 - **Causes come before effects.** The kernel can only time an action when it returns, so the
-  recorder inserts it ahead of the writes it produced. A timeline never prints an effect above its
-  cause.
+  recorder places it after the input that ran it and ahead of the writes it produced. A timeline
+  never prints an effect above its cause.
+- **Churn stays visible.** A value that leaves and comes back inside the coalesce window is kept
+  as two entries: merging it would print `null → null`, which reads as "nothing happened" — the
+  opposite of the truth.
 
 Wheel's own debug services are excluded, so a recording never fills up with the act of recording.
 

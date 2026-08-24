@@ -269,6 +269,41 @@ describe('<WheelAnnotate/>', () => {
     expect(service.mode.get()).toBe('off');
   });
 
+  it('steps the picker aside while a clip records, so the app stays usable', () => {
+    stubFetch();
+    const context = mountApp(() => <WheelAnnotate />);
+    const service = context.services.get(AnnotateService);
+
+    service.arm();
+    expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy();
+
+    // A clip is made by USING the app. The shield swallows every press, so it
+    // has to go while recording — otherwise no clip could ever contain input.
+    service.startClip();
+    expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeNull();
+    expect(document.querySelector('[data-testid="wheel-annotate-stop"]')).toBeTruthy();
+
+    service.stopClip();
+    service.disarm();
+  });
+
+  it('buffers from mount, so the last minute covers what happened before arming', () => {
+    stubFetch();
+    const context = mountApp(() => <WheelAnnotate />);
+    const service = context.services.get(AnnotateService);
+    const board = context.services.get(BoardService);
+
+    // The bug this locks down: with the buffer starting at arm time, the
+    // "save the last minute" door could only ever show an empty minute.
+    board.toggleCell('3-7');
+    service.arm();
+    service.saveRetro();
+
+    const timeline = service.draft.get()!.timeline;
+    expect(timeline.some((event) => event.kind === 'action' && event.action === 'toggleCell')).toBe(true);
+    service.disarm();
+  });
+
   it('opens the composer when a component is picked', () => {
     stubFetch();
     const context = mountApp(() => <WheelAnnotate />);
