@@ -152,6 +152,60 @@ describe('wheelDevTools', () => {
   });
 });
 
+describe('wheelDevTools notes', () => {
+  it('GET probes with the resolved note dir', async () => {
+    const { server, dispatch } = makeServer(root);
+    wheelDevTools().configureServer(server as never);
+    const res = await dispatch('/__wheel/note', 'GET');
+    expect(JSON.parse(res.body)).toEqual({ ok: true, dir: join(root, '.wheel/notes') });
+  });
+
+  it('writes note.md, note.json and every attachment, and returns a pasteable command', async () => {
+    const { server, dispatch } = makeServer(root);
+    wheelDevTools().configureServer(server as never);
+    const res = await dispatch('/__wheel/note', 'POST', {
+      id: '1755974400123-cell-clears',
+      payload: { id: '1755974400123-cell-clears', text: 'cell clears' },
+      markdown: '# cell clears\n',
+      png: `data:image/png;base64,${PNG_BASE64}`,
+      audio: `data:audio/webm;base64,${PNG_BASE64}`
+    });
+
+    const { ok, dir, command } = JSON.parse(res.body) as { ok: boolean; dir: string; command: string };
+    expect(ok).toBe(true);
+    expect(dir).toBe(join(root, '.wheel/notes/1755974400123-cell-clears'));
+    expect(command).toBe('read .wheel/notes/1755974400123-cell-clears/note.md');
+    expect(readFileSync(join(dir, 'note.md'), 'utf8')).toBe('# cell clears\n');
+    expect(JSON.parse(readFileSync(join(dir, 'note.json'), 'utf8'))).toMatchObject({ text: 'cell clears' });
+    expect(existsSync(join(dir, 'shot.png'))).toBe(true);
+    expect(existsSync(join(dir, 'audio.webm'))).toBe(true);
+    expect(existsSync(join(dir, 'clip.webm'))).toBe(false);
+  });
+
+  it('lists saved notes newest first, skipping any that are unreadable', async () => {
+    const notesDir = join(root, '.wheel/notes');
+    mkdirSync(join(notesDir, '1000-first'), { recursive: true });
+    mkdirSync(join(notesDir, '2000-second'), { recursive: true });
+    mkdirSync(join(notesDir, '3000-broken'), { recursive: true });
+    writeFileSync(join(notesDir, '1000-first/note.json'), JSON.stringify({ id: '1000-first' }));
+    writeFileSync(join(notesDir, '2000-second/note.json'), JSON.stringify({ id: '2000-second' }));
+    writeFileSync(join(notesDir, '3000-broken/note.json'), 'not json');
+
+    const { server, dispatch } = makeServer(root);
+    wheelDevTools().configureServer(server as never);
+    const res = await dispatch('/__wheel/notes', 'GET');
+    const { notes } = JSON.parse(res.body) as { notes: Array<{ id: string }> };
+    expect(notes.map((note) => note.id)).toEqual(['2000-second', '1000-first']);
+  });
+
+  it('answers an empty list before any note exists', async () => {
+    const { server, dispatch } = makeServer(root);
+    wheelDevTools().configureServer(server as never);
+    const res = await dispatch('/__wheel/notes', 'GET');
+    expect(JSON.parse(res.body)).toEqual({ ok: true, notes: [] });
+  });
+});
+
 describe('local Wheel package stamp', () => {
   it('changes when a same-version source file changes', () => {
     const packageRoot = join(root, 'wheel-source');

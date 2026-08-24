@@ -58,6 +58,12 @@ Kind: interface. Source: [packages/wheel/src/debug/error-capture.ts:34](../../..
 
 One captured error/warning, as every surface sees it.
 
+## `captureViewportRegion`
+
+Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:104](../../../packages/wheel/src/debug/snapshot.tsx#L104).
+
+Grab one viewport rectangle as a PNG data URL, through the same capture seam the marquee uses (so a test that stubbed `setSnapshotCapture` stubs this too).
+
 ## `ErrorLog`
 
 Kind: class. Source: [packages/wheel/src/debug/error-capture.ts:47](../../../packages/wheel/src/debug/error-capture.ts#L47).
@@ -90,7 +96,7 @@ The inspector chrome: drag overlay + results panel. Mount once, next to the othe
 
 ## `installWheelBridge`
 
-Kind: function. Source: [packages/wheel/src/debug/bridge.ts:366](../../../packages/wheel/src/debug/bridge.ts#L366).
+Kind: function. Source: [packages/wheel/src/debug/bridge.ts:312](../../../packages/wheel/src/debug/bridge.ts#L312).
 
 Install this app's bridge on `window.__wheel`. Dev-mode only (pass `force: true` to opt a production build in deliberately). Returns the uninstaller; mounting surfaces (WheelApp, the debug panel) call this and uninstall on cleanup. Installing twice for the same context is harmless — the second install is a no-op returning a no-op.
 
@@ -108,7 +114,7 @@ Public export. Read the linked declaration for its complete contract.
 
 ## `SnapshotCard`
 
-Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:367](../../../packages/wheel/src/debug/snapshot.tsx#L367).
+Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:387](../../../packages/wheel/src/debug/snapshot.tsx#L387).
 
 The staged-capture card: preview, copy image, save to disk, discard.
 
@@ -126,13 +132,13 @@ The rich half of a snapshot: what was under the rectangle.
 
 ## `SnapshotService`
 
-Kind: class. Source: [packages/wheel/src/debug/snapshot.tsx:136](../../../packages/wheel/src/debug/snapshot.tsx#L136).
+Kind: class. Source: [packages/wheel/src/debug/snapshot.tsx:156](../../../packages/wheel/src/debug/snapshot.tsx#L156).
 
 The snapshot flow: marquee → staged capture → copy / save / discard.
 
 ## `SnapshotSystem`
 
-Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:270](../../../packages/wheel/src/debug/snapshot.tsx#L270).
+Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:290](../../../packages/wheel/src/debug/snapshot.tsx#L290).
 
 The marquee overlay. Mounted by WheelApp next to the other systems; renders nothing while the flow is off/staged.
 
@@ -147,6 +153,12 @@ A staged capture awaiting copy / save / discard.
 Kind: function. Source: [packages/wheel/src/debug/error-capture.ts:138](../../../packages/wheel/src/debug/error-capture.ts#L138).
 
 Install capture once per window (idempotent — every debug surface calls this on mount and shares the buffer). There is deliberately NO uninstall: capture is window-scoped diagnostics, and tearing down global handlers on panel unmount would silently blind every other surface.
+
+## `tabCaptureStream`
+
+Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:115](../../../packages/wheel/src/debug/snapshot.tsx#L115).
+
+The cached tab-capture stream, opened on first use. Shared with the annotation layer's video clips on purpose: the browser prompts once per TAB SESSION, so two features that each opened their own stream would prompt twice for the same permission.
 
 ## `WheelApp`
 
@@ -168,6 +180,6 @@ The drop-in runtime audit widget (🐛, fixed bottom-right): registry state tree
 
 ## `WheelGlobal`
 
-Kind: interface. Source: [packages/wheel/src/core/bridge-contract.ts:116](../../../packages/wheel/src/core/bridge-contract.ts#L116).
+Kind: interface. Source: [packages/wheel/src/core/bridge-contract.ts:114](../../../packages/wheel/src/core/bridge-contract.ts#L114).
 
 The `window.__wheel` global: per-app bridges plus sole-app conveniences.

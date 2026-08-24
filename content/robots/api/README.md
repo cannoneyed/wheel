@@ -13,6 +13,7 @@ These files are generated from Wheel's public source entries. Run `bun run docs:
 - [`wheel/components` and deep family entries](components.md)
 - [`wheel/router`](router.md)
 - [`wheel/debug`](debug.md)
+- [`wheel/annotate`](annotate.md)
 - [`wheel/testing`](testing.md)
 - [`wheel/testing/playwright`](testing-playwright.md)
 - [`wheel/vite`](vite.md)

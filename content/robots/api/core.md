@@ -12,7 +12,7 @@ Erased form the playground iterates over (the glob loses the generics).
 
 ## `Atom`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:59](../../../packages/wheel/src/core/services.ts#L59).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:61](../../../packages/wheel/src/core/services.ts#L61).
 
 Writable reactive cell. Reads are tracked by whatever computation reads them.
 
@@ -102,13 +102,13 @@ One named state: the stubbed shape, mount props, and an optional note.
 
 ## `ComputedAccessor`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:99](../../../packages/wheel/src/core/services.ts#L99).
+Kind: type. Source: [packages/wheel/src/core/services.ts:101](../../../packages/wheel/src/core/services.ts#L101).
 
 A plain zero-arg derivation carrying debug provenance. Returned by `computed`.
 
 ## `ComputedFor`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:88](../../../packages/wheel/src/core/services.ts#L88).
+Kind: type. Source: [packages/wheel/src/core/services.ts:90](../../../packages/wheel/src/core/services.ts#L90).
 
 A KEYED derived value: callable with arguments, one memoized node per canonical argument tuple. Unlike `computed` (a plain zero-arg derivation), this retains one live memo per distinct key until the service disposes — there is NO LRU and NO eviction, so a memo a mounted component is observing can never be silently dropped out from under it. Returned by `computedFor`.
 
@@ -126,7 +126,7 @@ The declaration surface available inside connect() callbacks.
 
 ## `ContextClient`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:235](../../../packages/wheel/src/core/services.ts#L235).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:237](../../../packages/wheel/src/core/services.ts#L237).
 
 The minimum the kernel needs from a client: a change-subscription seam. The core `ServiceContext` holds only this — it subscribes once and bumps its revision signal whenever the client reports a data change. It never subscribes queries or fires mutations; those live on the full sync client (`SyncClient`), which `SyncService` narrows to at one documented boundary. Keeping the kernel's dependency this narrow is what lets core compile with no knowledge of the sync layer.
 
@@ -168,19 +168,19 @@ Build a partial service fake for `ServiceProvider overrides` without class cerem
 
 ## `Field`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:73](../../../packages/wheel/src/core/services.ts#L73).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:75](../../../packages/wheel/src/core/services.ts#L75).
 
 Mutable cell with debug history and no reactive or immutable-state behavior.
 
 ## `freezeDeep`
 
-Kind: function. Source: [packages/wheel/src/core/services.ts:274](../../../packages/wheel/src/core/services.ts#L274).
+Kind: function. Source: [packages/wheel/src/core/services.ts:276](../../../packages/wheel/src/core/services.ts#L276).
 
 Deep-freeze a value so mutation outside the happy path throws (in strict mode) instead of silently corrupting state. Applied to every atom write — the framework depends on data being immutable, so this is on always, not just in dev. Immer's deep freeze replaces Set/Map mutators with throwing functions while preserving draft updates. Date is rejected because its internal timestamp remains mutable even when the object is frozen; store a number instead.
 
 ## `INHERIT_SCOPE`
 
-Kind: value. Source: [packages/wheel/src/core/services.ts:263](../../../packages/wheel/src/core/services.ts#L263).
+Kind: value. Source: [packages/wheel/src/core/services.ts:265](../../../packages/wheel/src/core/services.ts#L265).
 
 Marker a service class sets to opt into scope inheritance under `inheritServices: 'live'`. Core defines the symbol and reads it in `shouldInherit`; `SyncService` sets it to `true`. This is the seam that lets the kernel decide "should this class inherit through the parent scope?" WITHOUT naming the sync `SyncService` class (the layering violation the previous `instanceof SyncService` check baked in). Static fields are inherited down the constructor chain, so every `SyncService` subclass carries the marker automatically; plain `Service` subclasses never do.
 
@@ -210,7 +210,7 @@ Whether wheel's dev-only surfaces (viewRoot registration, DOM id stamps, window.
 
 ## `LatestAsyncTask`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:212](../../../packages/wheel/src/core/services.ts#L212).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:214](../../../packages/wheel/src/core/services.ts#L214).
 
 Latest-call-wins token for one service async chain. Opening a new task on the same service aborts this token and makes every pending `wait` reject.
 
@@ -234,19 +234,19 @@ Log severities, console-aligned.
 
 ## `MachineStateAccessor`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:127](../../../packages/wheel/src/core/services.ts#L127).
+Kind: type. Source: [packages/wheel/src/core/services.ts:129](../../../packages/wheel/src/core/services.ts#L129).
 
 Reactive XState snapshot read carried by a Service-owned machine.
 
 ## `MachineTransitionActions`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:107](../../../packages/wheel/src/core/services.ts#L107).
+Kind: type. Source: [packages/wheel/src/core/services.ts:109](../../../packages/wheel/src/core/services.ts#L109).
 
 Named, typed actions that send events to one Service-owned machine actor.
 
 ## `MachineTransitionCreators`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:102](../../../packages/wheel/src/core/services.ts#L102).
+Kind: type. Source: [packages/wheel/src/core/services.ts:104](../../../packages/wheel/src/core/services.ts#L104).
 
 Typed event builders exposed as named Service actions by `machine()`.
 
@@ -292,45 +292,69 @@ Kind: interface. Source: [packages/wheel/src/core/retry.ts:46](../../../packages
 
 Configuration for `retryForever` — timing always comes through the injected `Defer` (determinism doctrine).
 
+## `SERIALIZE_DEPTH`
+
+Kind: value. Source: [packages/wheel/src/core/serialize.ts:21](../../../packages/wheel/src/core/serialize.ts#L21).
+
+Maximum object/array nesting kept before values collapse to `<object>` / `<array N>`.
+
+## `SERIALIZE_KEYS`
+
+Kind: value. Source: [packages/wheel/src/core/serialize.ts:24](../../../packages/wheel/src/core/serialize.ts#L24).
+
+Maximum keys per object (or entries per array) kept before the rest is summarized.
+
+## `SERIALIZE_STRING`
+
+Kind: value. Source: [packages/wheel/src/core/serialize.ts:27](../../../packages/wheel/src/core/serialize.ts#L27).
+
+Maximum characters kept per string before the tail is replaced by a length note.
+
+## `serializeValue`
+
+Kind: function. Source: [packages/wheel/src/core/serialize.ts:33](../../../packages/wheel/src/core/serialize.ts#L33).
+
+Project any value into bounded, JSON-safe data (see the module doc for the bounds and how overflow is reported).
+
 ## `Service`
 
-Kind: class. Source: [packages/wheel/src/core/services.ts:670](../../../packages/wheel/src/core/services.ts#L670).
+Kind: class. Source: [packages/wheel/src/core/services.ts:672](../../../packages/wheel/src/core/services.ts#L672).
 
 Framework-neutral DI singleton holding reactive state. Subclasses declare fields with the protected factories; components reach them only through connect().
 
 ## `ServiceClass`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:223](../../../packages/wheel/src/core/services.ts#L223).
+Kind: type. Source: [packages/wheel/src/core/services.ts:225](../../../packages/wheel/src/core/services.ts#L225).
 
 Constructor shape every service must have — one ServiceContext argument, so the container can build any service the same way (and tests can too).
 
 ## `ServiceContext`
 
-Kind: class. Source: [packages/wheel/src/core/services.ts:335](../../../packages/wheel/src/core/services.ts#L335).
+Kind: class. Source: [packages/wheel/src/core/services.ts:337](../../../packages/wheel/src/core/services.ts#L337).
 
 Hierarchical DI container owning every service singleton, the Solid ownership root all service primitives live under, and the debug registry.
 
 ## `ServiceContextOptions`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:305](../../../packages/wheel/src/core/services.ts#L305).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:307](../../../packages/wheel/src/core/services.ts#L307).
 
 Construction options for a ServiceContext — the client it syncs through, the parent scope it inherits from, and how much of the parent it inherits.
 
 ## `ServiceMachine`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:131](../../../packages/wheel/src/core/services.ts#L131).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:133](../../../packages/wheel/src/core/services.ts#L133).
 
 One Service-owned XState actor with reactive state and named transition actions.
 
 ## `ServiceMachineOptions`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:119](../../../packages/wheel/src/core/services.ts#L119).
+Kind: type. Source: [packages/wheel/src/core/services.ts:121](../../../packages/wheel/src/core/services.ts#L121).
 
 Options for `Service.machine()`: actor input plus its public transition actions.
 
 ## `ServiceOverrideOptions`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:322](../../../packages/wheel/src/core/services.ts#L322).
+Kind: type. Source: [packages/wheel/src/core/services.ts:324](../../../packages/wheel/src/core/services.ts#L324).
 
 Explicit cleanup ownership for a service override.
 
@@ -351,6 +375,12 @@ Replace the logger's output sink. The debug layer's error capture installs one a
 Kind: function. Source: [packages/wheel/src/core/dev-mode.ts:41](../../../packages/wheel/src/core/dev-mode.ts#L41).
 
 Force dev mode on or off — overrides the bundler-derived default (tests, prod-debug opt-in).
+
+## `setWheelTap`
+
+Kind: function. Source: [packages/wheel/src/core/recorder-tap.ts:74](../../../packages/wheel/src/core/recorder-tap.ts#L74).
+
+Install (or, with `null`, remove) the process-wide recording tap. There is exactly one. Two wheel apps on the same page (a docs embed page) share it, which is why every entry carries its service name.
 
 ## `Show`
 
@@ -418,6 +448,18 @@ Kind: value. Source: [packages/wheel/src/core/runtime-defaults.ts:35](../../../p
 
 Real crypto randomness — production counterpart of the seeded test source.
 
+## `TappedAction`
+
+Kind: interface. Source: [packages/wheel/src/core/recorder-tap.ts:27](../../../packages/wheel/src/core/recorder-tap.ts#L27).
+
+One `Service.action` invocation, as the kernel saw it.
+
+## `TappedState`
+
+Kind: interface. Source: [packages/wheel/src/core/recorder-tap.ts:43](../../../packages/wheel/src/core/recorder-tap.ts#L43).
+
+One atom write that actually changed the value (`Object.is`-equal writes never reach a tap).
+
 ## `useSignal`
 
 Kind: function. Source: [packages/wheel/src/core/local-state.ts:34](../../../packages/wheel/src/core/local-state.ts#L34).
@@ -483,3 +525,15 @@ The `window.__wheel` global: per-app bridges plus sole-app conveniences.
 Kind: function. Source: [packages/wheel/src/core/connect.tsx:67](../../../packages/wheel/src/core/connect.tsx#L67).
 
 Client-backed root provider. Mount once at the app root.
+
+## `wheelTap`
+
+Kind: function. Source: [packages/wheel/src/core/recorder-tap.ts:79](../../../packages/wheel/src/core/recorder-tap.ts#L79).
+
+The installed tap, or null. Called on every action and every atom write — keep it trivial.
+
+## `WheelTap`
+
+Kind: interface. Source: [packages/wheel/src/core/recorder-tap.ts:59](../../../packages/wheel/src/core/recorder-tap.ts#L59).
+
+What an installed recorder receives. Both methods must be cheap and must never throw.

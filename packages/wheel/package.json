@@ -111,6 +111,12 @@
       "node": "./dist/node/debug/index.js",
       "import": "./dist/browser/debug/index.js"
     },
+    "./annotate": {
+      "types": "./dist/annotate/index.d.ts",
+      "bun": "./dist/node/annotate/index.js",
+      "node": "./dist/node/annotate/index.js",
+      "import": "./dist/browser/annotate/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "bun": "./dist/node/testing/index.js",

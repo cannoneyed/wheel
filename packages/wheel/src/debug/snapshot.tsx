@@ -97,6 +97,26 @@ async function tabVideo(): Promise<HTMLVideoElement> {
   return video;
 }
 
+/**
+ * Grab one viewport rectangle as a PNG data URL, through the same capture seam
+ * the marquee uses (so a test that stubbed `setSnapshotCapture` stubs this too).
+ */
+export function captureViewportRegion(rect: SelectionRect): Promise<string> {
+  return captureFrame(rect);
+}
+
+/**
+ * The cached tab-capture stream, opened on first use.
+ *
+ * Shared with the annotation layer's video clips on purpose: the browser
+ * prompts once per TAB SESSION, so two features that each opened their own
+ * stream would prompt twice for the same permission.
+ */
+export async function tabCaptureStream(): Promise<MediaStream> {
+  const video = await tabVideo();
+  return video.srcObject as MediaStream;
+}
+
 /** Wait two paint frames so DOM changes (overlay teardown) reach the screen. */
 function paintsFlushed(): Promise<void> {
   return new Promise((resolveFlushed) =>

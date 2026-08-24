@@ -17,6 +17,7 @@ export default defineConfig({
       { find: /^node:path$/, replacement: here('./src/shims/node-path.ts') },
       { find: /^wheel\/core$/, replacement: here('../wheel/src/core/index.ts') },
       { find: /^wheel\/debug$/, replacement: here('../wheel/src/debug/index.ts') },
+      { find: /^wheel\/annotate$/, replacement: here('../wheel/src/annotate/index.ts') },
       { find: /^wheel\/sync\/server$/, replacement: here('../wheel/src/sync/server/index.ts') },
       { find: /^wheel\/sync$/, replacement: here('../wheel/src/sync/index.ts') },
       { find: /^wheel\/testing$/, replacement: here('../wheel/src/testing/index.ts') },

@@ -15,6 +15,14 @@
  *   snapshot" and the agent READS THE FILES; no pasting anything anywhere.
  * - `GET /__wheel/snapshot` — capability probe; the panel enables its save
  *   button only when this answers.
+ * - `POST /__wheel/note` — the annotator's save endpoint: writes `note.md`
+ *   (what an agent reads first), `note.json` (the complete payload), and any
+ *   attachments — `shot.png`, `clip.webm`, `audio.webm` — into a per-note
+ *   directory under `noteDir`. The response carries a ready-to-paste
+ *   `read <path>/note.md` command, which the page copies to the clipboard.
+ * - `GET /__wheel/note` — capability probe, same contract as the snapshot one.
+ * - `GET /__wheel/notes` — the saved notes, newest first, so the page can put
+ *   a pin back on the component each note was left on.
  * - `GET /__wheel/identity` — which checkout is serving this. A browser suite
  *   asks before it runs a single test, so pointing it at the wrong dev server
  *   fails loudly instead of passing against code nobody changed.
@@ -29,8 +37,8 @@
  * Structurally typed against vite's plugin surface — wheel takes no vite
  * dependency; any server with a connect-style `middlewares.use` fits.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { isAbsolute, join, resolve } from 'node:path';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 import { systemClock } from '../core/runtime-defaults';
 import { assertFreshWheelFileDependency } from './file-dependency';
@@ -79,7 +87,15 @@ export interface WheelDevToolsOptions {
   readonly snapshotDir?: string;
   /** Include dev mode in a build made only for browser tests. Normal builds keep it out. */
   readonly devModeInBuild?: boolean;
+  /** Where annotation directories land; relative paths resolve against the vite root. Default `.wheel/notes`. */
+  readonly noteDir?: string;
 }
+
+/** How many saved notes `GET /__wheel/notes` returns, newest first. */
+const NOTE_LIST_LIMIT = 100;
+
+/** Largest accepted request body. A clip's video rides along as a data URL, so this is generous. */
+const MAX_BODY_BYTES = 96 * 1024 * 1024;
 
 interface SnapshotRequest {
   readonly name?: string;
@@ -91,6 +107,80 @@ interface SnapshotRequest {
 
 function sanitize(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 60) || 'snapshot';
+}
+
+/** One saved annotation, as posted by `wheel/annotate`. */
+interface NoteRequest {
+  /** Directory name — `<epoch-ms>-<slug>`, minted by the page. */
+  readonly id?: string;
+  /** The full note payload; written verbatim as `note.json`. */
+  readonly payload: unknown;
+  /** The rendered `note.md` — the file an agent reads first. */
+  readonly markdown?: string;
+  /** `data:image/png;base64,…` of the annotated region. */
+  readonly png?: string | null;
+  /** `data:video/webm;base64,…` of a clip. */
+  readonly video?: string | null;
+  /** `data:audio/webm;base64,…` of a voice note. */
+  readonly audio?: string | null;
+}
+
+/** Decode a `data:…;base64,…` URL into bytes, or null when it is not one. */
+function decodeDataUrl(value: string | null | undefined): Buffer | null {
+  if (!value) return null;
+  const marker = value.indexOf('base64,');
+  if (marker === -1) return null;
+  return Buffer.from(value.slice(marker + 'base64,'.length), 'base64');
+}
+
+/** Collect a request body, refusing anything past {@link MAX_BODY_BYTES}. */
+function readBody(
+  req: { on(event: string, cb: (chunk?: unknown) => void): void },
+  onDone: (body: string | null) => void
+): void {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  let refused = false;
+  req.on('data', (chunk) => {
+    if (refused) return;
+    const buffer = chunk as Buffer;
+    size += buffer.length;
+    if (size > MAX_BODY_BYTES) {
+      refused = true;
+      onDone(null);
+      return;
+    }
+    chunks.push(buffer);
+  });
+  req.on('end', () => {
+    if (!refused) onDone(Buffer.concat(chunks).toString('utf8'));
+  });
+}
+
+/**
+ * Every saved note, newest first — directory names start with an epoch, so
+ * sorting them descending is the whole ordering. A directory whose
+ * `note.json` is missing or unreadable is skipped rather than fatal: a
+ * half-written note must not break the pins for every other one.
+ */
+function listNotes(baseDir: string): Array<{ id: string; payload: unknown }> {
+  let entries: string[];
+  try {
+    entries = readdirSync(baseDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  } catch {
+    return [];
+  }
+  const notes: Array<{ id: string; payload: unknown }> = [];
+  for (const id of entries.sort().reverse().slice(0, NOTE_LIST_LIMIT)) {
+    try {
+      notes.push({ id, payload: JSON.parse(readFileSync(join(baseDir, id, 'note.json'), 'utf8')) });
+    } catch {
+      continue;
+    }
+  }
+  return notes;
 }
 
 /** The wheel dev-tools vite plugin (see module doc). */
@@ -133,6 +223,66 @@ export function wheelDevTools(options: WheelDevToolsOptions = {}): WheelVitePlug
           writeFileSync(join(dir, 'context.json'), `${JSON.stringify(body.context, null, 2)}\n`);
           res.statusCode = 200;
           res.end(JSON.stringify({ ok: true, dir }));
+        } catch (error) {
+          res.statusCode = 400;
+          res.end(
+            JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) })
+          );
+        }
+      });
+    });
+
+    const noteOption = options.noteDir ?? '.wheel/notes';
+    const noteBase = isAbsolute(noteOption) ? noteOption : resolve(root, noteOption);
+
+    server.middlewares.use('/__wheel/notes', (req, res) => {
+      res.setHeader('content-type', 'application/json');
+      if (req.method !== 'GET') {
+        res.statusCode = 405;
+        res.end(JSON.stringify({ ok: false, error: 'GET the saved notes' }));
+        return;
+      }
+      res.statusCode = 200;
+      res.end(JSON.stringify({ ok: true, notes: listNotes(noteBase) }));
+    });
+
+    server.middlewares.use('/__wheel/note', (req, res) => {
+      res.setHeader('content-type', 'application/json');
+      if (req.method === 'GET') {
+        res.statusCode = 200;
+        res.end(JSON.stringify({ ok: true, dir: noteBase }));
+        return;
+      }
+      if (req.method !== 'POST') {
+        res.statusCode = 405;
+        res.end(JSON.stringify({ ok: false, error: 'POST a note or GET to probe' }));
+        return;
+      }
+      readBody(req, (raw) => {
+        if (raw === null) {
+          res.statusCode = 413;
+          res.end(JSON.stringify({ ok: false, error: 'note too large' }));
+          return;
+        }
+        try {
+          const body = JSON.parse(raw) as NoteRequest;
+          const dir = join(noteBase, sanitize(body.id ?? 'note'));
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(join(dir, 'note.json'), `${JSON.stringify(body.payload, null, 2)}\n`);
+          if (body.markdown) writeFileSync(join(dir, 'note.md'), body.markdown);
+          const attachments: Array<[string, Buffer | null]> = [
+            ['shot.png', decodeDataUrl(body.png)],
+            ['clip.webm', decodeDataUrl(body.video)],
+            ['audio.webm', decodeDataUrl(body.audio)]
+          ];
+          for (const [name, bytes] of attachments) {
+            if (bytes) writeFileSync(join(dir, name), bytes);
+          }
+          // A path relative to the vite root is what a human can paste into an
+          // agent session without editing it first.
+          const command = `read ${relative(root, join(dir, 'note.md')) || join(dir, 'note.md')}`;
+          res.statusCode = 200;
+          res.end(JSON.stringify({ ok: true, dir, command }));
         } catch (error) {
           res.statusCode = 400;
           res.end(

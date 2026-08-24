@@ -25,6 +25,7 @@ import {
   createSignal,
   getOwner,
   runWithOwner,
+  untrack,
   type Accessor,
   type Owner,
   type Setter
@@ -44,6 +45,7 @@ import {
 import { canonicalParams } from './params';
 import { captureDeclSite } from './decl-site';
 import { DebugRegistry, type DebugMeta } from './debug-registry';
+import { wheelTap } from './recorder-tap';
 import {
   systemClock,
   systemDefer,
@@ -763,15 +765,38 @@ export abstract class Service {
       declaredAt: captureDeclSite()
     };
     const [get, set] = createSignal(freezeDeep(initial));
+    // The recording seam (core/recorder-tap.ts). Reading the previous value
+    // costs an untracked read, so it happens ONLY when a tap is installed —
+    // an app with no recorder pays one null check per write. `Object.is`
+    // equality mirrors the signal's own no-op rule: a write that changes
+    // nothing is not a state transition and never reaches the tap.
+    const tapState = (tap: NonNullable<ReturnType<typeof wheelTap>>, previous: T, next: T): void => {
+      if (Object.is(previous, next)) return;
+      tap.state({
+        at: this.now(),
+        service: meta.serviceName ?? '',
+        serviceId: meta.serviceId ?? '',
+        atom: meta.name,
+        previous,
+        next
+      });
+    };
     const atom: Atom<T> = {
       get,
       set: (value: T) => {
-        set(() => freezeDeep(value));
+        const tap = wheelTap();
+        const previous = tap ? untrack(get) : undefined;
+        const next = freezeDeep(value);
+        set(() => next);
+        if (tap) tapState(tap, previous as T, next);
       },
       update: (recipe) => {
+        const tap = wheelTap();
+        const previous = tap ? untrack(get) : undefined;
         // Uses the setter's prev-value form (no tracked read); produce()
         // auto-freezes its output, freezeDeep is a no-op backstop.
         set((prev) => freezeDeep(produce(prev, recipe)));
+        if (tap) tapState(tap, previous as T, untrack(get));
       },
       __debugMeta: meta
     };
@@ -894,7 +919,26 @@ export abstract class Service {
       kind: 'action',
       declaredAt: captureDeclSite()
     };
-    const wrapped = ((...args: never[]) => batch(() => fn(...args))) as unknown as F;
+    // The recording seam (core/recorder-tap.ts): actions are the only write
+    // door, so tapping here yields a complete, NAMED log of what the app did.
+    // With no tap installed the wrapper is the plain batch it always was.
+    const wrapped = ((...args: never[]) => {
+      const tap = wheelTap();
+      if (!tap) return batch(() => fn(...args));
+      const at = this.now();
+      try {
+        return batch(() => fn(...args));
+      } finally {
+        tap.action({
+          at,
+          service: meta.serviceName ?? '',
+          serviceId: meta.serviceId ?? '',
+          action: meta.name,
+          args,
+          durationMs: this.now() - at
+        });
+      }
+    }) as unknown as F;
     // The callable rides along so the bridge can invoke actions by
     // service+name — actions are the ONLY sanctioned external write door.
     registry.registerPrimitive(meta, () => `<action ${meta.name}>`, wrapped as unknown as (...args: unknown[]) => unknown);

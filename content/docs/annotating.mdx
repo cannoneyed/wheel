@@ -1,0 +1,155 @@
+---
+title: Annotating
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Annotating
+
+Leave a note on the running app, and record what the app actually did while you did it.
+
+Every other "annotate the page and send it to your agent" tool sends a screenshot, a CSS selector,
+and some text — a picture of a bug, with the cause left as an exercise. Wheel sends the cause,
+because it already owns the two doors everything goes through: actions are the only way to change
+anything, and atoms are the only way state moves. Tapping those two places yields a timeline like
+this, and an agent that reads it does not have to reproduce anything:
+
+```
++0ms     route     /board/42
++120ms   input     click → BoardCell:3-7 (x=412 y=90)
++121ms   action    BoardService.toggleCell("3-7")
++121ms   state     BoardService.selection [] → ["3-7"]
++124ms   write     cells/3-7 cause=optimistic:toggleCell
++380ms   write     cells/3-7 cause=sync-apply          ← the bug is right here
++382ms   state     BoardService.selection ["3-7"] → []
+```
+
+## Mount it
+
+```tsx
+// Excerpt: an app entry module (main.tsx).
+import { WheelApp } from 'wheel/debug';
+import { WheelAnnotate } from 'wheel/annotate';
+
+render(() => (
+  <WheelApp client={client}>
+    <YourApp />
+    <WheelAnnotate />
+  </WheelApp>
+), root);
+```
+
+A ✎ chip appears in the bottom-left corner; **⌘⇧A** (Ctrl+Shift+A) arms and disarms it, Escape
+leaves. `wheel/annotate` is a separate entry point from `wheel/debug` on purpose: a build can ship
+the annotator without the debug panel.
+
+Saving needs the dev-server endpoint, which comes from the same plugin the rich screenshots use:
+
+```ts
+// Excerpt: vite.config.ts.
+import { wheelDevTools } from 'wheel/vite';
+
+export default defineConfig({
+  plugins: [solid(), wheelDevTools({ noteDir: '.wheel/notes' })]
+});
+```
+
+## The three things you can do
+
+| | how | what you get |
+| --- | --- | --- |
+| **note** | arm, then click a component | that component's live state, props, actions, its place in the tree, and a screenshot of it |
+| **clip** | arm, ● record, do the thing, ■ stop | all of the above plus the merged timeline, a `clip.webm`, and the state tree as it was when recording started |
+| **last minute** | arm, ⏮ last minute | the same as a clip, for the thing that already happened — in dev the recorder keeps a rolling 60-second buffer, so you do not have to predict a bug to record it |
+
+The toolbar also offers **◰ region** (drag a rectangle; every component under it is captured) and
+**▭ page note** (a remark about the whole screen).
+
+Type your note, or press **🎤 talk**. Speech recognition writes a transcript you can edit before
+saving, and the audio is saved next to it as the receipt — an agent cannot listen to a recording,
+so the transcript is the deliverable and the audio is only there to check against.
+
+## What lands on disk
+
+```
+.wheel/notes/1755974400123-cell-clears/
+  note.md        ← the file to hand an agent
+  note.json      ← the complete payload
+  shot.png
+  clip.webm      (clips)
+  audio.webm     (voice notes)
+```
+
+Saving copies `read .wheel/notes/1755974400123-cell-clears/note.md` to your clipboard, so handing
+the note over is one paste. `note.md` opens with frontmatter worth grepping (id, label, url,
+anchor, viewport, duration, event count), then your note, then the timeline as a table, then the
+state that produced it. `note.json` holds the same facts unabridged — the markdown is a projection
+of it and the two can never disagree.
+
+## Anchors survive change
+
+A note is anchored to a component **instance id** — `BoardCell:3-7` — not a CSS selector, because
+wheel already forces those ids to be stable (`require-stable-instance-name` makes a component with
+an identity prop name itself from that prop, so the id follows the data and never shifts when a
+list reorders).
+
+When the code changes underneath a note, re-finding the target degrades in tiers rather than
+failing:
+
+| tier | what happened | result |
+| --- | --- | --- |
+| exact | the id is still mounted | the pin lands on it |
+| renamed | the id is gone, but exactly one component of that NAME is mounted | the pin lands on it, marked renamed |
+| renamed | several share the name | the one whose enclosing components best match the recorded ancestors |
+| orphaned | nothing matches | the pin greys out and keeps its rectangle, screenshot and captured state |
+
+<Aside kind="note">
+  An orphan is a finding, not a failure. The note still says what was wrong and still carries the
+  state that produced it — what it no longer knows is where that thing lives now.
+</Aside>
+
+## What a clip records
+
+Everything, by default. Each stream can be turned off, but the default is maximal capture:
+
+| stream | where it comes from |
+| --- | --- |
+| actions (service, name, arguments, duration) | the kernel tap on `Service.action` |
+| state transitions (atom, before → after) | the kernel tap on `Atom.set` / `.update` |
+| input (click, key, pointer, focus, scroll) | capture-phase listeners, each mapped to the component that owns the element |
+| sync writes | the client's provenance log — already recorded, harvested by timestamp |
+| errors | the capture buffer — already recorded, with source-mapped stacks |
+| route changes | `popstate` / `hashchange`, so it works without wheel's router |
+| network | a `fetch` wrapper: method, url, status, round-trip |
+| video | the same tab-capture stream the rich screenshots use — one browser prompt per tab session |
+
+Three things keep a recording from becoming the bug:
+
+- **Values are diffed.** An object-to-object change is stored as the top-level keys that differ,
+  not two whole copies, and everything goes through wheel's bounded projection.
+- **Hot atoms coalesce.** Writes to one atom within 80ms collapse into a single entry that keeps
+  the first value, the latest value, and a count — a 400-frame drag is one line saying `×400`.
+- **Causes come before effects.** The kernel can only time an action when it returns, so the
+  recorder inserts it ahead of the writes it produced. A timeline never prints an effect above its
+  cause.
+
+Wheel's own debug services are excluded, so a recording never fills up with the act of recording.
+
+<Aside kind="note">
+  <strong>The cost when nothing is recording is one null check</strong> per action call and per
+  atom write. Nothing is timed, cloned, or serialized until a recorder installs itself
+  (`core/recorder-tap.ts`).
+</Aside>
+
+## Why the timeline is replayable in principle
+
+A clip stores its actions with serialized arguments, and the state tree as it was when recording
+started. Since actions are the only write door — the same door `__wheel.act()` uses — and wheel's
+clock and scheduler are already injectable seams, a recorded clip carries everything a re-drive
+would need. That is not built yet; it is why clips capture what they capture.
+
+## Next
+
+- [Debugging](#/debugging) — the panel, the bridge, error capture, and rich screenshots.
+- [Components](#/components) — the directives that make every component findable and anchorable.
+- [Testing](#/testing) — the harness `wheelDriver` runs against.

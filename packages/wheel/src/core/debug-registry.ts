@@ -263,6 +263,18 @@ export class DebugRegistry {
     return id;
   }
 
+  /**
+   * A registered service's state-tree group (`app`, `framework`, `debug`, or a
+   * custom string), by the id stamped on its primitives' `DebugMeta`.
+   *
+   * A cheap Map read on purpose: the annotation recorder calls it on every
+   * tapped write to drop wheel's OWN debug services from the timeline — a
+   * recorder that records itself is noise, not evidence.
+   */
+  serviceGroup(serviceId: string): string | undefined {
+    return this.services.get(serviceId)?.group;
+  }
+
   /** Removes one disposed service from the shared context-tree graph. */
   removeService(id: string): void {
     this.services.delete(id);

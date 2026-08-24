@@ -13,6 +13,7 @@
  *   sync/server   ← may use sync, core
  *   kit           ← may use core and components (never sync — verified per file)
  *   debug         ← may use core, sync (it renders the client's surfaces)
+ *   annotate      ← may use core, sync, debug (it reuses the picker and capture)
  *   testing       ← may use sync, sync/server, core
  *
  * Nothing in the type system enforces the arrows. A `core/` file that writes
@@ -65,6 +66,7 @@ function layerOf(srcRelPath) {
   if (p.startsWith('kit/')) return 'kit';
   if (p.startsWith('router/')) return 'router';
   if (p.startsWith('debug/')) return 'debug';
+  if (p.startsWith('annotate/')) return 'annotate';
   if (p.startsWith('testing/')) return 'testing';
   return null;
 }
@@ -84,6 +86,7 @@ const ALLOWED_EDGES = {
   'sync/server': new Set(['auth', 'sync', 'core']),
   kit: new Set(['core', 'components']),
   debug: new Set(['core', 'sync']),
+  annotate: new Set(['core', 'sync', 'debug']),
   testing: new Set(['sync', 'sync/server', 'core'])
 };
 
@@ -98,6 +101,7 @@ const WHEEL_SUBPATH_LAYER = {
   'wheel/kit': 'kit',
   'wheel/router': 'router',
   'wheel/debug': 'debug',
+  'wheel/annotate': 'annotate',
   'wheel/testing': 'testing'
 };
 

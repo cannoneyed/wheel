@@ -17,6 +17,7 @@
 import { viewRoot } from 'wheel/core';
 import { ContextMenuSystem, DialogSystem, KeyboardSystem } from 'wheel/kit';
 import { WheelApp } from 'wheel/debug';
+import { WheelAnnotate } from 'wheel/annotate';
 
 import { demoClient } from '../shared/utils/demo-client';
 import { DemoStage } from '../shared/components/demo-stage';
@@ -38,6 +39,7 @@ export function GraphDemo() {
       <KeyboardSystem />
       <ContextMenuSystem />
       <DialogSystem />
+      <WheelAnnotate />
     </WheelApp>
   );
 }

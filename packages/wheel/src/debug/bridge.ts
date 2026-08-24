@@ -51,6 +51,7 @@ import type {
   WheelGlobal
 } from '../core/bridge-contract';
 import { isWheelDevMode } from '../core/dev-mode';
+import { serializeValue } from '../core/serialize';
 
 import { InspectorService } from './inspector';
 import { activeErrorLog } from './error-capture';
@@ -66,57 +67,6 @@ export type {
   WheelBridgeApp,
   WheelGlobal
 } from '../core/bridge-contract';
-
-const SERIALIZE_DEPTH = 6;
-const SERIALIZE_KEYS = 100;
-const SERIALIZE_STRING = 500;
-
-/**
- * Best-effort JSON projection: bounded depth, bounded fan-out, truncated
- * strings, Map/Set flattened, functions and circulars named instead of
- * followed. The bridge trades perfect fidelity for "always returns, always
- * serializable".
- */
-function serializeValue(value: unknown, depth = SERIALIZE_DEPTH, seen = new WeakSet<object>()): unknown {
-  if (value === null || value === undefined) return null;
-  const type = typeof value;
-  if (type === 'string') {
-    const text = value as string;
-    return text.length > SERIALIZE_STRING ? `${text.slice(0, SERIALIZE_STRING)}…(${text.length} chars)` : text;
-  }
-  if (type === 'number' || type === 'boolean') return value;
-  if (type === 'bigint') return `${String(value)}n`;
-  if (type === 'function') return `<fn ${(value as { name?: string }).name || 'anonymous'}>`;
-  if (type !== 'object') return String(value);
-  const obj = value as object;
-  if (seen.has(obj)) return '<circular>';
-  if (depth <= 0) return Array.isArray(obj) ? `<array ${obj.length}>` : '<object>';
-  seen.add(obj);
-  try {
-    if (Array.isArray(obj)) {
-      const head = obj.slice(0, SERIALIZE_KEYS).map((item) => serializeValue(item, depth - 1, seen));
-      if (obj.length > SERIALIZE_KEYS) head.push(`…+${obj.length - SERIALIZE_KEYS} more`);
-      return head;
-    }
-    if (obj instanceof Set) return serializeValue([...obj], depth, seen);
-    if (obj instanceof Map) {
-      return serializeValue(Object.fromEntries([...obj.entries()].map(([k, v]) => [String(k), v])), depth, seen);
-    }
-    const out: Record<string, unknown> = {};
-    let count = 0;
-    for (const [key, nested] of Object.entries(obj)) {
-      if (count >= SERIALIZE_KEYS) {
-        out['…'] = 'truncated';
-        break;
-      }
-      out[key] = serializeValue(nested, depth - 1, seen);
-      count += 1;
-    }
-    return out;
-  } finally {
-    seen.delete(obj);
-  }
-}
 
 function rectOf(elements: ReadonlySet<Element>): { rect: BridgeRect | null; rects: BridgeRect[] } {
   const rects: BridgeRect[] = [];

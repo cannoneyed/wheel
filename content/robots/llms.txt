@@ -19,6 +19,7 @@ Use `README.md` as the primary index. Source declarations and tests override pro
 - [Components](components.md): Connections, views, props, directives, and tests.
 - [Component library](component-library.md): Component families, deep entries, selectors, and styles.
 - [Debugging](debugging.md): Panel, bridge, driver, errors, snapshots, and component states.
+- [Annotating](annotating.md): Notes on a running app, and recordings of the actions and state changes behind them.
 - [Patterns](patterns.md): Global systems, isolation, and imperative runtime wrappers.
 - [Routing](routing.md): Route trees, params, search, history, and errors.
 - [Framing](framing.md): Resizable regions, persistence, docking, and gestures.

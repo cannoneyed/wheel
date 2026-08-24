@@ -94,6 +94,7 @@ export default defineConfig(({ mode }) => {
           ...componentInputs,
           'router/index': source('router/index.ts'),
           'debug/index': source('debug/index.ts'),
+          'annotate/index': source('annotate/index.ts'),
           'testing/index': source('testing/index.ts'),
           ...(nodeBuild ? { 'testing/playwright': source('testing/playwright.ts') } : {}),
           'vite/index': source('vite/index.ts')

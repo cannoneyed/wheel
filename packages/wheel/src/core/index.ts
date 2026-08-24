@@ -75,6 +75,19 @@ export type {
   WheelBridgeApp,
   WheelGlobal
 } from './bridge-contract';
+export {
+  serializeValue,
+  SERIALIZE_DEPTH,
+  SERIALIZE_KEYS,
+  SERIALIZE_STRING
+} from './serialize';
+export {
+  setWheelTap,
+  wheelTap,
+  type TappedAction,
+  type TappedState,
+  type WheelTap
+} from './recorder-tap';
 export { canonicalParams, CanonicalParamsError } from './params';
 export { captureDeclSite } from './decl-site';
 export {

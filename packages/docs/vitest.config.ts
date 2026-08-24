@@ -23,6 +23,7 @@ export default defineConfig({
       { find: /^wheel\/kit$/, replacement: here('../wheel/src/kit/index.ts') },
       { find: /^wheel\/router$/, replacement: here('../wheel/src/router/index.ts') },
       { find: /^wheel\/debug$/, replacement: here('../wheel/src/debug/index.ts') },
+      { find: /^wheel\/annotate$/, replacement: here('../wheel/src/annotate/index.ts') },
       { find: /^wheel\/testing$/, replacement: here('../wheel/src/testing/index.ts') },
       { find: /^wheel\/vite$/, replacement: here('../wheel/src/vite/index.ts') },
       { find: /^wheel\/styles$/, replacement: here('../wheel/src/styles/tokens.css') }

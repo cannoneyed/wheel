@@ -363,6 +363,39 @@ behavior('SHELL-22', 'a console.error is captured with an id, shown in the panel
   await expect(strict.find('TodoList')).rejects.toThrow(/second boom/);
 });
 
+// behavior: SHELL-23
+behavior('SHELL-23', 'annotation mode picks a component and holds its live state in the draft', async (b) => {
+  await openTodos(b);
+  const wheel = wheelDriver(b.page);
+  await wheel.settle();
+
+  await b.click('arm annotation mode', b.page.getByTestId('wheel-annotate-chip'));
+  await expect(b.page.getByTestId('wheel-annotate-shield')).toBeVisible();
+
+  // The shield sits over the app on purpose (a press must reach the picker,
+  // never the UI beneath it), so the pick is a real click at the component's
+  // position rather than a click on its locator.
+  const stage = await b.page.locator('.demo-stage').boundingBox();
+  expect(stage).not.toBeNull();
+  await b.step('pick the component under the cursor', () =>
+    b.page.mouse.click(stage!.x + stage!.width / 2, stage!.y + stage!.height / 2)
+  );
+
+  await expect(b.page.getByTestId('wheel-annotate-composer')).toBeVisible();
+
+  // The draft is app state like any other, so the bridge can read it: the note
+  // already carries the anchor AND what that component held.
+  const services = await wheel.state();
+  const draft = services
+    .find((entry) => entry.service === 'AnnotateService')
+    ?.primitives.find((primitive) => primitive.name === 'draft')?.value as
+    | { anchor?: { instanceId?: string }; target?: { state?: Record<string, unknown> } }
+    | null
+    | undefined;
+  expect(draft?.anchor?.instanceId).toBeTruthy();
+  expect(draft?.target?.state).toBeTruthy();
+});
+
 // behavior: SHELL-17
 behavior('SHELL-17', 'an unmatched URL replaces the whole tree with the not-found page', async (b) => {
   await b.goto('/nope/nope');

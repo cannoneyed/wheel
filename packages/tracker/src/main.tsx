@@ -1,6 +1,7 @@
 /** Axle entry: theme tokens, the client, the provider, the shell. */
 import { render } from 'solid-js/web';
 import { WheelApp } from 'wheel/debug';
+import { WheelAnnotate } from 'wheel/annotate';
 
 import './styles/tokens.css';
 import { trackerClient } from './utils/tracker-client';
@@ -10,6 +11,7 @@ render(
   () => (
     <WheelApp client={trackerClient()}>
       <AppShell />
+      <WheelAnnotate />
     </WheelApp>
   ),
   document.getElementById('root')!
