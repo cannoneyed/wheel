@@ -1,0 +1,189 @@
+---
+title: Patterns
+---
+
+import { Diagram } from '@docs/components/Diagram';
+import { CodeExample } from '@docs/components/CodeExample';
+import contextMenuSource from '@docs/examples/patterns/context-menu.tsx?example';
+import dialogsSource from '@docs/examples/patterns/dialogs.tsx?example';
+
+# Patterns
+
+Four situations every app hits have one Wheel answer each: context menus, dialogs, sandboxing a component, and wrapping an imperative core like a text editor or a WebGL scene.
+
+## Context menus
+
+A kanban card wants a right-click menu. Three demands pull in different directions:
+
+1. **Globally aware** — one menu open app-wide. Opening this card's menu closes any other.
+2. **Globally connected** — the menu composes any service: delete through `BoardService`, close through `ContextMenuService`.
+3. **Locally concerned** — it must know *which* card, with whatever local data the trigger site holds.
+
+The answer is three layers. Every snippet below is live code from the kanban demo (`packages/demos/src/kanban`).
+
+**Layer 1 — declare the menu at the trigger site** with the `use:contextMenu` directive: an id and a lazy `menu` thunk. Closed menus mount **nothing** — the directive is one event listener plus one service registration, torn down when the element goes away. 500 cards means 500 listeners and zero mounted menus:
+
+```tsx
+// Excerpt: inside a connected card component.
+import { contextMenu } from 'wheel/kit'; // used via use: below
+
+<article
+  onClick={() => state.toggleSelected(props.card.id)}
+  use:contextMenu={{ id: `card:${props.card.id}`, menu: () => <CardContextMenu cardId={props.card.id} /> }}
+>
+```
+
+**Layer 2 — the menu content is an ordinary connected component.** No menu schema, no item data model: props and services, like every other component. It uses a per-instance connect name so each card's menu gets its own registry manifest, and `view()` writes the shape (both covered in [Components](#/components)):
+
+<CodeExample example={contextMenuSource} />
+
+Because it is an ordinary component, all three stub tiers apply unchanged: stub the shape and render the menu alone, fake `BoardService` for a subtree, or open it against the real engine. Nothing bespoke to menus.
+
+**Layer 3 — mount `<ContextMenuSystem />` once at the root.** It owns everything global: the portal, positioning (`@floating-ui/dom` — flip and shift keep the panel on screen; element anchors track scroll and resize, pointer anchors close on scroll like native menus), the scrim, Escape, focus entry/restore, and Arrow/Home/End/Enter navigation. Native buttons and links become roving `menuitem`s. `ContextMenuService` holds one scalar `open` atom — opening a menu IS closing the previous one, so single-open is true by construction, and the debug panel shows which menu is open and where.
+
+<Diagram
+  direction="LR"
+  nodes={[
+    { id: 'trigger', label: 'use:contextMenu', sub: 'trigger site, per card', kind: 'component' },
+    { id: 'svc', label: 'ContextMenuService', sub: 'open: scalar atom', kind: 'service' },
+    { id: 'system', label: 'ContextMenuSystem', sub: 'portal · position · scrim · Escape', kind: 'component' },
+    { id: 'menu', label: 'CardContextMenu', sub: 'ordinary connected component', kind: 'component' },
+    { id: 'board', label: 'BoardService', kind: 'service' }
+  ]}
+  edges={[
+    { from: 'trigger', to: 'svc', label: 'registers id + thunk' },
+    { from: 'svc', to: 'system', label: 'openId' },
+    { from: 'system', to: 'menu', label: 'renders in portal' },
+    { from: 'menu', to: 'board', label: 'connect' }
+  ]}
+  caption="The trigger site declares; the service enforces single-open; the system renders; the content connects like any component."
+/>
+
+### Why a directive instead of a ref prop
+
+The obvious sketch — `<div ref={el}>` then `<ContextMenu attachElement={el}>` — silently fails. `el` is a bare identifier, so the compiler passes its **value at JSX-creation time** (bare identifiers can't be wrapped in tracking getters), and refs assign later, during render: the child receives `undefined`, forever. Solid's own answer for "attach behavior to an existing element" is the directive — `use:contextMenu` calls your function with the real DOM element. No wrapper element, no ref plumbing, no timing trap possible.
+
+Directives work on native elements only. For a component root — or if you prefer components — the `<ContextMenu>` fallback wraps the trigger surface, same machinery underneath:
+
+```tsx
+// Excerpt: id and CardContextMenu are declared by the feature.
+<ContextMenu id={`card:${id}`} menu={() => <CardContextMenu cardId={id} />}>
+  <SomeCardComponent />
+</ContextMenu>
+```
+
+### Capturing the owner
+
+The open menu's DOM lands at `document.body` (portal, top z-index layer). Its *context* comes from the trigger site: the directive captures its Solid owner where it's declared, and the system renders the menu content under that owner inside the portal. WheelContext and any scoped service overrides in scope at the card — all still visible to the menu even though its DOM moved. That is the whole mechanism: **the system owns rendering, the trigger site owns meaning.**
+
+## Dialogs
+
+One service, three doors into it.
+
+**Door one: the built-ins.** Most dialogs are a question with a yes/no answer, and the API should be exactly that small. `DialogService` ships promise-returning built-ins — `confirm` and `alert` — rendered by generic kit views. This is the kanban demo's bulk-delete flow, verbatim:
+
+<CodeExample example={dialogsSource} region="confirm" />
+
+`confirm` resolves `true` on confirm and `false` on cancel — or on scrim click, Escape, or replacement by another dialog, so the awaiting code never dangles. Options cover `title`, `confirmLabel`, `cancelLabel`, and `danger` (styles the confirm button as destructive). `dialogs.alert('Saved.', { title: 'Done' })` is the one-button sibling: it resolves when acknowledged, dismissed, or replaced.
+
+**Door two: custom content, imperatively.** When the dialog is more than a message, write an ordinary component — plain JSX, styled however your app styles things — and open it with `openDialog(id, Component, props)`. The props parameter is typed against the component, and local data and callbacks arrive through the props closure:
+
+<CodeExample example={dialogsSource} region="custom-dialog" />
+
+`closeDialog(id)` closes only if that id is the open dialog, so a stale handler can't dismiss whatever replaced it; `close()` closes unconditionally. Imperative opens happen in event handlers — there is no Solid owner to capture there — so the content renders at the **root** context. It can still `connect()` to any service; what it can't see is subtree-local context.
+
+**Door three: custom content, declaratively.** `<Dialog id content={...}/>` mounts nothing — it registers the content thunk with the service and captures its Solid owner, exactly like `use:contextMenu`. `dialogService.open(id)` then renders the content with the *declaration site's* full context:
+
+```tsx
+// Excerpt: scopedItem and ItemDetailsDialog belong to the feature.
+<ServiceProvider
+  overrides={[{ original: ItemService, replacement: scopedItem, ownership: 'caller' }]}
+>
+  <Dialog id="item-details" content={() => <ItemDetailsDialog />} />
+</ServiceProvider>
+
+// Anywhere: dialogService.open('item-details')
+```
+
+This is the door that matters when the dialog content needs subtree context — a scoped service override — that only exists where the dialog conceptually belongs, not at the root. The DOM still lands in the portal at `document.body`; capturing the owner (above) carries the meaning along. If the id was never declared, `open(id)` throws rather than silently no-oping.
+
+**Mount `<DialogSystem />` once at the root.** Like `<ContextMenuSystem />`, it owns everything global: the portal, the scrim (clicking it dismisses; clicks inside the panel don't), Escape, and focus. Opening moves focus to the first control, Tab stays inside, and closing restores the previous element through `FocusService`'s shared overlay stack. Nested overlays unwind in order. `DialogService` holds one scalar `open` atom, so one dialog at a time is true by construction — opening a second dialog dismisses and replaces the first — and `openId` is inspectable in the debug panel.
+
+Dialog ids, context-menu ids, command ids, and shortcut ids are unique within one service context. A duplicate throws immediately and names both registration sites. Cleanup removes only the exact registration that created it.
+
+**Which flavor when:**
+
+- **Component-flavored** (context menus; focus and keyboard scopes): the content is arbitrary JSX fed by local data — declare it at the trigger site, let one system own the global bits.
+- **Data-flavored** (command palette): the thing is a record — a command — that wants to be searched and invoked headlessly. Service plus host.
+- **Dialogs are honestly both.** `confirm`/`alert` are data-flavored — a message and options in, a promise out, drivable headlessly in tests. Custom dialogs are component-flavored — arbitrary JSX, opened imperatively with typed closure props or declared in the tree for subtree context. One service, both grips.
+
+### The other kit systems
+
+The same split carries the rest of `wheel/kit`'s built-ins:
+
+- **FocusService** (component-flavored): `use:focusScope={{ id: 'board' }}` marks named focus
+  regions; `activeScopePath` is an atom holding every scope containing the focus, innermost first,
+  so you read it as `focus.activeScopePath.get()`. (`activeScope` is the computed for the
+  innermost one alone.) Its overlay stack owns focus entry, Tab containment, and LIFO restoration.
+- **KeyboardService** (component-flavored): `register({ id: 'palette.toggle', key: 'mod+k', run, scope? })` — combos
+  parse `mod`/`ctrl`/`alt`/`shift`, scoped bindings fire innermost-scope-first then global,
+  editable targets are skipped unless a binding opts in, and open overlays suppress app
+  shortcuts unless `inOverlays` is explicit. The whole matching pipeline is a headless
+  `dispatch(event)` action. `<KeyboardSystem/>` is one document listener feeding it;
+  `bindingsFor(scope)` makes the active shortcut table auditable data.
+- **CommandPaletteService** (data-flavored — commands genuinely ARE data): services register
+  commands in their constructors (`registerCommand` + `addCleanup`), `search(query)` ranks
+  headlessly, and `<CommandPaletteSystem/>` binds mod+k, renders an ARIA combobox/listbox,
+  and runs the selection.
+- **ToastService** (data-flavored): lifecycle timers use the owning context clock/scheduler,
+  and reusing an id cancels that id's whole previous timer generation. `<ToastSystem/>`
+  announces updates through a polite live region; each toast is focusable and dismissible
+  with Enter or Space.
+
+## The three stub tiers
+
+Every component can be sandboxed at exactly the depth you need:
+
+| Tier | Mechanism | When |
+| --- | --- | --- |
+| 1 — Stub the shape | `<StubProvider stubs={[stubOf(connectTodoList, { rows, remaining, add, toggle })]}>` — no other providers needed at all | Pure view work, visual states, fixtures |
+| 2 — Fake the services | `<ServiceProvider overrides={[{ original: TodoService, replacement: fakeService(TodoService, {...}), ownership: 'caller' }]}>` | Deep trees; every self-connecting descendant sees the fakes |
+| 3 — Real engine, seeded | `WheelProvider` with a World-backed client (native SQLite in tests; SQLite WASM in the browser playground) | Full integration: sync, undo, menus, presence |
+
+Those four Tier-1 fields are the four `connectTodoList` declares, and they have to be exactly those four: `stubOf` is typed against the connect declaration, so an extra field or a missing one is a compile error. The manifest IS the mock. Export the connection from the component's file so a test in another file can reach it — the [Components](#/components) page shows the whole test.
+
+The playground (`bun run playground`) mounts a sample component all three ways; add entries to `packages/playground/src/sandboxes.tsx`.
+
+## Wrapping an imperative core
+
+Some UI cannot be declarative: a rich-text editor owns its own document, a WebGL scene owns its
+own render loop. Wheel wraps these instead of fighting them. Two demos are the reference
+implementations — the editor (`packages/demos/src/editor/`, TipTap: discrete events, a flush
+hook for uncommitted keystrokes) and the graph (`packages/demos/src/graph/`, three.js: a
+continuous `requestAnimationFrame` loop over mutable buffers). Read whichever is closer to your
+core; both follow the same rules:
+
+1. **The handle stays out of atoms.** `Atom.set` deep-freezes every value, so an
+   `AudioContext`, editor instance, or `Float32Array` buffer dies inside one. Handles live in a
+   plain `let` in the component or a plain `private` field in a service.
+2. **Data *about* the core lives in atoms** — selection, counts, status — so the debug bridge,
+   tests, and a DOM sidebar can see what the canvas knows.
+3. **Attach with an element-taking factory** — `createGraphCanvas(element, opts): { dispose() }`
+   — never a ref prop.
+4. **Each direction crosses on one boundary.** Reactive → imperative is one `createEffect` with
+   a written reason that patches minimally, its diff computed by a pure, unit-tested module.
+   Imperative → reactive goes through named actions and mutations only.
+5. **High-frequency ephemera ride presence** (`coalesceMs`), and the one real change commits as
+   one undoable mutation — a drag streams peer cursors, `pointerup` writes the pin.
+6. **Tear down explicitly**: one `AbortController` for listeners, `dispose()` in `onCleanup`.
+
+A render loop gets one extra discipline: it reads a plain-field snapshot each frame and never
+touches a tracked signal — a loop that tracks re-renders itself forever. The graph demo's
+`renderer.ts` header documents the pattern.
+
+## Next
+
+- [Components](#/components) — `connect()`, `view()`, and the manifest the stub tiers are typed against.
+- [Framing](#/framing) — resizable regions, the other global surface a shell needs.
+- [Testing](#/testing) — the harness behind Tier 2 and Tier 3.
+- [Debugging](#/debugging) — component states files and the playground these patterns render in.

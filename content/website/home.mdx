@@ -1,0 +1,176 @@
+---
+title: 'wheel — the web toolkit for the agentic era'
+description: 'Wheel is the batteries-included framework for building apps on Durable Objects with agents.'
+---
+
+{/*
+  THE HOME PAGE. Every word on wheel.dev's landing scroll is in this file —
+  headline, section labels, prose, list rows, button labels, page title.
+  Editing copy never means opening a .tsx.
+
+  The components below are layout only (src/sections/). Two MDX rules to know:
+  1. Markdown inside a JSX block needs a BLANK LINE above and below it.
+  2. Do not indent that markdown — leading spaces turn it into a code block.
+
+  `title`/`description` above are the page metadata. index.html carries the
+  same two strings for crawlers; keep them in sync by hand.
+*/}
+
+import { AgentInstall, Ctas, DemoGrid, Hero, ItemList, LiveDemo, Section, Snippet } from '@website/sections';
+import ConnectSnippet from './snippets/connect.mdx';
+import MutationSnippet from './snippets/mutation.mdx';
+import ComputedSnippet from './snippets/computed.mdx';
+import LintSnippet from './snippets/lint.mdx';
+
+<Hero>
+
+# The framework for agents
+
+Wheel is a batteries-included framework for building apps on [Durable Objects](https://www.cloudflare.com/products/durable-objects/) using agents.
+
+- **Powerful primitives** [Solid.js](https://www.solidjs.com/), [signals](https://docs.solidjs.com/concepts/signals), [immutable state](https://github.com/immerjs/immer), and [state machines](https://github.com/statelyai/xstate).
+- **Local-first sync engine** optimized for [Durable Objects](https://www.cloudflare.com/products/durable-objects/), backed by SQLite.
+- **Strict conventions** for managing state and fighting complexity.
+- **Incredible dev tools** optimized for working with agents. 
+- **Batteries-included** with app-level functionality (e.g. routing, keyboard commands), building-blocks (e.g. context menus, command palette), layout, and a customizable component library.
+
+
+<AgentInstall
+  prompt="ask your agent to get started"
+  copy="Read {origin}/install.md and set up wheel in this project."
+  copyLabel="Copy"
+  copiedLabel="Copied"
+  linkLabel="Read install.md →"
+  href="/install.md"
+/>
+
+<Ctas
+  links={[
+    { label: 'Docs for humans', to: 'docs', primary: true },
+    { label: 'Docs for agents', to: 'robotDocs' },
+    { label: 'See it in action', to: 'demos' }
+  ]}
+/>
+
+</Hero>
+
+<Section title="A new era">
+
+Alan Kay coined the term "object-oriented" and then spent thirty years saying nobody understood him. His objects were supposed to be whole computers. Isolated, addressable, talking only by message. He called it _recursion on the notion of computer itself_ — computers all the way down.
+
+This idea needed a computer per object, but it was never really practical - until now.
+
+[**Durable Objects**](https://www.cloudflare.com/products/durable-objects/) make *computers* cheap and **agents** make *software* cheap.
+
+Wheel is optimized for building these "object applications": a document, a spreadsheet, a canvas, or a single widget, each running on its own Durable Object with its own state.
+
+It's an opinionated framework for the agentic era - a world where every widget is a website.
+
+</Section>
+
+<Section title="Optimized for agentic work.">
+
+Most existing web frameworks were optimized for people, but Wheel is optimized for agents.
+
+Wheel's bet: **constraints.** One way to hold state (services + signals). One way to change it (actions and mutations). One way for a component to read it (`connect()`). And one way for agents to access and understand everything about the application at runtime. Everything enforced through rules.
+
+</Section>
+
+<Section title="One door to state.">
+
+Global singleton services own every piece of shared state. Components get exactly one `connect()` that declares — by name — everything they read. This makes components extremely _modular_ and _composable_ - components can trivially be dropped anywhere in the app or moved to isolated sandboxes / playgrounds.
+
+<Snippet of={ConnectSnippet} />
+
+Because every read is declared, the debugger can track where all state came from and how it's mutated. Data is immutable by default, and everything is visible to the developer and agent.
+
+</Section>
+
+<Section title="Local-first. Server-authoritative. No merge magic.">
+
+Every write is a named mutation with an optimistic handler that runs against the local cache instantly. Go offline and writes queue in a durable outbox; come back and they replay in order.
+
+<Snippet of={MutationSnippet} />
+
+No CRDTs, no conflict-resolution puzzles — the server is the truth and the protocol is simple enough to read in an afternoon. The backend is optimized for [Durable Objects](https://www.cloudflare.com/products/durable-objects/) using SQLite.
+
+<LiveDemo label="Live demo">
+
+Two clients, one server, right on this page. Type in one pane, watch the other. Pull the plug, keep typing, plug it back in.
+
+</LiveDemo>
+
+</Section>
+
+<Section title="Every value has a name. Every write has a cause.">
+
+State lives in atoms and computeds — observable signals the framework can enumerate, trace, and replay. Derived values are computed, never copied, so they can't go stale:
+
+<Snippet of={ComputedSnippet} />
+
+A drop-in debug panel renders the entire state tree of a running app and the cause of every write. When an agent (or you) asks "why is this value 3?", the answer is on screen — not reconstructed from console.log archaeology.
+
+</Section>
+
+<Section title="The rules are machines, not review comments.">
+
+Every convention above ships as a lint rule, and every rule file opens with the story of the real bug it prevents. Zero errors is the only passing state. Escapes are in-file pragmas with a written reason — never a glob carve-out.
+
+<Snippet of={LintSnippet} />
+
+This is what makes the whole thing agent-proof: an agent can't drift out of the architecture, because the architecture is a build failure. When a new failure mode shows up, the fix is a new rule — the framework gets stricter as it ages, not looser.
+
+</Section>
+
+<Section title="Stop reinventing the wheel.">
+
+The point isn't that these modules exist — every framework has a grab bag. The point is that they all obey the same rules, so an agent extending your command palette works exactly the way it did extending your data model.
+
+<ItemList
+  variant="battery-list"
+  items={[
+    {
+      name: 'Undo / redo',
+      text: 'Falls out of the sync layer: mutations declare their inverses, undo is a mutation.'
+    },
+    {
+      name: 'Keyboard & focus',
+      text: 'Shortcuts register in one auditable table with when-clauses, not scattered listeners.'
+    },
+    {
+      name: 'Routing',
+      text: 'URL state flows through the same services and atoms as everything else.'
+    },
+    {
+      name: '38 component families',
+      text: 'Forms, navigation, overlays, and display primitives ship with an opt-in default theme.'
+    },
+    {
+      name: 'Presence & config',
+      text: 'Who else is here, and typed app configuration, on the same sync engine.'
+    }
+  ]}
+/>
+
+</Section>
+
+<Section title="Get rolling">
+
+<AgentInstall
+  prompt="ask your agent to get started"
+  copy="Read {origin}/install.md and set up wheel in this project."
+  copyLabel="Copy"
+  copiedLabel="Copied"
+  linkLabel="Read install.md →"
+  href="/install.md"
+/>
+
+<Ctas
+  links={[
+    { label: 'Getting started →', to: 'docs', primary: true },
+    { label: 'Browse components', to: 'components' },
+    { label: 'Star on GitHub', to: 'github' }
+  ]}
+/>
+
+</Section>

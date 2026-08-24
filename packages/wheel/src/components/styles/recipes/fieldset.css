@@ -1,0 +1,35 @@
+/* ========================================================================
+ * RECIPE: Fieldset — groups a legend with related Field composites
+ * (data-disabled contract)
+ *
+ * Pattern notes:
+ *  - Root strips the native `<fieldset>` chrome and re-lays it out as a
+ *    plain flex column; Legend reads as a small section heading with a
+ *    hairline rule underneath (the same `--wheel-component-border-strong` divider used
+ *    by Tabs.List, but static rather than sliding).
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Fieldset-Root {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--wheel-component-space) * 4);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .wheel-Fieldset-Legend {
+    padding-bottom: calc(var(--wheel-component-space) * 2);
+    border-bottom: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    font-size: var(--wheel-component-text-lg);
+    line-height: var(--wheel-component-text-lg--lh);
+    font-weight: 500;
+    letter-spacing: var(--wheel-component-tracking-heading);
+    color: var(--wheel-component-fg);
+  }
+
+  .wheel-Fieldset-Legend[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+  }
+}

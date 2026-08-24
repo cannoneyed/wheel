@@ -1,0 +1,22 @@
+{
+  "name": "wheel-tracker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "bun run server.ts"
+  },
+  "dependencies": {
+    "marked": "^15.0.0",
+    "solid-js": "^1.9.0",
+    "wheel": "workspace:@cannoneyed/wheel@*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}

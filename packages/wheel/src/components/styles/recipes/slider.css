@@ -1,0 +1,104 @@
+/* ========================================================================
+ * RECIPE: Slider — track/indicator/thumb (data-dragging contract)
+ *
+ * Pattern notes:
+ *  - Slider.Root lays out its optional label and value. Control owns the
+ *    measured interaction geometry.
+ *  - Track/Indicator/Thumb/Control all share Root's state, so `data-dragging`,
+ *    `data-orientation`, and `data-disabled` are available flat on each.
+ *  - The library sets Indicator's size/position and Thumb's cross-axis
+ *    offset inline (measured geometry); the recipe only supplies surfaces.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Slider-Root {
+    display: inline-grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: calc(var(--wheel-component-space) * 1) calc(var(--wheel-component-space) * 3);
+  }
+
+  .wheel-Slider-Label {
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    font-weight: 500;
+  }
+
+  .wheel-Slider-Value {
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+  }
+
+  .wheel-Slider-Control {
+    --wheel-component-slider-track-size: 0.25rem;
+    --wheel-component-slider-thumb-size: 1rem;
+
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    width: 14rem;
+    grid-column: 1 / -1;
+    padding-block: calc(var(--wheel-component-space) * 3);
+    touch-action: none;
+    user-select: none;
+  }
+
+  .wheel-Slider-Control[data-orientation='vertical'] {
+    width: auto;
+    height: 14rem;
+    flex-direction: column;
+    padding-block: 0;
+    padding-inline: calc(var(--wheel-component-space) * 3);
+  }
+
+  .wheel-Slider-Control[data-disabled] {
+    cursor: not-allowed;
+  }
+
+  .wheel-Slider-Track {
+    position: relative;
+    width: 100%;
+    height: var(--wheel-component-slider-track-size);
+    border-radius: 9999px;
+    background: var(--wheel-component-bg-sunken);
+  }
+
+  .wheel-Slider-Track[data-orientation='vertical'] {
+    width: var(--wheel-component-slider-track-size);
+    height: 100%;
+  }
+
+  .wheel-Slider-Indicator {
+    border-radius: inherit;
+    background: var(--wheel-component-accent);
+  }
+
+  .wheel-Slider-Indicator[data-disabled] {
+    background: var(--wheel-component-fg-subtle);
+  }
+
+  .wheel-Slider-Thumb {
+    box-sizing: border-box;
+    width: var(--wheel-component-slider-thumb-size);
+    height: var(--wheel-component-slider-thumb-size);
+    border-radius: 9999px;
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    box-shadow: var(--wheel-component-shadow-rest);
+    transition:
+      scale var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
+      box-shadow var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Slider-Thumb[data-dragging] {
+    scale: 1.15;
+    box-shadow: var(--wheel-component-shadow-elevated);
+  }
+
+  .wheel-Slider-Thumb[data-disabled] {
+    border-color: var(--wheel-component-fg-subtle);
+    background: var(--wheel-component-bg-hover);
+    box-shadow: none;
+  }
+}

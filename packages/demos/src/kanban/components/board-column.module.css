@@ -1,0 +1,28 @@
+/* One kanban column. */
+
+.column {
+  background: var(--wheel-bg-soft);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-lg);
+  padding: 12px;
+  min-width: 0; /* shrink with the track — grid items default to min-width:auto */
+
+  /* Narrow viewports scroll the board sideways (board.module.css); this is the
+     stop each swipe lands on. Harmless at any other width. */
+  scroll-snap-align: start;
+}
+
+.title {
+  margin: 0 0 10px;
+  /* The uppercase mono micro-label — the design language's signature. */
+  font: 700 var(--wheel-ui-xs) / 1 var(--wheel-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--wheel-ink-muted);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

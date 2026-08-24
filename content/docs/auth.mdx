@@ -1,0 +1,185 @@
+---
+title: Auth & authorization
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Auth & authorization
+
+Wheel learns who is making a request from one function you write: it takes an HTTP `Request` and returns the caller's identity.
+
+Every read and write downstream is scoped to that one answer — which rows a query returns, who a mutation is attributed to, which writes are refused.
+
+The answer is a **principal**, and it is three strings:
+
+```ts
+// Excerpt: the whole identity type, from wheel/auth.
+interface AuthPrincipal {
+  readonly actor: string;       // 'user:ada' — who is writing
+  readonly workspaceId: string; // the one workspace this server owns
+  readonly sessionId: string;   // the login that owns this browser tab
+}
+```
+
+Wheel never reads a principal out of a request body. The client cannot claim to be someone else, because the client is never asked.
+
+## Write an authenticator
+
+`defineAuthenticator` wraps your verification function. Return a principal, or `null` for "no session here."
+
+A demo authenticator trusts headers and verifies nothing:
+
+```ts
+// Excerpt: a DEMO authenticator — trusted headers, no verification at all.
+import { defineAuthenticator } from 'wheel/auth';
+
+export const demoAuth = defineAuthenticator((request) => {
+  const userId = request.headers.get('x-demo-user');
+  const sessionId = request.headers.get('x-demo-session');
+  return userId && sessionId
+    ? { actor: `user:${userId}`, workspaceId: 'acme', sessionId }
+    : null;
+});
+```
+
+That one is a fixture, not a login. Anyone who can set a header is anyone they like. It exists so a demo can switch users from a dropdown — the reference app (`packages/tracker/server/auth.ts`) ships it under `mode === 'demo'` and throws at boot in production mode when no session URL is configured.
+
+The production shape delegates to whatever already knows your users, then runs the reply through `validateAuthPrincipal`:
+
+```ts
+// Excerpt: production — verification lives in your session service, not in Wheel.
+export const auth = defineAuthenticator(async (request) => {
+  const response = await fetch(SESSION_URL, {
+    headers: { cookie: request.headers.get('cookie') ?? '' },
+    signal: request.signal
+  });
+  if (response.status === 401 || response.status === 403) return null;
+  if (!response.ok) throw new Error(`Session verifier: HTTP ${response.status}`);
+  return validateAuthPrincipal(await response.json());
+});
+```
+
+`validateAuthPrincipal` checks all three fields are non-empty strings and returns a frozen object. A malformed reply throws a `TypeError` at the boundary instead of failing three layers in. Call it on anything that crossed a network hop.
+
+## Wire it into the sync server
+
+`authenticateSyncSocket` requires an authenticator. There is no unauthenticated mode:
+
+```ts
+// Excerpt: server.ts — authenticate before accepting the WebSocket.
+const authenticated = await authenticateSyncSocket(request, {
+  workspaceId: 'acme',
+  authenticator: auth
+});
+if (!authenticated.ok) return authenticated.response;
+
+// Pass authenticated.handshake to the runtime WebSocket upgrade.
+```
+
+Three things happen at that boundary, before your code sees anything:
+
+| Condition | Result |
+| --- | --- |
+| Authenticator returns `null` | **401** `unauthenticated` |
+| Malformed principal | the `TypeError` from `validateAuthPrincipal`, logged as an internal failure |
+| `principal.workspaceId` is not this handler's `workspaceId` | **403** `workspace_forbidden` |
+
+One server owns one workspace, so there are no cross-tenant reads. The authenticated principal stays attached to that WebSocket. Message bodies cannot replace it.
+
+Native browser WebSockets send same-origin cookies during the upgrade. They cannot set an `Authorization` header. For cross-origin identity, exchange the session for a short-lived, one-use ticket. Send that ticket as a query parameter.
+
+Authentication lasts for the WebSocket lifetime. Close the socket after logout, session revocation, or an identity change. The next connection runs the authenticator again.
+
+<Aside kind="note">
+  <strong>Wheel does not do authentication.</strong> No sessions, no password hashing, no OAuth,
+  no cookies, no user table, no login UI. Bring your own — Auth.js, Clerk, WorkOS, a session
+  endpoint you already run — and adapt it in the four lines above. The authenticator is the only
+  place Wheel asks who the caller is, and <code>wheel/auth</code> is a leaf module that imports
+  nothing else in the package.
+</Aside>
+
+## The principal in query handlers
+
+Every query handler receives the principal of the subscription it is answering. In the `sql` form it is the second argument. Subscriptions are keyed by query name, params, **and** principal, so two users asking the same question with the same params never share one subscription's rows.
+
+The `where` clause is the boundary:
+
+```ts
+// Excerpt: inbox.server.ts in sugar form — the WHERE clause is the boundary.
+serveQuery({
+  query: notificationsInbox,
+  sql: (params, principal) =>
+    sql`select id, kind, created_at as "createdAt" from notifications
+        where user_id = ${params.userId}
+          and ${params.userId} = ${principal.actor.replace(/^user:/, '')}`,
+  rerunOn: ['notifications']
+});
+```
+
+Read the second condition carefully. `params.userId` comes from the client and is not trusted; `principal.actor` came from the authenticator and is. The comparison makes asking for someone else's inbox return zero rows instead of their mail.
+
+The explicit `handler` form also gets `ctx.principal` inside `run`, and `subscribe(params, invalidate, principal)` gets it for push channels.
+
+## The principal in mutation handlers
+
+Mutation handlers get the identity flattened onto `ctx`: `ctx.actor`, `ctx.workspaceId`, `ctx.sessionId`. Scope the write by `ctx.actor`, never by `args`:
+
+```ts
+// Excerpt: inbox.server.ts — scope the write by ctx.actor, never by args.
+const actorId = ctx.actor.replace(/^user:/, '');
+for (const update of args.updates) {
+  await tx.sql`update notifications set read_at = ${update.readAt}
+               where id = ${update.notificationId} and user_id = ${actorId}`;
+}
+```
+
+`args` is client data. `ctx.actor` is not. Every `where` clause that decides *whose* row is being written uses `ctx.actor`.
+
+## `prune` is an optimization
+
+A `SqlQueryHandler` can add a `prune` predicate. When a table named in `rerunOn` is written, the engine offers each touched row's before/after images to `prune`; if no image passes, the re-run is skipped.
+
+```ts
+// Excerpt: activity.server.ts — raw table shape (snake_case), not the projected row.
+prune: (image, params) =>
+  (image.n?.issue_id ?? image.o?.issue_id) === params.issueId
+```
+
+Without it, one user commenting on issue A re-runs the activity query of every client watching issue B. Those re-runs return the same rows and emit nothing, so nothing leaks either way — `prune` buys back the wasted work, it does not decide what anyone sees. The SQL `where` clause does that.
+
+Two rules follow:
+
+- **Check both images.** A row that moves out of your set only shows the old value in `image.o`. Miss it and the client goes stale — pruning too hard is a correctness bug.
+- **`rowImages: true` is required** on `createSyncServer` (pruning falls back to re-running whenever images are missing — external writes, overflow).
+
+<Aside kind="warning">
+  <code>prune</code> receives the raw <strong>table</strong> row — snake_case columns, exactly as
+  stored — not the camelCase row your query projects. Reading <code>image.n?.issueId</code>
+  silently yields <code>undefined</code>, the predicate returns false for everything, and the
+  query stops updating. It compiles, and the failure shows up as "the feed froze."
+</Aside>
+
+## Business rules
+
+Authorization is also "is this write allowed right now." Throw `rejection(code, message)` from a server handler and the client rolls the optimistic change back and settles the mutation as `rejected`, with your code and message intact.
+
+One guard, shared by every handler that edits an issue:
+
+```ts
+// Excerpt: issues.server.ts — one guard, shared by every handler that edits an issue.
+async function requireActive(tx: ServerTx, issueId: string): Promise<void> {
+  const [row] = await tx.sql<{ archivedAt: number | null }>`
+    select archived_at as "archivedAt" from issues where id = ${issueId}`;
+  if (!row) throw rejection('missing', 'This issue no longer exists.');
+  if (row.archivedAt !== null)
+    throw rejection('archived', 'This issue is archived — unarchive it first.');
+}
+```
+
+Each handler starts with `await requireActive(tx, args.issueId)`. The guard is a plain async function, so a new handler adopts the whole rule by calling it. `rejection` builds a value: you must `throw` it. See [Names and errors](#/reference) for the four mutation outcomes.
+
+## Next
+
+- [Production](#/production) — health checks, rate limits, and config that refuses demo defaults.
+- [Server handlers](#/server) — where queries and mutations run.
+- [A Real App](#/real-app) — `packages/tracker/server/auth.ts` read alongside the rest of the server.

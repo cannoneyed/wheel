@@ -1,0 +1,12 @@
+.page {
+  height: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.locating {
+  padding: 32px;
+  color: var(--ink-muted);
+  text-align: center;
+}

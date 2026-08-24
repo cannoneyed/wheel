@@ -1,0 +1,13 @@
+:root {
+  --catalog-page-bg: #f4f4f5;
+}
+
+body {
+  padding: 32px;
+  background: var(--catalog-page-bg);
+}
+
+.component-catalog {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}

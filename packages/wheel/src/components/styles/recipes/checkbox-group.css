@@ -1,0 +1,22 @@
+/* ========================================================================
+ * RECIPE: CheckboxGroup — single-part layout wrapper for a set of checkboxes
+ * (data-disabled contract)
+ *
+ * Pattern notes:
+ *  - Single-part component: class is `wheel-CheckboxGroup`. It has no visual
+ *    chrome of its own (no border/background) — it only lays out the
+ *    `Checkbox.Root`s and their labels, which is why it stays this thin.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-CheckboxGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(var(--wheel-component-space) * 2);
+  }
+
+  .wheel-CheckboxGroup[data-disabled] {
+    opacity: 0.6;
+  }
+}

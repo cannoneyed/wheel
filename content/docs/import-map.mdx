@@ -1,0 +1,108 @@
+---
+title: Import Map
+---
+
+import { Aside } from '@docs/components/Aside';
+import { Diagram } from '@docs/components/Diagram';
+
+# Import Map
+
+Wheel exposes runtime, testing, lint, and CSS subpaths. The table below gives what each JavaScript subpath holds.
+
+You install `wheel` and import from `wheel/core`, `wheel/sync`, and so on — never `@wheel/core`. One install, one version, no skew between co-designed surfaces.
+
+| Subpath | Holds | Import when you are… |
+| --- | --- | --- |
+| `wheel/auth` | Provider-neutral principals, authenticators, and validation | Binding application authentication to the WebSocket upgrade |
+| `wheel/config` | Zod-backed JSON configuration and bootstrap/fetch/URL sources | Loading validated application configuration before boot |
+| `wheel/core` | `Service` (its `field`, `atom`, `computed`, `computedFor`, `machine`, `action` members), `connect`, `view`, `useSignal`, `WheelProvider`, `ServiceProvider`, the stubbing exports (`stubOf`, `fakeService`, `StubProvider`), `retryForever` | Writing services, components, tests |
+| `wheel/sync` | Declarations (`table`, `query`, `mutation`, `patchMutation`, `presence`), `t` (schema), `sql`, `rejection`/`orphan`, `SyncClient`, `SyncService`, `createWebSocketTransport`, `IndexedDbCache`/`MemoryCache` | Declaring synced data; building the client and services |
+| `wheel/sync/server` | `createSyncServer`, `serveQuery`, `serveMutation`, `SyncSocketServer`, `authenticateSyncSocket`, the `SyncBackend` interface, and SQLite backends | Booting the server; binding `*.server.ts` files |
+| `wheel/sync/server/cloudflare` | Runtime-neutral engine, Durable Object SQLite backend, WebSocket server, and migration runner | Building a Durable Object without Node or Bun imports |
+| `wheel/sync/server/testing` | `runBackendConformance` and its runtime-neutral harness contract | Testing a custom sync backend against Wheel's backend rules |
+| `wheel/kit` | `Keyboard`, `Focus`, `Dialog`, `Command Palette`, `Context Menu`, `Toasts` (each a service + system + directive), plus `Frame` layout and `Scrollbar` | Adding ready-made UI surfaces and app-shell geometry |
+| `wheel/router` | `createRouter`, `RouterService`, `<Outlet/>`, typed `<Link>`, `matchUrl`/`buildUrl`, memory/browser history | Path routing where the URL is an atom and search params are Zod-typed |
+| `wheel/debug` | `WheelApp` (the app root wrapper), `WheelDebugPanel`, `InspectorService` + `InspectorSystem` | Wrapping your root; mounting the debug panel / on-screen inspector |
+| `wheel/testing` | `World`, `simulate`, `wheelDriver`, deterministic clocks and ids | Writing engine-backed tests and Playwright driving scripts |
+| `wheel/testing/playwright` | `createBehaviorHarness`, recorded browser actions, configurable hosts and setup | Testing browser gestures and external-SDK races |
+| `wheel/vite` | `wheelDevTools` — the dev-server plugin behind rich snapshots, plus esbuild `keepNames` | Configuring `vite.config.ts` |
+| `wheel/eslint` | The plain ESM Wheel lint plugin and its rule map | Configuring `eslint.config.mjs` |
+
+`wheel/styles` is CSS only: `@import 'wheel/styles'` in a stylesheet pulls in the `--wheel-*` design tokens. See [Project Layout](#/project-layout).
+
+<Aside kind="note">
+  Names split by role. <strong>The engine's plumbing is <code>Sync*</code></strong> —
+  <code>SyncClient</code>, <code>SyncService</code>, <code>SyncServerError</code>, the{' '}
+  <code>/sync/*</code> routes. <strong>The reactive views your UI reads keep{' '}
+  <code>live</code></strong> — <code>liveQuery</code>, <code>liveQueryFor</code>,{' '}
+  <code>LiveQueryView</code> — because "live" is what one query's rows are to a component.
+</Aside>
+
+<Aside kind="warning">
+  <strong>Names you cannot import.</strong> The members below are protected methods, not module
+  exports. Importing them by name resolves to nothing.
+  <br />
+  <code>field</code>, <code>atom</code>, <code>computed</code>, <code>computedFor</code>,{' '}
+  <code>machine</code>, and <code>action</code> live on <code>Service</code> — write{' '}
+  <code>this.field(...)</code> or <code>this.atom(...)</code> inside a service.
+  <code>liveQuery</code>, <code>liveQueryFor</code>, <code>clientRead</code>, and{' '}
+  <code>clientReadFor</code> live on <code>SyncService</code> — write{' '}
+  <code>this.liveQuery(...)</code>. <code>searchAtom</code> is the same shape one layer over: a
+  method on the <code>RouterService</code> subclass <code>createRouter</code> hands you, so you
+  call <code>router.searchAtom(...)</code>.
+</Aside>
+
+## The layering DAG
+
+The Wheel-owned state surfaces form a directed acyclic graph. A file may import only from the layers **below** its own — the `no-cross-layer-imports` lint rule turns any up-edge into an error the instant it is written. `auth` and `config` import nothing internal at all; `router` and `vite` reach down to `core` and stop there. Applications compose all four at boot.
+
+<Diagram
+  direction="TB"
+  nodes={[
+    { id: 'debug', label: 'wheel/debug', sub: 'reads core + sync', kind: 'tool' },
+    { id: 'testing', label: 'wheel/testing', sub: 'on sync + server', kind: 'tool' },
+    { id: 'auth', label: 'wheel/auth', sub: 'trust contracts', kind: 'tool' },
+    { id: 'config', label: 'wheel/config', sub: 'Zod + JSON sources', kind: 'tool' },
+    { id: 'vite', label: 'wheel/vite', sub: 'build-time plugin', kind: 'tool' },
+    { id: 'router', label: 'wheel/router', sub: 'URL as an atom', kind: 'component' },
+    { id: 'server', label: 'wheel/sync/server', sub: 'engine + SQLite adapters', kind: 'server' },
+    { id: 'sync', label: 'wheel/sync', sub: 'client + declarations', kind: 'client' },
+    { id: 'kit', label: 'wheel/kit', sub: 'UI batteries', kind: 'service' },
+    { id: 'core', label: 'wheel/core', sub: 'the kernel — bottom', kind: 'store' }
+  ]}
+  edges={[
+    { from: 'sync', to: 'core' },
+    { from: 'kit', to: 'core' },
+    { from: 'router', to: 'core' },
+    { from: 'vite', to: 'core' },
+    { from: 'server', to: 'sync' },
+    { from: 'debug', to: 'sync' },
+    { from: 'debug', to: 'core' },
+    { from: 'testing', to: 'server' },
+    { from: 'testing', to: 'sync' }
+  ]}
+  caption="Every arrow points down to core; auth and config import nothing internal."
+/>
+
+Read it in one breath:
+
+1. **`auth` and `config` import nothing internal; `router` and `vite` reach down to `core` only.** Auth defines trust data and config owns boot-time JSON. Router holds the URL in an atom on a Service, so it needs `core` — and nothing above it. `wheel/vite` runs in your build, not your app, and touches `core` only for the shared clock.
+2. **`core` is the bottom of Wheel state.** It depends only on `solid-js` and `immer`. Nothing in `core` imports `sync`, `kit`, `server`, `debug`, or `testing`.
+3. **`sync` and `kit` are siblings on `core`.** `kit` needs `core` only, **never `sync`** — the batteries are local UI-state services, not synced data.
+4. **`server` sits on `sync`.** It owns database drivers and may consume auth contracts; it never reaches the browser.
+5. **`debug` and `testing` read downward.** Debug reads core + sync. The World harness uses core + sync + server.
+
+## Two files per feature
+
+A synced feature is a pair, by convention:
+
+| File | Imports from | Holds |
+| --- | --- | --- |
+| `feature.sync.ts` | `wheel/sync` | Tables, queries, mutations — the declarations both sides compile against |
+| `feature.server.ts` | `wheel/sync/server` | SQL and authoritative handlers, never bundled for the browser |
+
+## Next
+
+- [Getting Started](#/getting-started) — both files, end to end.
+- [Architecture](#/architecture) — why the layers sit in this order.
+- [Linting](#/linting) — the `no-cross-layer-imports` rule that enforces the DAG.

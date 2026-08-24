@@ -1,0 +1,64 @@
+/* ========================================================================
+ * RECIPE: Switch — exemplar for binary controls (data-checked contract)
+ *
+ * Pattern notes for recipe authors (human or agent):
+ *  - Knobs (--wheel-component-switch-*) at the top of Root; geometry derives from them.
+ *  - State selectors are FLAT: `.wheel-Switch-Root[data-checked]`, top level.
+ *  - The library emits state attributes on every part, so the Thumb keys
+ *    off its own [data-checked] — no descendant selectors needed.
+ *  - No focus styles here: the global ring in base.css covers it.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Switch-Root {
+    --wheel-component-switch-width: 2.25rem;
+    --wheel-component-switch-height: 1.375rem;
+    --wheel-component-switch-pad: 2px;
+
+    display: inline-flex;
+    align-items: center;
+    width: var(--wheel-component-switch-width);
+    height: var(--wheel-component-switch-height);
+    padding: var(--wheel-component-switch-pad);
+    border-radius: 9999px;
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border);
+    background: var(--wheel-component-bg-sunken);
+    transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Switch-Root[data-checked] {
+    background: var(--wheel-component-accent);
+    border-color: transparent;
+  }
+
+  .wheel-Switch-Root[data-disabled] {
+    background: var(--wheel-component-bg-hover);
+    cursor: not-allowed;
+  }
+
+  .wheel-Switch-Thumb {
+    aspect-ratio: 1;
+    height: 100%;
+    border-radius: 9999px;
+    background: var(--wheel-component-bg-elevated);
+    box-shadow: var(--wheel-component-shadow-rest);
+    translate: 0 0;
+    transition: translate var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
+  }
+
+  .wheel-Switch-Thumb[data-checked] {
+    /* Deliberate on-accent contrast in both schemes (white on deep green in
+     * light; near-black on bright green in dark, the operate.so pairing). */
+    background: var(--wheel-component-accent-fg);
+    translate:
+      calc(
+        var(--wheel-component-switch-width) - var(--wheel-component-switch-height)
+      )
+      0;
+  }
+
+  .wheel-Switch-Thumb[data-disabled] {
+    background: var(--wheel-component-fg-subtle);
+    box-shadow: none;
+  }
+}

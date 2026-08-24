@@ -1,0 +1,180 @@
+---
+title: Production
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Production
+
+Shipping a Wheel app takes two build artifacts, four things the server process must do, and somewhere for errors to go once real users arrive.
+
+A deployed Wheel app is two artifacts:
+
+1. `vite build` → `dist/` — HTML, JS, CSS. Put it on any static host or CDN.
+2. `bun run server.ts` — the sync server. One process owns one workspace and one database.
+
+The client uses one WebSocket at `/sync/websocket`. Everything else about your hosting is your own.
+
+## The server process
+
+`packages/tracker/server.ts` is the reference, and it is 212 lines. Four things in it are not optional in production.
+
+**Health checks.** `/healthz` answers "the process is alive." `/readyz` answers "the database answers," which is the one a load balancer should gate traffic on:
+
+```ts
+// Excerpt: server.ts — readiness proves the database answers, not just the process.
+if (request.method === 'GET' && url.pathname === '/healthz') return json({ ok: true });
+if (request.method === 'GET' && url.pathname === '/readyz') {
+  try {
+    driver.all('select 1');
+    return json({ ok: true });
+  } catch {
+    return json({ ok: false, error: { code: 'not_ready' } }, 503);
+  }
+}
+```
+
+**Graceful shutdown, exactly once.** A container gets `SIGTERM`, then often a second signal. Memoize the shutdown promise so the second one waits on the first instead of closing a half-closed engine:
+
+```ts
+// Excerpt: server.ts — the memoized promise makes a second signal a no-op.
+let shutdownPromise: Promise<void> | null = null;
+const shutdown = (signal: string) => {
+  shutdownPromise ??= (async () => {
+    await httpServer.stop(true);
+    await live.close(); // SyncServer owns and closes the driver exactly once
+  })();
+  return shutdownPromise;
+};
+```
+
+Register it with `process.once('SIGTERM', …)` and `process.once('SIGINT', …)`. Do not close the SQLite driver yourself — `close()` on the server already did, and a second close throws.
+
+**WebSocket hardening.** Cap each message and rate-limit each connection. `SyncSocketServer` applies both limits before it runs an operation:
+
+```ts
+// Excerpt: server.ts — limits belong to the WebSocket session layer.
+const sockets = new SyncSocketServer({
+  server: live,
+  applicationVersion: TRACKER_APPLICATION_VERSION,
+  schemaVersion: TRACKER_MIGRATIONS.length,
+  maxMessageBytes: config.maxBodyBytes,
+  messagesPerMinute: config.requestsPerMinute
+});
+```
+
+The limit state lives in the WebSocket attachment. Durable Object hibernation does not reset it. One noisy tab does not throttle other tabs behind the same network address.
+
+**Sanitized errors.** `SyncSocketServer({ detailedErrors: true })` is a development setting. Keep it off in production, so internal messages do not cross the wire.
+
+## Server config
+
+Read the environment once, validate it with Zod, and make production *fail to boot* rather than start with an in-memory database and a header-trusting authenticator:
+
+```ts
+// Excerpt: server/config.ts — production refuses the demo defaults.
+const Environment = z.object({
+  TRACKER_MODE: z.enum(['demo', 'production']).default('demo'),
+  TRACKER_DATABASE_FILENAME: z.string().trim().min(1).optional()
+}).superRefine((value, context) => {
+  if (value.TRACKER_MODE !== 'production') return;
+  if (!value.TRACKER_DATABASE_FILENAME || value.TRACKER_DATABASE_FILENAME === ':memory:')
+    context.addIssue({ code: 'custom', path: ['TRACKER_DATABASE_FILENAME'],
+      message: 'must name a persistent SQLite file in production mode' });
+});
+```
+
+The tracker guards three settings this way: a persistent database file, an explicit workspace id, and a session-verification URL. A crash on boot naming the field is the cheapest possible failure. Honor `PORT` too — that is how most supervisors assign one.
+
+<Aside kind="note">
+  <strong>Server config and client config are different systems.</strong> This is
+  <code>process.env</code>, read once, in a process you control. The browser's config —
+  <code>wheel/config</code>, its sources, and its precedence rules — is a separate system, and
+  secrets must never cross into it. See <a href="#/configuration">Configuration</a>.
+</Aside>
+
+## Deploying under a base path
+
+Serving the app at `/app/` instead of `/` takes two coordinated changes.
+
+1. Build with the prefix: `base: '/app/'` in `vite.config.ts` (the demos read it from an env var so one config serves both shapes).
+2. Override the router's history so it strips that prefix:
+
+```tsx
+// Excerpt: main.tsx — the router follows the build's base path.
+import { basedHistoryOverride } from 'wheel/router';
+
+const base = import.meta.env.BASE_URL; // '/' or '/app/'
+render(() => (
+  <ServiceProvider overrides={base === '/' ? [] : [basedHistoryOverride(base)]}>
+    <appRouter.Root />
+  </ServiceProvider>
+), document.getElementById('root')!);
+```
+
+`basedHistory` wraps the real browser history: routes still match `/settings`, the address bar shows `/app/settings`, and `<Link>` writes the prefixed href. Skip the override when the base is `/` (it returns the inner history unchanged anyway).
+
+The host needs one more rule: **every unmatched path under the base must serve `index.html`**. Path routing means `/app/issues/abc` is a real URL a user can reload or paste, and without the fallback the host 404s a file that was never emitted. `vite preview` applies this rule, which is why the browser suites run against it; on Netlify, Vercel, Caddy, or nginx it is one rewrite line.
+
+## The no-backend option
+
+There is a third deployment shape with no server process at all. Wheel's real server engine runs on WASM SQLite inside a SharedWorker. The sync protocol uses `postMessage`. One engine per origin lets tabs sync with each other and share presence.
+
+Two interfaces make this a proxy rather than a port: `SqliteDriver` (three synchronous calls) and `SyncTransport` (six async methods). Build it with `VITE_SYNC_MODE=browser vite build`. This is how a static site hosts fully live demos.
+
+Databases are `:memory:` and die with the last tab, so it suits demos, offline sandboxes, and single-visitor tools — not shared data. Read `packages/demos/src/shared/in-browser/README.md` for the design and its planned OPFS persistence.
+
+## Observability
+
+Wheel logs through one door: `logger` from `wheel/core`. Install a sink and every `logger.warn` and `logger.error` in your app and in the framework passes through your function on its way to the console:
+
+```ts
+// Excerpt: main.tsx — route warnings and errors to your backend and the console.
+import { setLoggerSink } from 'wheel/core';
+
+setLoggerSink((level, parts) => {
+  if (level === 'warn' || level === 'error') {
+    void fetch('/telemetry', { method: 'POST', body: JSON.stringify({ level }) });
+  }
+  console[level](...parts);
+});
+```
+
+Your sink owns the console call. Forget it and the logs stop printing.
+
+For uncaught exceptions and rejected promises too, use the capture buffer instead. `startErrorCapture()` is idempotent, installs the window handlers *and* the logger sink itself, and returns a 100-entry ring buffer you can subscribe to:
+
+```ts
+// Excerpt: main.tsx — one buffer for throws, rejections, and logger calls.
+import { startErrorCapture, formatEntry } from 'wheel/debug';
+
+const log = startErrorCapture();
+log.subscribe(() => {
+  const latest = log.entries().at(-1);
+  if (latest?.level === 'error') void fetch('/telemetry', { method: 'POST', body: formatEntry(latest) });
+});
+```
+
+`formatEntry` renders one entry as a single pasteable block — id, level, source, message, stack. `activeErrorLog()` returns the same buffer from anywhere, or `null` if nothing has installed capture yet. Stack frames resolve back to original sources in dev builds, so entries read `board-service.ts:87` instead of `chunk-ab12.js:1:48213`.
+
+<Aside kind="warning">
+  <strong>Order matters: <code>startErrorCapture</code> installs the logger sink.</strong>
+  Calling <code>setLoggerSink</code> after it replaces that sink, and the buffer silently stops
+  receiving <code>logger.warn</code> and <code>logger.error</code> — uncaught throws still land,
+  so it looks like it works. Pick one: subscribe to the buffer, or install your own sink and
+  forward to it.
+</Aside>
+
+<Aside kind="note">
+  <strong>Schema and migrations are a separate page.</strong> Wheel does not generate or migrate
+  application schema; the versioned-migration pattern — a <code>{'{version, name, statements}'}</code>
+  list applied in one transaction against a bookkeeping table — is covered in
+  <a href="#/server-advanced">Server handlers in depth</a>.
+</Aside>
+
+## Next
+
+- [Auth](#/auth) — the authenticator `authenticateSyncSocket` requires.
+- [Configuration](#/configuration) — the browser's validated boot config.
+- [Server handlers in depth](#/server-advanced) — migrations, backends, ownership.
+- [A Real App](#/real-app) — the tracker server read file by file.

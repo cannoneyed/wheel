@@ -1,0 +1,197 @@
+---
+title: State
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import { Diagram } from '@docs/components/Diagram';
+import { RegistryDemo } from '@docs/components/RegistryDemo';
+import keyedStateSource from '@docs/examples/state/keyed-state.ts?example';
+
+# State
+
+Every shared value lives on a service as one of four kernel primitives. You declare each one as a class field, and a write reaches the screen through the readers that tracked it.
+
+| Kernel primitive | What it is | Underneath |
+| --- | --- | --- |
+| `atom` | A writable value: `set` replaces, `update` drafts | `createSignal` + immer |
+| `computed` | A plain derived value (no arguments) | one `createMemo` |
+| `computedFor` | A keyed derived value, called with arguments | one `createMemo` per argument tuple; explicit `release(...args)` or service disposal |
+| `action` | A function whose writes flush together | `batch` |
+
+`atom` holds a writable value:
+
+```ts
+// Excerpt: inside a Service class body. Read it as this.filter.get().
+readonly filter = this.atom<string | null>(null, 'filter');
+```
+
+`computed` derives one value from other primitives. It takes no arguments:
+
+```ts
+// Excerpt: inside a Service class body. Read it as this.visible().
+readonly visible = this.computed(() => {
+  const filter = this.filter.get();
+  return filter
+    ? this.cards.get().filter((card) => card.tags.includes(filter))
+    : this.cards.get();
+});
+```
+
+`computedFor` derives one value per key. You call it with the key:
+
+```ts
+// Excerpt: inside a Service class body. Read it as this.cardById('card-1').
+readonly cardById = this.computedFor((id: string) =>
+  this.cards.get().find((card) => card.id === id)
+);
+```
+
+`action` groups writes into one flush. Readers re-run once, not once per write:
+
+```ts
+// Excerpt: inside a Service class body.
+readonly focus = this.action((cardId: string) => {
+  this.selected.set(cardId);
+  this.filter.set(null);
+});
+```
+
+All four in one service:
+
+<CodeExample example={keyedStateSource} />
+
+Nested changes go through `update` — an immer draft, so you write plain mutations and get a new immutable value with structural sharing (untouched branches keep identity, so memos over them don't re-run):
+
+```ts
+// Excerpt: inside service actions with doc, selected, and id in scope.
+this.doc.update((draft) => {
+  draft.meta.views += 1;          // one line, however deep
+});
+this.selected.update((draft) => {
+  draft.add(id);                  // Set/Map work in drafts too
+});
+```
+
+<Aside kind="note">
+  <strong>A <code>computed</code> that only forwards one atom or one liveQuery view is an
+  anti-pattern.</strong> <code>readonly cardRows = this.computed(() =&gt; this.cards.rows)</code>
+  is an unchecked mirror — it adds a memo, a name, and a place to drift, and derives nothing.
+  Expose <code>cards</code> and <code>filter</code> directly; a component reads them in
+  <code>view()</code> with <code>() =&gt; svc.cards.rows</code>. Keep <code>computed</code> for
+  real transformation (like <code>visible</code> above), never for renaming.
+</Aside>
+
+## Server-backed state
+
+`SyncService` adds two reactive views on top of the four kernel primitives, plus a keyed helper for each. They are helpers, not new kernel machinery.
+
+| `SyncService` view | What it exposes | Invalidation |
+| --- | --- | --- |
+| `liveQuery` | Rows + status for one server subscription | the context's client revision |
+| `clientRead` | A memoized read of non-signal client bookkeeping | the context's client revision |
+
+| Keyed helper | What it creates | Lifetime |
+| --- | --- | --- |
+| `liveQueryFor` | one `liveQuery` per string key | explicit `release(key)` / `clear()`, or service disposal |
+| `clientReadFor` | one `clientRead` memo per argument tuple | explicit `release(...args)` / `clear()`, or service disposal |
+
+All four are `protected` methods on `SyncService`. You call them as `this.liveQuery(...)` inside a service; there is nothing to import from `wheel/sync` by those names:
+
+```ts
+// Excerpt: inside a SyncService — boardCards a query declaration, cursors a presence declaration.
+readonly list     = this.liveQuery(boardCards, { boardId: 'inbox' });
+readonly cardsFor = this.liveQueryFor(boardCards, (boardId: string) => ({ boardId }));
+readonly canUndo  = this.clientRead(() => this.client.canUndo());
+readonly peersOn  = this.clientReadFor((blockId: string) =>
+  [...this.client.peers(cursors).valid.values()].filter((p) => p.blockId === blockId));
+```
+
+`clientRead` exists because connection status, queued-mutation counts, and undo availability are plain numbers and booleans the client updates imperatively — not signals. A plain `computed` over one of them memoizes the first value and never sees a change. `clientRead` reads the client's revision first, so the memo re-runs whenever the client reports anything. [Presence](#/presence) uses `clientReadFor` for a real per-key case.
+
+Keyed families never evict entries automatically. A mounted reader cannot silently lose its memo or subscription. Long-lived services that read an open-ended keyspace release entries at the point their domain lifetime ends:
+
+```ts
+// Excerpt: inside a service, releasing entries when their domain lifetime ends.
+this.cardById.release(cardId);   // the card was deleted — drop its memo
+this.cardsFor.clear();           // a keyed liveQuery family: drop every subscription
+```
+
+Releasing the last query handle removes its local live membership and unsubscribes the server watcher immediately. The persisted snapshot may remain as a separate stale-start cache for a later subscription.
+
+## How invalidation flows
+
+There are two channels on purpose. Atom writes are fine-grained — only readers of that atom re-run. Server data rides one revision signal per context — a delta bumps it, and every live view re-reads. Keeping them separate means an atom write never re-renders a query-only component.
+
+<Diagram
+  direction="LR"
+  nodes={[
+    { id: 'atom', label: 'atom', sub: 'own signal', kind: 'state' },
+    { id: 'computed', label: 'computed', sub: 'memo graph', kind: 'state' },
+    { id: 'comp', label: 'Component', sub: 'tracks what it reads', kind: 'component' },
+    { id: 'delta', label: 'Server delta', kind: 'server' },
+    { id: 'rev', label: 'Revision signal', sub: 'one per context', kind: 'client' },
+    { id: 'lq', label: 'liveQuery view', sub: 'status + rows', kind: 'state' }
+  ]}
+  edges={[
+    { from: 'atom', to: 'computed', label: 'tracks' },
+    { from: 'computed', to: 'comp' },
+    { from: 'atom', to: 'comp' },
+    { from: 'delta', to: 'rev', label: 'bump' },
+    { from: 'rev', to: 'lq' },
+    { from: 'lq', to: 'comp' }
+  ]}
+  caption="Two invalidation channels: atoms notify their own readers; server data bumps one revision per context."
+/>
+
+## Every primitive is registered
+
+Every field, atom, computed, action, machine, and liveQuery carries a `__debugMeta` stamp: an id, a kind, the field name, the owning service, and where in the code it was declared. The registry ties them into one graph: **primitive → service → component**.
+
+This demo runs the real kernel. Click the button, watch the registry's live view of every primitive:
+
+<RegistryDemo />
+
+Server data goes one level deeper — `client.explain(...)` returns any row's current value, the cause of its last write, and its full history (see [Live State](#/live-state)).
+
+**The debug panel ships with the library.** Wrap your root in `<WheelApp client>` (from `wheel/debug`) and a dev build mounts it for you: the service tree with live primitive values, every component's declared dependencies, client tables, and the cause-colored change stream (`bootstrap` grey, `hydrate` purple, `optimistic` amber, `sync-apply` teal, `rollback` and `orphaned` red). It works in clientless sandboxes too — the client sections hide. Hosts that cannot wrap their root mount the floating `<WheelDebugPanel />` instead. The full tour is on [Debugging](#/debugging).
+
+<Aside kind="todo">
+  <strong>Snapshot export.</strong> The rectangle inspector ships (see <a href="#/components">Components</a>):
+  drag a rectangle over the running app and list every connected component under it, with its
+  live state. The remaining piece is capture — exporting each hit's connect manifest, injected
+  values, and provenance tail as agent-readable JSON plus a screenshot.
+</Aside>
+
+## State is frozen after a write
+
+Immutability is enforced at the write site. Every atom `set` deep-freezes objects and arrays and installs mutation-throwing Set/Map methods. Synced rows arrive frozen from the client. Mutating state outside the happy path throws:
+
+```ts
+// Intentionally invalid: state values cannot be mutated after reading.
+const value = service.profile.get();
+value.name = 'x';       // TypeError
+value.tags.push('y');   // TypeError
+```
+
+Two things follow. First, "did something mutate my state?" is never a debugging question — it can't. Second, change detection stays trivial: values are replaced, never edited, so `Object.is` is always the right comparison.
+
+`Set` and `Map` use Immer's frozen collection behavior: direct mutators throw, while `atom.update` edits a draft and installs a new collection. `Date` is rejected at the atom boundary because its internal timestamp stays mutable after `Object.freeze`; store epoch milliseconds.
+
+<Aside kind="note">
+  Component-<em>local</em> state works differently. A hover flag, a draft input, an open/closed
+  toggle — those stay in the component, and no service is involved. They still need a name:
+  write <code>useSignal(initial, 'name')</code> from <code>wheel/core</code>, not Solid's bare
+  <code>createSignal</code>, so the debug tree can show the live value beside the component's
+  props and connect state. The <code>require-use-signal</code> rule makes the bare form a build
+  error inside a component. The moment that state is read by anyone else — another component, a
+  service, the server — it moves into a service. See <a href="#/components">Components</a> for
+  the full list of Solid primitives Wheel replaces and why.
+</Aside>
+
+## Next
+
+- [Services](#/services) — where these primitives live and how services reach each other
+- [Components](#/components) — how a component reads them through one connection
+- [Live State](#/live-state) — queries, mutations, and the provenance trail
+- [Debugging](#/debugging) — the panel that shows every primitive at runtime

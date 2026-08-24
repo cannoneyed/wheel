@@ -1,0 +1,54 @@
+.dialog {
+  width: 620px;
+  max-width: 92vw;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: var(--shadow-float);
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 24px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+.key {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg-hover);
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-xs);
+  padding: 1px 7px;
+  min-width: 56px;
+  text-align: center;
+  flex: none;
+}
+
+.description {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.footer {
+  margin-top: 14px;
+  font-size: 10px;
+  color: var(--ink-muted);
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}

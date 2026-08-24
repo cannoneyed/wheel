@@ -1,0 +1,75 @@
+---
+title: Presence
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import editorPresenceSource from '@docs/examples/presence/editor-presence.ts?example';
+
+# Presence
+
+Presence is state that should never be a row: cursors, focus, "who is typing here".
+
+You publish your own copy and read every peer's copy. The same WebSocket carries presence in both directions. Presence has **no database, no history, and no undo**. A client holds one presence state, and it dies with the connection.
+
+## Declare its shape
+
+Presence is typed like everything else. Declare it next to your tables:
+
+<CodeExample example={editorPresenceSource} region="declaration" />
+
+## Publish and read
+
+The declaration is always the first argument. There is no untyped form to slip into:
+
+```ts
+// Excerpt: client, declaration, and state are initialized above.
+client.setPresence(editorPresence, state, { coalesceMs: 120 });
+const { valid, failures, actors } = client.peers(editorPresence);
+```
+
+`peers(decl)` returns a `PeersResult` with three maps, all keyed by client id:
+
+| Field | Value type | Holds |
+| --- | --- | --- |
+| `valid` | your declared shape | Peers whose payload matched the declaration |
+| `failures` | `PeerPresenceFailure` | Peers whose payload the declaration rejected |
+| `actors` | `string` | The authenticated actor behind each peer |
+
+`actors` turns a connection id into a person. One human with three tabs open is three entries in `valid` and three in `actors`, all pointing at the same actor — so "who is in this document" is `new Set(actors.values())`, not `valid.size`.
+
+## Validation is asymmetric
+
+Validation happens at the client's edges, and the two directions behave differently:
+
+- **Sending** an invalid state throws at the call site. That is your bug — fail loud.
+- **Receiving** a peer state that fails the declaration does not crash you and is not silently dropped. It surfaces in `peers(decl).failures`, so a peer on an older schema is a *visible failure*, not an unexplained absence. The server stays a dumb relay.
+
+<Aside kind="note">
+  <code>peers()</code> returns a <code>PeersResult</code>, not a bare map, precisely so validation
+  failures have somewhere to go. Dropping a mismatched peer silently is how "why did Grace vanish
+  from my screen?" becomes an unanswerable question.
+</Aside>
+
+## Make it reactive in a service
+
+`peers()` and the presence state are not signals — they ride the client's change channel. Wrap them in `clientRead` (zero-arg) or `clientReadFor` (keyed) so a `SyncService` exposes them as tracked values:
+
+<CodeExample example={editorPresenceSource} region="service" />
+
+## Per-keystroke publishing
+
+- **Coalescing** (`coalesceMs`): the first call in a quiet period sends immediately, so peers see the change with no added latency. Later calls inside the window collapse into one trailing send of the latest state. Sustained typing at `coalesceMs: 120` costs about eight small WebSocket messages each second. The server fans them out without database work.
+- **Reconnect republish**: the server drops your presence with your dead stream. After a re-bootstrap the client republishes its last state automatically, so a blipped connection does not make you vanish from peers' screens.
+
+## Worked example
+
+The editor demo builds "watch your peer type" on nothing but this. Uncommitted keystrokes ride presence as a display-only preview (capped at 4KB — beyond that, caret only), peers render it as decorations, and the committed row stays the only truth. See `packages/demos/src/editor`.
+
+For sub-50ms or per-keystroke frequency at scale, the next step up is a WebSocket transport. It plugs into the existing `SyncTransport` interface, so you swap the transport and leave the engine alone.
+
+## Next
+
+- [Live State](#/live-state) — where the presence channel sits in the sync engine.
+- [State](#/state) — `clientRead` and `clientReadFor` in full.
+- [A Real App](#/real-app) — the tracker's presence, search, and inbox together.

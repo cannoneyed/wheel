@@ -1,0 +1,391 @@
+/* wheel.dev landing — typography-first, pi.dev-inspired. One column, generous
+   whitespace, mono accents for code.
+
+   This page is deliberately the essay end of the design system: 17px body, a
+   44rem measure, warm paper, green accent, no shadows. The instrument density
+   of the wheel design language lives in the chrome and the data (see the docs
+   sidebar and tables), not here. What is shared is the vocabulary — radii,
+   spacing, and the type scales. The uppercase mono micro-label that used to
+   head every section is gone: on this page every heading is a heading.
+
+   The site flavor layer maps every `--bg` / `--ink` / `--accent` / `--sans`
+   name below onto wheel tokens.
+
+   REACH: this crosses a package boundary by relative path — `packages/docs`
+   exports no stylesheet, so there is no specifier to import instead. Both
+   packages are private and always built together, so it works; a proper
+   `"./theme.css"` export on the docs package would make it honest. */
+
+@import '../../docs/src/theme.css';
+
+:root {
+  --max: 44rem;
+
+  /* The shared header/footer default to full-bleed with a hairline; the
+     landing page is an essay, so its chrome lines up with the 44rem column
+     and lets whitespace do the separating instead of a rule. */
+  --site-max: var(--max);
+  --site-rule: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: var(--wheel-prose-lg) / 1.65 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: var(--wheel-radius-xs);
+}
+
+/* ---- chrome ---- */
+
+
+
+/* ---- hero ---- */
+
+.hero {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 5rem 1.25rem 3rem;
+}
+
+.hero h1 {
+  font-size: var(--wheel-prose-display);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  margin: 0 0 1.25rem;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+/* The hero sub-paragraph. `> p` is how it arrives from home.mdx (markdown
+   emits a bare <p>); `.sub` stays for any hand-written hero markup. */
+.hero .sub,
+.hero > p {
+  font-size: 1.15rem;
+  color: var(--muted);
+  max-width: 38rem;
+  margin: 0 0 2rem;
+}
+
+/* The "Wheel is built on:" list under the install line. The lead-in is the
+   paragraph directly before the list; both arrive as bare markdown. */
+.hero > p:has(+ ul) {
+  font-size: 1rem;
+  color: var(--ink);
+  margin: 0 0 0.6rem;
+}
+
+.hero > ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
+  display: grid;
+  gap: 0.45rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 38rem;
+}
+
+.hero > ul strong {
+  color: var(--ink);
+}
+
+/* ---- the agent install block -------------------------------------------- */
+
+.agent-install {
+  margin: 0 0 1.5rem;
+}
+
+/* The prompt and its two actions read as one control: the buttons sit INSIDE
+   the bordered field, divided by hairlines, so the group cannot wrap apart. */
+.agent-install-row {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-md);
+  background: var(--code-bg);
+  overflow: hidden;
+}
+
+.agent-install-row code {
+  flex: 1;
+  min-width: 0;
+  padding: 0.7em 1.1em;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.agent-install-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+
+.agent-install-action {
+  display: flex;
+  gap: 0.4em;
+  align-items: center;
+  padding: 0 1em;
+  border: none;
+  border-left: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--muted);
+  font: 600 0.85rem var(--sans);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.agent-install-action:hover {
+  color: var(--accent);
+}
+
+/* Both labels occupy ONE grid cell, so the button is as wide as the wider of
+   them and "Copy" → "Copied" cannot resize it mid-click. `visibility` rather
+   than `display`, because a hidden grid item still has to claim its track. */
+.agent-install-swap {
+  display: grid;
+}
+
+.agent-install-swap > span {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.agent-install-swap > span[data-shown] {
+  visibility: visible;
+}
+
+@media (max-width: 640px) {
+  /* At this width the prompt runs two or three lines; the actions move under
+     it as a full-width row rather than squeezing the text into a column. */
+  .agent-install-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agent-install-actions {
+    border-top: 1px solid var(--line);
+  }
+
+  .agent-install-action {
+    flex: 1;
+    justify-content: center;
+    padding: 0.6em 1em;
+  }
+
+  .agent-install-action:first-child {
+    border-left: none;
+  }
+}
+
+.ctas {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.55em 1.1em;
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-sm);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.btn.primary {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+
+/* ---- sections ---- */
+
+.section {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 4rem 1.25rem 0;
+}
+
+.section h2 {
+  margin-top: 0;
+  font-size: 1.7rem;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+
+.section p {
+  color: color-mix(in srgb, var(--ink) 88%, var(--muted));
+  max-width: 40rem;
+}
+
+/* Snippets render through the shared MDX pipeline as pre.shiki (chrome in
+   theme.css); the landing only sets their rhythm. */
+.section pre.shiki {
+  margin: 1.5rem 0;
+  font-size: 0.82rem;
+}
+
+/* ---- the live figure --------------------------------------------------- */
+
+/* Two real wheel apps sit inside this band, so it breaks the essay's 44rem
+   measure: an app pane at 22rem is unusably narrow. It widens to 52rem and
+   stays centered on the same axis as the prose above it. */
+.live-demo {
+  width: min(52rem, 100vw - 2.5rem);
+  margin: 1.5rem calc((44rem - min(52rem, 100vw - 2.5rem)) / 2) 0;
+}
+
+/* One step under `.section h2`, same face and same tightening — the figure is
+   a subsection of the section it sits in, not a captioned plate. */
+.live-demo-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.live-demo-caption p {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+}
+
+.live-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.live-pane {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-lg);
+  background: var(--wheel-bg-raised);
+  overflow: hidden;
+}
+
+.live-pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--wheel-bg-soft);
+}
+
+.live-pane-name {
+  font-family: var(--mono);
+  font-size: var(--wheel-ui-md);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.live-pane-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: var(--wheel-ui-md);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* The one state worth shouting about: this pane's wire is cut and it is still
+   taking writes. */
+.live-pane-switch .live-offline {
+  color: var(--warn-ink);
+  font-weight: 700;
+}
+
+.live-pane-body {
+  padding: 0.85rem;
+  font-size: var(--wheel-prose-sm);
+}
+
+.live-demo-note {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: var(--wheel-prose-sm);
+}
+
+@media (max-width: 780px) {
+  .live-demo {
+    width: 100%;
+    margin: 1.5rem 0 0;
+  }
+
+  .live-panes {
+    grid-template-columns: 1fr;
+  }
+}
+
+.battery-list,
+.omission-list {
+  padding-left: 1.1rem;
+  max-width: 40rem;
+}
+
+.battery-list li,
+.omission-list li {
+  margin-bottom: 0.65rem;
+  color: color-mix(in srgb, var(--ink) 88%, var(--muted));
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.demo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-lg);
+  padding: 1.1rem 1.2rem;
+  text-decoration: none;
+}
+
+.demo-card:hover {
+  border-color: var(--accent);
+}
+
+.demo-card span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 600px) {
+}

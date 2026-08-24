@@ -1,0 +1,74 @@
+/* ========================================================================
+ * RECIPE: Progress — Meter's active sibling
+ * (data-progressing / data-complete / data-indeterminate contract)
+ *
+ * Pattern notes:
+ *  - Root's `status` maps to a flat data attribute (stateAttributesMapping.ts)
+ *    and Track/Indicator/Value/Label all inherit Root's state, so every part
+ *    can key off the same three attributes directly.
+ *  - When indeterminate, the library does not set an inline width (there is
+ *    no percentage to compute), so the recipe supplies a sliding band via a
+ *    scoped keyframe — the one motion case a recipe must draw itself instead
+ *    of consuming library-measured geometry.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Progress-Root {
+    --wheel-component-progress-width: 15rem;
+    --wheel-component-progress-track-height: 0.375rem;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    row-gap: calc(var(--wheel-component-space) * 2);
+    width: var(--wheel-component-progress-width);
+    max-width: 100%;
+  }
+
+  .wheel-Progress-Label {
+    color: var(--wheel-component-fg);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+    font-weight: 500;
+  }
+
+  .wheel-Progress-Value {
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  .wheel-Progress-Track {
+    position: relative;
+    grid-column: 1 / 3;
+    height: var(--wheel-component-progress-track-height);
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--wheel-component-bg-sunken);
+  }
+
+  .wheel-Progress-Indicator {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--wheel-component-accent);
+    transition: width var(--wheel-component-duration-slow) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Progress-Indicator[data-indeterminate] {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: 40%;
+    animation: wheel-progress-indeterminate 1.4s var(--wheel-component-ease-in-out-cubic) infinite;
+  }
+
+  @keyframes wheel-progress-indeterminate {
+    0% {
+      translate: -100% 0;
+    }
+    100% {
+      translate: 350% 0;
+    }
+  }
+}

@@ -1,0 +1,28 @@
+.pane {
+  flex: 1;
+  min-width: 0;
+  border-left: 2px solid var(--accent);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+
+.label {
+  font-size: 11px;
+  color: var(--ink-muted);
+  flex: 1;
+}
+
+.close {
+  border: none;
+  color: var(--ink-muted);
+}

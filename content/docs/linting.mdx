@@ -1,0 +1,161 @@
+---
+title: Linting
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Linting
+
+Wheel enforces its conventions with an eslint plugin (`packages/wheel/eslint`) and constraint tests that run with the normal suite. Every rule below says what it prevents, and the last sections say where the rules are wired in.
+
+A rule that isn't wired into CI doesn't exist.
+
+Run them:
+
+```sh
+bun run lint
+```
+
+Zero errors is the only passing state.
+
+How the rules are scoped matters as much as the rules. Scoping enforcement to directory globs fails quietly: every gap in the globs is a place a super component can grow. Wheel inverts this: **rules are on for all app code by default, and every escape is a pragma in the file** — greppable, reviewable, and carrying a written reason.
+
+An escape looks like this:
+
+```ts
+// Excerpt: an allowed, written escape inside one exceptional component.
+// wheel-connect-surface: dashboard root intentionally aggregates 5 services
+const connectDashboard = connect('Dashboard', (c) => ({ ... }));
+```
+
+## The rules
+
+| Rule | What it enforces |
+| --- | --- |
+| `single-connect` | ONE connection function per component, named `connect<Name>` (never `use<Name>`), called as the first statement. The per-instance form (`connect((props) => name, ...)`) is accepted, and must be called inside a component so cleanup context exists. |
+| `single-connect-per-file` | One `connect()` declaration per file. A file that declares several connected components is a super component splitting on the inside instead of into files. Off in test files, where several inline fixture components per file is the point. |
+| `connect-only` | Components reach services only through `connect()`. Service hooks and direct `useContext(WheelContext)` / `useContext(StubContext)` reads are rejected, including import aliases. The raw contexts are not public exports. |
+| `no-whole-service-injection` | A connect shape carries values and bound actions — never a service instance. Direct return objects, both `view()` bags, and identifier aliases are inspected. |
+| `max-connect-surface` | Caps: 12 fields, 3 services per declaration — a nudge that a component does too many jobs. |
+| `prefer-computed` | A service method that only reads should be a `computed`. Derive, don't store. |
+| `require-effect-reason` | Every `createEffect` / `onMount` needs a comment naming its imperative boundary. |
+| `require-export-jsdoc` | Every exported symbol is documented. |
+| `require-member-jsdoc` | Every public member of an exported class is documented. |
+| `invert-return-type` | Every mutation `invert` annotates its return type. Why: most mutations undo by running *themselves* with the old values, and TypeScript can't infer a type from a definition that mentions itself — it silently types the whole mutation `any`, and type checking disappears in every file that imports it. The annotation (`: InverseSpec \| null`) breaks the loop. |
+| `no-handles-in-atoms` | Atoms never hold live runtime objects (DOM elements, Solid Owners). Why: atoms deep-freeze their contents, and freezing a live object corrupts it — we hit this for real when a dialog's Owner in an atom froze Solid's reactive graph. Data goes in atoms; handles go in `this.field()`. |
+| `no-optional-computed-args` | Two landmines, one rule. (1) `computed()` is a plain derivation — its callback takes NO parameters; a param means you meant `computedFor`. TypeScript rejects it too, but its error doesn't name the fix — this rule does. (2) A `computedFor()` callback's parameters are required and never `undefined`. Why: `computedFor` memoizes per argument tuple, and the tuple hasher throws the moment `undefined` appears in it — so `this.computedFor((id?: string) => …)` works until the first absent value flows through, then crashes at the call site. Use `\| null` and pass `?? null`, or make it a plain function. (`clientReadFor` is checked identically — it delegates straight to `computedFor`.) |
+| `no-early-field-read` | A service field initializer may not read another field that is declared below it — most often a dependency assigned in the constructor. Why: JavaScript runs every class field initializer *before* the first line of the constructor body, and `this.computed(fn)` calls `fn` immediately rather than waiting for a reader. So `readonly tags = this.computed(() => this.boardService.tags())` runs while `this.boardService` is still `undefined`, and the page dies with `Cannot read properties of undefined`. This crashed the kanban demo the first time anyone navigated to it. The fix is one line: declare the dependency as a field too (`private readonly boardService = this.service(BoardService)`), so it is initialized in the same pass and in the right order. Only EAGER reads are flagged — a read inside an `action` or a `computedFor` callback runs later, once the constructor has finished. |
+| `require-tracked-service-fields` | Mutable private properties on `Service` and `SyncService` hide their current value and write history. Declare `private readonly value = this.field(initial)` instead. The field stays non-reactive and accepts live handles, but each write appears in the debug panel. |
+| `require-latest-async-task-wait` | After a service method opens `this.latestAsyncTask()`, every `await` must include that token's `wait(...)` call. Why: one bare await lets a stale async continuation change state after a newer task starts. Methods that do not open a task keep their current behavior. |
+| `no-barrel-icon-imports` | Icons import from per-icon subpaths (`lucide-solid/icons/plus`), never the pack root. Why: the root "barrel" re-exports every icon, and the dev server doesn't tree-shake — one `import { Plus } from 'lucide-solid'` made every demo page fetch ~1500 icon modules on load (hit for real; the pain shows up in the network tab, nowhere near the import). Production builds hid it by tree-shaking. |
+| `require-component-root` | Every file that calls `connect()` marks a root element with `use:componentRoot` (or carries `// wheel-component-root: <reason>` — e.g. headless components). Why: the inspector's promise is "draw a rectangle, see every component under it" — a connected component without the directive renders fine but is invisible to selection, and the hole is only discovered when a rectangle over it returns nothing. Test files are exempt (their inline fixtures aren't app surface). |
+| `require-view-root` | Every NON-connected component that renders host DOM marks its root element with `use:viewRoot={'ComponentName'}` (or the file carries `// wheel-view-root: <reason>`). Why: the component tree is universal — the debug panel and the agent bridge show every mounted component, not only the connected layer. A dumb component without the directive renders fine but is a hole in that tree, discovered only when an agent walks it and a whole visual layer is missing. The directive is a dev-only no-op (production pays nothing). Auto-exempt: connected components (`require-component-root`'s job) and components with no host element of their own (pure composition — nothing to mark). The string must equal the function name: it IS the registry id, and a drifted name makes `find('Avatar')` miss. |
+| `no-directive-on-component` | A `use:` directive belongs on a native element; on a component it is silently dropped. Why: `use:` is a Solid COMPILER feature, and the compiler only wires it up for host elements — `<Button use:contextMenu={{…}}>` type-checks, renders, and clicks, but the directive compiles to nothing and the menu simply never opens. Nothing errors, and the missing behavior shows up wherever it was supposed to appear, which is rarely this file. It bites hardest when hand-rolled `<button>` / `<input>` are swapped for the shipped `wheel/components` versions: the find-and-replace carries the directive onto a component and quietly kills a context menu, or a component's registration in the debug tree. Two fixes, no third: keep the native element where the directive IS the behavior, or wrap the component in one. No pragma — a directive on a component is never intended. |
+| `require-stable-instance-name` | A `connect('StaticName', …)` whose declaration reads an identity prop (`props.id`, `props.*Id`) must use the per-instance name form: ``connect((props) => `Card:${props.cardId}`, …)``. Why: static names give repeated mounts mount-ORDER ids (`Card#2`, `Card#3`) — reorder the list and `Card#2` silently means a different card, breaking every agent script and debug deep-link that addressed it, with no error anywhere. A component that reads an entity id is per-entity by definition; deriving the id from the data makes it stable forever. True singletons escape with `// wheel-stable-instance-name: <reason>`. |
+| `require-component-states` | Every wheel/kit component with a `connect()` declaration ships a sibling `<component>.states.tsx` enumerating its renderable states via `defineStates` (typed against the connection, so a drifted manifest breaks the file at compile time). Why: a connect shape IS a complete renderable state, and without an enumerated states file the only way to SEE a component's edge states (empty, loading, error) is to force the whole app into them — which is why edge states ship broken. The playground globs these files: humans browse every component × state in a sidebar; agents screenshot any state by URL (`#/states/ToastSystem/empty`). Scoped to wheel/kit for now — the feel gets proven in kit before the rule widens; geometry primitives and headless systems escape with `// wheel-component-states: <reason>`. |
+| `require-tracked-show` | A component whose ROOT returned element is a `<Show>` imports it from `wheel/core`, not `solid-js`. Why: a component hidden by a falsy root `<Show>` renders no DOM — and so does a headless component, and so does one whose author forgot `use:componentRoot`. In the debug tree all three looked identical, so you couldn't tell "this button is supposed to be gone right now" from "this button is broken". wheel's `Show` is a drop-in (same props, same generics) that reports its condition, letting the tree say `⊘ hidden` instead of `⊘ no DOM`. Scoped to ROOT position only — a `<Show>` deeper inside a visible component hides part of it, which the tree already shows correctly. Escape: `// wheel-untracked-show: <reason>`. |
+| `no-dev-mode-show` | `isWheelDevMode()` uses a plain conditional, never a `<Show>` condition. Why: the dev-mode value is a module boolean, not a signal. Show cannot observe a later change, but it still reads the selected branch inside a memo. When that branch held WheelApp's host tree, a second evaluation could create another live app with separate services and body portals. |
+| `require-use-signal` | Component-local state uses `useSignal(initial, 'name')` from `wheel/core`, not a bare `createSignal`. Why: local state is legal in wheel (an open flag, a hover, an input draft) but a plain `createSignal` is an anonymous closure — the debug tree shows a component driven by `isOpen` and says nothing about `isOpen`, so debugging means reading source and guessing. `useSignal` is a drop-in (same tuple, same options) that records the NAME against the mounted component, so the tree renders a `local` group with the live value beside props and connect state. The name is required — an unnamed signal trades one anonymous closure for another. Only fires INSIDE a component: services use `this.atom`, and module-level or helper-function signals aren't component state. Escape: `// wheel-raw-signal: <reason>` (used by wheel's own debug chrome, which is excluded from the tree it renders). |
+| `require-connect-props` | A component that declares a props parameter passes it to its connection: `connectTodoRow(props)`, not `connectTodoRow({})`. Why: the debug tree reads props from the connection call — the one door props already pass through — so a component that hands its connection `{}` shows up as having NO props, which reads as "takes none" rather than "they were dropped on the way in". The empty-object form is tempting whenever the declaration doesn't happen to READ props: it typechecks, the component works, nothing complains, and the cost only appears while debugging a row rendering the wrong data. Forwarding is free — `connect()` already accepts props for per-instance names. Destructured props (`{ id }`) are left alone: nothing to forward, and destructuring breaks Solid reactivity anyway. Escape: `// wheel-connect-props: <reason>`. |
+| `require-view-props` | A view component that takes props passes them through the directive: `use:viewRoot={{ name: 'Avatar', props }}`. Why: the tree shows each component's props, and connected components get that free (`connect()` is called WITH props). A dumb component has no such door — so without this it shows NO props, which reads as "takes none" rather than "wheel was never told", and debugging a wrong avatar means reading the parent's source. Only fires when the component actually declares a props parameter; the plain string form stays correct for components that take none. Escape: `// wheel-view-props: <reason>`. |
+| `no-raw-console` | App code logs through `logger` (wheel/core), never raw `console.*`. Why: everything that goes wrong has to land in ONE capture buffer — the debug panel's errors section, `window.__wheel.errors()`, the driver's thrown `WheelAppError`. `logger` feeds that buffer in EVERY build; a raw `console.error` is caught only by the dev-mode console patch, so in production the line prints to devtools and the error buffer stays empty — discovered exactly when a user reports a failure the buffer was supposed to explain. Deliberate console surfaces (the inspector's "log to console" button, the capture system's own forwarding, server stdout diagnostics) carry an adjacent `// wheel-console: <reason>` (20+ chars). Test files exempt. |
+| `no-unused-imports` | Every imported binding — value or `import type` — must be referenced. Why: an unused import reads as "this file depends on X", so the next person keeps X alive when trying to delete it. There's no runtime error; the pain shows up months later when someone greps for callers of a dead export, finds this stale import, and wastes time proving it's dead. Type uses count (the TS parser's scope manager records them), so an `import type` consumed only in an annotation is correctly seen as used. Imports only — unused locals/params are a separate, noisier concern left out to keep the false-positive surface at zero. |
+| `no-called-view-read` | A `view()` read must be an accessor view() calls later (`count: svc.count`) or a deferred thunk (`vm: () => svc.issueVm(id)`) — never the accessor CALLED in place (`count: svc.count()`). Why: calling it reads the value ONCE at connect time and freezes the snapshot, so the component wires up dead state that never re-renders. view() throws at runtime when the frozen value is a primitive, null, or array — but a call that returns an OBJECT is indistinguishable at runtime from a live view object passed through, so that form slips past the runtime net; this rule catches every form statically. Only the reads object (first arg of a bare `view(...)`) is checked — `this.view(...)` (liveQuery) and the actions arg are left alone. |
+| `no-cross-layer-imports` | Wheel's `src/` is split into layered surfaces that only depend DOWNWARD: `core` ← `sync` ← `sync/server`; `core` ← `kit`; `core`,`sync` ← `debug`; `testing` ← `sync`,`sync/server`,`core`. A file may only import from the layers below its own. Why: a `core` file that imports from `sync`, or a `kit` file that imports `sync`, compiles fine but silently re-welds the coupling the package split removed — `core` can no longer ship or be reasoned about alone, and the DAG that makes `wheel/core` a real standalone surface is quietly gone. The type system never catches it; the pain surfaces only when someone tries to extract or import `core` without the world. This turns every up-edge into an error the instant it's written. Governs only files under `src/<layer>/`; anything that resolves to no layer is skipped. Test files are exempt — integration tests reach across layers on purpose (a `sync/client` test spinning up a `sync/server` engine). |
+| `no-raw-timers` | Production `.ts` files cannot call `setTimeout`/`setInterval`, `Date.now()`, `Math.random()`, or zero-arg `new Date()` directly. Business state uses `Clock`/`Defer`/`RandomBytes`; service contexts share the sync client's injected clock and one-shot scheduler. TSX may retain native presentation timing only when the call has an immediately adjacent, substantive `wheel-view-timing:` reason. Why: a raw timer buried in business code produces schedules no simulation seed can replay; the pain surfaces later as a flaky World test. Tests and `runtime-defaults.ts` are exempt. |
+| `no-raw-location` | Outside `router/history.ts`, no `location.href`/`assign`/`pathname`/… and no `history.pushState`/`replaceState`/`back`/`forward`. Navigate through `RouterService` instead. Why: the router keeps the current URL in an atom, and `navigate` writes both the atom and the address bar. `pushState` deliberately does NOT fire `popstate`, so a raw call moves the bar while the atom stays put — `match()` then describes the previous page forever, with nothing thrown and nothing logged. It reads like "the router is broken". A deliberate exception (a hard reload on sign-out) carries an adjacent `wheel-raw-location:` reason. |
+| `no-raw-anchor-navigation` | A plain `<a href="/app/path">` for in-app navigation is an error; use the router's `<Link to="…">`. Why: both render the same anchor and look identical on screen, but the plain one triggers a document load — the sync client reconnects from scratch, unsaved local state is gone, and the page flashes white. Quieter second cost: `<Link to>` is checked against the route table, so a typo is a compile error, while a typo'd `href` is a 404 nobody finds until a user does. Only same-app literals (one leading `/`) are flagged; external, protocol-relative, fragment, and computed hrefs are left alone. A deliberate full load carries an adjacent `wheel-raw-anchor:` reason. |
+| `no-teardown-booleans` | In `src/sync/client/`, no `stopped`/`closed`/`cancelled`/`disposed`-style boolean initialized to a literal — teardown is ONE `AbortController`: `close()` calls `abort()`, and every loop observes the signal. A boolean can only be polled. Async work can continue between polls after `close()`. Names that describe state, such as `connected` and `flushing`, are not matched. |
+| `require-behavior-id` | Every playwright test in `packages/demos/browser/*.spec.ts` carries a `// behavior: <DEMO>-<NN>` comment naming a row in `packages/demos/specs/*.md`; `behavior()` calls additionally need a literal first argument that matches the comment. Why: a user crashed the live kanban demo doing something the green suite never covered — the behavior existed in nobody's spec, so no test proved it. The spec table is the contract; the id is the audit trail from "what should work" to "what is proven", and the recording each behavior emits is named by it. An id in no spec file is a link to nothing (build failure); a spec row with no test is caught by the reverse check, the `specs-coverage` vitest suite. There is no escape pragma for this rule — a test that proves no spec'd behavior means the table is missing a row. |
+| `no-hardcoded-color` | No theme color literal (`#eef2ff`, `rgb(…)`, `rgba(…)`, `hsl(…)`) in a `.ts`/`.tsx` string. Read a token from `packages/wheel/src/styles/tokens.css` instead. Why: a color typed into a component stays fixed across themes and palette changes. **`var()` fallbacks stay legal** because kit can run before a host loads `tokens.css`. Canvas 2D paint properties, gradient stops, and WebGL renderer color receivers are also legal because they paint pixels instead of application chrome. The exemption uses receiver shape, so ordinary DOM styles in the same component still need tokens. Exempt by filename inside the rule: `*.test.ts(x)`, `*.states.tsx`, anything under `fixtures/`. Escape: `// wheel-color: <reason>` for non-paint values with no token. |
+| `no-snake-case-mismatch-in-prune` | Inside a `prune` callback in a `*.server.ts` file, a property read off the row image (`image.n`, `image.o`) may not contain an uppercase letter. Why: `prune` is handed the RAW database row — `issue_id`, `user_id` — while every other row in the same file is the projected row the SQL already aliased to `issueId`, `userId`. So the camelCase name is the one your fingers know, and `image.n?.issueId` compiles, typechecks (`RowImage.n` is `Record<string, unknown>`, so any name is legal), and is `undefined` on every row. The predicate is then false for everything, the engine concludes no write can ever affect this query, and the subscription silently stops updating — comments stop appearing, the feed freezes, and it reads like a sync bug anywhere but here. Nothing throws and nothing logs. The callback's image parameter is bound by position whatever it is named, and the destructured form (`prune: ({ n, o }, params) => …`) is bound too. Escape for a genuinely quoted camelCase column: `// wheel-db-column: <reason>`. |
+| `no-raw-sql-placeholders` | A raw SQL string or template passed to `.query()` / `.run()` / `.all()` / `.exec()` / `.unsafe()` may not contain `$` followed by a digit. SQLite treats `$1` as a named parameter. A positional value array does not bind it. TypeScript cannot catch this error. Use `?` in raw SQLite text, or use a `sql`` fragment and let Wheel compile it. |
+| `require-keep-names` | A `vite.config.ts` in a package that depends on Wheel, or resolves Wheel from source, must include `wheelDevTools()`. The helper enables Wheel development mode during Vite serve, rejects stale direct `file:` output, and preserves service class names through minification. Without it, the debug panel and `window.__wheel` disappear from a prebuilt local package with no runtime error. Vitest configs are exempt. Escape: `// wheel-keep-names: <reason>`. |
+
+That is all 38 rules.
+
+## CSS colors
+
+`stylelint.config.mjs` applies the same token boundary to every CSS file under `packages/*/src`.
+
+Literal hex, `rgb()`, `rgba()`, `hsl()`, and `hsla()` values are valid in custom-property declarations. Normal declarations read those values with `var()`:
+
+```css
+.card {
+  --card-shadow: rgb(0 0 0 / 20%);
+  box-shadow: 0 2px 8px var(--card-shadow);
+}
+```
+
+`bun run lint` runs ESLint first, then Stylelint. A Stylelint disable comment needs a description.
+
+**Component-local state is fine — it needs a name.** The rules police the shared-state boundary, not a component's private details, so an open flag or an input draft stays in the component. It uses `useSignal(initial, 'name')` from `wheel/core` rather than a bare `createSignal`, which is what `require-use-signal` above enforces. [Components](#/components) has the full table of Solid primitives Wheel replaces.
+
+## Constraint tests
+
+Some rules are about runtime shape, not syntax. Those run as tests (`constraints.test.ts`):
+
+- **Kernel determinism**: Wheel's framework source has no native clock, random, or timer calls outside `core/runtime-defaults.ts`. The AST-aware `no-raw-timers` rule extends the contract to every application `src/` file and verifies written TSX presentation exceptions.
+- **Browser safety**: client-safe directories never import node builtins, DB drivers, or `*.server` modules.
+- **No raw SQL in app code**: `sql.dangerous` is banned outside the server layer.
+
+## How it's wired
+
+`eslint.config.mjs` at the repo root consumes the plugin. It is seven config blocks, and the order they are written in decides which rules reach which files:
+
+1. **Package files outside `src/`** (servers, seeds, jobs, scripts at a package root) — TypeScript parsing only, no extra rules. The blocks below still apply wherever their globs also match.
+2. **Demo browser specs** — one rule, `require-behavior-id`, so every playwright test names a spec row.
+3. **The kernel** (`packages/wheel/src`) — the JSDoc pair, the service-authoring rules (`prefer-computed`, `no-handles-in-atoms`, `no-early-field-read`, …), the layering DAG (`no-cross-layer-imports`), and the determinism rules (`no-raw-timers`, `no-raw-console`, `no-raw-location`). Not `connect-only`: kernel internals legitimately use the context primitives that rule forbids in app code.
+4. **The sync client** (`packages/wheel/src/sync/client`) — adds `no-teardown-booleans`, because that tree is where teardown is one `AbortController`.
+5. **Kernel TSX** — the component architecture rules, so Wheel's own components follow the rules they enforce.
+6. **App code** — `packages/*/src` **minus** the kernel, plus `packages/docs/examples`. A wildcard-minus, not an allowlist: a future package is linted the moment it exists, and there is no glob to forget. All architecture and deterministic-runtime rules are on; the JSDoc pair stays off, since documenting every symbol is a library-surface concern.
+7. **Tests** — architecture rules stay ON. Only the documentation bar and `single-connect-per-file` relax. Test files are not a smuggling route.
+
+## What the linter cannot catch
+
+<Aside kind="todo">
+  <strong><code>no-prop-drilling</code>.</strong> Passing service values, atoms, or connect-shape
+  fields as props to non-leaf components should fail the build — children connect themselves.
+  Identity and variation props (<code>todoId</code>, <code>compact</code>) stay legal; the
+  heuristic needs to tell the two apart, which is why this rule is designed but not yet written.
+</Aside>
+
+<Aside kind="todo">
+  <strong><code>no-declare-side-effects</code>.</strong> Inside a connect declaration, calling a
+  service method for its side effects would run on setup undetected. Planned rule: service calls
+  in a declaration are legal only as bound-action references or inside computed reads.
+</Aside>
+
+<Aside kind="todo">
+  <strong>Manifest parity (runtime, dev-only).</strong> The registry knows what each component
+  declared. The kernel should warn when a component reads a signal that is not in its manifest —
+  the last mile of "the declaration is the whole truth."
+</Aside>
+
+<Aside kind="todo">
+  <strong><code>no-persisted-wire-id</code>.</strong> A wire client id read from
+  <code>sessionStorage</code> should fail the build: browsers clone <code>sessionStorage</code>
+  into duplicated tabs, and two live pages sharing a wire id fight over the server's
+  one-stream-per-client slot in a zero-backoff takeover loop (measured at ~5,000
+  reconnects/second before the transport's flap guard capped it). The blocker is the same
+  identity-vs-data problem as <code>no-prop-drilling</code>: the linter sees strings, not which
+  string becomes the transport's <code>clientId</code> — any storage-read value can flow there
+  through any number of hops, and flagging every <code>sessionStorage</code> read would drown
+  legitimate uses (the tracker's per-tab actor switcher). Until wiring is traceable, the
+  defenses are the flap guard itself (pacing survives ANY duplicate-id source) and the wire-id
+  doc comments in every client-wiring file.
+</Aside>
+
+<Aside kind="note">
+  <strong>Sync parity is executable.</strong> <code>expectMutationParity</code> compares the
+  immediate optimistic value with settled server truth. <code>expectQueryInvalidation</code>
+  compares SQLite's observed read tables with <code>rerunOn</code>. The registry separately
+  rejects server bindings that recreate a same-name declaration instead of importing the exact
+  sync-module declaration.
+</Aside>
+
+## Next
+
+- [Testing](#/testing) — the World harness and the behavior ids `require-behavior-id` checks.
+- [Components](#/components) — the connect conventions most of these rules enforce.
+- [Project Layout](#/project-layout) — the directory shape the config blocks glob against.

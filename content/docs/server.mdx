@@ -1,0 +1,125 @@
+---
+title: Server
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# SQLite sync server
+
+Wheel sync targets SQLite. The primary production runtime is one Cloudflare Durable Object per workspace. Bun and SQLite WASM use the same engine for development, tests, and static demos.
+
+The sync engine is separate from the state system. `wheel/core` does not import sync code. `SyncClient` receives a `SyncTransport`. `SyncServer` receives a `SyncBackend`. A component only reaches sync through its service.
+
+| Runtime | SQLite API | Use |
+| --- | --- | --- |
+| Cloudflare Durable Object | `ctx.storage.sql` | Production workspace data |
+| Bun | `bun:sqlite` | Local server and self-hosted process |
+| Node tests | `better-sqlite3` | `World` and server tests |
+| Browser worker | `@sqlite.org/sqlite-wasm` | Static demos and playground |
+
+## Cloudflare Durable Object
+
+Import the runtime-neutral engine from `wheel/sync/server/cloudflare`.
+
+```ts
+// Intentionally condensed: Durable Object boot with migrations before engine creation.
+import {
+  applyDurableObjectMigrations,
+  createCloudflareSyncBackend,
+  createSyncServer
+} from 'wheel/sync/server/cloudflare';
+
+const storage = {
+  sql: ctx.storage.sql,
+  transaction: (callback) => ctx.storage.transaction(async () => callback())
+};
+
+const migration = await applyDurableObjectMigrations(storage, migrations);
+const backend = createCloudflareSyncBackend({ storage, clock });
+const server = await createSyncServer({ backend, syncModules, servers });
+```
+
+Run this code inside `ctx.blockConcurrencyWhile()`. Migrations finish before a request, alarm, or WebSocket message can use the database.
+
+The Durable Object supplies the writer guarantee. It owns one SQLite database and one `SyncServer`. The backend does not need a process lock.
+
+## Bun SQLite
+
+Pass one SQLite source to `createSyncServer`.
+
+```ts
+// Excerpt: Bun server with one file-backed SQLite database.
+import { createSyncServer } from 'wheel/sync/server';
+
+const server = await createSyncServer({
+  sqlite: { filename: './app.db' },
+  syncModules: [todosSync],
+  servers: [todosServer]
+});
+```
+
+`bun:sqlite` adds no package dependency. Use an injected driver when setup code and the engine must share one `:memory:` database.
+
+Install `better-sqlite3` before you call `betterSqlite3Driver` under Node:
+
+```sh
+bun add better-sqlite3
+```
+
+```ts
+// Intentionally condensed: inject a SQLite driver when setup and sync share one database.
+import { betterSqlite3Driver, createSyncServer } from 'wheel/sync/server';
+
+const driver = betterSqlite3Driver(':memory:');
+for (const statement of TODOS_SCHEMA) driver.exec(statement);
+
+const server = await createSyncServer({
+  sqlite: { driver },
+  syncModules,
+  servers
+});
+```
+
+`server.close()` closes the driver. Do not close it a second time.
+
+## SQL fragments
+
+Use `sql` tagged-template fragments for statements with values. `compileSql()` writes SQLite `?` placeholders at the backend boundary.
+
+```ts
+// Excerpt: query values use SQL tagged-template fragments.
+serveQuery({
+  query: openIssues,
+  rerunOn: ['issues'],
+  sql: (params) => sql`
+    select id, title from issues
+    where team_id = ${params.teamId} and archived_at is null
+  `
+});
+```
+
+Raw SQL passes to SQLite without a rewrite. Use `?` when raw SQL takes parameters.
+
+```ts
+// Excerpt: raw SQLite text uses question-mark placeholders.
+await db.query('insert into teams (id, name) values (?, ?)', [id, name]);
+```
+
+<Aside kind="note">
+  <strong>SQLite has no boolean type.</strong> Store booleans as integer 0/1. The backend
+  uses declared row schemas to return real booleans before validation.
+</Aside>
+
+## Backend seam
+
+`SyncBackend` keeps storage code outside the sync algorithm. It owns transactions, reads, the sync log, and external-change notification. The engine owns subscriptions, presence, diffing, ordering, validation, and replay.
+
+The current implementations are SQLite only. The seam remains available for a future backend. There is no Postgres adapter or compatibility path in this release.
+
+For direct writes from a job, call `server.externalWrite({ tables })` after the database transaction. The server then records a sequence and reruns affected queries.
+
+## Next
+
+- [Cloudflare deployment](#/cloudflare) — WebSocket hibernation, migrations, and deploy versions.
+- [Server Handlers](#/server-advanced) — query and mutation bindings.
+- [Live State](#/live-state) — client reconciliation and reconnect behavior.

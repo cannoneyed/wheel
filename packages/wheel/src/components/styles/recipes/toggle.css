@@ -1,0 +1,50 @@
+/* ========================================================================
+ * RECIPE: Toggle — single-part pressed/unpressed button
+ * (data-pressed contract)
+ *
+ * Pattern notes:
+ *  - Single-part component (no sub-parts): class is `wheel-Toggle`, matching
+ *    the Button exemplar's single-part grammar.
+ *  - Works standalone (an icon favorite button) and as a child of
+ *    `ToggleGroup` (a segmented control) — the pressed treatment reads as
+ *    a filled accent chip in both contexts.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Toggle {
+    --wheel-component-toggle-size: 2rem;
+
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--wheel-component-toggle-size);
+    height: var(--wheel-component-toggle-size);
+    padding: 0;
+    border: 0;
+    border-radius: var(--wheel-component-radius-md);
+    background: transparent;
+    color: var(--wheel-component-fg-muted);
+    user-select: none;
+    transition:
+      background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
+      color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-Toggle:hover:not([data-disabled]):not([data-pressed]) {
+      background: var(--wheel-component-bg-hover);
+      color: var(--wheel-component-fg);
+    }
+  }
+
+  .wheel-Toggle[data-pressed] {
+    background: var(--wheel-component-accent);
+    color: var(--wheel-component-accent-fg);
+  }
+
+  .wheel-Toggle[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+}

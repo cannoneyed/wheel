@@ -1,0 +1,105 @@
+/* ----------------------------------------------------------------------------
+   Axle (tracker) tokens — a thin layer over wheel's.
+
+   Every name below is one of wheel's tokens wearing the short name the ~32
+   module stylesheets already use (`--bg`, `--ink`, `--line`, …). Only one
+   value is the tracker's own: the accent.
+
+   Theme contract (wheel's, not ours): LIGHT by default; DARK when the user
+   picked it (`<html data-theme="dark">`, stamped before first paint by the
+   script in index.html and flipped by ThemeService) or when the OS prefers
+   dark and the user never chose. Re-pointing `--bg` & friends at wheel's
+   theme aliases is all it takes — the module files were never told which
+   theme they are in and still aren't.
+
+   Why the accent is written three times: wheel's dark rules set
+   `--wheel-accent` from `:root[data-theme='dark']` and
+   `:root:not([data-theme='light'])`. Both of those out-specify a plain
+   `:root`, so an override declared once in the base block would silently
+   lose the moment dark mode switched on. Axle's indigo is the same color in
+   both themes; the repetition is what makes that true.
+---------------------------------------------------------------------------- */
+
+@import 'wheel/styles';
+
+:root {
+  /* Axle's accent, in place of wheel's indigo. Restated in both dark blocks
+     below — see the header. */
+  --wheel-accent: #5e6ad2;
+
+  /* ---- surfaces & ink: follow the theme ---------------------------------- */
+  --bg: var(--wheel-bg); /* page */
+  --bg-raised: var(--wheel-bg-raised); /* sidebar, menus, dialogs, columns */
+  --bg-hover: var(--wheel-bg-hover); /* row/button hover */
+  --ink: var(--wheel-ink);
+  --ink-muted: var(--wheel-ink-muted);
+  --line: var(--wheel-line);
+  --accent: var(--wheel-accent);
+  --accent-ink: var(--wheel-on-accent); /* text on an accent/avatar fill */
+
+  /* ---- status ------------------------------------------------------------ */
+  --danger: var(--wheel-danger);
+  --warn: var(--wheel-warn);
+  --ok: var(--wheel-ok);
+
+  /* ---- type, shape, layout ----------------------------------------------- */
+  --font: var(--wheel-sans);
+  --mono: var(--wheel-mono);
+  --radius: var(--wheel-radius-sm); /* 6px: buttons, inputs, menu items */
+  --sidebar-w: 220px; /* no wheel equivalent: an Axle layout constant */
+
+  /* Floating surfaces — menus, popovers, dialogs, the drag ghost. A shadow
+     that reads on white is far too weak on the dark stage and vice versa, so
+     this one name swaps with the theme. */
+  --shadow-float: var(--wheel-shadow-float);
+}
+
+:root[data-theme='dark'] {
+  --wheel-accent: #5e6ad2;
+  --shadow-float: var(--wheel-shadow-menu);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --wheel-accent: #5e6ad2;
+    --shadow-float: var(--wheel-shadow-menu);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--wheel-ui-xl);
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.5;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--bg-hover);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+}

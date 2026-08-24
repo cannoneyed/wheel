@@ -1,0 +1,91 @@
+/* ========================================================================
+ * RECIPE: Field — label/control/description/error composite
+ * (data-invalid / data-disabled, Field validity + starting/ending-style
+ * contract)
+ *
+ * Pattern notes:
+ *  - Root is a plain layout wrapper (no chrome); Control is the same text
+ *    field archetype as recipes/input.css's `.wheel-Input` (fields use a
+ *    hairline `--wheel-component-border-strong` border, never a shadow).
+ *  - Error only mounts while invalid, so its enter/exit binds to the
+ *    presence attributes like the Popover exemplar.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Field-Item {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--wheel-component-space) * 1);
+  }
+
+  .wheel-Field-Root {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(var(--wheel-component-space) * 1);
+  }
+
+  .wheel-Field-Root[data-disabled] {
+    opacity: 0.6;
+  }
+
+  .wheel-Field-Label {
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    font-weight: 500;
+    color: var(--wheel-component-fg);
+  }
+
+  .wheel-Field-Label[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+  }
+
+  .wheel-Field-Control {
+    box-sizing: border-box;
+    width: 100%;
+    height: calc(var(--wheel-component-space) * 8);
+    padding: 0 calc(var(--wheel-component-space) * 3);
+    border-radius: var(--wheel-component-radius-md);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    transition: border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Field-Control::placeholder {
+    color: var(--wheel-component-fg-subtle);
+  }
+
+  .wheel-Field-Control[data-invalid] {
+    border-color: var(--wheel-component-danger);
+  }
+
+  .wheel-Field-Control[data-disabled] {
+    background: var(--wheel-component-bg-sunken);
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+
+  .wheel-Field-Description {
+    margin: 0;
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+    color: var(--wheel-component-fg-muted);
+  }
+
+  .wheel-Field-Error {
+    margin: 0;
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+    color: var(--wheel-component-danger);
+    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Field-Error[data-starting-style],
+  .wheel-Field-Error[data-ending-style] {
+    opacity: 0;
+  }
+}

@@ -1,0 +1,187 @@
+/* wheel.dev + docs: the site flavor over the shared wheel design tokens.
+
+   `packages/wheel/src/styles/tokens.css` is the one vocabulary (surfaces, ink,
+   lines, accent, radii, spacing, the ui + prose type scales, shadows). This
+   file does exactly two things:
+
+   1. RE-ACCENT AND RE-PAPER. wheel ships indigo on cool white chrome; this
+      site is an essay — green `#2f6f4f` on warm paper. Those are overrides of
+      the *theme aliases* (`--wheel-accent`, `--wheel-bg`, `--wheel-ink`, …),
+      so anything on these two hosts that reads a wheel token — including kit
+      components dropped into a docs page — inherits the essay identity. The
+      fixed `--wheel-chrome-*` / `--wheel-stage-*` / `--wheel-indigo-*`
+      families are untouched: surfaces that are deliberately baked keep the
+      wheel brand look.
+   2. ALIAS. The site's own short names (`--bg`, `--ink`, `--accent`, `--sans`,
+      the note/todo/warn sets) point at wheel tokens. Both consuming
+      stylesheets — `packages/docs/src/styles.css` and
+      `packages/website/src/styles.css` — keep reading the short names, so
+      nothing downstream had to change.
+
+   Theme resolution is unchanged: an explicit user choice (`data-theme` on
+   <html>, set by the pre-paint script in each index.html + ThemeToggle) wins;
+   otherwise the OS preference applies. The dark palette therefore appears
+   twice below — once per trigger — and the two blocks must stay identical.
+   Both blocks must also restate every override, because tokens.css re-points
+   the same aliases at its own dark values in blocks of equal specificity. */
+
+@import 'wheel/styles';
+
+:root {
+  /* ---- the essay identity: overrides of the wheel theme aliases ----------
+     Warm paper and warm near-black ink instead of wheel's cool chrome, and
+     green instead of indigo. Everything not listed here (radii, spacing, type
+     scales, shadows, status colors) comes from tokens.css unchanged. */
+  --wheel-accent: #2f6f4f;
+  --wheel-bg: #fdfdfc; /* paper */
+  --wheel-bg-raised: #fff; /* cards floating on paper */
+  --wheel-bg-soft: #f4f4f0; /* code wells, table heads, chrome strips */
+  --wheel-bg-hover: #ebebe4; /* row + control hover */
+  --wheel-ink: #1a1a18;
+  --wheel-ink-muted: #6b6b66;
+  --wheel-line: #e4e4df;
+
+  /* The two faces. Same override rationale as the colors: the site's Inter /
+     SF Mono pair replaces wheel's platform stacks everywhere on these hosts,
+     including the uppercase micro-labels that use mono as a *label* face. */
+  --wheel-sans: -apple-system, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --wheel-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  /* ---- the site's short names ------------------------------------------- */
+  --bg: var(--wheel-bg);
+  --ink: var(--wheel-ink);
+  --muted: var(--wheel-ink-muted);
+  --line: var(--wheel-line);
+  --accent: var(--wheel-accent);
+  --code-bg: var(--wheel-bg-soft);
+  --sans: var(--wheel-sans);
+  --mono: var(--wheel-mono);
+
+  /* Hairline rules *inside* a block (table rows, section splits): lighter
+     than --line, which stays the border of the block itself. */
+  --line-soft: #efefea;
+
+  /* Callout tints. Note is the accent; todo borrows wheel's warning ink. The
+     fills are warmer than wheel's cool status tints on purpose — they sit on
+     paper, next to prose. */
+  --note-bg: #edf4ef;
+  --note-line: var(--wheel-accent);
+  --todo-bg: #fff7e6;
+  --todo-line: #f0b429;
+  --todo-ink: var(--wheel-warn-ink);
+  --warn-bg: #fdeceb;
+  --warn-line: #c0392b;
+  --warn-ink: #9c2b1f;
+
+  /* ---- chrome dimensions, defined once ----------------------------------
+     Consumed by the shared site bar (site/site-chrome.css), the docs shell
+     (styles.css), and the demos shell — every surface that has to subtract the
+     bar from a full-viewport height reads `--topnav-h` from here, so they
+     cannot drift apart. */
+  --sidebar-w: 200px;
+  --sidebar-pad: var(--wheel-space-xl); /* 16px — the chrome gutter */
+  --topnav-h: 44px; /* the shared site bar, border excluded */
+  --toc-w: 200px; /* the right-hand "on this page" rail */
+}
+
+/* Explicit user choice: dark. */
+:root[data-theme='dark'] {
+  --wheel-accent: #6fbf94;
+  --wheel-bg: #131311;
+  --wheel-bg-raised: #1c1c19;
+  --wheel-bg-soft: #1c1c19;
+  --wheel-bg-hover: #26261f;
+  --wheel-ink: #e8e8e3;
+  --wheel-ink-muted: #8f8f88;
+  --wheel-line: #2a2a26;
+
+  --line-soft: #232320;
+  --note-bg: #17211b;
+  --todo-bg: #241d0e;
+  --todo-line: #b98a1f;
+  --todo-ink: #d9a83f;
+  --warn-bg: #2a1512;
+  --warn-line: #d9705f;
+  --warn-ink: #ef9282;
+}
+
+/* OS preference: dark, when the user made no explicit choice. Must mirror the
+   block above exactly. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --wheel-accent: #6fbf94;
+    --wheel-bg: #131311;
+    --wheel-bg-raised: #1c1c19;
+    --wheel-bg-soft: #1c1c19;
+    --wheel-bg-hover: #26261f;
+    --wheel-ink: #e8e8e3;
+    --wheel-ink-muted: #8f8f88;
+    --wheel-line: #2a2a26;
+
+    --line-soft: #232320;
+    --note-bg: #17211b;
+    --todo-bg: #241d0e;
+    --todo-line: #b98a1f;
+    --todo-ink: #d9a83f;
+    --warn-bg: #2a1512;
+    --warn-line: #d9705f;
+    --warn-ink: #ef9282;
+  }
+}
+
+/* ---- shiki (build-time highlighting, dual palettes as CSS vars) ----
+   The block surface is always --code-bg so code chrome matches the site;
+   token colors flip between the embedded light/dark palettes with the same
+   two triggers as the tokens above. */
+
+pre.shiki {
+  background-color: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-md);
+  padding: 14px var(--wheel-space-xl);
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: var(--wheel-prose-xs);
+  line-height: 1.55;
+}
+
+pre.shiki code {
+  background: none;
+  padding: 0;
+}
+
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+}
+
+:root[data-theme='dark'] .shiki,
+:root[data-theme='dark'] .shiki span {
+  color: var(--shiki-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .shiki,
+  :root:not([data-theme='light']) .shiki span {
+    color: var(--shiki-dark);
+  }
+}
+
+/* ---- the theme toggle button (shared chrome) ---- */
+
+.theme-toggle {
+  font: inherit;
+  font-size: var(--wheel-prose-sm);
+  line-height: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-sm);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}

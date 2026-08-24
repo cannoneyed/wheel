@@ -1,0 +1,1767 @@
+/**
+ * SyncClient: the browser-side (and World-side) engine.
+ *
+ * State model: `base` tables hold server truth, written
+ * ONLY by snapshots and deltas. The optimistic queue replays on top after
+ * every change to produce `effective`. Confirm/reject/rollback are all "drop
+ * the overlay entry and rebase" — there is no merge.
+ *
+ * ── THE RECONNECT FUNNEL (client side) ─────────────────────────────────────
+ *
+ * The transport owns "is the wire up" (one connection loop — see
+ * websocket-transport.ts). The client owns "what to do when it comes up", and every
+ * trigger routes through exactly TWO entry points, never ad-hoc calls:
+ *
+ *   trigger                                  entry point
+ *   ───────────────────────────────────────  ─────────────────────────────
+ *   transport reports status 'connected'  →  connectionRestored()
+ *   client's own connect() resolves       →  connectionRestored() (after
+ *                                            the one-time outbox replay)
+ *   transport re-opened a dropped socket  →  rebootstrap()  (coalesced)
+ *
+ *   connectionRestored():   release queued offline mutations (in order) +
+ *                           re-open wire subscriptions still serving
+ *                           hydrated (stale) data. Idempotent; safe to fire
+ *                           on every "the wire looks healthy" signal.
+ *   rebootstrap():          full resync — refetch EVERY subscription's
+ *                           snapshot, swap server truth, rebase the
+ *                           optimistic queue on top. The heavyweight path,
+ *                           needed because a dropped WebSocket loses deltas
+ *                           irrecoverably (there is no replay protocol).
+ *                           COALESCED: a storm of reconnects runs at most
+ *                           one bootstrap plus one queued follow-up.
+ *
+ * Ordering note (narrated at each site): on a socket reconnect the transport
+ * fires status 'connected' BEFORE onReconnect, so queued mutations start
+ * flushing while rebootstrap refetches. That interleaving is safe by
+ * construction: a snapshot that predates a queued write is corrected by the
+ * write's own delta, and a confirmed entry keeps replaying optimistically
+ * until base catches up to its confirmedSeq (releaseSettledEntries).
+ *
+ * ── TEARDOWN ───────────────────────────────────────────────────────────────
+ *
+ * One signal: `lifecycle`. close() aborts it, and every background loop
+ * (queue flush, outbox replay, stale-wire retry, rebootstrap, persistence)
+ * checks it at its next boundary. No scattered `stopped`/`closed` booleans —
+ * the remaining boolean fields (`connected`, `flushing`, `replaying`) are
+ * state-machine latches, not teardown flags, and say so where they live.
+ */
+import {
+  OrphanedError,
+  validateTableKey,
+  type InverseSpec,
+  type MutationDecl,
+  type MutationRejection,
+  type PresenceDecl,
+  type QueryDecl,
+  type TableDecl
+} from '../declarations';
+import { canonicalParams } from '../../core/params';
+import {
+  JsonValueError,
+  RowValidationError,
+  validateJsonValue,
+  validateRow,
+  type RowValidationIssue
+} from '../schema';
+import { systemDefer, type Defer } from '../../core/runtime-defaults';
+import { logger } from '../../core/logger';
+import type { Clock, IdGen, RandomBytes } from '../ids';
+import { createIdGen } from '../ids';
+import type { MutationError, RowDelta, ServerEvent, Snapshot } from '../protocol';
+import { OverlayCache, cloneTables, freezeRow, tableMap, type Row, type Tables } from './cache';
+import { ProvenanceLog, type ProvenanceEntry, type WriteCause } from './provenance';
+import type { LocalCache, PersistedSubscription } from './local-cache';
+import type { SyncConnectionStatus } from './transport';
+import { TransientSyncError } from './transport';
+import type { SyncTransport } from './transport';
+
+/**
+ * The lifecycle of a mutation: pending -> confirmed | rejected | failed |
+ * orphaned (never limbo). `queued` = the TRANSPORT failed (couldn't reach
+ * the server); the entry keeps its optimistic state and retries when the
+ * connection returns — offline work is DEFERRED, never lost. `failed` = the
+ * mutation is BROKEN — invalid args (caught locally OR server-side), a handler
+ * that threw, or an id-stream mismatch — terminal, rolled back, never retried:
+ * retrying a poison mutation would break identically forever and block every
+ * mutation queued behind it.
+ *
+ * `pending` and `queued` are IN-FLIGHT; `settled` resolves to one of the FOUR
+ * terminal outcomes (the one error channel, see `mutate()`):
+ *
+ *   | outcome (state) | when                                                  | rolled back?         | retried? |
+ *   |-----------------|-------------------------------------------------------|----------------------|----------|
+ *   | confirmed       | the server committed the write (`{ok:true}`)          | no — it is now truth | —        |
+ *   | rejected        | a business rule said no (`rejection()` in the handler)| yes, cleanly         | never    |
+ *   | failed          | the mutation is BROKEN — invalid args, a handler that | yes                  | never    |
+ *   |                 | threw, an id-stream mismatch. Terminal: a bug.        |                      |          |
+ *   | orphaned        | the row it edits vanished before replay (a peer       | yes, cleanly         | never    |
+ *   |                 | deleted it) — legitimate, not a bug.                  |                      |          |
+ */
+export type MutationState = 'pending' | 'queued' | 'confirmed' | 'rejected' | 'orphaned' | 'failed';
+
+/** The audit record of one mutation attempt, including its rejection/error if any. */
+export interface MutationInfo {
+  readonly mutationId: string;
+  readonly mutation: string;
+  readonly state: MutationState;
+  readonly rejection?: MutationRejection;
+  /** Present on `failed`: the typed "this mutation is broken" verdict — the server's crash, or invalid args caught locally (`code: 'invalid_args'`). */
+  readonly error?: MutationError;
+}
+
+/** What mutate() returns: the mutation id plus a promise for its settled outcome. */
+export interface MutationHandle {
+  readonly mutationId: string;
+  /**
+   * Resolves with the terminal outcome — `confirmed | rejected | failed |
+   * orphaned` (see the table on `mutate()`). NEVER rejects: mutate() has ONE
+   * error channel, so even invalid args arrive here as `failed`, never as a
+   * throw. Stays unresolved only while the mutation is `queued` (offline).
+   */
+  readonly settled: Promise<MutationInfo>;
+}
+
+interface OptimisticEntry {
+  readonly mutationId: string;
+  readonly decl: MutationDecl;
+  readonly args: Record<string, unknown>;
+  readonly ids: readonly string[];
+  state: MutationState;
+  confirmedSeq?: number;
+  writes: readonly { table: string; rowId: string }[];
+  /** Settles the caller's MutationHandle.settled promise. */
+  resolveSettled?: (info: MutationInfo) => void;
+}
+
+interface ClientSubscription {
+  readonly key: string;
+  readonly query: QueryDecl;
+  readonly params: Record<string, unknown>;
+  subscriptionId: string;
+  /** Server-declared result membership + order (delta.order). */
+  order: string[];
+  /** Highest delta seq applied — stale (reordered) deltas are refused. */
+  lastDeltaSeq: number;
+  refs: number;
+  /** True while serving hydrated (persisted, possibly outdated) rows — no wire subscription yet. */
+  stale: boolean;
+}
+
+/** A live subscription handle: current rows (server order + optimistic projection) and release(). */
+export interface QueryHandle<RowT extends Row = Row> {
+  readonly query: string;
+  readonly subscriptionId: string;
+  /** Current effective rows: server membership/order + optimistic projection. */
+  rows(): readonly RowT[];
+  /** True while rows come from the hydrated cache and no wire snapshot has confirmed them yet. */
+  stale(): boolean;
+  release(): void;
+}
+
+/** What explain() answers: the current value plus the full provenance chain of causes. */
+export interface ExplainResult<RowT extends Row = Row> {
+  readonly value: RowT | undefined;
+  readonly cause: WriteCause | undefined;
+  readonly history: readonly ProvenanceEntry[];
+}
+
+/**
+ * One peer whose presence payload the reader's declaration REJECTED — surfaced,
+ * never silently dropped. A peer running an older schema shows up here so the
+ * caller (and the debug panel) can see "this peer's presence didn't validate"
+ * instead of an unexplained absence.
+ */
+export interface PeerPresenceFailure {
+  readonly clientId: string;
+  /** Actor authenticated by the server for this peer's connection. */
+  readonly actor: string;
+  /** The raw payload as it arrived on the wire (the older-schema peer's shape). */
+  readonly state: Record<string, unknown>;
+  /** Why it failed the reader's declaration — the offending fields. */
+  readonly issues: readonly RowValidationIssue[];
+}
+
+/**
+ * What `peers(decl)` answers: `valid` peers keyed by clientId, plus the
+ * `failures` whose payload the declaration rejected. Splitting them means a bad
+ * peer is a THING THE CALLER CAN SEE — the whole point of 4.4 — rather than a
+ * vanished entry.
+ */
+export interface PeersResult<State extends Record<string, unknown>> {
+  readonly valid: ReadonlyMap<string, State>;
+  readonly failures: ReadonlyMap<string, PeerPresenceFailure>;
+  /** Authenticated actor for every peer, keyed by connection id. */
+  readonly actors: ReadonlyMap<string, string>;
+}
+
+/** Everything a SyncClient needs injected: transport, identity, clock, randomness. */
+export interface SyncClientOptions {
+  transport: SyncTransport;
+  clientId: string;
+  actor: string;
+  clock: Clock;
+  randomBytes: RandomBytes;
+  /** One-shot timer seam (presence coalescing). Defaults to real timers; tests inject a manual Defer or use fake timers. */
+  defer?: Defer;
+  provenanceCapacity?: number;
+  /**
+   * Durable local persistence — REQUIRED, because local-first is not an opt-in
+   * mode: `IndexedDbCache` in browsers, `MemoryCache` in tests and SSR (pass it
+   * explicitly — choosing the cache is the point; there is no silent
+   * not-local-first path). Enables the local-first behaviors: subscriptions
+   * hydrate from cache on boot (instant, marked stale until the wire confirms)
+   * and pending mutations survive reloads through the outbox (replayed on
+   * connect; exactly-once — the server dedupes by mutationId). `MemoryCache`
+   * simply forgets between constructions, which is exactly what tests and SSR
+   * want.
+   */
+  localCache: LocalCache;
+}
+
+/** The client engine: server-truth cache + optimistic overlay, subscriptions deduped by canonical key, provenance on every write (see module doc). */
+export class SyncClient {
+  private readonly base: Tables = new Map();
+  private effective: Tables = new Map();
+  private readonly subscriptions = new Map<string, ClientSubscription>();
+  /** Calls requesting each canonical subscription, including hydration/wire still in flight. */
+  private readonly subscriptionDemands = new Map<string, number>();
+  private readonly inflightSubscribes = new Map<string, Promise<void>>();
+  // The cache-hydration phase of a first subscribe (loading persisted rows)
+  // runs BEFORE the wire subscription registers in `inflightSubscribes`. Track
+  // it too, so "is the wire quiet?" (settle) spans the whole subscribe, not
+  // just its wire tail — otherwise settle can return in the gap between
+  // hydrate-start and wire-register and read an empty subscription.
+  private readonly inflightHydrations = new Set<Promise<unknown>>();
+  /** Outbox commit + first send attempt; World settles these without waiting for offline queues forever. */
+  private readonly inflightMutationStarts = new Set<Promise<void>>();
+  private readonly subscriptionsById = new Map<string, ClientSubscription>();
+  private readonly pending: OptimisticEntry[] = [];
+  private readonly mutationLog = new Map<string, MutationInfo[]>();
+  private readonly provenance: ProvenanceLog;
+  private readonly listeners = new Set<(changedTables?: ReadonlySet<string>) => void>();
+  /**
+   * Tables whose effective rows moved since the last notify. Marked where
+   * rows change (deltas, bootstraps, optimistic writes, rollbacks, drops)
+   * and flushed to listeners, so a consumer can invalidate per table
+   * instead of re-deriving the world on every change. `changedAll` is the
+   * conservative flag for changes with unknown scope (reconnect bootstrap).
+   */
+  private readonly changedTables = new Set<string>();
+  private changedAll = false;
+  private readonly idGen: IdGen;
+  private lastSeq = 0;
+  /**
+   * The ONE teardown signal (see the module doc): close() aborts it, and every
+   * background loop observes it at its next boundary. Nothing else in this
+   * class means "we are shutting down".
+   */
+  private readonly lifecycle = new AbortController();
+  /** Connection STATE (has transport.connect resolved), not a teardown flag — close() resets it so a client is never "connected and closed". */
+  private connected = false;
+  /** In-flight dedup latch for connect(); null when no connect is running. */
+  private connecting: Promise<void> | null = null;
+  private version = 0;
+  private undoStack: InverseSpec[] = [];
+  private redoStack: InverseSpec[] = [];
+  private replaying: 'undo' | 'redo' | null = null;
+  private readonly peerPresence = new Map<string, Record<string, unknown>>();
+  private readonly peerPresenceActors = new Map<string, string>();
+
+  constructor(private readonly options: SyncClientOptions) {
+    this.idGen = createIdGen({ clock: options.clock, randomBytes: options.randomBytes });
+    this.provenance = new ProvenanceLog(options.provenanceCapacity);
+  }
+
+  /** The same injected wall clock used by ids, mutations, and provenance. */
+  now(): number {
+    return this.options.clock.now();
+  }
+
+  /** Schedule through the client's injected one-shot timer seam. */
+  schedule(ms: number, fn: () => void): () => void {
+    return this.defer.schedule(ms, fn);
+  }
+
+  /** This client's stable identity on the wire. */
+  get clientId(): string {
+    return this.options.clientId;
+  }
+
+  private connectionStatusValue: SyncConnectionStatus = 'connecting';
+
+  /**
+   * The transport-level connection status — what the "sync offline" UI reads.
+   * While disconnected the cache keeps serving last-known server truth (base
+   * tables are only replaced by a successful re-bootstrap), so consumers can
+   * honestly render stale data with a warning instead of empty lists.
+   */
+  connectionStatus(): SyncConnectionStatus {
+    return this.connectionStatusValue;
+  }
+
+  /** Transport wiring reports connection lifecycle here; notifies subscribers on change. */
+  setConnectionStatus(status: SyncConnectionStatus): void {
+    if (status === this.connectionStatusValue) {
+      return;
+    }
+    this.connectionStatusValue = status;
+    if (status === 'connected') {
+      // FUNNEL (module doc): a healthy-wire signal has exactly one reaction.
+      this.connectionRestored();
+    }
+    this.notify();
+  }
+
+  /**
+   * FUNNEL entry point: the wire is (newly) healthy. Release queued offline
+   * mutations in enqueue order and re-open wire subscriptions still serving
+   * hydrated (stale) data. Idempotent — flushQueued dedups via its `flushing`
+   * latch and retryStaleWires via `inflightSubscribes` — so every "connection
+   * looks good" trigger may call it without coordination. Full resync
+   * (rebootstrap) is deliberately NOT here: only the transport knows a stream
+   * actually DROPPED (and therefore deltas were lost); a mere status blip must
+   * not pay the refetch-everything cost.
+   */
+  private connectionRestored(): void {
+    if (this.lifecycle.signal.aborted) {
+      return; // closed: teardown wins over any late trigger
+    }
+    this.flushQueued();
+    this.retryStaleWires();
+    // Wake parked cold subscribes LAST: their retry rides the same healthy
+    // wire the two calls above just used.
+    for (const wake of this.connectionWaiters.splice(0)) {
+      wake();
+    }
+  }
+
+  /** Parked work waiting for the next healthy-wire signal (or teardown). */
+  private readonly connectionWaiters: Array<() => void> = [];
+
+  /**
+   * Resolves at the next `connectionRestored()` — or immediately once the
+   * client is closed, so a parked loop can observe the abort and exit
+   * instead of waiting forever on a connection that will never return.
+   */
+  private connectionReturn(): Promise<void> {
+    if (this.lifecycle.signal.aborted) {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      this.connectionWaiters.push(resolve);
+    });
+  }
+
+  /** Open the transport connection (deduped: concurrent callers share one connect). */
+  async connect(): Promise<void> {
+    if (this.connected) {
+      return;
+    }
+    // In-flight dedup: concurrent first subscribes (a board mounting three
+    // columns) must open exactly ONE connection.
+    if (!this.connecting) {
+      this.connecting = this.options.transport
+        .connect(
+          this.options.clientId,
+          (event) => this.applyEvent(event),
+          { actor: this.options.actor }
+        )
+        .then(async () => {
+          if (this.lifecycle.signal.aborted) {
+            return; // close() raced the connect; do not resurrect the client
+          }
+          this.connected = true;
+          // Boot order matters: replay last session's surviving outbox FIRST
+          // (in enqueue order) so pre-crash work precedes this session's, then
+          // hand the healthy wire to the funnel (queued flush + stale wires).
+          await this.replayOutbox();
+          this.connectionRestored();
+        })
+        .finally(() => {
+          this.connecting = null;
+        });
+    }
+    await this.connecting;
+  }
+
+  /** The last server seq this client has observed. */
+  seq(): number {
+    return this.lastSeq;
+  }
+
+  /** Mint a prefixed UUIDv7 from the client's (injectable, test-deterministic) id source — for args-borne ids like block inserts. */
+  newId(prefix: string): string {
+    return this.idGen.newId(prefix);
+  }
+
+  /** Unconfirmed local mutations still in flight. */
+  pendingMutations(): number {
+    return this.pending.filter((entry) => entry.state === 'pending').length;
+  }
+
+  /** Mutations parked by a dead connection, awaiting retry — the "N unsaved changes" banner count. */
+  queuedMutations(): number {
+    return this.pending.filter((entry) => entry.state === 'queued').length;
+  }
+
+  /**
+   * Subscribe to every state change (deltas, optimistic writes, presence).
+   * The listener receives the tables whose effective rows moved: an empty
+   * set for data-free changes (status, mutation lifecycle, presence),
+   * `undefined` when the scope is unknown (assume everything).
+   */
+  onChange(listener: (changedTables?: ReadonlySet<string>) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  // ── queries ────────────────────────────────────────────────────────────
+
+  /**
+   * Subscribe to a live query; deduped by canonical (query, params) key.
+   *
+   * Local-first path: with a store configured, a persisted snapshot hydrates
+   * the subscription INSTANTLY (marked stale) and the wire subscription
+   * refreshes it whenever the connection lands — so an offline boot serves
+   * last-known data instead of hanging. Without cached data the call awaits
+   * the wire (loading until online), same as a client with no store.
+   */
+  async subscribe<Params extends Record<string, unknown>, RowT extends Row>(
+    query: QueryDecl<Params, RowT>,
+    params: NoInfer<Params>
+  ): Promise<QueryHandle<RowT>> {
+    const parsedParams = query.params.safeParse(params);
+    if (!parsedParams.success) {
+      throw new Error(
+        `Params for query "${query.name}" are invalid: ${parsedParams.error.issues
+          .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+          .join('; ')}`
+      );
+    }
+    const queryParams = parsedParams.data as Params;
+    validateJsonValue(`Params for query "${query.name}"`, queryParams);
+    const key = `${query.name}|${canonicalParams(queryParams)}`;
+    this.subscriptionDemands.set(key, (this.subscriptionDemands.get(key) ?? 0) + 1);
+    try {
+    let subscription = this.subscriptions.get(key);
+    // Kick the wire FIRST, synchronously: `ensureWireSubscription` registers
+    // its in-flight promise before any await, so (a) two concurrent first
+    // subscribes to the same key dedup onto ONE wire call instead of racing
+    // through the hydrate gap below, and (b) settle() sees the work the instant
+    // subscribe() is called. The wire's own body reads the subscription only
+    // after connect + snapshot resolve — by then the hydrate below has created
+    // the stale placeholder, so the wire correctly UPGRADES it rather than
+    // creating a duplicate.
+    const wire = this.ensureWireSubscription(query as QueryDecl, queryParams, key);
+    if (!subscription) {
+      // Hydrate for instant stale rows (offline boot) — tracked as in-flight
+      // (see `inflightHydrations`) so settle() waits for it. On an empty cache
+      // this creates nothing and we fall through to awaiting the wire.
+      const hydration = this.hydrateSubscription(query as QueryDecl, queryParams, key);
+      this.inflightHydrations.add(hydration);
+      try {
+        subscription = await hydration;
+      } finally {
+        this.inflightHydrations.delete(hydration);
+      }
+    }
+    if (!subscription && !this.subscriptions.has(key)) {
+      await wire;
+    } else {
+      // Hydrated (or already live): the wire refresh completes in the
+      // background whenever the connection allows.
+      void wire.catch(() => {});
+    }
+    const live = this.subscriptions.get(key)!;
+    live.refs += 1;
+    const self = this;
+    let released = false;
+    return {
+      query: query.name,
+      subscriptionId: live.subscriptionId,
+      rows(): readonly RowT[] {
+        return self.queryRows(query as unknown as QueryDecl, queryParams, key) as readonly RowT[];
+      },
+      stale(): boolean {
+        return self.subscriptions.get(key)?.stale ?? false;
+      },
+      release(): void {
+        if (released) return;
+        released = true;
+        const current = self.subscriptions.get(key);
+        if (current) {
+          current.refs -= 1;
+        }
+        const demands = (self.subscriptionDemands.get(key) ?? 1) - 1;
+        if (demands > 0) {
+          self.subscriptionDemands.set(key, demands);
+          return;
+        }
+        self.subscriptionDemands.delete(key);
+        if (!current) return;
+
+        // Live membership dies now. Persisted snapshots remain in LocalCache
+        // as a separate stale-start optimization for a later re-subscribe.
+        self.dropUnclaimedRows(current, new Set());
+        self.subscriptions.delete(key);
+        self.subscriptionsById.delete(current.subscriptionId);
+        self.rebase();
+        self.notify();
+        if (!current.stale && !current.subscriptionId.startsWith('hydrated:')) {
+          void self.options.transport
+            .unsubscribe(self.options.clientId, current.subscriptionId)
+            .catch(() => {
+              // A dead connection already drops every subscription; reconnect
+              // only bootstraps entries still present in this client's map.
+            });
+        }
+      }
+    };
+    } catch (error) {
+      const demands = (this.subscriptionDemands.get(key) ?? 1) - 1;
+      if (demands > 0) {
+        this.subscriptionDemands.set(key, demands);
+      } else {
+        this.subscriptionDemands.delete(key);
+      }
+      throw error;
+    }
+  }
+
+  /** Persisted snapshots for hydration, loaded once per client. */
+  private persistedSubs: Promise<Map<string, PersistedSubscription>> | null = null;
+
+  private loadPersisted(): Promise<Map<string, PersistedSubscription>> {
+    if (!this.persistedSubs) {
+      this.persistedSubs = this.options.localCache
+        .loadSubscriptions()
+        .then((subs) => new Map(subs.map((sub) => [sub.key, sub])))
+        .catch(() => new Map());
+    }
+    return this.persistedSubs;
+  }
+
+  /** Apply a persisted snapshot as a stale subscription (instant offline boot). */
+  private async hydrateSubscription(
+    query: QueryDecl,
+    params: Record<string, unknown>,
+    key: string
+  ): Promise<ClientSubscription | undefined> {
+    const persisted = (await this.loadPersisted()).get(key);
+    if (!persisted || this.subscriptions.has(key)) {
+      return this.subscriptions.get(key);
+    }
+    const table = query.into;
+    const rows = tableMap(this.base, table.name);
+    const subscription: ClientSubscription = {
+      key,
+      query,
+      params,
+      subscriptionId: `hydrated:${key}`,
+      order: [...persisted.order],
+      lastDeltaSeq: persisted.seq,
+      refs: 0,
+      stale: true
+    };
+    const hydratedRows = persisted.rows.map((raw, index) => {
+      const row = freezeRow({ ...validateRow(`cached query ${query.name}`, table.schema, raw) });
+      const id = validateTableKey(table, row, `Cached query "${query.name}" row ${index}`);
+      return { id, row, index };
+    });
+    const firstIndexes = new Map<string, number>();
+    this.markChanged(table.name);
+    for (const { id, row, index } of hydratedRows) {
+      const firstIndex = firstIndexes.get(id);
+      if (firstIndex !== undefined) {
+        throw new Error(
+          `Cached query "${query.name}" has duplicate key ${JSON.stringify(id)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+        );
+      }
+      firstIndexes.set(id, index);
+      rows.set(id, row);
+      this.provenance.record({
+        at: this.options.clock.now(),
+        table: table.name,
+        rowId: id,
+        value: row,
+        cause: { kind: 'hydrate', seq: persisted.seq }
+      });
+    }
+    this.subscriptions.set(key, subscription);
+    this.lastSeq = Math.max(this.lastSeq, persisted.seq);
+    this.rebase();
+    this.notify();
+    return subscription;
+  }
+
+  /**
+   * Resolves when every currently in-flight subscribe has settled (fulfilled
+   * OR failed — failures are the caller's concern, this only answers "is the
+   * wire quiet"). World.settle() awaits this so a lazily-subscribing service
+   * read (`service.issuesFor(teamId)` starting a subscription mid-test)
+   * settles like every other in-flight work — without it, tests would need
+   * a poll-until-rows dance.
+   *
+   * Why BOTH sets are registered synchronously inside subscribe() (audited):
+   * the wire promise lands in `inflightSubscribes` before subscribe()'s first
+   * await, and the hydration lands in `inflightHydrations` the line after it
+   * starts — so a settle() issued any time after subscribe() was CALLED sees
+   * the work. Known, harmless ordering nuance: this promise can resolve one
+   * microtask before subscribe()'s own continuation increments `refs` (both
+   * chain on the same promises; ours may be scheduled first). `refs` only
+   * feeds the React binding's dedup accounting, and World.settle()'s
+   * multi-round drain absorbs the microtask — no observable state depends on
+   * the gap.
+   */
+  subscribesSettled(): Promise<void> {
+    const inflight = [
+      ...this.inflightSubscribes.values(),
+      ...this.inflightHydrations,
+      ...this.inflightMutationStarts
+    ];
+    if (inflight.length === 0) {
+      return Promise.resolve();
+    }
+    return Promise.allSettled(inflight).then(() => {});
+  }
+
+  /** Whether any first-subscribe hydrate or wire call is still in flight (settle's quiet check). */
+  hasInflightSubscribes(): boolean {
+    return (
+      this.inflightSubscribes.size > 0 ||
+      this.inflightHydrations.size > 0 ||
+      this.inflightMutationStarts.size > 0
+    );
+  }
+
+  /** Open (or refresh) the wire subscription for a key; deduped in-flight. */
+  private ensureWireSubscription(
+    query: QueryDecl,
+    params: Record<string, unknown>,
+    key: string
+  ): Promise<void> {
+    const existing = this.subscriptions.get(key);
+    if (existing && !existing.stale) {
+      return Promise.resolve();
+    }
+    let inflight = this.inflightSubscribes.get(key);
+    if (!inflight) {
+      inflight = (async () => {
+        await this.connect();
+        // A transient wire failure (409 across a restart, network drop, 5xx)
+        // parks this subscribe until the connection returns, then retries —
+        // the promise stays PENDING for the cold caller, and its view stays
+        // honestly 'loading'. Before this loop a cold subscribe that raced a
+        // restart rejected once and died sticky for the life of the tab; the
+        // empty-forever view it left behind armed the 2026-08-10 mark-read
+        // storm. Only a server VERDICT rejects (sticky is then correct).
+        let snapshot: Snapshot;
+        for (;;) {
+          try {
+            snapshot = await this.options.transport.subscribe(this.options.clientId, query.name, params);
+            break;
+          } catch (error) {
+            if (!(error instanceof TransientSyncError) || this.lifecycle.signal.aborted) {
+              throw error;
+            }
+            if ((this.subscriptionDemands.get(key) ?? 0) === 0) {
+              return; // released while failing — nobody is waiting
+            }
+            await this.connectionReturn();
+            if (this.lifecycle.signal.aborted) {
+              // Reject rather than resolve-empty: a cold caller past this
+              // await reads the subscription map, and close() created none.
+              throw new Error('sync client closed while a subscribe was parked');
+            }
+          }
+        }
+        if ((this.subscriptionDemands.get(key) ?? 0) === 0) {
+          await this.options.transport
+            .unsubscribe(this.options.clientId, snapshot.subscriptionId)
+            .catch(() => {});
+          return;
+        }
+        let subscription = this.subscriptions.get(key);
+        if (subscription) {
+          // The wire replaces hydrated truth: drop cached rows the snapshot
+          // no longer contains (unless another subscription still claims them).
+          this.dropUnclaimedRows(subscription, new Set(snapshot.rows.map((row) => query.into.key(row as Row))));
+          this.subscriptionsById.delete(subscription.subscriptionId);
+          subscription.subscriptionId = snapshot.subscriptionId;
+          subscription.stale = false;
+          // A hydrated seq may come from an older server epoch (db reset);
+          // the wire snapshot is the authority from here on. Mirrors the
+          // reset in rebootstrap() — keep both in sync.
+          subscription.lastDeltaSeq = 0;
+        } else {
+          subscription = {
+            key,
+            query,
+            params,
+            subscriptionId: snapshot.subscriptionId,
+            order: [],
+            lastDeltaSeq: snapshot.seq,
+            refs: 0,
+            stale: false
+          };
+          this.subscriptions.set(key, subscription);
+        }
+        this.subscriptionsById.set(snapshot.subscriptionId, subscription);
+        this.applySnapshot(subscription, snapshot);
+      })().finally(() => {
+        this.inflightSubscribes.delete(key);
+      });
+      this.inflightSubscribes.set(key, inflight);
+    }
+    return inflight;
+  }
+
+  /**
+   * Re-open the wire for every subscription still serving hydrated data. If a
+   * failed attempt is still in flight for a key, the retry is chained behind
+   * its settlement — one retry per connection-return, no loops.
+   */
+  private retryStaleWires(): void {
+    for (const subscription of [...this.subscriptions.values()]) {
+      if (!subscription.stale) continue;
+      const key = subscription.key;
+      const kick = () => {
+        if (this.lifecycle.signal.aborted) {
+          return; // closed while the chained retry waited — nothing to refresh
+        }
+        const sub = this.subscriptions.get(key);
+        if (sub?.stale && !this.inflightSubscribes.has(key)) {
+          void this.ensureWireSubscription(sub.query, sub.params, key).catch(() => {});
+        }
+      };
+      const existing = this.inflightSubscribes.get(key);
+      if (existing) {
+        void existing.catch(() => {}).then(kick);
+      } else {
+        kick();
+      }
+    }
+  }
+
+  /** Remove a subscription's rows that `keep` omits and no other subscription claims. */
+  private dropUnclaimedRows(subscription: ClientSubscription, keep: ReadonlySet<string>): void {
+    const table = subscription.query.into.name;
+    const rows = tableMap(this.base, table);
+    for (const id of subscription.order) {
+      if (keep.has(id)) continue;
+      const claimed = [...this.subscriptions.values()].some(
+        (other) => other !== subscription && other.query.into.name === table && other.order.includes(id)
+      );
+      if (!claimed) {
+        rows.delete(id);
+        this.markChanged(table);
+      }
+    }
+  }
+
+  private queryRows(query: QueryDecl, params: Record<string, unknown>, key: string): readonly Row[] {
+    const subscription = this.subscriptions.get(key);
+    const rows = tableMap(this.effective, query.into.name);
+    if (query.projection) {
+      const projected = [...rows.values()].filter((row) => query.projection!.filter(row, params));
+      if (query.projection.sort) {
+        projected.sort(query.projection.sort);
+      } else if (subscription) {
+        // Rebuilt per read on purpose: a cached map would need invalidation
+        // on every order change, and subscription row counts keep the O(n)
+        // rebuild cheap. Rows absent from the server-provided order
+        // (optimistic-only inserts) get Infinity and deliberately sort last.
+        const position = new Map(subscription.order.map((id, index) => [id, index]));
+        projected.sort((a, b) => (position.get(query.into.key(a)) ?? Infinity) - (position.get(query.into.key(b)) ?? Infinity));
+      }
+      return projected;
+    }
+    if (!subscription) {
+      return [];
+    }
+    return subscription.order.map((id) => rows.get(id)).filter((row): row is Row => row !== undefined);
+  }
+
+  /** One row from the effective view (server truth + optimistic overlay). */
+  get<RowT extends Row>(table: TableDecl<RowT>, id: string): RowT | undefined {
+    return tableMap(this.effective, table.name).get(id) as RowT | undefined;
+  }
+
+  /** All pooled rows of a table from the effective view. */
+  rows<RowT extends Row>(table: TableDecl<RowT>): readonly RowT[] {
+    return [...tableMap(this.effective, table.name).values()] as RowT[];
+  }
+
+  // ── mutations ──────────────────────────────────────────────────────────
+
+  /**
+   * The one write path: validate, capture inverse, apply optimistically, send.
+   *
+   * ONE ERROR CHANNEL (4.2): every outcome of a mutation resolves through
+   * `handle.settled` — including invalid args, caught right here before
+   * anything is applied or sent. `mutate()` NEVER throws. The FOUR terminal
+   * outcomes `settled` can resolve to:
+   *
+   *   | outcome (state) | when                                                  | rolled back?         | retried? |
+   *   |-----------------|-------------------------------------------------------|----------------------|----------|
+   *   | confirmed       | the server committed the write (`{ok:true}`)          | no — it is now truth | —        |
+   *   | rejected        | a business rule said no (`rejection()` in the handler)| yes, cleanly         | never    |
+   *   | failed          | the mutation is BROKEN — invalid args (caught locally | yes                  | never    |
+   *   |                 | OR server-side), an optimistic/server handler that    |                      |          |
+   *   |                 | threw, an id-stream mismatch. Terminal: a bug.        |                      |          |
+   *   | orphaned        | the row it edits vanished before replay (a peer       | yes, cleanly         | never    |
+   *   |                 | deleted it) — legitimate, not a bug.                  |                      |          |
+   *
+   * A transport failure is NOT a fifth outcome: it leaves the mutation
+   * UNSETTLED, parked `queued`, and retried in order when the connection
+   * returns (the offline promise). Only failure-to-communicate is retryable;
+   * every computed verdict is terminal.
+   */
+  mutate<Args extends Record<string, unknown>>(decl: MutationDecl<Args>, args: NoInfer<Args>): MutationHandle {
+    const mutationId = this.idGen.newId('m');
+    const parsed = decl.args.safeParse(args);
+    if (!parsed.success) {
+      // Invalid args are the caller's bug: terminal and un-retryable exactly
+      // like a crashed handler, so they take the SAME `failed` channel rather
+      // than throwing out of mutate(). Nothing is applied, queued, or sent —
+      // the mutation never happened, it just settles broken. (The server would
+      // return this identical `invalid_args` verdict if the args slipped past;
+      // catching locally spares the round trip.)
+      const message = `Args for mutation "${decl.name}" are invalid: ${parsed.error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; ')}`;
+      const info: MutationInfo = {
+        mutationId,
+        mutation: decl.name,
+        state: 'failed',
+        error: { kind: 'error', code: 'invalid_args', message }
+      };
+      this.logMutation(info);
+      return { mutationId, settled: Promise.resolve(info) };
+    }
+    try {
+      validateJsonValue(`Args for mutation "${decl.name}"`, parsed.data);
+    } catch (error) {
+      if (!(error instanceof JsonValueError)) throw error;
+      const info: MutationInfo = {
+        mutationId,
+        mutation: decl.name,
+        state: 'failed',
+        error: { kind: 'error', code: 'invalid_args', message: error.message }
+      };
+      this.logMutation(info);
+      return { mutationId, settled: Promise.resolve(info) };
+    }
+    const generated: string[] = [];
+    let writes: readonly { table: string; rowId: string }[] = [];
+    let rollbackUndoBookkeeping = (): void => {};
+
+    // Undo bookkeeping (locked design: undo IS a mutation). The inverse is
+    // captured against the effective state BEFORE the optimistic apply.
+    if (decl.invert) {
+      const inverse = decl.invert(
+        {
+          get: (table, id) => this.get(table, id),
+          list: (table) => this.rows(table)
+        },
+        parsed.data
+      );
+      if (inverse) {
+        if (this.replaying === 'undo') {
+          this.redoStack.push(inverse);
+          rollbackUndoBookkeeping = () => {
+            const index = this.redoStack.lastIndexOf(inverse);
+            if (index >= 0) this.redoStack.splice(index, 1);
+          };
+        } else {
+          this.undoStack.push(inverse);
+          const previousRedo = this.replaying === null ? this.redoStack : null;
+          if (this.replaying === null) {
+            this.redoStack = []; // a fresh local edit invalidates redo history
+          }
+          rollbackUndoBookkeeping = () => {
+            const index = this.undoStack.lastIndexOf(inverse);
+            if (index >= 0) this.undoStack.splice(index, 1);
+            if (previousRedo) this.redoStack = previousRedo;
+          };
+        }
+      }
+    }
+
+    if (decl.optimistic) {
+      const working = cloneTables(this.effective);
+      const overlay = new OverlayCache(working);
+      decl.optimistic(
+        overlay,
+        parsed.data,
+        {
+          newId: (prefix) => {
+            const id = this.idGen.newId(prefix);
+            generated.push(id);
+            return id;
+          },
+          now: () => this.options.clock.now(),
+          actor: this.options.actor
+        }
+      );
+      writes = overlay.writes.map(({ table, rowId }) => ({ table, rowId }));
+      for (const write of overlay.writes) {
+        this.markChanged(write.table);
+        this.provenance.record({
+          at: this.options.clock.now(),
+          table: write.table,
+          rowId: write.rowId,
+          value: write.value,
+          cause: { kind: 'optimistic', mutationId, mutation: decl.name }
+        });
+      }
+    }
+
+    const entry: OptimisticEntry = {
+      mutationId,
+      decl: decl as MutationDecl,
+      args: parsed.data,
+      ids: generated,
+      state: 'pending',
+      writes
+    };
+    const settled = new Promise<MutationInfo>((resolve) => {
+      entry.resolveSettled = resolve;
+    });
+    this.pending.push(entry);
+    this.rebase();
+    this.notify();
+
+    // Durability before the wire: the outbox entry commits, THEN the send
+    // goes out — a crash after this point replays instead of losing work.
+    const persistAndSend = (async () => {
+      try {
+        await this.options.localCache.appendOutbox({
+          mutationId,
+          mutation: decl.name,
+          args: parsed.data,
+          ids: generated,
+          enqueuedAt: this.options.clock.now()
+        });
+      } catch {
+        // Local-first is a hard contract. The preview was visible instantly,
+        // but it cannot remain or reach the wire if durable storage refused it.
+        entry.state = 'failed';
+        const info: MutationInfo = {
+          mutationId,
+          mutation: decl.name,
+          state: 'failed',
+          error: {
+            kind: 'error',
+            code: 'local_persistence_failed',
+            message: `Could not save mutation "${decl.name}" to the local outbox.`
+          }
+        };
+        rollbackUndoBookkeeping();
+        this.dropEntry(entry, 'rollback');
+        this.logMutation(info);
+        entry.resolveSettled?.(info);
+        this.notify();
+        return;
+      }
+      await this.attemptSend(entry);
+    })();
+    this.inflightMutationStarts.add(persistAndSend);
+    void persistAndSend.then(
+      () => this.inflightMutationStarts.delete(persistAndSend),
+      () => this.inflightMutationStarts.delete(persistAndSend)
+    );
+    return { mutationId, settled };
+  }
+
+  /**
+   * One wire attempt. Confirm/reject settle the entry (and clear its outbox
+   * record); a transport failure parks it as `queued` — optimistic state
+   * stays visible, and flushQueued() retries in order when the connection
+   * returns. Offline work is deferred, never rolled back.
+   */
+  private async attemptSend(entry: OptimisticEntry): Promise<void> {
+    let info: MutationInfo;
+    try {
+      const result = await this.options.transport.mutate({
+        clientId: this.options.clientId,
+        mutationId: entry.mutationId,
+        name: entry.decl.name,
+        args: entry.args,
+        ids: entry.ids
+      });
+      if (result.ok) {
+        // Confirmed is NOT done: the entry stays in pending[] and keeps
+        // replaying optimistically until base has materialized this seq
+        // (releaseSettledEntries). Dropping it here would flicker the row
+        // back to pre-mutation state until the server delta lands.
+        entry.state = 'confirmed';
+        entry.confirmedSeq = result.seq;
+        this.lastSeq = Math.max(this.lastSeq, result.seq);
+        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'confirmed' };
+        this.releaseSettledEntries();
+      } else if ('rejection' in result) {
+        entry.state = 'rejected';
+        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'rejected', rejection: result.rejection };
+        this.dropEntry(entry, 'rollback');
+      } else {
+        // The server RAN this mutation and it broke (typed error verdict) —
+        // terminal. Roll back and settle loudly; retrying poison would fail
+        // identically forever and block the queue behind it.
+        entry.state = 'failed';
+        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'failed', error: result.error };
+        this.dropEntry(entry, 'rollback');
+      }
+    } catch {
+      // ONLY failure-to-communicate lands here (the transports' contract):
+      // park and retry when the connection returns. Server verdicts —
+      // including crashes — arrive as VALUES above, never as throws.
+      entry.state = 'queued';
+      this.notify();
+      return; // unsettled — flushQueued() picks it back up
+    }
+    void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
+    this.logMutation(info);
+    entry.resolveSettled?.(info);
+    this.notify();
+  }
+
+  /** Reentrancy LATCH (one flush loop at a time), not a teardown flag — teardown is `lifecycle`. */
+  private flushing = false;
+
+  /** Retry queued entries, oldest first, one at a time (order is meaning). */
+  private flushQueued(): void {
+    if (this.flushing) {
+      return;
+    }
+    this.flushing = true;
+    void (async () => {
+      try {
+        for (;;) {
+          if (this.lifecycle.signal.aborted) {
+            return; // closed mid-flush: entries stay queued in the outbox for the next session
+          }
+          const next = this.pending.find((entry) => entry.state === 'queued');
+          if (!next) {
+            return;
+          }
+          next.state = 'pending';
+          this.notify();
+          await this.attemptSend(next);
+          if ((next.state as MutationState) === 'queued') {
+            return; // still offline — stop; the next reconnect flushes again
+          }
+        }
+      } finally {
+        this.flushing = false;
+      }
+    })();
+  }
+
+  /**
+   * Replay outbox entries surviving from a previous session, in enqueue
+   * order. No optimistic re-echo (that session's UI is gone); the persisted
+   * id stream keeps the server replay deterministic and the sync_log unique
+   * constraint makes it exactly-once.
+   */
+  private async replayOutbox(): Promise<void> {
+    const entries = await this.options.localCache.loadOutbox().catch(() => []);
+    for (const persisted of entries) {
+      if (this.lifecycle.signal.aborted) {
+        return; // closed mid-replay: the outbox keeps the rest for next boot
+      }
+      if (this.pending.some((entry) => entry.mutationId === persisted.mutationId)) {
+        continue; // enqueued this session; the normal path owns it
+      }
+      const entry: OptimisticEntry = {
+        mutationId: persisted.mutationId,
+        decl: { name: persisted.mutation } as MutationDecl,
+        args: persisted.args,
+        ids: persisted.ids,
+        state: 'pending',
+        writes: []
+      };
+      this.pending.push(entry);
+      await this.attemptSend(entry);
+    }
+  }
+
+  private logMutation(info: MutationInfo): void {
+    const log = this.mutationLog.get(info.mutation) ?? [];
+    log.push(info);
+    this.mutationLog.set(info.mutation, log);
+  }
+
+  /** The audit trail of one mutation name: last outcome and all attempts. */
+  mutationState<Args extends Record<string, unknown>>(decl: MutationDecl<Args> | string): { last?: MutationInfo; all: readonly MutationInfo[] } {
+    const name = typeof decl === 'string' ? decl : decl.name;
+    const settledLog = this.mutationLog.get(name) ?? [];
+    const pendingInfos = this.pending
+      .filter((entry) => entry.decl.name === name && entry.state === 'pending')
+      .map((entry): MutationInfo => ({ mutationId: entry.mutationId, mutation: name, state: 'pending' }));
+    const all = [...settledLog, ...pendingInfos];
+    return { last: all[all.length - 1], all };
+  }
+
+  private dropEntry(entry: OptimisticEntry, cause: 'rollback' | 'orphaned'): void {
+    const index = this.pending.indexOf(entry);
+    if (index >= 0) {
+      this.pending.splice(index, 1);
+    }
+    for (const write of entry.writes) {
+      this.markChanged(write.table);
+      this.provenance.record({
+        at: this.options.clock.now(),
+        table: write.table,
+        rowId: write.rowId,
+        value: tableMap(this.base, write.table).get(write.rowId),
+        cause: { kind: cause, mutationId: entry.mutationId, mutation: entry.decl.name }
+      });
+    }
+    this.rebase();
+  }
+
+  /**
+   * Confirmed entries whose seq the base has caught up with are done — server
+   * truth has landed. Until then a confirmed entry keeps replaying in
+   * rebase(); releasing it before appliedSeq reaches its confirmedSeq would
+   * revert the row to pre-mutation state until the delta arrives.
+   */
+  private releaseSettledEntries(): void {
+    let dropped = false;
+    for (const entry of [...this.pending]) {
+      if (entry.state === 'confirmed' && entry.confirmedSeq !== undefined && this.appliedSeq >= entry.confirmedSeq) {
+        this.pending.splice(this.pending.indexOf(entry), 1);
+        this.logMutation({ mutationId: entry.mutationId, mutation: entry.decl.name, state: 'confirmed' });
+        for (const write of entry.writes) {
+          this.markChanged(write.table);
+        }
+        dropped = true;
+      }
+    }
+    if (dropped) {
+      this.rebase();
+    }
+  }
+
+  // ── server events ──────────────────────────────────────────────────────
+
+  // Highest seq MATERIALIZED into base (applySnapshot/applyDelta only) —
+  // unlike lastSeq, the highest seq merely OBSERVED (confirm acks bump that
+  // too). releaseSettledEntries must gate on appliedSeq: a
+  // confirm ack proves the server committed, not that this client holds the
+  // resulting rows.
+  private appliedSeq = 0;
+  /** Non-null only during rebootstrap(): deltas whose subscription is not registered yet, awaiting replay. */
+  private rebootstrapBuffer: RowDelta[] | null = null;
+
+  private applyEvent(event: ServerEvent): void {
+    if (event.type === 'hello') {
+      // A hello starts a new server connection. The previous connection can
+      // vanish during a deploy before it sends peer leave events.
+      const hadPeers = this.peerPresence.size > 0 || this.peerPresenceActors.size > 0;
+      this.peerPresence.clear();
+      this.peerPresenceActors.clear();
+      if (hadPeers) this.notify();
+    } else if (event.type === 'delta') {
+      this.applyDelta(event.delta);
+    } else if (event.type === 'presence') {
+      if (event.state === null) {
+        this.peerPresence.delete(event.clientId);
+        this.peerPresenceActors.delete(event.clientId);
+      } else {
+        this.peerPresence.set(event.clientId, event.state);
+        this.peerPresenceActors.set(event.clientId, event.actor);
+      }
+      this.notify();
+    }
+  }
+
+  // Coalescing state + the last-published state, which reconnects
+  // republish (the server drops presence with the dead stream; without the
+  // republish, peers see this client vanish until its next natural update).
+  private lastPublishedPresence: Record<string, unknown> | null = null;
+  private cancelPresenceWindow: (() => void) | undefined;
+  private pendingPresence: Record<string, unknown> | null | undefined; // undefined = nothing pending
+  private presenceCoalesceMs = 0;
+
+  /**
+   * Publish this client's ephemeral presence (cursor, focus, live-typing
+   * preview…) — fire-and-forget, no history, dies with the connection.
+   *
+   * ONE TYPED CALLING CONVENTION (4.4): the presence declaration is always the
+   * first argument and the state is validated against it HERE, loudly — a bad
+   * shape is this app's bug, caught at the call site. There is no untyped form
+   * to fall into (which used to be told apart by sniffing the argument for a
+   * `kind` field).
+   *
+   * `coalesceMs`: the first call in a quiet period sends immediately;
+   * later calls inside the window replace each other and the LATEST state
+   * sends when it closes — a trailing send is guaranteed, so peers always
+   * converge on the final state. Calls without the option send immediately
+   * and cancel any pending coalesced send (the newer state supersedes it).
+   */
+  setPresence<State extends Record<string, unknown>>(
+    decl: PresenceDecl<State>,
+    state: State | null,
+    options?: { coalesceMs?: number }
+  ): void {
+    if (state !== null) {
+      validateRow(`presence "${decl.name}"`, decl.state, state);
+    }
+    const coalesceMs = options?.coalesceMs ?? 0;
+    if (coalesceMs <= 0) {
+      this.cancelPresenceTimer();
+      this.publishPresence(state);
+      return;
+    }
+    this.presenceCoalesceMs = coalesceMs;
+    if (this.cancelPresenceWindow === undefined) {
+      // Leading send: the window just opened — peers see the change with no
+      // added latency; the timer only exists to gate the NEXT send.
+      this.publishPresence(state);
+      this.cancelPresenceWindow = this.defer.schedule(coalesceMs, this.flushPendingPresence);
+    } else {
+      this.pendingPresence = state;
+    }
+  }
+
+  /** The injectable timer seam - no bare setTimeout in src/, so tests control time. */
+  private get defer(): Defer {
+    return this.options.defer ?? systemDefer;
+  }
+
+  /** Trailing edge of the coalescing window: send the latest pending state, keep the window rolling while calls keep coming. */
+  private readonly flushPendingPresence = (): void => {
+    this.cancelPresenceWindow = undefined;
+    if (this.pendingPresence !== undefined) {
+      const state = this.pendingPresence;
+      this.pendingPresence = undefined;
+      this.publishPresence(state);
+      this.cancelPresenceWindow = this.defer.schedule(this.presenceCoalesceMs, this.flushPendingPresence);
+    }
+  };
+
+  private cancelPresenceTimer(): void {
+    this.cancelPresenceWindow?.();
+    this.cancelPresenceWindow = undefined;
+    this.pendingPresence = undefined;
+  }
+
+  private publishPresence(state: Record<string, unknown> | null): void {
+    this.lastPublishedPresence = state;
+    void this.options.transport.setPresence(this.options.clientId, state).catch(() => {
+      // ephemeral by definition: a lost presence update is not an error
+    });
+  }
+
+  /**
+   * Every OTHER client's latest presence, validated against the declaration
+   * and keyed by clientId (self excluded — you know where you are).
+   *
+   * ONE TYPED CALLING CONVENTION (4.4): the declaration is required. Each
+   * peer's state is checked against it; the result SPLITS into `valid` (peers
+   * that matched) and `failures` (peers whose payload the decl rejected — a
+   * peer on an older schema). Crucially, an invalid peer is SURFACED in
+   * `failures`, not silently dropped: a peer that stops appearing because its
+   * schema drifted is now visible ("this peer's presence didn't validate")
+   * instead of an unexplained absence. A bad peer still never crashes this
+   * client.
+   */
+  peers<State extends Record<string, unknown>>(decl: PresenceDecl<State>): PeersResult<State> {
+    const valid = new Map<string, State>();
+    const failures = new Map<string, PeerPresenceFailure>();
+    const actors = new Map(this.peerPresenceActors);
+    for (const [clientId, state] of this.peerPresence) {
+      try {
+        valid.set(clientId, validateRow(`presence "${decl.name}"`, decl.state, state));
+      } catch (error) {
+        if (!(error instanceof RowValidationError)) throw error;
+        failures.set(clientId, {
+          clientId,
+          actor: actors.get(clientId) ?? 'unknown',
+          state,
+          issues: error.issues
+        });
+      }
+    }
+    return { valid, failures, actors };
+  }
+
+  private applySnapshot(subscription: ClientSubscription, snapshot: Snapshot): void {
+    const table = subscription.query.into;
+    const rows = tableMap(this.base, table.name);
+    const snapshotRows = snapshot.rows.map((raw, index) => {
+      const row = freezeRow({
+        ...validateRow(`snapshot query ${subscription.query.name}`, table.schema, raw)
+      });
+      const id = validateTableKey(table, row, `Snapshot query "${subscription.query.name}" row ${index}`);
+      return { id, row, index };
+    });
+    const firstIndexes = new Map<string, number>();
+    for (const { id, index } of snapshotRows) {
+      const firstIndex = firstIndexes.get(id);
+      if (firstIndex !== undefined) {
+        throw new Error(
+          `Snapshot query "${subscription.query.name}" has duplicate key ${JSON.stringify(id)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+        );
+      }
+      firstIndexes.set(id, index);
+    }
+    subscription.order = [];
+    this.markChanged(table.name);
+    for (const { id, row } of snapshotRows) {
+      rows.set(id, row);
+      subscription.order.push(id);
+      this.provenance.record({
+        at: this.options.clock.now(),
+        table: table.name,
+        rowId: id,
+        value: row,
+        cause: { kind: 'bootstrap', seq: snapshot.seq, subscriptionId: snapshot.subscriptionId }
+      });
+    }
+    subscription.lastDeltaSeq = Math.max(subscription.lastDeltaSeq ?? 0, snapshot.seq);
+    this.lastSeq = Math.max(this.lastSeq, snapshot.seq);
+    this.appliedSeq = Math.max(this.appliedSeq, snapshot.seq);
+    this.schedulePersist(subscription);
+    this.rebase();
+    this.notify();
+  }
+
+  /** Subscription keys with unpersisted changes, flushed together next microtask. */
+  private readonly persistQueue = new Set<string>();
+
+  /**
+   * Persist a subscription's confirmed rows (base, never optimistic overlay)
+   * for next boot's hydration. Coalesced per microtask; failures are ignored
+   * — persistence is an accelerator, the wire is the truth.
+   */
+  private schedulePersist(subscription: ClientSubscription): void {
+    if (this.persistQueue.size === 0) {
+      queueMicrotask(() => {
+        const keys = [...this.persistQueue];
+        this.persistQueue.clear();
+        if (this.lifecycle.signal.aborted) {
+          return; // closed before the flush ran; the cache keeps its last good state
+        }
+        for (const key of keys) {
+          const sub = this.subscriptions.get(key);
+          if (!sub || sub.stale) continue;
+          const rows = tableMap(this.base, sub.query.into.name);
+          void this.options.localCache
+            .saveSubscription({
+              key: sub.key,
+              subscriptionId: sub.subscriptionId,
+              seq: sub.lastDeltaSeq,
+              rows: sub.order.map((id) => rows.get(id)).filter((row): row is Row => row !== undefined),
+              order: [...sub.order]
+            })
+            .catch(() => {});
+        }
+      });
+    }
+    this.persistQueue.add(subscription.key);
+  }
+
+  private applyDelta(delta: RowDelta): void {
+    const subscription = this.subscriptionsById.get(delta.subscriptionId);
+    if (!subscription) {
+      // Mid-rebootstrap, a delta can beat its subscription's registration
+      // (the server subscription exists as soon as subscribe() resolves);
+      // buffer it for replay after the swap instead of dropping it.
+      this.rebootstrapBuffer?.push(delta);
+      return;
+    }
+    if (delta.seq <= subscription.lastDeltaSeq) {
+      return; // stale: a later delta already superseded this state (whole-row model)
+    }
+    const table = subscription.query.into;
+    const rows = tableMap(this.base, table.name);
+    const puts = delta.puts.map((raw, index) => {
+      const row = freezeRow({
+        ...validateRow(`delta query ${subscription.query.name}`, table.schema, raw)
+      });
+      const id = validateTableKey(table, row, `Delta query "${subscription.query.name}" put ${index}`);
+      return { id, row, index };
+    });
+    const putIndexes = new Map<string, number>();
+    for (const { id, index } of puts) {
+      const firstIndex = putIndexes.get(id);
+      if (firstIndex !== undefined) {
+        throw new Error(
+          `Delta query "${subscription.query.name}" has duplicate put key ${JSON.stringify(id)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+        );
+      }
+      putIndexes.set(id, index);
+    }
+    const orderIds = new Set<string>();
+    for (const [index, id] of delta.order.entries()) {
+      if (typeof id !== 'string' || id.trim() === '') {
+        throw new Error(`Delta query "${subscription.query.name}" order ${index} must be a non-empty string.`);
+      }
+      if (orderIds.has(id)) {
+        throw new Error(
+          `Delta query "${subscription.query.name}" has duplicate order key ${JSON.stringify(id)} for table "${table.name}".`
+        );
+      }
+      orderIds.add(id);
+    }
+    subscription.lastDeltaSeq = delta.seq;
+    this.markChanged(table.name);
+    for (const { id, row } of puts) {
+      rows.set(id, row);
+      this.provenance.record({
+        at: this.options.clock.now(),
+        table: table.name,
+        rowId: id,
+        value: row,
+        cause: { kind: 'sync-apply', seq: delta.seq, subscriptionId: delta.subscriptionId }
+      });
+    }
+    subscription.order = [...delta.order];
+    for (const id of delta.deletes) {
+      const claimed = [...this.subscriptionsById.values()].some(
+        (other) => other !== subscription && other.query.into.name === table.name && other.order.includes(id)
+      );
+      if (!claimed) {
+        rows.delete(id);
+      }
+      this.provenance.record({
+        at: this.options.clock.now(),
+        table: table.name,
+        rowId: id,
+        value: undefined,
+        cause: { kind: 'sync-apply', seq: delta.seq, subscriptionId: delta.subscriptionId }
+      });
+    }
+    this.lastSeq = Math.max(this.lastSeq, delta.seq);
+    this.appliedSeq = Math.max(this.appliedSeq, delta.seq);
+    this.schedulePersist(subscription);
+    this.releaseSettledEntries();
+    this.rebase();
+    this.notify();
+  }
+
+  // ── rebase ─────────────────────────────────────────────────────────────
+
+  private rebase(): void {
+    const working = cloneTables(this.base);
+    for (const entry of [...this.pending]) {
+      if (!entry.decl.optimistic) {
+        continue;
+      }
+      const overlay = new OverlayCache(working);
+      let nextId = 0;
+      try {
+        entry.decl.optimistic(
+          overlay,
+          entry.args,
+          {
+            // Positional replay of the entry's id stream: every rebase hands
+            // the handler the SAME ids it minted originally, so optimistic
+            // rows keep the ids the server will confirm. The 'orphan'
+            // fallback fires only when a handler asks for MORE ids on replay
+            // than it minted at enqueue (a nondeterministic handler) — those
+            // ids can never match the server's.
+            newId: () => entry.ids[nextId++] ?? this.idGen.newId('orphan'),
+            now: () => this.options.clock.now(),
+            actor: this.options.actor
+          }
+        );
+        entry.writes = overlay.writes.map(({ table, rowId }) => ({ table, rowId }));
+      } catch (error) {
+        // Two very different reasons a replay throws, kept apart on purpose:
+        //
+        //  - OrphanedError (via `orphan()`): the row this handler edits was
+        //    deleted by a peer before this mutation replayed. Legitimate.
+        //    Terminal `orphaned`, cleanly rolled back — never a bug report.
+        //
+        //  - ANYTHING ELSE (a typo, a null deref, a real invariant blown):
+        //    a bug in the handler. It used to be swallowed as `orphaned`,
+        //    silently reverting the write with nothing to debug. Now it
+        //    settles terminal `failed`, records a rollback, and console.errors
+        //    the mutation + original error so an agent has something to paste.
+        //
+        // Both remove the offending entry via dropEntry, whose re-run rebases
+        // the SURVIVING pending mutations on a fresh base clone — so one poison
+        // handler (and its partial writes) can never corrupt the rest.
+        if (error instanceof OrphanedError) {
+          entry.state = 'orphaned';
+          const info: MutationInfo = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'orphaned' };
+          this.logMutation(info);
+          entry.resolveSettled?.(info);
+          void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
+          this.dropEntry(entry, 'orphaned');
+          return; // dropEntry re-runs rebase without this entry
+        }
+        logger.error(`wheel: optimistic handler for mutation "${entry.decl.name}" (${entry.mutationId}) threw during replay; mutation marked failed and rolled back.`, error);
+        entry.state = 'failed';
+        const message = error instanceof Error ? error.message : String(error);
+        const info: MutationInfo = {
+          mutationId: entry.mutationId,
+          mutation: entry.decl.name,
+          state: 'failed',
+          error: { kind: 'error', code: 'optimistic_handler_error', message }
+        };
+        this.logMutation(info);
+        entry.resolveSettled?.(info);
+        void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
+        this.dropEntry(entry, 'rollback');
+        return; // dropEntry re-runs rebase without this entry
+      }
+    }
+    this.effective = working;
+  }
+
+  // ── local undo/redo (built on invertible mutations) ───────────────────
+
+  /** Whether an invertible local mutation is available to undo. */
+  canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  /** Whether an undone mutation is available to redo. */
+  canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  /**
+   * Undo the most recent invertible LOCAL mutation by issuing its inverse as
+   * a normal mutation (optimistic, synced, provenance-tagged). If the state
+   * changed under it (someone else edited), the inverse can reject — the
+   * entry is consumed either way, and the caller sees the rejection on the
+   * returned handle.
+   */
+  undo(): MutationHandle | null {
+    const inverse = this.undoStack.pop();
+    if (!inverse) {
+      return null;
+    }
+    this.replaying = 'undo';
+    try {
+      const handle = this.mutate(inverse.mutation, inverse.args);
+      this.notify();
+      return handle;
+    } finally {
+      this.replaying = null;
+    }
+  }
+
+  /** Redo the most recently undone mutation (same rules as undo). */
+  redo(): MutationHandle | null {
+    const inverse = this.redoStack.pop();
+    if (!inverse) {
+      return null;
+    }
+    this.replaying = 'redo';
+    try {
+      const handle = this.mutate(inverse.mutation, inverse.args);
+      this.notify();
+      return handle;
+    } finally {
+      this.replaying = null;
+    }
+  }
+
+  // ── audit surface ──────────────────────────────────────────────────────
+
+  /**
+   * A row's current value plus its full provenance chain.
+   *
+   * ONE TYPED CALLING CONVENTION (4.4): address the row by its table
+   * DECLARATION plus id — `explain(todos, todoId)`. The old stringly form
+   * (`explain("todos.row(id).done")`) is gone: it silently ignored trailing
+   * property suffixes, exactly the kind of quiet wrongness this pass removes.
+   */
+  explain<RowT extends Row>(table: TableDecl<RowT>, id: string): ExplainResult<RowT> {
+    const history = this.provenance.forRow(table.name, id);
+    return {
+      value: tableMap(this.effective, table.name).get(id) as RowT | undefined,
+      cause: history[history.length - 1]?.cause,
+      history
+    };
+  }
+
+  /** Every table and its current effective rows — the debug panel's state tree. */
+  tablesDebug(): Array<{ table: string; rows: readonly Row[] }> {
+    return [...this.effective.entries()]
+      .map(([table, rows]) => ({ table, rows: [...rows.values()] as readonly Row[] }))
+      .sort((a, b) => a.table.localeCompare(b.table));
+  }
+
+  /** The most recent provenance entries, newest last — the debug panel's change stream. */
+  recentWrites(limit = 50): readonly ProvenanceEntry[] {
+    const all = this.provenance.all();
+    return all.slice(Math.max(0, all.length - limit));
+  }
+
+  /** Live subscription state for the debug surfaces. */
+  subscriptionsDebug(): Array<{ key: string; subscriptionId: string; refs: number; rows: number }> {
+    return [...this.subscriptions.values()].map((subscription) => ({
+      key: subscription.key,
+      subscriptionId: subscription.subscriptionId,
+      refs: subscription.refs,
+      rows: subscription.order.length
+    }));
+  }
+
+  /** Record that one table's effective rows moved; the next notify carries it. */
+  private markChanged(table: string): void {
+    this.changedTables.add(table);
+  }
+
+  private notify(): void {
+    this.version += 1;
+    const changed = this.changedAll ? undefined : new Set(this.changedTables);
+    this.changedAll = false;
+    this.changedTables.clear();
+    for (const listener of [...this.listeners]) {
+      listener(changed);
+    }
+  }
+
+  /** Monotonic change counter — the React binding's useSyncExternalStore snapshot. */
+  getVersion(): number {
+    return this.version;
+  }
+
+  // ── rebootstrap coalescing state ──────────────────────────────────────
+  //
+  // A flapping stream fires onReconnect once per re-open, and OVERLAPPING
+  // full resyncs are actively dangerous: each run resets `rebootstrapBuffer`
+  // and nulls it in its finally, so a second concurrent run would (a) discard
+  // deltas the first run buffered and (b) crash iterating a buffer the first
+  // run already nulled (found by reconnect.test.ts before this coalescer
+  // existed). Invariant: at most ONE run in flight (`rebootstrapRun`) plus at
+  // most ONE queued follow-up (`rebootstrapNext`) — a storm of N triggers
+  // collapses to two runs, and the follow-up is REQUIRED, not an
+  // optimization: a trigger that lands mid-run may reflect server state the
+  // in-flight run's snapshots predate.
+  private rebootstrapRun: Promise<void> | null = null;
+  private rebootstrapNext: Promise<void> | null = null;
+
+  /**
+   * FUNNEL entry point: full resync after the transport re-opened a dropped
+   * stream (the transport's onReconnect wiring calls this). Re-runs every
+   * subscription's snapshot, swaps fresh server truth in, and rebases the
+   * optimistic queue on top. Coalesced — see the invariant above. A rejected
+   * run (connection died again mid-bootstrap) left NO partial state behind
+   * (see doRebootstrap) and is retried by the next reconnect trigger, never
+   * by a self-retry loop.
+   */
+  rebootstrap(): Promise<void> {
+    if (this.rebootstrapRun) {
+      if (!this.rebootstrapNext) {
+        this.rebootstrapNext = this.rebootstrapRun
+          .catch(() => {
+            // The in-flight run's failure belongs to ITS callers; the
+            // follow-up still runs (this trigger's evidence stands).
+          })
+          .then(() => {
+            this.rebootstrapNext = null;
+            return this.rebootstrap();
+          });
+      }
+      return this.rebootstrapNext;
+    }
+    this.rebootstrapRun = this.doRebootstrap().finally(() => {
+      this.rebootstrapRun = null;
+    });
+    return this.rebootstrapRun;
+  }
+
+  /**
+   * One full resync pass. Ordering constraints, each load-bearing:
+   *
+   *  1. ALL snapshot fetches complete BEFORE the old base is dropped — the UI
+   *     keeps rendering last-known data through the refetch, and a connection
+   *     death mid-fetch rejects the whole run with NOTHING cleared (the stale
+   *     cache survives for the next attempt).
+   *  2. The swap itself (clear base → register ids → apply snapshots) is
+   *     synchronous — no await sits between clearing and repopulating, so no
+   *     event can ever observe the half-swapped state.
+   *  3. Deltas that arrive between the server creating a new subscription and
+   *     this client registering its id land in `rebootstrapBuffer` (see
+   *     applyDelta) and replay AFTER the swap; genuinely stale ones are then
+   *     refused by the per-subscription seq guard.
+   *  4. Presence republish comes last: the server dropped this client's
+   *     presence with the dead stream, and without the republish peers see
+   *     this client vanish until its next natural update.
+   */
+  private async doRebootstrap(): Promise<void> {
+    const signal = this.lifecycle.signal;
+    this.rebootstrapBuffer = [];
+    try {
+      // All snapshot fetches go out concurrently — reconnect cost is one
+      // round trip of latency, not O(subscriptions) of them.
+      const snapshots = await Promise.all(
+        [...this.subscriptions.values()].map(async (subscription) => ({
+          subscription,
+          snapshot: await this.options.transport.subscribe(this.options.clientId, subscription.query.name, subscription.params)
+        }))
+      );
+      if (signal.aborted) {
+        return; // closed while fetching: leave the last-known state untouched
+      }
+      this.base.clear();
+      this.subscriptionsById.clear();
+      for (const { subscription, snapshot } of snapshots) {
+        if (this.subscriptions.get(subscription.key) !== subscription) {
+          void this.options.transport.unsubscribe(this.options.clientId, snapshot.subscriptionId).catch(() => {});
+          continue;
+        }
+        subscription.subscriptionId = snapshot.subscriptionId;
+        this.subscriptionsById.set(snapshot.subscriptionId, subscription);
+        // The reconnected server may be a fresh epoch (restart → seq resets);
+        // the snapshot is the authority now. Without this reset, deltas from
+        // the new epoch are silently refused until seq outgrows the old one.
+        // Mirrors the reset in ensureWireSubscription() — keep both in sync.
+        subscription.lastDeltaSeq = 0;
+        // A wire snapshot IS the upgrade out of hydrated-cache mode: a
+        // subscription that booted stale and reconnected before its first
+        // ordinary wire upgrade goes live HERE. (Without this line it stayed
+        // marked stale forever — pinned by reconnect.test.ts.)
+        subscription.stale = false;
+        this.applySnapshot(subscription, snapshot);
+      }
+      // Deltas that raced the swap replay now; stale ones are refused by seq.
+      const buffered = this.rebootstrapBuffer;
+      this.rebootstrapBuffer = null;
+      for (const delta of buffered) {
+        this.applyDelta(delta);
+      }
+    } finally {
+      this.rebootstrapBuffer = null;
+    }
+    // The server dropped this client's presence with the dead stream (and a
+    // superseded stream drops it too) — republish the last state so peers
+    // don't see this client vanish until its next natural update.
+    if (this.lastPublishedPresence !== null) {
+      this.publishPresence(this.lastPublishedPresence);
+    }
+    // A rebootstrap replaced whole subscriptions; the scope is every table.
+    this.changedAll = true;
+    this.rebase();
+    this.notify();
+  }
+
+  /**
+   * Tear the client down: abort the lifecycle signal (every background loop —
+   * queue flush, outbox replay, stale-wire retry, rebootstrap, persistence —
+   * observes it at its next boundary), cancel the presence timer, and close
+   * the transport. Durable state (outbox, subscription cache) is deliberately
+   * left in place: the next session boots from it.
+   */
+  close(): void {
+    this.lifecycle.abort();
+    this.cancelPresenceTimer();
+    this.options.transport.close(this.options.clientId);
+    this.connected = false;
+    // Wake parked cold subscribes so their loops observe the abort and exit.
+    for (const wake of this.connectionWaiters.splice(0)) {
+      wake();
+    }
+  }
+}

@@ -1,0 +1,13 @@
+```text
+✖  board-column.tsx:12  wheel/connect-only
+   Components read shared state through connect(), never
+   by importing a service directly.
+
+✖  sheet-service.ts:88  wheel/no-handles-in-atoms
+   Atoms hold data. Runtime handles (DOM nodes, sockets,
+   timers) live outside reactive state.
+
+✖  editor-view.tsx:41  wheel/require-effect-reason
+   Every createEffect states why it must be an effect —
+   most "effects" should be computeds.
+```

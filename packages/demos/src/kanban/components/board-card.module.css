@@ -1,0 +1,45 @@
+/* One kanban card and its tag chip / move buttons. */
+
+.card {
+  background: var(--wheel-bg-raised);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-md);
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cardSelected {
+  border-color: var(--wheel-accent);
+  box-shadow: 0 0 0 1px var(--wheel-accent);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.title {
+  font-size: 14px;
+}
+
+.tag {
+  font-size: 11px;
+  color: var(--wheel-accent);
+  background: color-mix(in srgb, var(--wheel-accent) 12%, transparent);
+  border-radius: var(--wheel-radius-pill);
+  padding: 1px 8px;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.move {
+  padding: 1px 8px;
+  font-size: 12px;
+}

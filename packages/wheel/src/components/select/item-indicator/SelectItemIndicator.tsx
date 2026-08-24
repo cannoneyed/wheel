@@ -1,0 +1,95 @@
+/* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
+/* eslint-disable wheel/require-tracked-show -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+import { Show, splitProps, type JSX } from 'solid-js';
+import type { BaseUIComponentProps } from '../../internals/types';
+import { useSelectItemContext } from '../item/SelectItemContext';
+import { createTransitionStatus, type TransitionStatus } from '../../internals/createTransitionStatus';
+import { createOpenChangeComplete } from '../../internals/createOpenChangeComplete';
+import { renderElement } from '../../internals/renderElement';
+import { transitionStatusMapping } from '../../internals/stateAttributesMapping';
+
+/**
+ * Indicates whether the select item is selected.
+ * Renders a `<span>` element.
+ *
+ * Documentation: [Base UI Select](https://base-ui.com/react/components/select)
+ */
+export function SelectItemIndicator(componentProps: SelectItemIndicator.Props): JSX.Element {
+  const { selected } = useSelectItemContext();
+  const keepMounted = () => componentProps.keepMounted ?? false;
+
+  return (
+    <Show when={keepMounted() || selected()}>
+      <SelectItemIndicatorInner {...componentProps} />
+    </Show>
+  );
+}
+
+// Split the core implementation to avoid paying the setup cost unless the element needs to mount.
+function SelectItemIndicatorInner(componentProps: SelectItemIndicator.Props): JSX.Element {
+  const [, elementProps] = splitProps(componentProps, ['class', 'style', 'as', 'asChild', 'children', 'keepMounted']);
+
+  const { selected } = useSelectItemContext();
+
+  let indicatorEl: HTMLElement | null = null;
+
+  const { transitionStatus, setMounted } = createTransitionStatus(selected);
+
+  const state: SelectItemIndicator.State = {
+    get selected() {
+      return selected();
+    },
+    get transitionStatus() {
+      return transitionStatus();
+    },
+  };
+
+  const element = renderElement('span', componentProps, {
+    defaultClass: 'wheel-Select-ItemIndicator',
+    slot: 'select-item-indicator',
+    ref: (el: HTMLSpanElement | null) => {
+      indicatorEl = el;
+    },
+    state,
+    props: [{ 'aria-hidden': true }, elementProps],
+    children: () => '✔️',
+    stateAttributesMapping: transitionStatusMapping,
+  });
+
+  createOpenChangeComplete({
+    open: selected,
+    getElement: () => indicatorEl,
+    onComplete() {
+      if (!selected()) {
+        setMounted(false);
+      }
+    },
+  });
+
+  return element;
+}
+
+export interface SelectItemIndicatorState {
+  /**
+   * Whether the item is selected.
+   */
+  selected: boolean;
+  /**
+   * The transition status of the component.
+   */
+  transitionStatus: TransitionStatus;
+}
+
+export interface SelectItemIndicatorProps
+  extends BaseUIComponentProps<'span', SelectItemIndicatorState> {
+  children?: JSX.Element;
+  /**
+   * Whether to keep the HTML element in the DOM when the item is not selected.
+   */
+  keepMounted?: boolean | undefined;
+}
+
+export namespace SelectItemIndicator {
+  export type State = SelectItemIndicatorState;
+  export type Props = SelectItemIndicatorProps;
+}

@@ -1,0 +1,104 @@
+.card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: default;
+  user-select: none;
+}
+
+.card:hover {
+  border-color: var(--ink-muted);
+}
+
+.cardSelected {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  border-color: var(--accent);
+}
+
+.cardCursor {
+  border-color: var(--accent);
+}
+
+.cardGhosted {
+  opacity: 0.35;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.identifier {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+
+.identifierPending {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.title {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.bottom {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.priority {
+  border: none;
+  padding: 0;
+  width: 16px;
+  color: var(--ink-muted);
+}
+
+.label {
+  font-size: 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-pill);
+  padding: 0 6px;
+  color: var(--ink-muted);
+}
+
+.estimate {
+  font-size: 9px;
+  font-family: var(--mono);
+  color: var(--ink-muted);
+}
+
+.assignee {
+  border: none;
+  padding: 0;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+
+.unassigned {
+  color: var(--ink-muted);
+}

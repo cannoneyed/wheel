@@ -1,0 +1,98 @@
+---
+title: Reference
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Names and errors
+
+The engine enforces four sets of rules: the name grammar, the JSON boundary, the four ways a mutation can end, and the three error carriers.
+
+## Name grammar
+
+Two regexes gate every declaration at construction — an illegal name throws where you declare it, not later.
+
+| Thing | Rule | Regex | Examples |
+| --- | --- | --- | --- |
+| Table name | lowercase, snake_case, starts with a letter | `^[a-z][a-z0-9_]*$` | `todos`, `cycle_stats`, `issue_labels` |
+| Query name | `<table>.<op>` — namespace must equal the query's `into` table; op is camelCase | `^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$` | `todos.list`, `cycle_stats.byTeam` |
+| Mutation name | `<domain>.<op>` — namespace is organizational because one mutation may touch several tables | `^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$` | `todos.add`, `issues.update` |
+
+A query name predicts its result table: `cycle_stats.byTeam` must query `into: cycleStats`. Wheel checks that equality at declaration time. A mutation name does not claim a complete write set. `issues.bulkUpdate` may also write activity, inbox, or join tables; its namespace groups the operation for discovery and logs.
+
+Legal and illegal, side by side:
+
+```ts
+// Intentionally mixed: the invalid declarations demonstrate constructor errors.
+mutation({ name: 'todos.add', ... });      // ✅
+mutation({ name: 'addTodo', ... });        // ❌ throws: must look like "todos.add"
+mutation({ name: 'Todos.Add', ... });      // ❌ throws: namespace must be lowercase snake_case
+query({ name: 'cards.list', into: todos, ... }); // ❌ namespace does not equal `todos`
+```
+
+## JSON data boundary
+
+Query params, mutation args, rows, and presence must round-trip through JSON without coercion. Zod validation runs first; Wheel then rejects `bigint`, `Date`, `NaN`, infinity, `undefined`, sparse arrays, class instances, functions, symbols, and cycles with the declaration name and offending path. Table key extractors must return non-empty strings. A query that returns the same key twice fails with the query, table, key, and both row indexes instead of silently dropping one row.
+
+## The four mutation outcomes
+
+`mutate()` **never throws**. Every mutation resolves through one settled channel — `await handle.settled` lands on exactly one of four terminal states. Even invalid arguments settle here (as `failed`); they do not throw out of the call.
+
+| Outcome (`state`) | When | Client behavior |
+| --- | --- | --- |
+| `confirmed` | the server committed the write | drop the guess, keep the truth |
+| `rejected` | a business rule said no — the handler did `throw rejection(code, msg)` | roll back cleanly + surface to the user |
+| `failed` | the mutation is **broken** — invalid args, the handler threw, an id-stream mismatch | roll back, settle terminal — **never retried** |
+| `orphaned` | the row it edits vanished legitimately (a peer deleted it) — the optimistic handler did `throw orphan(msg)` | roll back cleanly — legitimate, not a bug |
+
+A **transport failure is not a fifth outcome.** It leaves the mutation *unsettled*, parks it as `queued`, and retries in order the moment the connection returns. That is the offline promise. `pending` and `queued` are the two non-terminal states on the way to one of the four above.
+
+<Aside kind="note">
+  <strong>Why the split matters.</strong> The client retries <code>queued</code> mutations in
+  order, forever. If a <em>broken</em> mutation could land in that bucket, it would fail
+  identically on every retry and silently block every mutation behind it, with zero symptoms.
+  So: anything the server computes — including "this mutation crashed me" — travels as typed
+  data; only failure to <em>communicate</em> may throw.
+</Aside>
+
+## The wire format
+
+The WebSocket transport enforces the split. Every engine verdict is a reply frame. Socket loss and retryable server errors throw:
+
+| Wire signal | Meaning | Settles as |
+| --- | --- | --- |
+| `{ ok: true, seq }` | committed | `confirmed` |
+| `{ ok: false, rejection }` | a business rule said no (`rejection()` in the handler) | `rejected` |
+| `{ ok: false, error }` | the server RAN this mutation and it **broke** | `failed` — terminal, never retried |
+| *(thrown)* | **couldn't communicate**: network down, socket closed, engine recovering | stays `queued`, retries on reconnect |
+
+## The three error carriers
+
+Three error carriers, three jobs:
+
+| Carrier | Import from | Thrown by | Settles as |
+| --- | --- | --- | --- |
+| `RejectionError` | `wheel/sync` | A server handler: `throw rejection(code, message)` | `rejected` |
+| `OrphanedError` | `wheel/sync` | An optimistic handler: `throw orphan(message)` | `orphaned` |
+| `SyncServerError` | `wheel/sync/server` | The engine or a backend | — (server-side; maps to a WebSocket error reply) |
+
+`rejection(code, message)` is a **noun**: it builds a typed value; it does not act. Written without `throw`, it reads as plainly inert — which is the point, since the old verb form `reject(...)` hid a forgotten `throw`. It crosses the wire as typed data (`{ ok: false, rejection }`), never as an exception.
+
+`orphan(message)` is for the row a peer's confirmed delta deleted before this mutation replayed. It is the ONE legitimate reason to abandon a replaying optimistic mutation. A dedicated class matters: rebase must tell "the row vanished" apart from "the handler crashed" — every *other* throw settles the mutation `failed` and logs.
+
+`SyncServerError` carries stable codes: `unknown_query`, `server_closed`, `connection_closed`, `invalid_backend_config`, `duplicate_row_key`, `single_writer_violation`, `engine_recovering`, and more. `instanceof SyncServerError` holds no matter which layer threw it.
+
+### Transient vs terminal
+
+The single most important classification the engine makes: is an error **transient** (retry as offline) or **terminal** (fail loudly)?
+
+- **Terminal** → the mutation is broken; it settles `failed` and is never retried. Handler bugs, invalid args, id-stream mismatch.
+- **Transient** → couldn't communicate; the mutation stays `queued` and retries forever. Network loss, socket closure, `engine_recovering`, or a database recovery condition. The backend's `isTransientError(error)` draws this line for backend-level failures.
+
+Conflating the two is the bug the whole outcome model exists to prevent: a terminal error retried forever jams the queue; a transient error failed permanently loses an offline write.
+
+## Next
+
+- [Live State](#/live-state) — where these outcomes come from, in the write path.
+- [Everyday Data Patterns](#/data-patterns) — showing a rejected write to a user.
+- [Linting](#/linting) — the rules that catch the rest at build time.

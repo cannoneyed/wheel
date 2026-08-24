@@ -1,0 +1,130 @@
+/* ========================================================================
+ * RECIPE: Toolbar — exemplar for composite groups/separators
+ * (data-orientation contract; buttons/links/inputs share disabled/focusable)
+ *
+ * Pattern notes:
+ *  - Root is a resting surface (hairline border, --wheel-component-shadow-rest), not a
+ *    floating one — toolbars live inline in the page, not above it.
+ *  - Toolbar.Button is asChild-composable: other components (Toggle,
+ *    Select.Trigger, Menu.Trigger, …) render through it and inherit this
+ *    class, so it also keys off the generic data-pressed/data-popup-open
+ *    vocabulary even though ToolbarButton itself never sets them.
+ *  - Separator is perpendicular to the toolbar's own orientation, so it
+ *    keys off ITS OWN [data-orientation], not the Root's.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Toolbar-Root {
+    --wheel-component-toolbar-gap: calc(var(--wheel-component-space) * 1);
+
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--wheel-component-toolbar-gap);
+    padding: calc(var(--wheel-component-space) * 1);
+    border-radius: var(--wheel-component-radius-md);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    box-shadow: var(--wheel-component-shadow-rest);
+  }
+
+  .wheel-Toolbar-Root[data-orientation='vertical'] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wheel-Toolbar-Group {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .wheel-Toolbar-Root[data-orientation='vertical'] .wheel-Toolbar-Group {
+    flex-direction: column;
+  }
+
+  .wheel-Toolbar-Button {
+    appearance: none;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--wheel-component-space) * 1.5);
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 calc(var(--wheel-component-space) * 2);
+    border: 0;
+    border-radius: var(--wheel-component-radius-sm);
+    background: transparent;
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    white-space: nowrap;
+    user-select: none;
+    transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-Toolbar-Button:hover:not([data-disabled]) {
+      background: var(--wheel-component-bg-hover);
+    }
+  }
+
+  .wheel-Toolbar-Button:active:not([data-disabled]),
+  .wheel-Toolbar-Button[data-pressed],
+  .wheel-Toolbar-Button[data-popup-open] {
+    background: var(--wheel-component-bg-sunken);
+  }
+
+  .wheel-Toolbar-Button[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+
+  .wheel-Toolbar-Separator {
+    width: var(--wheel-component-hairline);
+    height: 1.25rem;
+    margin: 0 calc(var(--wheel-component-space) * 1);
+    background: var(--wheel-component-border-strong);
+  }
+
+  .wheel-Toolbar-Separator[data-orientation='horizontal'] {
+    width: 1.25rem;
+    height: var(--wheel-component-hairline);
+    margin: calc(var(--wheel-component-space) * 1) 0;
+  }
+
+  .wheel-Toolbar-Link {
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+    text-decoration: none;
+    transition: color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-Toolbar-Link:hover {
+      color: var(--wheel-component-accent);
+    }
+  }
+
+  .wheel-Toolbar-Input {
+    box-sizing: border-box;
+    height: 2rem;
+    margin: 0;
+    padding: 0 calc(var(--wheel-component-space) * 2);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    border-radius: var(--wheel-component-radius-sm);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+  }
+
+  .wheel-Toolbar-Input[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+}

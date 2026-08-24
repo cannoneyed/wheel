@@ -1,0 +1,28 @@
+/* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
+export enum ToastPositionerCssVars {
+  /**
+   * The available width between the anchor and the edge of the viewport.
+   * @type {number}
+   */
+  availableWidth = '--available-width',
+  /**
+   * The available height between the anchor and the edge of the viewport.
+   * @type {number}
+   */
+  availableHeight = '--available-height',
+  /**
+   * The anchor's width.
+   * @type {number}
+   */
+  anchorWidth = '--anchor-width',
+  /**
+   * The anchor's height.
+   * @type {number}
+   */
+  anchorHeight = '--anchor-height',
+  /**
+   * The coordinates that this element is anchored to. Used for animations and transitions.
+   * @type {string}
+   */
+  transformOrigin = '--transform-origin',
+}

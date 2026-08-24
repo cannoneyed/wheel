@@ -1,0 +1,106 @@
+---
+title: Component library
+---
+
+# Component library
+
+`wheel/components` provides 38 accessible Solid component families. The default stylesheet applies the Mira zinc theme and remains opt-in.
+
+[Browse all 38 live components](https://wheel.dev/components/). Each family page includes an interactive preview, theme controls, and its deep import path.
+
+## Setup
+
+Import the stylesheet once at the application entry point:
+
+```tsx
+// Excerpt: Load the default theme and aggregate API.
+import 'wheel/components/styles';
+
+import { Button, Dialog } from 'wheel/components';
+```
+
+Import one family from its deep entry when a package boundary needs it:
+
+```tsx
+// Excerpt: Import one component family through its deep entry.
+import { Dialog } from 'wheel/components/dialog';
+```
+
+The aggregate and deep entries expose the same component objects and public types.
+
+## Components
+
+| Group | Families |
+| --- | --- |
+| Controls | `Button`, `Checkbox`, `Radio`, `Switch`, `Toggle`, `ToggleGroup` |
+| Inputs | `Autocomplete`, `CheckboxGroup`, `Combobox`, `Field`, `Fieldset`, `Form`, `Input`, `NumberField`, `OTPField`, `RadioGroup`, `Select`, `Slider` |
+| Disclosure and navigation | `Accordion`, `Collapsible`, `ContextMenu`, `Menu`, `Menubar`, `NavigationMenu`, `Tabs`, `Toolbar` |
+| Overlays | `AlertDialog`, `Dialog`, `Drawer`, `Popover`, `PreviewCard`, `Toast`, `Tooltip` |
+| Display | `Avatar`, `Meter`, `Progress`, `ScrollArea`, `Separator` |
+
+Multi-part families use a namespace:
+
+```tsx
+// Intentionally unchecked: Complete multi-part composition example.
+import { Dialog } from 'wheel/components';
+
+export function DeleteDialog() {
+  return (
+    <Dialog.Root>
+      <Dialog.Trigger>Delete project</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Backdrop />
+        <Dialog.Popup>
+          <Dialog.Title>Delete project?</Dialog.Title>
+          <Dialog.Description>This action cannot be reversed.</Dialog.Description>
+          <Dialog.Close>Cancel</Dialog.Close>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+```
+
+## Default identities
+
+Rendered parts keep a stable class and `data-slot` attribute. `Button` renders `wheel-Button` and `data-slot="button"`; `Dialog.Popup` renders `wheel-Dialog-Popup` and `data-slot="dialog-popup"`.
+
+Your `class` prop is added to the default class:
+
+```tsx
+// Excerpt: Add an application class without replacing the Wheel class.
+<Button class="billing-submit">Pay now</Button>
+```
+
+`Autocomplete` reuses the shared `Combobox` part implementations. Those shared parts keep their `wheel-Combobox-*` classes and autocomplete behavior.
+
+## Theme tokens
+
+The stylesheet defines semantic `--wheel-component-*` custom properties. Override tokens on `:root`, a theme container, or one component instance after the default import:
+
+```css
+.brand-theme {
+  --wheel-component-accent: oklch(0.55 0.22 264);
+  --wheel-component-accent-fg: white;
+  --wheel-component-radius-md: 0.25rem;
+}
+```
+
+Light and dark values follow `color-scheme`. Set `data-theme="light"` or `data-theme="dark"` on a container to select one mode.
+
+## Recipe overrides
+
+Wheel puts its defaults in cascade layers. Unlayered application CSS declared after the import overrides a recipe without `!important`:
+
+```css
+.wheel-Button {
+  min-height: 2.25rem;
+  padding-inline: 1rem;
+}
+
+[data-slot='dialog-popup'] {
+  width: min(32rem, calc(100vw - 2rem));
+}
+```
+
+Use the class when the rule targets one component part. Use `data-slot` when the rule represents a shared application convention.

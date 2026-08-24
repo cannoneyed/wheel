@@ -1,0 +1,91 @@
+---
+title: Overview
+---
+
+import { Aside } from '@docs/components/Aside';
+import { Diagram } from '@docs/components/Diagram';
+
+# Overview
+
+Wheel is an opinionated framework for building local-first web apps with agents.
+
+It ships the state layer, the sync engine, the component bindings, the debug surfaces, and the lint rules that hold them together.
+
+The bet behind Wheel: **agents write good code when the framework makes bad code impossible.** Every piece of state has a name, an owner, and a record of what wrote it. Every component declares exactly what it reads. Every rule that matters is enforced by a machine, not a code review.
+
+Here is the whole model in one file — a service owns state, and nothing else may write it:
+
+```ts
+// Excerpt: packages/docs/examples/getting-started/todo-service.ts
+export class TodoService extends SyncService {
+  readonly list = this.liveQuery(todoList, {});
+  readonly remaining = this.computed(() => this.list.rows.filter((todo) => !todo.done).length);
+  readonly add = (text: string) => this.mutate(addTodo, { text });
+}
+```
+
+A component reads that service through one `connect()` call, and through nothing else. [Getting Started](#/getting-started) runs it.
+
+## Design principles
+
+Four properties drive every design decision:
+
+1. **Consistency.** One way to do each thing, applied everywhere. The patterns are simple, composable, and repeated across every app in this repo.
+1. **Modularity.** Components are self-sufficient units: each declares its own data needs and plugs into the state system wherever it is mounted. No prop drilling, no parents doing their children's jobs.
+1. **Debuggability.** Every component can answer "what state do you have and where did it come from?" precisely — which service owns it, which mutation wrote it, and where it was loaded from.
+1. **Testability.** Because components declare their needs up-front, each one builds and tests in isolation. Every service swaps for a fake with one line. The whole sync engine runs in-process with a fixed clock and seeded randomness, so tests reproduce byte-for-byte.
+
+## Data flow
+
+<Diagram
+  direction="TB"
+  nodes={[
+    { id: 'comp', label: 'Component', sub: 'Solid.js', kind: 'component' },
+    { id: 'connect', label: 'connect()', sub: 'the single way to access state', kind: 'component' },
+    { id: 'service', label: 'Services', sub: 'owns fields, atoms, machines, actions', kind: 'service' },
+    { id: 'client', label: 'SyncClient', sub: 'optimistic overlay + rebase', kind: 'client' },
+    { id: 'store', label: 'Local cache', sub: 'IndexedDB: cache + outbox', kind: 'store' },
+    { id: 'transport', label: 'Transport', sub: 'one WebSocket', kind: 'client' },
+    { id: 'server', label: 'SyncServer', sub: 'single writer, whole-row deltas', kind: 'server' },
+    { id: 'pg', label: 'SQLite', sub: 'in-process default, the only truth', kind: 'store' }
+  ]}
+  edges={[
+    { from: 'comp', to: 'connect', label: 'declares data needs' },
+    { from: 'connect', to: 'service', label: 'reads values' },
+    { from: 'service', to: 'client', label: 'owns state / syncs via liveQuery & mutate' },
+    { from: 'client', to: 'store', label: 'persists', dashed: true },
+    { from: 'client', to: 'transport' },
+    { from: 'transport', to: 'server' },
+    { from: 'server', to: 'pg' }
+  ]}
+  caption="Data flows one way."
+/>
+
+## Reading order
+
+Start with [Getting Started](#/getting-started), then [Project Layout](#/project-layout). Read **[Services](#/services) → [State](#/state) → [Components](#/components)** next, in that order: they are the three layers you build in. [Debugging](#/debugging) comes straight after — the debug panel, the agent bridge, and error capture are the reason the conventions exist.
+
+## The rest of the docs
+
+| Page | What it covers |
+| --- | --- |
+| [Walkthrough](#/walkthrough) | A synced todo app, built file by file |
+| [Live State](#/live-state) | How sync works, and the local-first guarantees |
+| [Everyday Data Patterns](#/data-patterns) | Loading and empty states, failed writes, reordering |
+| [Patterns](#/patterns) | Global surfaces: dialogs, toasts, menus, the command palette |
+| [Routing](#/routing) | The URL as an atom |
+| [Framing](#/framing) | App-shell regions |
+| [Configuration](#/configuration) | Validated boot config |
+| [Auth](#/auth) | Who is making a request |
+| [Production](#/production) | What shipping the app takes |
+| [Testing](#/testing) | The World harness, fakes, and deterministic runs |
+| [A Real App](#/real-app) | The tracker, read file by file |
+| [Architecture](#/architecture) | Every surface and how the layers stack |
+| [Import Map](#/import-map) | The ten `wheel/*` subpaths |
+| [Linting](#/linting) | The rules that keep all of the above true |
+
+## Next
+
+- [Getting Started](#/getting-started) — run an app and write your first connected component.
+- [Project Layout](#/project-layout) — the directory shape every lint rule and example assumes.
+- [Live State](#/live-state) — how sync works, and the local-first guarantees.

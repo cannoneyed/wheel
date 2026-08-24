@@ -1,0 +1,50 @@
+/* Shared component rules. This file does not reset the consuming page. */
+@layer wheel.components.base {
+  @media (min-resolution: 2x) {
+    :root {
+      --wheel-component-hairline: 0.5px;
+    }
+  }
+
+  :where([class^='wheel-'], [class*=' wheel-']) {
+    box-sizing: border-box;
+    border-color: var(--wheel-component-border);
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :where(
+      button[class^='wheel-'],
+      button[class*=' wheel-'],
+      [class^='wheel-'][role='button'],
+      [class*=' wheel-'][role='button']
+    ):not(:disabled, [data-disabled]) {
+    cursor: pointer;
+  }
+
+  :where([class^='wheel-'], [class*=' wheel-']):focus-visible {
+    outline: none;
+    box-shadow: 0 0 0
+      calc(var(--wheel-component-focus-ring-width) + var(--wheel-component-focus-ring-offset))
+      color-mix(
+        in srgb,
+        var(--wheel-component-focus-ring-color) var(--wheel-component-focus-ring-opacity),
+        transparent
+      );
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(
+        [class^='wheel-'],
+        [class*=' wheel-'],
+        [class^='wheel-']::before,
+        [class^='wheel-']::after,
+        [class*=' wheel-']::before,
+        [class*=' wheel-']::after
+      ) {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

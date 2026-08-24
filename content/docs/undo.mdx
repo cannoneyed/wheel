@@ -1,0 +1,71 @@
+---
+title: 'Undo & Redo'
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import undoSource from '@docs/examples/undo/undo.ts?example';
+
+# Undo & redo
+
+Undo is a mutation that knows its own inverse.
+
+The engine has no undo subsystem. A mutation declares how to invert itself, and pressing undo replays that inverse as an ordinary synced mutation — so your undo propagates to every other client, and the engine never learns undo exists.
+
+## Declare a mutation invertible
+
+Add an `invert` function. It captures the inverse **before** the optimistic apply runs, so it sees the prior values. Return `null` when there is nothing to undo:
+
+<CodeExample example={undoSource} region="mutation" />
+
+<Aside kind="note">
+  <strong>Always annotate <code>invert</code>'s return type</strong> (<code>: InverseSpec | null</code>).
+  Most inverses run the mutation against <em>itself</em>, and TypeScript can't infer a type from a
+  definition that mentions itself — it silently types the whole mutation <code>any</code>, and type
+  checking disappears in every file that imports it. The <code>invert-return-type</code> lint rule
+  fails the build without the annotation. The bug produces no error at the definition; the confusing
+  errors show up in files that import it.
+</Aside>
+
+## The `patchMutation` shortcut
+
+Most invertible mutations share one shape: guard the row, apply a partial patch, capture the prior values of exactly the fields the patch touched, make the mutation its own inverse. `patchMutation` writes all of that:
+
+<CodeExample example={undoSource} region="patch" />
+
+`stamp` adds server-mirroring fields the patch does not carry and the inverse must NOT restore — they re-derive on every apply, undo included:
+
+```ts
+// Excerpt: stamp callbacks inside patchMutation options.
+stamp: (ctx) => ({ updatedAt: ctx.now() })
+stamp: (_ctx, _args, row) => ({ version: row.version + 1 })
+```
+
+`patchMutation` is reserved for the `{ id, patch }` shape. Everything else keeps a hand-written `invert`:
+
+| Mutation shape | Write it with |
+| --- | --- |
+| One row, `{ id, patch }` args | `patchMutation` |
+| Flat args (`{ commentId, body }`) | Hand-written `invert` |
+| Multi-row writes | Hand-written `invert` |
+| Creates and deletes | Hand-written `invert` |
+| Skips rather than orphans on a missing row | Hand-written `invert` |
+
+## Drive it from a service
+
+`canUndo()`/`canRedo()` and `undo()`/`redo()` live on the client. They are not signals, so ride them through `clientRead` to make them reactive:
+
+<CodeExample example={undoSource} region="service" />
+
+## What undo gives you
+
+- **Undo is multiplayer.** The inverse is a normal mutation, so every other client sees the undo as an ordinary write.
+- **A fresh local edit invalidates redo.** Same as every editor you have used — the redo stack clears when you make a new change.
+- **Bulk edits stay one undo step** when you shape args per target (`{ updates: [{ id, patch }] }`); the inverse is the same mutation with each row's own priors.
+- **Not everything must be invertible.** Hard deletes and bookkeeping mutations can return `null` (or omit `invert`) — a deliberate, guarded choice, not a gap.
+
+## Next
+
+- [Live State](#/live-state) — the write path, the four settled outcomes, offline replay.
+- [Linting](#/linting) — the `invert-return-type` rule and the rest of the enforced conventions.
+- [A Real App](#/real-app) — undo across the tracker's mutations.

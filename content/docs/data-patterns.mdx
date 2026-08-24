@@ -1,0 +1,157 @@
+---
+title: Everyday data patterns
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Everyday data patterns
+
+Three jobs sit between "the query works" and "the feature ships": what the screen shows while data arrives, how the user learns a write did not land, and how a list is reordered. Each has one answer in Wheel, used by both reference apps.
+
+## Loading, empty, and error states
+
+A `liveQuery` view hands back two things: `rows` and `status`. `status` is a `QueryStatus` — three arms, nothing else:
+
+| `status.kind` | Means | Typical UI |
+| --- | --- | --- |
+| `loading` | the subscribe round-trip hasn't landed yet | skeleton or "Loading…" |
+| `live` | subscribed; `rows` is current and stays current | the real list |
+| `error` | the subscribe was refused; `error` carries why | an error notice, not a spinner |
+
+Errors are **sticky**. An identical retry can't fix a refused subscription, so the view stays in `error` rather than flipping back to `loading` and spinning forever.
+
+Expose the status from the service alongside the rows. Both come from the same view, so they can never disagree:
+
+```ts
+// Excerpt: IssueService — one liveQuery view, two members read off it.
+private readonly issuesView = this.liveQueryFor(issuesByTeam, (teamId: string) => ({ teamId }));
+
+readonly issuesFor = this.computedFor((teamId: string) => this.issuesView(teamId).rows, 'issuesFor');
+readonly statusFor = this.computedFor((teamId: string) => this.issuesView(teamId).status, 'statusFor');
+```
+
+The connection pulls both into the component's manifest, and the component branches on them with a Solid `<Switch>`:
+
+```tsx
+// Excerpt: IssueList — four arms, in order; the first match wins.
+<Switch>
+  <Match when={state.loadState.kind === 'error'}>Could not load issues.</Match>
+  <Match when={state.groups.length === 0 && state.loadState.kind === 'loading'}>Loading…</Match>
+  <Match when={state.groups.length === 0}>No issues match the current filters.</Match>
+  <Match when={true}>
+    <For each={state.groups}>{(group) => <IssueGroup group={group} />}</For>
+  </Match>
+</Switch>
+```
+
+Read the arms as a decision the user cares about, not a state enum:
+
+1. **Error first.** A failed subscription must never look like a slow one.
+2. **Empty *and* loading → "Loading…".** Nothing to show yet, and more may be coming.
+3. **Empty and not loading → "No issues match the current filters."** This is the answer, and the wording names *why* it's empty so the fix is obvious.
+4. **Otherwise, render.**
+
+<Aside kind="note">
+  <strong>Rows before status.</strong> The order above checks emptiness first because a
+  re-subscription (new params) can be <code>loading</code> while the previous rows are still on
+  screen. Branching on <code>status</code> alone would blank a list the user was reading. Branch
+  on <em>what you have</em>, and use <code>status</code> to explain the absence.
+</Aside>
+
+## Handling mutation results
+
+`mutate()` never throws. Every write resolves through one channel — `await handle.settled` — landing on exactly one of four outcomes: `confirmed`, `rejected`, `failed`, or `orphaned` (the full table is in [Reference](#/reference)). The rollback is automatic in all three unhappy cases. What is *not* automatic is the user finding out.
+
+The repo-wide convention is one private helper per service. Every action pipes its handle through it with a verb phrase:
+
+```ts
+// Intentionally unchecked: the shipped helper is in the tracker's issue-service.ts.
+private watch(handle: MutationHandle, verb: string): MutationHandle {
+  void handle.settled.then((info) => {
+    if (info.state === 'rejected') {
+      // A business rule said no — the handler's own message is the best text.
+      this.toastService.flash(`reject:${info.mutationId}`, info.rejection?.message ?? `Could not ${verb}.`, 'warn');
+    } else if (info.state === 'failed') {
+      // Broken, not refused — show the code, never the raw stack.
+      this.toastService.flash(`failed:${info.mutationId}`, `Could not ${verb} — something broke on the server (${info.error?.code ?? 'error'}).`, 'warn');
+    } else if (info.state === 'orphaned') {
+      this.toastService.flash(`orphan:${info.mutationId}`, `Could not ${verb} — it was deleted by someone else.`, 'warn');
+    }
+  });
+  return handle;
+}
+```
+
+At the call site it disappears into the action:
+
+```ts
+// Excerpt: IssueService actions — every write is watched, no exceptions.
+readonly rename = (issueId: string, title: string) =>
+  void this.watch(this.mutate(issueUpdate, { issueId, patch: { title } }), 'rename the issue');
+```
+
+Three details make it work:
+
+- **`confirmed` says nothing.** Silence is success. A toast on every write is noise, and the optimistic row already showed up instantly.
+- **`rejection?.message` vs `error?.code`.** A rejection is a *decision* your handler made (`throw rejection('archived', 'This issue is archived')`) — its message was written for a human, so show it. A failure is a *bug* — show a stable code and log the rest.
+- **The toast id is `<state>:<mutationId>`.** Re-using an id cancels that id's previous timers, so a burst of failures from one mutation can't stack up duplicate toasts.
+
+**When not to toast:** silent optimistic flows — drag-reorder, checkbox toggles, cursor and presence updates. The row snapping back *is* the feedback, and a toast on every dropped drag is worse than none. Watch these anyway if you want the log; route them somewhere quieter than the toast system.
+
+<Aside kind="note">
+  <strong>Inspecting without awaiting.</strong> <code>client.mutationState(decl)</code> returns
+  <code>{'{ last?, all }'}</code> — the <code>MutationInfo</code> records for one mutation
+  declaration, including still-pending ones. It's for tests, debug panels, and "is anything in
+  flight for this form?" checks. It is not the feedback path; <code>handle.settled</code> is.
+</Aside>
+
+## Ordering and reordering
+
+Anything a user can drag — a list, a board column, a favorites bar — orders on a **float sort key**, not an array index. Rows carry a `position` column; `positionBetween` from `wheel/sync` mints the value that lands between two neighbors:
+
+```ts
+// Excerpt: positionBetween — undefined means "the edge of the list".
+positionBetween(undefined, undefined); // 0    — first row in an empty list
+positionBetween(undefined, 4);         // 3    — insert at the top
+positionBetween(4, undefined);         // 5    — append at the bottom
+positionBetween(4, 5);                 // 4.5  — drop between two rows
+```
+
+The payoff is that **a reorder is exactly one row write**. Only the moved row changes, so two people dragging different cards at the same time compose instead of fighting over a shared order array:
+
+```ts
+// Excerpt: BoardService — a drop between two cards is one mutation.
+readonly move = (cardId: string, columnId: string, before?: Card, after?: Card) =>
+  this.mutate(moveCard, {
+    cardId,
+    columnId,
+    position: positionBetween(before?.position, after?.position)
+  });
+```
+
+Creating a row is the same call with one neighbor missing. The tracker drops every new issue at the top of its state group, and does it for both orderings the row carries:
+
+```ts
+// Excerpt: IssueService — where a new or moved issue lands by default.
+readonly insertionOrders = this.computedFor((teamId: string, stateId: string) => ({
+  sortOrder: positionBetween(undefined, this.issuesIn(teamId, stateId)[0]?.sortOrder),
+  boardOrder: positionBetween(undefined, this.boardIn(teamId, stateId)[0]?.boardOrder)
+}), 'insertionOrders');
+```
+
+Sorting is the query's job, in both engines: the SQL orders by `position`, and the projection's `sort` does the same client-side so the optimistic row lands in the right place before the server answers.
+
+Store `position` as a SQLite `real` (`position real not null default 0`) — an `integer` column silently truncates every midpoint, and every row in the list collapses to the same key.
+
+<Aside kind="warning">
+  <strong>Float midpoints run out.</strong> After roughly 50 consecutive drops into the same gap,
+  the halving exhausts double precision and two rows tie. Lists people actually reorder by hand
+  never reach it; a document outline being restructured does. The editor demo uses string
+  fractional indexes instead — same shape, same one-row-write property, no ceiling.
+</Aside>
+
+## Next
+
+- [Live State](#/live-state) — what settles a mutation, and the offline guarantees behind it.
+- [Names and errors](#/reference) — the full outcome table and the three error carriers.
+- [Undo](#/undo) — making those writes reversible.

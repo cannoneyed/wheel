@@ -1,0 +1,206 @@
+/* ========================================================================
+ * RECIPE: NavigationMenu — exemplar for the morphing viewport archetype
+ * (data-popup-open/data-activation-direction contract;
+ * --popup-width/-height, --positioner-width/-height, --transform-origin
+ * geometry set by the library as panels are measured)
+ *
+ * Pattern notes:
+ *  - Positioner and Popup both animate toward the library-measured
+ *    --positioner-width/-height / --popup-width/-height as the active item
+ *    changes — the "morphing" effect is pure CSS transition on those vars,
+ *    the library does all the measuring.
+ *  - Content's [data-activation-direction] drives the slide-in/out direction
+ *    when switching between sibling triggers; it only applies during
+ *    starting/ending presence states, never to the settled panel.
+ *  - Backdrop matches dialog.css's established scrim value (no semantic
+ *    "overlay" token exists yet — see that file's identical treatment).
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-NavigationMenu-Root {
+    --wheel-component-navigation-menu-duration: 0.35s;
+    --wheel-component-navigation-menu-ease: var(--wheel-component-ease-out-cubic);
+
+    box-sizing: border-box;
+    color: var(--wheel-component-fg);
+  }
+
+  .wheel-NavigationMenu-List {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .wheel-NavigationMenu-Trigger,
+  .wheel-NavigationMenu-Link {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: calc(var(--wheel-component-space) * 1.5);
+    height: 2.25rem;
+    padding: 0 calc(var(--wheel-component-space) * 3);
+    border: 0;
+    border-radius: var(--wheel-component-radius-sm);
+    background: transparent;
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    text-decoration: none;
+    user-select: none;
+    transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-NavigationMenu-Trigger:hover,
+    .wheel-NavigationMenu-Link:hover {
+      background: var(--wheel-component-bg-hover);
+    }
+  }
+
+  .wheel-NavigationMenu-Trigger[data-popup-open],
+  .wheel-NavigationMenu-Link[data-popup-open] {
+    background: var(--wheel-component-bg-hover);
+  }
+
+  .wheel-NavigationMenu-Icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: rotate var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-NavigationMenu-Trigger[data-popup-open] .wheel-NavigationMenu-Icon {
+    rotate: 180deg;
+  }
+
+  .wheel-NavigationMenu-Positioner {
+    box-sizing: border-box;
+    width: var(--positioner-width);
+    height: var(--positioner-height);
+    max-width: var(--available-width);
+    transition-property: top, left, right, bottom, width, height;
+    transition-duration: var(--wheel-component-navigation-menu-duration);
+    transition-timing-function: var(--wheel-component-navigation-menu-ease);
+  }
+
+  .wheel-NavigationMenu-Positioner[data-instant] {
+    transition: none;
+  }
+
+  .wheel-NavigationMenu-Popup {
+    position: relative;
+    box-sizing: border-box;
+    width: var(--popup-width);
+    height: var(--popup-height);
+    border-radius: var(--wheel-component-radius-lg);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-elevated);
+    transform-origin: var(--transform-origin, center);
+    transition-property: opacity, transform, width, height;
+    transition-duration: var(--wheel-component-navigation-menu-duration);
+    transition-timing-function: var(--wheel-component-navigation-menu-ease);
+  }
+
+  .wheel-NavigationMenu-Popup[data-starting-style],
+  .wheel-NavigationMenu-Popup[data-ending-style] {
+    opacity: 0;
+    scale: 0.94;
+  }
+
+  .wheel-NavigationMenu-Popup[data-ending-style] {
+    transition-duration: var(--wheel-component-duration);
+    transition-timing-function: var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-NavigationMenu-Viewport {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+
+  .wheel-NavigationMenu-Content {
+    box-sizing: border-box;
+    padding: calc(var(--wheel-component-space) * 3);
+    transition:
+      opacity calc(var(--wheel-component-navigation-menu-duration) * 0.5) var(--wheel-component-ease-out-quad),
+      transform var(--wheel-component-navigation-menu-duration) var(--wheel-component-navigation-menu-ease);
+  }
+
+  .wheel-NavigationMenu-Content[data-starting-style],
+  .wheel-NavigationMenu-Content[data-ending-style] {
+    opacity: 0;
+  }
+
+  .wheel-NavigationMenu-Content[data-starting-style][data-activation-direction='left'] {
+    transform: translateX(calc(-1 * var(--wheel-component-space) * 8));
+  }
+
+  .wheel-NavigationMenu-Content[data-starting-style][data-activation-direction='right'] {
+    transform: translateX(calc(var(--wheel-component-space) * 8));
+  }
+
+  .wheel-NavigationMenu-Content[data-ending-style][data-activation-direction='left'] {
+    transform: translateX(calc(var(--wheel-component-space) * 8));
+  }
+
+  .wheel-NavigationMenu-Content[data-ending-style][data-activation-direction='right'] {
+    transform: translateX(calc(-1 * var(--wheel-component-space) * 8));
+  }
+
+  .wheel-NavigationMenu-Arrow {
+    position: relative;
+    display: block;
+    width: 0.75rem;
+    height: 0.375rem;
+    overflow: clip;
+    transition:
+      left var(--wheel-component-navigation-menu-duration) var(--wheel-component-navigation-menu-ease),
+      right var(--wheel-component-navigation-menu-duration) var(--wheel-component-navigation-menu-ease);
+  }
+
+  .wheel-NavigationMenu-Arrow[data-side='top'] {
+    bottom: -0.375rem;
+    rotate: 180deg;
+  }
+
+  .wheel-NavigationMenu-Arrow[data-side='bottom'] {
+    top: -0.375rem;
+  }
+
+  .wheel-NavigationMenu-Arrow[data-side='left'] {
+    right: -0.5625rem;
+    rotate: 90deg;
+  }
+
+  .wheel-NavigationMenu-Arrow[data-side='right'] {
+    left: -0.5625rem;
+    rotate: -90deg;
+  }
+
+  .wheel-NavigationMenu-Arrow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--wheel-component-bg-elevated);
+    transform: translateY(50%) rotate(45deg);
+  }
+
+  .wheel-NavigationMenu-Backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--wheel-component-backdrop-bg);
+    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-NavigationMenu-Backdrop[data-starting-style],
+  .wheel-NavigationMenu-Backdrop[data-ending-style] {
+    opacity: 0;
+  }
+}

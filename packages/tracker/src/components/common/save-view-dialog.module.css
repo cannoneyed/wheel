@@ -1,0 +1,41 @@
+.dialog {
+  width: 380px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.input {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.save:disabled {
+  opacity: 0.5;
+}

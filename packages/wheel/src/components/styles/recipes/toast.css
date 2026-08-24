@@ -1,0 +1,168 @@
+/* ========================================================================
+ * RECIPE: Toast — exemplar for stacked, swipeable notifications
+ * (data-expanded/data-behind/data-swiping/data-swipe-direction contract;
+ * --toast-index/-offset-y/-height/-swipe-movement-x/-y geometry variables
+ * set by ToastRoot, --toast-frontmost-height set by ToastViewport)
+ *
+ * Pattern notes:
+ *  - The stack is drawn entirely from the library's per-toast CSS vars: each
+ *    Root computes its own collapsed (peeking) transform from --toast-index,
+ *    and its expanded transform from --toast-offset-y (measured by the
+ *    library from real DOM heights + gap).
+ *  - [data-swiping] disables the transition so the toast tracks the pointer
+ *    1:1; the swipe-movement vars keep applying through starting/ending
+ *    states so a dismissed-by-swipe toast continues in the swipe direction
+ *    instead of snapping back to center.
+ *  - Content's [data-behind] hides toasts stacked under the frontmost one
+ *    until the stack is expanded (hover/focus) — pure opacity, no layout.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Toast-Viewport {
+    position: fixed;
+    z-index: 1;
+    right: calc(var(--wheel-component-space) * 4);
+    bottom: calc(var(--wheel-component-space) * 4);
+    width: min(22.5rem, calc(100vw - var(--wheel-component-space) * 8));
+  }
+
+  .wheel-Toast-Root {
+    --wheel-component-toast-gap: calc(var(--wheel-component-space) * 3);
+    --wheel-component-toast-peek: calc(var(--wheel-component-space) * 3);
+    --wheel-component-toast-scale: calc(max(0, 1 - (var(--toast-index) * 0.1)));
+    --wheel-component-toast-shrink: calc(1 - var(--wheel-component-toast-scale));
+    --wheel-component-toast-height: var(--toast-frontmost-height, var(--toast-height));
+    --wheel-component-toast-collapsed-y: calc(
+      var(--toast-swipe-movement-y) - (var(--toast-index) * var(--wheel-component-toast-peek)) -
+        (var(--wheel-component-toast-shrink) * var(--wheel-component-toast-height))
+    );
+    --wheel-component-toast-expanded-y: calc(
+      var(--toast-offset-y) * -1 + (var(--toast-index) * var(--wheel-component-toast-gap) * -1) +
+        var(--toast-swipe-movement-y)
+    );
+
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--wheel-component-toast-height);
+    padding: calc(var(--wheel-component-space) * 3);
+    border-radius: var(--wheel-component-radius-lg);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-elevated);
+    transform-origin: bottom center;
+    z-index: calc(1000 - var(--toast-index));
+    transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--wheel-component-toast-collapsed-y))
+      scale(var(--wheel-component-toast-scale));
+    transition:
+      transform var(--wheel-component-duration-slow) var(--wheel-component-ease-out-cubic),
+      opacity var(--wheel-component-duration-slow) var(--wheel-component-ease-out-quad),
+      height var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Toast-Root[data-expanded] {
+    height: var(--toast-height);
+    transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--wheel-component-toast-expanded-y));
+  }
+
+  .wheel-Toast-Root[data-swiping] {
+    transition: none;
+  }
+
+  .wheel-Toast-Root[data-starting-style],
+  .wheel-Toast-Root[data-ending-style] {
+    opacity: 0;
+    transform: translateY(150%);
+  }
+
+  .wheel-Toast-Root[data-limited] {
+    opacity: 0;
+  }
+
+  .wheel-Toast-Arrow {
+    fill: var(--wheel-component-bg-elevated);
+  }
+
+  .wheel-Toast-Root[data-ending-style][data-swipe-direction='up'] {
+    transform: translateY(calc(var(--toast-swipe-movement-y) - 150%));
+  }
+
+  .wheel-Toast-Root[data-ending-style][data-swipe-direction='down'] {
+    transform: translateY(calc(var(--toast-swipe-movement-y) + 150%));
+  }
+
+  .wheel-Toast-Root[data-ending-style][data-swipe-direction='left'] {
+    transform: translateX(calc(var(--toast-swipe-movement-x) - 150%)) translateY(var(--wheel-component-toast-expanded-y));
+  }
+
+  .wheel-Toast-Root[data-ending-style][data-swipe-direction='right'] {
+    transform: translateX(calc(var(--toast-swipe-movement-x) + 150%)) translateY(var(--wheel-component-toast-expanded-y));
+  }
+
+  .wheel-Toast-Content {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: calc(var(--wheel-component-space) * 4);
+    height: 100%;
+    overflow: hidden;
+    transition: opacity var(--wheel-component-duration-slow) var(--wheel-component-ease-out-cubic);
+  }
+
+  .wheel-Toast-Content[data-behind] {
+    opacity: 0;
+  }
+
+  .wheel-Toast-Content[data-expanded] {
+    opacity: 1;
+  }
+
+  .wheel-Toast-Title {
+    margin: 0;
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    font-weight: 500;
+  }
+
+  .wheel-Toast-Description {
+    margin: 0;
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+  }
+
+  .wheel-Toast-Close,
+  .wheel-Toast-Action {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--wheel-component-space) * 1.5);
+    height: 2rem;
+    padding: 0 calc(var(--wheel-component-space) * 3);
+    border-radius: var(--wheel-component-radius-md);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-sm);
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-Toast-Close:hover,
+    .wheel-Toast-Action:hover {
+      background: var(--wheel-component-bg-hover);
+    }
+  }
+
+  .wheel-Toast-Close:active,
+  .wheel-Toast-Action:active {
+    background: var(--wheel-component-bg-sunken);
+  }
+}

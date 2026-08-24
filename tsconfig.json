@@ -1,0 +1,20 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/wheel"
+    },
+    {
+      "path": "packages/demos"
+    },
+    {
+      "path": "packages/docs"
+    },
+    {
+      "path": "packages/playground"
+    },
+    {
+      "path": "packages/tracker"
+    }
+  ]
+}

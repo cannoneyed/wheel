@@ -1,0 +1,253 @@
+/* ----------------------------------------------------------------------------
+   wheel design tokens
+
+   One vocabulary for every wheel surface: the framework kit, the demos, the
+   tracker, the docs site, and the marketing pages. Values are lifted from the
+   framing demo (packages/demos/src/framing) — the repo's reference for the
+   "light instrument chrome around a dark product stage" look.
+
+   Import (CSS):  @import 'wheel/styles';
+   Import (JS):   import 'wheel/styles';
+
+   Two tiers, one rule:
+
+   1. FIXED PALETTE — `--wheel-chrome-*` (the light instrument chrome) and
+      `--wheel-stage-*` (the dark product stage), plus the accent and status
+      families and the scales. These NEVER change with the theme. Use them on
+      surfaces that are deliberately baked light or baked dark — framing's
+      stage stays dark even in light mode, so it reads `--wheel-stage-*`
+      directly.
+
+   2. THEME ALIASES — `--wheel-bg`, `--wheel-ink`, `--wheel-line`,
+      `--wheel-accent`, … at the bottom of this file. Light by default; dark
+      when the user chose dark (`<html data-theme="dark">`, set by a site's
+      pre-paint script + theme toggle) or when the OS prefers dark and the
+      user made no explicit choice (`:root:not([data-theme='light'])`). Same
+      contract as packages/docs/src/theme.css. Normal, theme-following app
+      surfaces use these.
+
+   Per-site accent: the default accent is wheel's indigo. A site re-accents by
+   overriding `--wheel-accent` (and its dark value, if the site themes) — the
+   docs site sets green. The fixed indigo family is untouched by that
+   override; baked surfaces keep the wheel brand color on purpose.
+
+   Kit compatibility: the kit's component variables (`--wheel-dialog-*`,
+   `--wheel-frame-*`, `--wheel-scrollbar-*`, `--wheel-scrim`,
+   `--wheel-dock-preview*`) keep their inline fallbacks and are NOT defaulted
+   here yet. Pointing them at theme aliases would silently re-theme apps that
+   never opted in, and restating their fallback values here would create a
+   second source of truth that can drift. They rehome onto these tokens in
+   the kit-theming pass (design plan step 4).
+---------------------------------------------------------------------------- */
+
+:root {
+  /* ---- font stacks --------------------------------------------------------
+     Sans is the platform UI face. Mono doubles as the *label* face: the
+     uppercase letter-spaced micro-label (eyebrows, control labels, table
+     heads, dock labels) is the design language's signature. */
+  --wheel-sans: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --wheel-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ======================= FIXED PALETTE — CHROME ==========================
+     The light instrument panel: toolbars, control strips, inspectors, cards.
+     Surfaces run 0 (card white) → 3 (recessed wells). */
+  --wheel-chrome-0: #fff; /* cards, panels, buttons, menu sheets */
+  --wheel-chrome-1: #fafbfc; /* table headers, barely-off-white strips */
+  --wheel-chrome-2: #f8f9fb; /* toolbars, badges, section chrome */
+  --wheel-chrome-3: #eef1f6; /* recessed wells: the graph-paper stage rail */
+
+  /* Ink on chrome, strongest → faintest. */
+  --wheel-chrome-ink-strong: #172033; /* headings, primary readouts */
+  --wheel-chrome-ink: #3b465c; /* button/control text, pane titles */
+  --wheel-chrome-ink-soft: #596579; /* table body text, badge text */
+  --wheel-chrome-ink-muted: #667085; /* descriptions, secondary copy */
+  --wheel-chrome-ink-faint: #8a94a8; /* micro-labels, hints, table heads */
+
+  /* Lines on chrome. `line` is the workhorse card border + grid line. */
+  --wheel-chrome-line-strong: #d7dce5; /* control borders (buttons, inputs) */
+  --wheel-chrome-line: #dfe3eb; /* card borders, graph-paper grid */
+  --wheel-chrome-line-soft: #e8ebf0; /* inner section rules, tour cards */
+  --wheel-chrome-line-faint: #f1f3f7; /* table row rules */
+
+  /* ======================= FIXED PALETTE — STAGE ===========================
+     The dark product stage: blue-leaning near-blacks. Surfaces run
+     0 (deepest) → 5 (highest/most raised); higher numbers sit visually
+     closer to the viewer. */
+  --wheel-stage-0: #0c0f16; /* deepest wells: bottom panels */
+  --wheel-stage-1: #0f121a; /* dock panels */
+  --wheel-stage-2: #10131c; /* the stage base: editors, canvases */
+  --wheel-stage-3: #151924; /* sidebars, outlines, status bars */
+  --wheel-stage-4: #171b26; /* pane headers, floating menus */
+  --wheel-stage-5: #1b1f2c; /* drawers, topmost raised surfaces */
+
+  /* Lines on the stage, subtle → pronounced. */
+  --wheel-stage-line: #1d2331; /* hairline dividers between dark panes */
+  --wheel-stage-line-strong: #2b3140; /* borders of floating dark surfaces:
+                                         menus, the stage's own edge */
+  --wheel-stage-line-heavy: #363e50; /* raised control borders on dark */
+
+  /* Hover / raised-control fills on the stage. */
+  --wheel-stage-hover: #232a3b; /* row + button hover, raised button fill */
+  --wheel-stage-hover-strong: #2b3245; /* emphatic hover (close buttons) */
+
+  /* Ink on the stage, strongest → dimmest. */
+  --wheel-stage-ink-strong: #e6e9f0; /* hover/active text, tree headings */
+  --wheel-stage-ink: #c9ced8; /* body text, pane headings, code */
+  --wheel-stage-ink-soft: #aab2c2; /* tree rows, grip labels */
+  --wheel-stage-ink-muted: #94a3b8; /* log/output text, outlines */
+  --wheel-stage-ink-faint: #7d8799; /* status bars, dismiss glyphs */
+  --wheel-stage-ink-dim: #5f6a80; /* hints, empty states, footnotes */
+
+  /* ======================= ACCENT — INDIGO =================================
+     The wheel brand accent, one hue split by context. Chrome (light)
+     surfaces use the saturated pair; stage (dark) surfaces use the soft
+     variants. Fixed: never theme-switched (see --wheel-accent below for the
+     theme-following alias). */
+  --wheel-indigo: #4f46e5; /* the accent: links, active controls on chrome */
+  --wheel-indigo-deep: #4338ca; /* pressed state, inline code on chrome */
+  --wheel-indigo-bright: #6366f1; /* form-control accents, glows */
+  --wheel-indigo-soft: #818cf8; /* accent on the stage; decorative numerals */
+  --wheel-indigo-edge: #a5b4fc; /* selected-control borders on chrome */
+  --wheel-indigo-tint: #eef2ff; /* selected/active fill washes on chrome */
+  --wheel-violet-soft: #c4b5fd; /* code/identifier tint on the stage */
+
+  /* ======================= STATUS ==========================================
+     Family shape: bare = the vivid indicator/action color; -ink = readable
+     text on chrome; -soft = the stage (dark-surface) variant; -tint = pale
+     fill wash; -deep = pressed/emphatic. */
+  --wheel-ok: #22c55e; /* live dots, positive indicators */
+  --wheel-ok-ink: #16803c; /* readable success text on chrome */
+  --wheel-ok-soft: #34d399; /* success accent on the stage (snap guides) */
+  --wheel-ok-tint: #dcfce7; /* success halo/fill on chrome */
+  --wheel-warn: #f59e0b; /* warning indicators */
+  --wheel-warn-ink: #92600a; /* readable warning text on chrome */
+  --wheel-warn-tint: #fef3c7; /* warning fill on chrome */
+  --wheel-danger: #ef4444; /* destructive actions, error borders */
+  --wheel-danger-deep: #b91c1c; /* alert headings, pressed destructive */
+  --wheel-danger-ink: #c2415a; /* calm negative state text on chrome
+                                  (e.g. "hidden" in instrument tables) */
+
+  /* ======================= RADII ===========================================
+     4 / 6 / 8 / 9 / 12 / 999. */
+  --wheel-radius-xs: 4px; /* grips, close buttons, micro-chips */
+  --wheel-radius-sm: 6px; /* buttons, inputs */
+  --wheel-radius-md: 8px; /* menus, popovers, code blocks */
+  --wheel-radius-lg: 9px; /* the stage, tour/feature cards */
+  --wheel-radius-xl: 12px; /* outer seamed cards, dialogs */
+  --wheel-radius-pill: 999px; /* pills, chips, badges */
+
+  /* ======================= SPACING =========================================
+     2 / 4 / 6 / 8 / 12 / 16 / 24. Instrument density: most padding lives at
+     the small end. */
+  --wheel-space-2xs: 2px;
+  --wheel-space-xs: 4px;
+  --wheel-space-sm: 6px;
+  --wheel-space-md: 8px;
+  --wheel-space-lg: 12px;
+  --wheel-space-xl: 16px;
+  --wheel-space-2xl: 24px;
+
+  /* ======================= TYPE — UI SCALE =================================
+     The instrument scale, px-based, 9–14. Structural text sits at 9–12;
+     body copy tops out at 14. (Framing's 8px status bar is a deliberate
+     one-off below the scale floor.) */
+  --wheel-ui-xs: 9px; /* mono micro-labels, dock text, table heads */
+  --wheel-ui-sm: 10px; /* table rows, tree rows, editor text */
+  --wheel-ui-md: 11px; /* secondary copy, eyebrows, hints */
+  --wheel-ui-lg: 12px; /* buttons, body text in dense panes */
+  --wheel-ui-xl: 13px; /* app body text (tracker base) */
+  --wheel-ui-2xl: 14px; /* top of the UI scale: lead paragraphs */
+  --wheel-ui-display: clamp(24px, 3vw, 36px); /* instrument-page hero h1 */
+
+  /* ======================= TYPE — PROSE SCALE ==============================
+     The essay scale, rem-based: docs pages and marketing copy. */
+  --wheel-prose-xs: 0.8125rem; /* 13px — code blocks, figure labels */
+  --wheel-prose-sm: 0.875rem; /* 14px — tables, captions, asides */
+  --wheel-prose-md: 1rem; /* 16px — docs body */
+  --wheel-prose-lg: 1.0625rem; /* 17px — landing-page body */
+  --wheel-prose-xl: 1.375rem; /* 22px — section headings */
+  --wheel-prose-2xl: 2rem; /* 32px — docs page h1 */
+  --wheel-prose-display: clamp(2rem, 5.5vw, 3.1rem); /* essay hero h1 */
+
+  /* ======================= SHADOWS =========================================
+     Exactly three. Anything else is decoration — don't add a fourth. */
+  /* The hero lift: a floating stage/card on light chrome (soft + tight pair). */
+  --wheel-shadow-stage:
+    0 24px 60px rgb(23 32 51 / 16%),
+    0 3px 8px rgb(23 32 51 / 10%);
+  /* Floating surfaces on light chrome: menus, popovers, toasts. */
+  --wheel-shadow-float: 0 8px 24px rgb(0 0 0 / 12%);
+  /* Floating surfaces on the dark stage: menus, drawers, palettes. */
+  --wheel-shadow-menu: 0 12px 32px rgb(0 0 0 / 45%);
+
+  /* ======================= THEME ALIASES (light defaults) ==================
+     The theme-following names normal app surfaces consume. Light here; the
+     two dark blocks below (explicit choice, then OS preference) re-point
+     them at the stage palette and must stay identical to each other.
+
+     The ladder is deliberately deep enough for instrument-dense chrome (the
+     framing demo's docks, headers, rails and wells), because a surface that
+     needs six depths and five ink weights would otherwise reach past these
+     aliases into the FIXED palettes above — and anything painted from
+     `--wheel-stage-*` or `--wheel-chrome-*` directly cannot follow the theme.
+     Surfaces run sunken → bg → soft → raised → high; ink and lines run
+     strong → faint. */
+  --wheel-bg: var(--wheel-chrome-0); /* page background */
+  --wheel-bg-raised: var(--wheel-chrome-0); /* cards, menus, dialogs (light
+                                               raises with line + shadow) */
+  --wheel-bg-high: var(--wheel-chrome-0); /* drawers, topmost floating layers */
+  --wheel-bg-soft: var(--wheel-chrome-2); /* toolbars, table headers */
+  --wheel-bg-sunken: var(--wheel-chrome-3); /* recessed wells: rails, gutters */
+  --wheel-bg-hover: var(--wheel-chrome-3); /* row/button hover fill */
+  --wheel-bg-hover-strong: var(--wheel-chrome-3); /* emphatic hover (close buttons) */
+  --wheel-ink: var(--wheel-chrome-ink-strong); /* body text */
+  --wheel-ink-soft: var(--wheel-chrome-ink-soft); /* pane titles, control text */
+  --wheel-ink-muted: var(--wheel-chrome-ink-muted); /* secondary text */
+  --wheel-ink-faint: var(--wheel-chrome-ink-faint); /* micro-labels, hints */
+  --wheel-line-soft: var(--wheel-chrome-line-soft); /* inner section rules */
+  --wheel-line: var(--wheel-chrome-line); /* borders, dividers */
+  --wheel-line-strong: var(--wheel-chrome-line-strong); /* control borders */
+  --wheel-accent: var(--wheel-indigo); /* THE per-site accent; sites override */
+  --wheel-on-accent: #fff; /* text on accent-filled controls */
+}
+
+/* Explicit user choice: dark. */
+:root[data-theme='dark'] {
+  --wheel-bg: var(--wheel-stage-2);
+  --wheel-bg-raised: var(--wheel-stage-4);
+  --wheel-bg-high: var(--wheel-stage-5);
+  --wheel-bg-soft: var(--wheel-stage-3);
+  --wheel-bg-sunken: var(--wheel-stage-0);
+  --wheel-bg-hover: var(--wheel-stage-hover);
+  --wheel-bg-hover-strong: var(--wheel-stage-hover-strong);
+  --wheel-ink: var(--wheel-stage-ink-strong);
+  --wheel-ink-soft: var(--wheel-stage-ink-soft);
+  --wheel-ink-muted: var(--wheel-stage-ink-muted);
+  --wheel-ink-faint: var(--wheel-stage-ink-faint);
+  --wheel-line-soft: var(--wheel-stage-line);
+  --wheel-line: var(--wheel-stage-line-strong);
+  --wheel-line-strong: var(--wheel-stage-line-heavy);
+  --wheel-accent: var(--wheel-indigo-soft);
+}
+
+/* OS preference: dark, when the user made no explicit choice. Must mirror
+   the block above exactly. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --wheel-bg: var(--wheel-stage-2);
+    --wheel-bg-raised: var(--wheel-stage-4);
+    --wheel-bg-high: var(--wheel-stage-5);
+    --wheel-bg-soft: var(--wheel-stage-3);
+    --wheel-bg-sunken: var(--wheel-stage-0);
+    --wheel-bg-hover: var(--wheel-stage-hover);
+    --wheel-bg-hover-strong: var(--wheel-stage-hover-strong);
+    --wheel-ink: var(--wheel-stage-ink-strong);
+    --wheel-ink-soft: var(--wheel-stage-ink-soft);
+    --wheel-ink-muted: var(--wheel-stage-ink-muted);
+    --wheel-ink-faint: var(--wheel-stage-ink-faint);
+    --wheel-line-soft: var(--wheel-stage-line);
+    --wheel-line: var(--wheel-stage-line-strong);
+    --wheel-line-strong: var(--wheel-stage-line-heavy);
+    --wheel-accent: var(--wheel-indigo-soft);
+  }
+}

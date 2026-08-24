@@ -1,0 +1,55 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar > :first-child {
+  flex: 1;
+}
+
+.newIssue {
+  margin: 0 16px;
+  flex: none;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  white-space: nowrap;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.body > * {
+  width: 100%;
+  height: 100%;
+}
+
+.peek {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.splitButton {
+  flex: none;
+  font-size: 12px;
+  white-space: nowrap;
+}

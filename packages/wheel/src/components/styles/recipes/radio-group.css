@@ -1,0 +1,22 @@
+/* ========================================================================
+ * RECIPE: RadioGroup — single-part layout wrapper for a set of radios
+ * (data-disabled contract)
+ *
+ * Pattern notes:
+ *  - Single-part component: class is `wheel-RadioGroup`. Mirrors
+ *    `wheel-CheckboxGroup` — no visual chrome of its own, it only lays out the
+ *    `Radio.Root`s and their labels.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-RadioGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(var(--wheel-component-space) * 2);
+  }
+
+  .wheel-RadioGroup[data-disabled] {
+    opacity: 0.6;
+  }
+}

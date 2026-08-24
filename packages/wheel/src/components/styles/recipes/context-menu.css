@@ -1,0 +1,29 @@
+/* ========================================================================
+ * RECIPE: Context Menu — only the Trigger is unique to this component
+ *
+ * ContextMenu.Popup / .Item / .Separator / .Positioner / .Arrow are literal
+ * re-exports of the Menu parts (see packages/wheel/src/components/context-menu/index.parts.ts),
+ * so they're styled by recipes/menu.css's wheel-Menu-* classes and
+ * recipes/separator.css's wheel-Separator — nothing to duplicate here.
+ * ContextMenu.Trigger is a distinct component (captures right-click), so it
+ * gets its own single-part class.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-ContextMenu-Trigger {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 16rem;
+    aspect-ratio: 5 / 3;
+    border-radius: var(--wheel-component-radius-lg);
+    border: var(--wheel-component-hairline) dashed var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-sunken);
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    user-select: none;
+  }
+}

@@ -1,0 +1,412 @@
+/* The demos' global chrome: the app shell (sidebar + main), the staged-demo
+   card every sync demo mounts into, and the handful of shell-owned pages
+   (home, 404, route error).
+
+   Two rules govern every value below.
+
+   1. NO LOCAL TOKENS. This sheet used to declare its own `:root` block
+      (`--bg`, `--ink`, `--line`, `--accent`, `--surface`) reusing the names
+      `packages/docs/src/theme.css` uses with different values — so a
+      component moved between packages silently re-themed. Everything now
+      reads `--wheel-*` from the shared file imported below. That file is
+      wheel.dev's own theme layer (which imports `wheel/styles` and then
+      overrides the aliases), so /demos, /docs, and /components render in one
+      palette and one pair of faces instead of three.
+   2. APP CHROME FOLLOWS THE THEME. The shell and the demo interiors read the
+      theme aliases (`--wheel-bg`, `--wheel-ink`, `--wheel-line`, …), so the
+      whole app flips with `<html data-theme>` / the OS preference. The
+      This includes the framing demo, which used to be the deliberate
+      exception (fixed light chrome around a fixed dark stage) and therefore
+      ignored the theme toggle entirely.
+
+   Demo-local styles live in `*.module.css` next to their components — this
+   sheet holds only what is genuinely global. (The routing demo's ~180 lines
+   used to live here; they are now `src/routing/routing.module.css`.) */
+@import '../../../docs/src/theme.css';
+@import '../../../docs/src/site/site-chrome.css';
+
+/* The component library's recipes. The demos are the library's own shop
+   window: their buttons, inputs, switches and selects are the SHIPPED
+   components, so what you see here is what `bun add wheel` gives you. */
+@import 'wheel/components/styles';
+
+* {
+  box-sizing: border-box;
+}
+
+/* Tell the browser which way the page leans, so the controls we DON'T style —
+   checkboxes, scrollbars, the select's drop-down — come out dark too. Without
+   it, a checked-off todo shows a white UA checkbox on the dark stage. The
+   three selectors mirror the theme-alias blocks in wheel's tokens.css: the
+   explicit choice first, the OS preference second. */
+:root {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--wheel-sans);
+  font-size: var(--wheel-ui-2xl);
+  color: var(--wheel-ink);
+  background: var(--wheel-bg);
+  line-height: 1.5;
+}
+
+/* ---- shell ------------------------------------------------------------- */
+
+.shell {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+
+  /* The shared site bar sits above this grid, so the shell's own viewport math
+     subtracts it — otherwise the sticky sidebar runs one bar-height long and
+     its last link scrolls out of reach. */
+  min-height: calc(100vh - var(--topnav-h) - 1px);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wheel-space-2xs);
+  border-right: 1px solid var(--wheel-line);
+  background: var(--wheel-bg-soft);
+  padding: var(--wheel-space-xl) 0;
+  position: sticky;
+  top: 0;
+  height: calc(100vh - var(--topnav-h) - 1px);
+}
+
+/* The brand and the section label are the shell's two mono micro-labels —
+   framing's signature: uppercase, letter-spaced, tiny. */
+.sidebar .brand {
+  margin: 0 var(--wheel-space-xl) var(--wheel-space-xl);
+  color: var(--wheel-ink);
+  font: 700 var(--wheel-ui-md) / 1.3 var(--wheel-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.sidebar-label {
+  margin: 0 var(--wheel-space-xl) var(--wheel-space-sm);
+  color: var(--wheel-ink-muted);
+  font: 700 var(--wheel-ui-xs) / 1 var(--wheel-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sidebar a {
+  display: block;
+  color: var(--wheel-ink-muted);
+  text-decoration: none;
+  padding: var(--wheel-space-sm) var(--wheel-space-xl);
+  font-size: var(--wheel-ui-lg);
+}
+
+.sidebar a:hover {
+  color: var(--wheel-ink);
+  background: var(--wheel-bg-hover);
+}
+
+.sidebar a.active {
+  color: var(--wheel-accent);
+  font-weight: 600;
+  /* An inset rule rather than a border: no 2px of layout appears on activation. */
+  box-shadow: inset -2px 0 0 var(--wheel-accent);
+}
+
+/* The theme toggle now rides in the shared site bar, and `theme.css` styles
+   it. The sidebar foot that used to hold it is gone with it. */
+
+.demo-main {
+  padding: var(--wheel-space-2xl) 32px 80px;
+  max-width: 1100px;
+  min-width: 0; /* a grid item defaults to min-width:auto and will not shrink */
+}
+
+/* ---- narrow viewports --------------------------------------------------- */
+
+/* The shell had no breakpoints at all, so on a phone a 180px sidebar ate half
+   the width and every demo rendered into what was left. Below 760px the rail
+   becomes a horizontally scrolled strip of the same links above the content —
+   the demos are the thing to look at, and the nav is one swipe away. */
+@media (max-width: 760px) {
+  .shell {
+    display: block;
+    min-height: 0;
+  }
+
+  .sidebar {
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--wheel-space-md);
+    height: auto;
+    padding: var(--wheel-space-md) var(--wheel-space-lg);
+    border-right: none;
+    border-bottom: 1px solid var(--wheel-line);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  /* The site bar above already carries the wordmark, and a horizontal strip
+     needs no "Demos" heading — the strip IS the demo list. Both would just
+     push the links off-screen. */
+  .sidebar .brand,
+  .sidebar-label {
+    display: none;
+  }
+
+  .sidebar a {
+    padding: var(--wheel-space-xs) var(--wheel-space-md);
+    white-space: nowrap;
+  }
+
+  /* The active-row cursor is an inset LEFT edge in the vertical rail; in a
+     horizontal strip the same idea reads as an underline. */
+  .sidebar a.active {
+    box-shadow: inset 0 -2px 0 var(--wheel-accent);
+  }
+
+  .demo-main {
+    padding: var(--wheel-space-xl) var(--wheel-space-lg) 64px;
+  }
+}
+
+/* ---- the staged demo card ---------------------------------------------- */
+
+/* Every sync demo is presented as an ARTIFACT ON A STAGE: one seamed card
+   with an instrument header on top and the demo itself in the body. Framing's
+   trick, applied to the demos — the border is drawn ONCE by the card, and the
+   rows inside it only draw the seams between them. */
+.demo-stage {
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-xl);
+  background: var(--wheel-bg-raised);
+}
+
+/* Row 1 of the card: the instrument panel. Kept as a GLOBAL class on purpose
+   — `packages/demos/browser/shell.spec.ts` reaches for `.demo-header h1` and
+   `.demo-header select` as the stable hooks for the shared header (module
+   class names are hashed). */
+.demo-header {
+  display: flex;
+  align-items: center;
+  gap: var(--wheel-space-lg);
+  min-height: 38px;
+  padding: var(--wheel-space-md) var(--wheel-space-lg);
+  border-bottom: 1px solid var(--wheel-line);
+  background: var(--wheel-bg-soft);
+  /* Only the first and last rows carry radius; the seams between are square. */
+  border-radius: var(--wheel-radius-xl) var(--wheel-radius-xl) 0 0;
+}
+
+/* The demo's name as a mono eyebrow, not a page title — the card is the
+   artifact, this is its label plate. */
+.demo-header h1 {
+  margin: 0;
+  color: var(--wheel-ink);
+  font: 700 var(--wheel-ui-md) / 1 var(--wheel-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Row 2: the demo's own controls (undo/redo, bulk delete). Constant
+   min-height so a control toggling its disabled state (never its presence)
+   can't shift the content below. */
+.demo-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--wheel-space-md);
+  min-height: 38px;
+  padding: var(--wheel-space-sm) var(--wheel-space-lg);
+  border-bottom: 1px solid var(--wheel-line);
+}
+
+/* Row 3: the demo itself. No background of its own — it shows the card's, so
+   the bottom corners stay round without an overflow clip (which would cut off
+   the editor's slash menu and break its sticky conflict note). */
+.demo-stage-body {
+  padding: var(--wheel-space-xl);
+}
+
+/* ---- controls ---------------------------------------------------------- */
+
+/* The library owns button and text-input chrome now (`wheel/components`
+   recipes, imported at the top of this file). What used to live here was a
+   hand-rolled copy of it on bare `button` / `input[type=text]` element
+   selectors — which meant the demos showed off controls the library does not
+   ship, and drifted from it every time either side changed.
+
+   The element rules that remain cover the controls still waiting on a library
+   equivalent: `type=number` wants NumberField, `type=range` wants Slider, and
+   the spreadsheet's in-cell editor is deliberately chrome-free. */
+
+input[type='number'] {
+  font: inherit;
+  padding: var(--wheel-space-sm) 10px;
+  border-radius: var(--wheel-radius-sm);
+  border: 1px solid var(--wheel-line);
+  background: var(--wheel-bg-raised);
+  color: var(--wheel-ink);
+}
+
+select {
+  font: inherit;
+  color: var(--wheel-ink);
+  background: var(--wheel-bg-raised);
+}
+
+.stale-note {
+  /* color-mix keeps the tint on the theme's accent, so it reads in both modes
+     (a fixed pale-violet chip would glow on the dark stage). */
+  background: color-mix(in srgb, var(--wheel-accent) 12%, transparent);
+  color: var(--wheel-accent);
+  border-radius: var(--wheel-radius-sm);
+  padding: var(--wheel-space-xs) 10px;
+  font-size: var(--wheel-ui-lg);
+  display: inline-block;
+  margin-bottom: 10px;
+}
+
+/* ---- home page --------------------------------------------------------- */
+
+.home h1 {
+  font-size: var(--wheel-ui-display);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin: 0 0 var(--wheel-space-md);
+}
+
+.home-lede {
+  color: var(--wheel-ink-muted);
+  margin: 0 0 var(--wheel-space-2xl);
+  max-width: 60ch;
+}
+
+/* The "how this actually runs" panel. It is the first thing to read on this
+   page: without it the demos look like a mock, and the interesting claim —
+   a real sync engine with no server — goes unmade. */
+.home-note {
+  max-width: 70ch;
+  margin: 0 0 var(--wheel-space-2xl);
+  padding: var(--wheel-space-xl);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-xl);
+  background: var(--wheel-bg-soft);
+  color: var(--wheel-ink-muted);
+  font-size: var(--wheel-ui-xl);
+}
+
+.home-note p {
+  margin: 0 0 var(--wheel-space-lg);
+}
+
+.home-note p:last-child {
+  margin-bottom: 0;
+}
+
+.home-note strong {
+  color: var(--wheel-ink);
+}
+
+.home-note code {
+  font-family: var(--wheel-mono);
+  font-size: 0.92em;
+}
+
+.home-note a {
+  color: var(--wheel-accent);
+}
+
+.home-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--wheel-space-lg);
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wheel-space-sm);
+  padding: var(--wheel-space-xl);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-xl);
+  text-decoration: none;
+  color: inherit;
+  background: var(--wheel-bg-raised);
+  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.home-card:hover {
+  border-color: var(--wheel-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--wheel-shadow-float);
+}
+
+.home-card-tag {
+  align-self: flex-start;
+  font: 700 var(--wheel-ui-xs) / 1.6 var(--wheel-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--wheel-accent);
+  background: color-mix(in srgb, var(--wheel-accent) 12%, transparent);
+  border-radius: var(--wheel-radius-pill);
+  padding: var(--wheel-space-2xs) var(--wheel-space-md);
+}
+
+.home-card-title {
+  font-size: var(--wheel-ui-2xl);
+  font-weight: 600;
+}
+
+.home-card-blurb {
+  font-size: var(--wheel-ui-xl);
+  color: var(--wheel-ink-muted);
+  line-height: 1.5;
+}
+
+/* ---- 404 + route error fallback ---------------------------------------- */
+
+.not-found {
+  padding: 40px 0;
+}
+
+.route-error {
+  border: 1px solid var(--wheel-danger);
+  background: color-mix(in srgb, var(--wheel-danger) 8%, transparent);
+  border-radius: var(--wheel-radius-xl);
+  padding: 20px;
+  max-width: 60ch;
+}
+
+.route-error h2 {
+  margin: 0 0 var(--wheel-space-md);
+  font-size: var(--wheel-ui-2xl);
+  color: var(--wheel-danger);
+}
+
+.route-error-detail {
+  font-family: var(--wheel-mono);
+  font-size: var(--wheel-ui-xl);
+  color: var(--wheel-ink-muted);
+  margin: 0 0 var(--wheel-space-xl);
+  overflow-wrap: anywhere;
+}
+
+.route-error-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--wheel-space-lg);
+  margin: 0;
+}

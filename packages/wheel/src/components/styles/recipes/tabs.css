@@ -1,0 +1,79 @@
+/* ========================================================================
+ * RECIPE: Tabs — exemplar for library-measured geometry
+ * (--active-tab-left/--active-tab-width contract)
+ *
+ * Pattern notes:
+ *  - The library measures; CSS draws. The Indicator consumes the
+ *    --active-tab-* variables set on the List — no JS animation code.
+ *  - Selected state is [data-active] on the Tab part.
+ *  - Underline-indicator style: hairline rule under the list, 2px accent
+ *    bar sliding along it.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Tabs-Root {
+    display: block;
+  }
+
+  .wheel-Tabs-List {
+    position: relative;
+    display: flex;
+    gap: calc(var(--wheel-component-space) * 1);
+    border-bottom: var(--wheel-component-hairline) solid var(--wheel-component-border);
+  }
+
+  .wheel-Tabs-Tab {
+    appearance: none;
+    border: 0;
+    background: none;
+    padding: calc(var(--wheel-component-space) * 2) calc(var(--wheel-component-space) * 3);
+    color: var(--wheel-component-fg-muted);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    font-weight: 500;
+    white-space: nowrap;
+    user-select: none;
+    border-radius: var(--wheel-component-radius-sm) var(--wheel-component-radius-sm) 0 0;
+    transition: color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-Tabs-Tab:hover {
+      color: var(--wheel-component-fg);
+    }
+  }
+
+  .wheel-Tabs-Tab[data-active] {
+    color: var(--wheel-component-fg);
+  }
+
+  .wheel-Tabs-Tab[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+
+  .wheel-Tabs-Indicator {
+    position: absolute;
+    bottom: calc(-1 * var(--wheel-component-hairline));
+    left: 0;
+    height: 2px;
+    width: var(--active-tab-width);
+    translate: var(--active-tab-left) 0;
+    background: var(--wheel-component-accent);
+    border-radius: 9999px;
+    transition:
+      translate var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      width var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
+  }
+
+  .wheel-Tabs-Panel {
+    padding-block: calc(var(--wheel-component-space) * 4);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh-prose);
+  }
+
+  .wheel-Tabs-Panel[hidden] {
+    display: none;
+  }
+}

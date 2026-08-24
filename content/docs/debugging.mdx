@@ -1,0 +1,325 @@
+---
+title: Debugging
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Debugging
+
+Wheel ships five debugging surfaces — the panel, the component tree, the agent bridge, error
+capture, and rich screenshots — and one order to reach for them. Every piece of state has a name,
+every component is findable, and every error is captured, for humans and agents alike.
+
+Wrap your root in `WheelApp`:
+
+```tsx
+// Excerpt: an app entry module (main.tsx).
+import { WheelApp } from 'wheel/debug';
+
+render(() => (
+  <WheelApp client={client}>
+    <YourApp />
+  </WheelApp>
+), root);
+```
+
+In dev builds that mounts the docked debug panel, the component inspector, the rich-screenshot
+tool, error capture, and the `window.__wheel` agent bridge. In production builds it renders your
+children and nothing else — every surface described here is dev-gated, and a production bundle pays
+nothing. (Demos and other showcase apps can opt production builds in with
+`setWheelDevMode(true)`.)
+
+## The debugging playbook
+
+When something looks wrong — for a human or an agent, the order is the same:
+
+1. **`errors()` first** (or the panel's errors section). A captured error with a mapped stack
+   usually IS the answer. See **Error capture** below.
+2. **`settle()`, then `meta()`** — is sync quiet, connected, no pending writes stuck?
+3. **`find()` + `component(id)`** — is the component mounted, and does its LIVE state match what
+   the screen shows? (`highlight(id)` to point at it.)
+4. **`state()` / the state tree** — walk the value back through the service that owns it; the
+   provenance stream says who wrote it and why.
+5. Still confused? **Capture a rich snapshot** of the wrong region and hand
+   the directory to whoever (or whatever) debugs next.
+
+Every call in that list is a method on `window.__wheel` in the browser and on `wheelDriver(page)`
+from node — both covered below.
+
+## The debug panel
+
+The 🐛 chip (bottom-right) opens the panel: a full-height column pinned to the viewport's right
+edge, chrome-devtools style — drag its left border to resize (width persists). Two modes, toggled
+from its header and remembered in localStorage:
+
+- **docked** — the WHOLE page squashes over to make room (a document margin, so it works no
+  matter where WheelApp mounts).
+- **overlay** — the panel floats over the page without moving it.
+
+A row of toggles at the top turns each pane on or off (the choice persists), the dividers between
+panes drag to resize them, and each pane scrolls independently with its own heading pinned — so
+the components header and its ⌖ picker stay reachable however deep you scroll, and expanding
+content in one pane never shifts another:
+
+| section | what it shows |
+| --- | --- |
+| **state tree** | every service and its atoms/computeds, with live values |
+| **components** | the full mounted-component tree, and what each instance holds |
+| **inspect** | ◰ draw a rectangle, get every component under it (results listed inline); 📷 capture a rich screenshot |
+| **errors** | the capture buffer: every error with a stable id and a source-mapped stack, one-click copy per entry |
+
+Hosts that can't wrap their root (docs embeds, sandboxes) mount the floating `<WheelDebugPanel/>`
+widget instead — same sections, same storage keys.
+
+### The state tree pane
+
+Services are bucketed by the class's `static group`: **app** (yours, open by default),
+**framework** (wheel's own kit and router internals, collapsed), and any custom group you define.
+Wheel's debug services are hidden entirely — the panel does not show you the panel.
+
+A client-backed app gets three more sections here: the table cache, the live subscriptions, and
+the color-coded provenance change stream.
+
+### The components pane
+
+The tree is nested by DOM containment and ordered top-to-bottom the way the page reads. It uses
+the same **App** (open) / **Framework** (collapsed) buckets as the state tree;
+`connect(name, declare, { group: 'framework' })` and `use:viewRoot={{ name, group }}` are how a
+component picks its bucket. Global `*System` hosts lift to the top of theirs.
+
+Hover a row and the component lights up on the page. Expand a row and you get four accented
+groups for everything that instance holds — `▪ props`, `● local`, `◆ connected`, `ƒ actions` —
+each styled so it never reads as a child component. **What a component holds**, below, covers all
+four.
+
+A component that renders nothing is marked, because "nothing on screen" has more than one cause.
+`⊘ hidden` means a wheel `<Show>` at its root said no. `⊘ no DOM` means it renders nothing and
+nothing claims responsibility.
+
+Two or more siblings sharing a name collapse into one `TodoRow[] (3)` node, closed by default, so
+a long list can't bury the components beside it. The grouping is display-only —
+`__wheel.components()` still returns the flat tree.
+
+### The ⌖ picker
+
+Next to the components heading, and it works like Chrome's element inspector: hover the app to
+highlight the component under the cursor, click to reveal it in the tree (expanded, scrolled to
+the top of the pane, row highlighted), Escape to cancel.
+
+While armed it puts a full-screen shield over the app, so a press reaches the picker and never the
+UI beneath it — clicking a sheet cell selects the component instead of starting an edit. The
+shield sits below the panel, so the tree stays scrollable while you pick.
+
+## Finding a component
+
+Two directives make the component tree complete:
+
+- **Connected components** mark their DOM with `use:componentRoot` (no argument — `connect()`
+  already knows the instance). Enforced by `require-component-root`.
+- **Dumb components** mark their root with `use:viewRoot={'Avatar'}` — a dev-only no-op that
+  registers the component by name. Enforced by `require-view-root` whenever a non-connected
+  component renders host DOM.
+
+Parent/child edges come from DOM containment, computed at query time — the one source that's
+correct in every build (production Solid gives sibling components a shared owner, so owner-chain
+links degenerate there; the owner hint remains only as the fallback for headless components).
+
+**Instance ids are selectors.** A name that can repeat is always numbered from 1 — `TodoRow#1`,
+`TodoRow#2` — so a set of siblings reads consistently instead of the first one silently lacking a
+suffix. Numbers are slots: the smallest free one is taken, so unmount/remount and reload
+reproduce the same ids. A
+component that renders a specific entity uses a per-instance connect name —
+``connect((props) => `TodoRow:${props.todoId}`, …)``, which is unique by construction so it stays
+bare (`TodoRow:42`, never `TodoRow:42#1`) — so its id follows the DATA and never shifts
+when a list reorders (`require-stable-instance-name` enforces this for components that read
+identity props). In dev, every marked root also carries `data-wheel-id="<instanceId>"` in the DOM,
+so a plain CSS selector finds any instance from playwright with no tooling at all.
+
+### What a component holds
+
+Expanding a component shows four kinds of thing, colored and iconed so they never read as children:
+
+| group | what it is | open by default |
+| --- | --- | --- |
+| `▪ props` | what the parent passed. Data shows as data; a callback shows as `<fn onSave>` and a DOM node as `<Element div>` — props are meant to be identity and variation, so anything appearing as `<fn …>` is worth a second look | yes |
+| `● local` | component-local `useSignal` state, live | yes |
+| `◆ connected` | the connect shape — everything the component reads from services | yes |
+| `ƒ actions` | the shape's action names | no |
+
+Connected components get props for free (`connect()` is called with them). Dumb components pass
+them through the directive — `use:viewRoot={{ name: 'Avatar', props }}` — which
+`require-view-props` enforces whenever the component takes props at all.
+
+Local state must be declared with wheel's `useSignal`, a drop-in for `createSignal` that carries a
+name:
+
+```tsx
+// Excerpt: inside a component body.
+import { useSignal } from 'wheel/core';
+
+const [draft, setDraft] = useSignal('', 'draft');   // shows as `draft` in the tree
+```
+
+A bare `createSignal` is an anonymous closure — the tree would show a component driven by `isOpen`
+and say nothing about `isOpen` — so `require-use-signal` rejects it inside components. Services
+keep using `this.atom`; module-level and helper-function signals aren't component state and are
+left alone.
+
+### Why a component isn't on screen
+
+A component can be mounted and render nothing at all. Three causes look identical from the
+outside, and the tree tells them apart:
+
+| marker | meaning |
+| --- | --- |
+| `⊘ hidden` | a `<Show>` at the component's root evaluated falsy — deliberate, working as designed |
+| `⊘ no DOM` | it renders nothing and nothing claims responsibility: a headless component, plain Solid control flow, or a forgotten `use:componentRoot` |
+| *(none)* | it's on screen |
+
+The distinction needs wheel's `<Show>`, a drop-in for Solid's that reports its condition:
+
+```tsx
+// Excerpt: inside a component that hides until there is something to clear.
+import { Show } from 'wheel/core';   // drop-in for Solid's
+
+return (
+  <Show when={state.completedCount > 0}>
+    <button use:componentRoot onClick={state.requestClearCompleted}>Clear completed</button>
+  </Show>
+);
+```
+
+Solid directives only attach to host elements, and `<Show>` is a component — so the wrapper, not a
+directive, is what can read the condition and report it. `require-tracked-show` enforces it for
+root-position `Show`s only; a `<Show>` deeper inside a visible component needs nothing.
+
+## The agent bridge
+
+Everything above is programmatic. In dev, `window.__wheel` is the door — from the browser console,
+from `page.evaluate`, from any tool that can run JS in the tab:
+
+| call | answers |
+| --- | --- |
+| `errors()` | the captured-error buffer. **The first call when anything looks wrong.** |
+| `meta()` | sync position, pending mutations, connection status, mounted count |
+| `state()` | the full state tree: every service's primitives with current values |
+| `components()` | the mounted component tree (ids, kinds, parent edges) |
+| `component(id)` | one instance: live state, action names, viewport rects |
+| `find(query)` | instances whose id or name matches, with rects |
+| `act(id, action, args)` | invoke a mounted instance's shape action |
+| `actService(service, action, args)` | invoke a service action by name (`actions()` lists the catalog) |
+| `tables()` / `writes()` | the client's row cache and provenance stream |
+| `settle(timeoutMs?)` | resolves when sync is quiet — 0 pending, connected |
+| `highlight(id)` | outline an instance on the page (show a human what you mean) |
+
+Every read returns plain JSON (bounded depth, safe to ship over `page.evaluate`).
+
+<Aside kind="note">
+  <strong>Actions are the only writes.</strong> The bridge deliberately has no
+  <code>setAtom</code>. An agent forces app state the same way a component does: by calling the
+  action that produces it. Unidirectional data flow applies to robots too. Arbitrary
+  <em>component</em> states that no real action produces belong to the playground (see{' '}
+  <strong>Component states</strong> below), not the live app.
+</Aside>
+
+## Driving the app from playwright
+
+`wheelDriver` wraps the bridge for node-side tests and agent sessions:
+
+```ts
+// Excerpt: inside a playwright test (or an agent's driving script).
+import { wheelDriver } from 'wheel/testing';
+
+const wheel = wheelDriver(page);
+await wheel.settle();                                  // wait for sync quiet
+const [row] = await wheel.find('TodoRow:42');          // stable, data-derived id
+await wheel.act(row.instanceId, 'toggle');             // the sanctioned write door
+expect((await wheel.component(row.instanceId))!.state.done).toBe(true);
+```
+
+**Errors are unmissable by design.** Every driver call ends by reading the app's error buffer;
+anything new throws a `WheelAppError` carrying the source-mapped stacks. The cursor starts at
+zero, so a fresh driver's FIRST call surfaces errors that predate it — attaching to a broken app
+is loud. Opt out per-driver with `{ ignoreAppErrors: true }` and read `newErrors()` yourself.
+
+The demo behavior harness applies the same rule: a behavior that passes its assertions but
+captured an app error FAILS, printing the stacks. A green test over a broken app is a lie.
+
+## Error capture
+
+Everything that goes wrong lands in ONE window-scoped ring buffer with a stable id (`err_7`):
+
+- uncaught exceptions (`window` error events) and unhandled promise rejections — always;
+- `logger.warn` / `logger.error` (`wheel/core`) — always, in every build;
+- raw `console.error` / `console.warn` from ANY code — dev builds (a console patch).
+
+Stacks are **source-mapped at capture time** in dev: vite serves the maps, wheel resolves each
+frame, and every surface hands out `board-service.ts:87` — never `chunk-ab12.js:1:48213`. The
+panel's errors section has one-click copy per entry (message + mapped stack as one pasteable
+block); agents read the same entries from `errors()` and reference them by id — no raw text
+copy/pasting anywhere.
+
+App code logs through `logger`, not `console` — `logger` feeds the buffer in production too,
+where the console patch doesn't exist. The `no-raw-console` rule enforces this; genuinely
+deliberate console surfaces carry an adjacent `// wheel-console: <reason>`.
+
+## Rich screenshots
+
+📷 in the panel's inspect section: drag a marquee, and the capture is staged as a card —
+
+1. **copy image** — the cropped PNG to your clipboard (paste into a chat, an issue, anywhere);
+2. **save rich snapshot** — POSTs to the dev server, which writes `shot.png` **and**
+   `context.json` — the component tree and live connect-state of everything under the rectangle —
+   into `.wheel/snapshots/<epoch>-<name>/`. Tell an agent "look at the latest snapshot" and it
+   reads BOTH files: the pixels and the state that produced them;
+3. **discard**.
+
+Pixels come from tab capture (`getDisplayMedia`): the browser prompts once per tab session, then
+the cached stream serves every capture. The save endpoint comes from the vite plugin:
+
+```ts
+// Excerpt: vite.config.ts.
+import { wheelDevTools } from 'wheel/vite';
+
+export default defineConfig({
+  plugins: [solid(), wheelDevTools({ snapshotDir: '.wheel/snapshots' })]
+});
+```
+
+The plugin also sets esbuild's `keepNames`, because service identity IS the class name — without
+it a minified build turns the state tree (and `actService` lookups) into `So`/`rT` soup.
+
+## Component states
+
+A connect shape is a complete renderable state, so a colocated states file — `toast.states.tsx`
+next to `toast.tsx` — enumerates the states that matter:
+
+```tsx
+// Excerpt: toast.states.tsx — the shapes are compiler-checked.
+export default defineStates({
+  name: 'ToastSystem',
+  component: ToastSystem,
+  connection: connectToastSystem,
+  states: {
+    'all kinds stacked': { shape: { toasts: [/* … */], dismiss: noop } },
+    empty:               { shape: { toasts: [], dismiss: noop } }
+  }
+});
+```
+
+`defineStates` is typed against the connection, so a drifted manifest breaks the states file at
+compile time. The playground (`bun run playground`) globs every `*.states.tsx` in wheel, demos,
+and its own tree: the sidebar lists every component × state, and each renders at a stable URL —
+`#/states/ToastSystem/empty` — which is exactly what an agent screenshots to "see" a state
+without arranging the whole app into it. Rendering is Tier-1 stubbing (`StateMount` →
+`StubProvider`): no services, no client, no providers.
+
+`require-component-states` makes states files mandatory for wheel/kit's own connected components
+(geometry primitives and headless systems escape with `// wheel-component-states: <reason>`).
+
+## Next
+
+- [Components](#/components) — the directives and connect rules the tree depends on.
+- [Testing](#/testing) — the World harness `wheelDriver` runs against.
+- [Linting](#/linting) — every rule named above, and the bug each one prevents.
+- [Patterns](#/patterns) — the three stub tiers behind the playground.

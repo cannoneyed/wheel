@@ -1,0 +1,44 @@
+/* ========================================================================
+ * RECIPE: Input — single-part text field
+ * (data-invalid / data-disabled, Field validity contract)
+ *
+ * Pattern notes:
+ *  - Single-part component: class is `wheel-Input`. `Input` is a thin wrapper
+ *    around `Field.Control`, so this is the same visual archetype as
+ *    `.wheel-Field-Control` in recipes/field.css (styled independently since
+ *    the two are different classes per the 1:1 part grammar).
+ *  - Fields use a hairline `--wheel-component-border-strong` border, per the surface
+ *    treatment rule (not the translucent `--wheel-component-border`, and no shadow).
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Input {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    height: 1.75rem;
+    padding: 0 calc(var(--wheel-component-space) * 2.5);
+    border-radius: var(--wheel-component-radius-md);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-xs);
+    line-height: var(--wheel-component-text-xs--lh);
+    transition: border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Input::placeholder {
+    color: var(--wheel-component-fg-subtle);
+  }
+
+  .wheel-Input[data-invalid] {
+    border-color: var(--wheel-component-danger);
+  }
+
+  .wheel-Input[data-disabled] {
+    background: var(--wheel-component-bg-sunken);
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+}

@@ -1,0 +1,196 @@
+/* Graph family: the dark WebGL stage, its DOM label overlay, and the light
+   instrument panel beside it. Framing's move — a dark stage inside light
+   chrome — applied to a canvas demo. */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 232px;
+  gap: var(--wheel-space-lg);
+  align-items: start;
+}
+
+.stageWrap {
+  min-width: 0;
+}
+
+/* The canvas's home. The renderer appends a <canvas> and an absolutely
+   positioned label overlay into this element, so it must be a positioned box
+   with a real height — a canvas in a height:auto parent measures to zero. */
+.stage {
+  position: relative;
+  height: 460px;
+  border-radius: var(--wheel-radius-lg);
+  overflow: hidden;
+  background: var(--graph-bg);
+  cursor: grab;
+  touch-action: none;
+
+  /* The palette the renderer reads off this element at mount. Group colors
+     are the fixed stage-safe accents, never the theme alias — the stage is
+     dark in both themes, so a light-mode accent would vanish on it. */
+  --graph-bg: var(--wheel-stage-2);
+  --graph-edge: var(--wheel-stage-line-heavy);
+  --graph-accent: var(--wheel-indigo-soft);
+  --graph-group-core: var(--wheel-indigo-soft);
+  --graph-group-ui: var(--wheel-ok-soft);
+  --graph-group-data: var(--wheel-warn);
+  --graph-group-tools: var(--wheel-violet-soft);
+}
+
+.stage:active {
+  cursor: grabbing;
+}
+
+/* Node labels: real DOM, positioned by the renderer each frame. Pointer-inert
+   so they never intercept a click meant for the node underneath. */
+.stage [data-graph-labels] span {
+  --graph-label-shadow: rgb(0 0 0 / 70%);
+
+  color: var(--wheel-stage-ink-soft);
+  font: 500 11px/1 var(--wheel-mono);
+  text-shadow: 0 1px 2px var(--graph-label-shadow);
+  user-select: none;
+}
+
+.hint {
+  margin: var(--wheel-space-md) 0 0;
+  color: var(--wheel-ink-muted);
+  font-size: var(--wheel-ui-lg);
+}
+
+/* ---- the instrument panel --------------------------------------------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wheel-space-md);
+  min-width: 0;
+  font-size: var(--wheel-ui-lg);
+}
+
+.counts {
+  margin: 0;
+  color: var(--wheel-ink-muted);
+  font: 600 var(--wheel-ui-md) / 1.4 var(--wheel-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.addRow {
+  display: flex;
+  gap: var(--wheel-space-sm);
+  align-items: center;
+}
+
+.addRow input,
+.addRow select {
+  min-width: 0;
+  flex: 1;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wheel-space-sm);
+}
+
+.selection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wheel-space-md);
+  padding: var(--wheel-space-md);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-sm);
+  background: var(--wheel-bg-soft);
+}
+
+.selectionTitle {
+  margin: 0;
+  font: 600 15px/1.2 var(--wheel-sans);
+}
+
+.meta {
+  display: flex;
+  gap: var(--wheel-space-md);
+  align-items: center;
+  margin: 0;
+  color: var(--wheel-ink-muted);
+}
+
+.groupTag {
+  padding: 1px 7px;
+  border-radius: var(--wheel-radius-pill);
+  background: var(--wheel-bg-hover);
+  font: 600 11px/1.6 var(--wheel-mono);
+  letter-spacing: 0.06em;
+}
+
+.empty {
+  margin: 0;
+  color: var(--wheel-ink-muted);
+}
+
+.edgeList,
+.nodeList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edgeRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--wheel-space-sm);
+  padding: 2px 0;
+  color: var(--wheel-ink-muted);
+  font-size: var(--wheel-ui-md);
+}
+
+/* The node list is the browser test's index into a canvas that has none. */
+.nodeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wheel-space-xs);
+  max-height: 160px;
+  overflow-y: auto;
+  padding: var(--wheel-space-xs);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-sm);
+}
+
+.nodeButton {
+  padding: 1px 7px;
+  border-radius: var(--wheel-radius-pill);
+  font: 500 11px/1.7 var(--wheel-mono);
+}
+
+.linkButton {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--wheel-accent);
+  font-size: var(--wheel-ui-md);
+  text-decoration: underline;
+}
+
+/* ---- stage toolbar ----------------------------------------------------- */
+
+.controls {
+  display: inline-flex;
+  gap: var(--wheel-space-sm);
+  align-items: center;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+}
+
+.simState {
+  color: var(--wheel-ink-muted);
+  font: 600 11px/1 var(--wheel-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

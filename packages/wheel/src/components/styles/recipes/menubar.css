@@ -1,0 +1,36 @@
+/* ========================================================================
+ * RECIPE: Menubar — single-part layout container (`wheel-Menubar`)
+ *
+ * Menubar renders a row of ordinary Menu.Root instances as its children
+ * (see docs demo) — their triggers/popups/items are the Menu parts, styled
+ * by recipes/menu.css's wheel-Menu-* classes and recipes/button.css's
+ * wheel-Button (for the per-menu triggers). Menubar itself only supplies the
+ * horizontal/vertical row layout.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Menubar {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--wheel-component-space) * 1);
+    padding: calc(var(--wheel-component-space) * 1);
+    border-radius: var(--wheel-component-radius-md);
+    background: var(--wheel-component-bg-elevated);
+    box-shadow: var(--wheel-component-shadow-rest);
+  }
+
+  .wheel-Menubar[data-orientation='vertical'] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Per-menu triggers are wheel-Button (Menu.Trigger reuses the Button recipe);
+   * flatten the pill treatment so a row of them reads as one bar, not
+   * discrete bordered buttons. */
+  .wheel-Menubar :is(.wheel-Button, .wheel-Menu-Trigger) {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    border-radius: var(--wheel-component-radius-sm);
+  }
+}

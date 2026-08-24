@@ -1,0 +1,103 @@
+/* ========================================================================
+ * RECIPE: Dialog — backdrop (fade) + centered popup (scale/fade)
+ *
+ * Pattern notes:
+ *  - Backdrop fades in/out via data-starting-style/data-ending-style; it has
+ *    no elevation of its own (it's a scrim, not a surface).
+ *  - Popup is centered with a fixed-position + translate transform (no
+ *    --transform-origin here: dialogs aren't anchored to a trigger, unlike
+ *    the floating popups in popover.css).
+ *  - Viewport is an optional positioning/scroll container around Popup —
+ *    unstyled beyond centering; most demos position Popup directly.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Dialog-Backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--wheel-component-backdrop-bg);
+    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Dialog-Backdrop[data-starting-style],
+  .wheel-Dialog-Backdrop[data-ending-style] {
+    opacity: 0;
+  }
+
+  .wheel-Dialog-Viewport {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .wheel-Dialog-Popup {
+    /* Stacked-card offset for nested dialogs (dialog/nested demo): the
+       library sets --nested-dialogs to the count of dialogs open within this
+       one (see packages/wheel/src/components/dialog/popup/DialogPopupCssVars.ts). Both
+       knobs default to 0/no-op so unnested popups are unaffected. */
+    --wheel-component-dialog-nested-offset: calc(var(--wheel-component-space) * 5);
+    --wheel-component-dialog-nested-scale-step: 0.1;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--wheel-component-space) * 4);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 24rem;
+    max-width: calc(100vw - calc(var(--wheel-component-space) * 12));
+    padding: calc(var(--wheel-component-space) * 5);
+    border-radius: var(--wheel-component-radius-xl);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-elevated);
+    translate: -50% calc(-50% + var(--wheel-component-dialog-nested-offset) * var(--nested-dialogs, 0));
+    scale: calc(1 - var(--wheel-component-dialog-nested-scale-step) * var(--nested-dialogs, 0));
+    transition:
+      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      translate var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
+  }
+
+  .wheel-Dialog-Popup[data-starting-style],
+  .wheel-Dialog-Popup[data-ending-style] {
+    opacity: 0;
+    translate: -50%
+      calc(-50% + var(--wheel-component-space) + var(--wheel-component-dialog-nested-offset) * var(--nested-dialogs, 0));
+    scale: calc(0.97 - var(--wheel-component-dialog-nested-scale-step) * var(--nested-dialogs, 0));
+  }
+
+  /* Dims the popup while a nested dialog is open above it (data-nested-dialog-open
+     is set by the library; see DialogPopupDataAttributes.ts). */
+  .wheel-Dialog-Popup::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--wheel-component-overlay-muted-bg);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Dialog-Popup[data-nested-dialog-open]::after {
+    opacity: 1;
+  }
+
+  .wheel-Dialog-Title {
+    margin: 0;
+    font-size: var(--wheel-component-text-lg);
+    line-height: var(--wheel-component-text-lg--lh);
+    font-weight: 500;
+    letter-spacing: var(--wheel-component-tracking-heading);
+  }
+
+  .wheel-Dialog-Description {
+    margin: 0;
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+  }
+}

@@ -1,0 +1,20 @@
+/* The tag-filter row above the board. */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.label {
+  color: var(--wheel-ink-muted);
+  font-size: 13px;
+}
+
+.tagActive {
+  border-color: var(--wheel-accent);
+  color: var(--wheel-accent);
+  font-weight: 600;
+}

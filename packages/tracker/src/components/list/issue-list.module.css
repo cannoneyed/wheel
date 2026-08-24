@@ -1,0 +1,38 @@
+.list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.notice {
+  padding: 32px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.group {
+  margin-bottom: 4px;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: var(--bg-raised);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: 12px;
+}
+
+.stateDot {
+  font-size: 10px;
+}
+
+.stateName {
+  font-weight: 600;
+}
+
+.stateCount {
+  color: var(--ink-muted);
+}

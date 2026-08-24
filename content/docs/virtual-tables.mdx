@@ -1,0 +1,55 @@
+---
+title: Virtual Tables
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import virtualTablesSource from '@docs/examples/virtual-tables/virtual-tables.ts?example';
+
+# Virtual tables
+
+Counts, ranks, and join results sync as rows even though no table stores them.
+
+A **virtual table** is a synced row contract with no physical table behind it. A server query computes its rows, and that query re-runs only through the invalidation channels you declare. Complete an issue and every client's project-progress bar updates: no table written, no trigger fired, only a query whose answer changed.
+
+## Declare one
+
+Pass `virtual: true` to `table()`. The engine installs no physical table and no touch trigger, so queries `into` it re-run only through their `rerunOn` hints:
+
+<CodeExample example={virtualTablesSource} region="declaration" />
+
+The server binding is ordinary SQL that produces the derived rows. `rerunOn` names the **real** tables the SQL reads:
+
+<CodeExample example={virtualTablesSource} region="binding" />
+
+<Aside kind="note">
+  A virtual table has no optimistic layer — its rows appear only on server confirmation, which is
+  the point: a count or a rank is the server's arithmetic, not the client's guess. The optimistic
+  write to the <em>source</em> table (the issue you completed) is what feels instant; the derived
+  count catches up one round trip later.
+</Aside>
+
+## Push channels
+
+`rerunOn` covers writes the engine authored. When something outside the engine changes a derived query's answer — a background reindex, a foreign write — a hand-built `QueryHandler` adds a **push channel** through `subscribe`. The tracker's full-text search uses both:
+
+<CodeExample example={virtualTablesSource} region="push" />
+
+## Invalidation channels
+
+A handler must offer at least one channel. `serveQuery` throws at boot when a handler offers neither, so a query that can never update cannot ship by accident.
+
+| Channel | Declared with | Re-runs the query when |
+| --- | --- | --- |
+| Table hint | `rerunOn: ['issues']` | The engine writes one of the named tables |
+| Push | `subscribe(params, invalidate)` | Your code calls `invalidate()` |
+
+## When a delta reaches clients
+
+`rerunOn` decides when to **re-check**. The diff decides whether clients hear anything. A re-run that produces the same rows emits nothing, so a coarse table hint costs wasted server re-runs — never a spurious client update.
+
+## Next
+
+- [Live State](#/live-state) — the full delta pipeline these re-runs feed.
+- [Server handlers](#/server-advanced) — the handler contract, id rules, and SQLite dialect notes.
+- [A Real App](#/real-app) — the tracker's search and count queries at production size.

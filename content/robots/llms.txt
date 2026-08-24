@@ -1,0 +1,51 @@
+# Wheel documentation
+
+> Machine-readable documentation for the Wheel local-first Solid application framework.
+
+Use `README.md` as the primary index. Source declarations and tests override prose when exact behavior matters.
+
+## Start
+
+- [Overview](overview.md): Ownership, data flow, layers, and conventions.
+- [Getting started](getting-started.md): Repository setup and one feature's required files.
+- [Project layout](project-layout.md): Directories, compiler settings, CSS, identity, and root mounts.
+- [Walkthrough](walkthrough.md): Synced todo feature, file by file.
+
+## Application state and UI
+
+- [State](state.md): Service primitives, query views, invalidation, and immutability.
+- [Services](services.md): Dependency injection, lifecycle, time, and async flows.
+- [Components](components.md): Connections, views, props, directives, and tests.
+- [Component library](component-library.md): Component families, deep entries, selectors, and styles.
+- [Debugging](debugging.md): Panel, bridge, driver, errors, snapshots, and component states.
+- [Patterns](patterns.md): Global systems, isolation, and imperative runtime wrappers.
+- [Routing](routing.md): Route trees, params, search, history, and errors.
+- [Framing](framing.md): Resizable regions, persistence, docking, and gestures.
+
+## Sync and data
+
+- [Everyday data patterns](data-patterns.md): Query states, mutation feedback, and ordering.
+- [Live state](live-state.md): Declarations, optimistic writes, offline replay, and provenance.
+- [Server](server.md): Backends, SQL ownership, HTTP, and lifecycle.
+- [Server handlers](server-advanced.md): Migrations, invalidation, ids, and external writes.
+- [Virtual tables](virtual-tables.md): Derived row contracts and invalidation.
+- [Presence](presence.md): Typed ephemeral peer state.
+- [Undo and redo](undo.md): Inverse mutations and patch helpers.
+
+## Operations and quality
+
+- [Authentication](auth.md): Principals, authenticators, and authorization boundaries.
+- [Configuration](configuration.md): JSON sources, precedence, and validation.
+- [Cloudflare deployment](cloudflare.md): Branch Workers, hibernation, migrations, and deploy checks.
+- [Production](production.md): Artifacts, process controls, base paths, and observability.
+- [Testing](testing.md): Stubs, World, simulation, drivers, and browser behaviors.
+- [Linting](linting.md): Complete rule catalog, scope, and limits.
+
+## Reference
+
+- [Real application](real-app.md): Tracker implementation reading order.
+- [Architecture](architecture.md): Enforced dependency graph and locked engine decisions.
+- [Import map](import-map.md): JavaScript, CSS, and tooling entries.
+- [Swappable parts](advanced.md): Transport, cache, backend, driver, handler, and kit seams.
+- [Names and errors](reference.md): Name grammar, JSON boundary, outcomes, and errors.
+- [Public APIs](api/README.md): Generated export inventory with source links.

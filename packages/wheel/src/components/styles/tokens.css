@@ -1,0 +1,101 @@
+/* Mira preset defaults. Applications can override any semantic token on a subtree. */
+@layer wheel.components.tokens {
+  :root {
+    color-scheme: light dark;
+
+    --wheel-component-font-sans: 'Inter Variable', wheel-sans-serif, system-ui, sans-serif;
+
+    --wheel-component-text-xs: 0.75rem;
+    --wheel-component-text-xs--lh: 1rem;
+    --wheel-component-text-sm: 0.8125rem;
+    --wheel-component-text-sm--lh: 1.125rem;
+    --wheel-component-text-base: 0.875rem;
+    --wheel-component-text-base--lh: 1.25rem;
+    --wheel-component-text-base--lh-prose: 1.4375rem;
+    --wheel-component-text-lg: 1.0625rem;
+    --wheel-component-text-lg--lh: 1.5rem;
+    --wheel-component-tracking-heading: -0.02em;
+    --wheel-component-tracking-caps: 0.05em;
+
+    --wheel-component-space: 0.25rem;
+    --wheel-component-radius-xs: calc(0.45rem - 4px);
+    --wheel-component-radius-sm: calc(0.45rem - 2px);
+    --wheel-component-radius-md: 0.45rem;
+    --wheel-component-radius-lg: calc(0.45rem + 2px);
+    --wheel-component-radius-xl: calc(0.45rem + 4px);
+    --wheel-component-hairline: 1px;
+
+    --wheel-component-duration-fast: 100ms;
+    --wheel-component-duration: 150ms;
+    --wheel-component-duration-slow: 250ms;
+    --wheel-component-ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --wheel-component-ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+    --wheel-component-ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
+
+    --wheel-component-bg: light-dark(oklch(1 0 0), oklch(0.141 0.005 285.823));
+    --wheel-component-bg-elevated: light-dark(oklch(1 0 0), oklch(0.21 0.006 285.885));
+    --wheel-component-bg-sunken: light-dark(
+      oklch(0.967 0.001 286.375),
+      oklch(0.274 0.006 286.033)
+    );
+    --wheel-component-bg-hover: light-dark(
+      oklch(0.967 0.001 286.375),
+      oklch(0.274 0.006 286.033)
+    );
+    --wheel-component-fg: light-dark(
+      oklch(0.141 0.005 285.823),
+      oklch(0.985 0 0)
+    );
+    --wheel-component-fg-muted: light-dark(
+      oklch(0.552 0.016 285.938),
+      oklch(0.705 0.015 286.067)
+    );
+    --wheel-component-fg-subtle: var(--wheel-component-fg-muted);
+    --wheel-component-border: light-dark(oklch(0.92 0.004 286.32), rgb(255 255 255 / 10%));
+    --wheel-component-border-strong: light-dark(
+      oklch(0.871 0.006 286.286),
+      rgb(255 255 255 / 15%)
+    );
+    --wheel-component-accent: light-dark(
+      oklch(0.21 0.006 285.885),
+      oklch(0.92 0.004 286.32)
+    );
+    --wheel-component-accent-fg: light-dark(
+      oklch(0.985 0 0),
+      oklch(0.21 0.006 285.885)
+    );
+    --wheel-component-danger: light-dark(
+      oklch(0.577 0.245 27.325),
+      oklch(0.704 0.191 22.216)
+    );
+    --wheel-component-scrollbar: var(--wheel-component-border-strong);
+    --wheel-component-selection-bg: var(--wheel-component-accent);
+    --wheel-component-selection-fg: var(--wheel-component-accent-fg);
+    --wheel-component-backdrop-bg: light-dark(rgb(0 0 0 / 20%), rgb(0 0 0 / 50%));
+    --wheel-component-overlay-muted-bg: light-dark(rgb(0 0 0 / 5%), rgb(0 0 0 / 20%));
+
+    --wheel-component-shadow-tint: light-dark(rgb(0 0 0 / 8%), rgb(0 0 0 / 30%));
+    --wheel-component-shadow-rest: 0 1px 2px 0 var(--wheel-component-shadow-tint);
+    --wheel-component-shadow-elevated:
+      0 10px 15px -3px var(--wheel-component-shadow-tint),
+      0 4px 6px -4px var(--wheel-component-shadow-tint);
+
+    --wheel-component-focus-ring-color: light-dark(
+      oklch(0.705 0.015 286.067),
+      oklch(0.552 0.016 285.938)
+    );
+    --wheel-component-focus-ring-width: 2px;
+    --wheel-component-focus-ring-offset: 1px;
+    --wheel-component-focus-ring-opacity: 50%;
+  }
+
+  :root[data-theme='light'],
+  [data-theme='light'] {
+    color-scheme: light;
+  }
+
+  :root[data-theme='dark'],
+  [data-theme='dark'] {
+    color-scheme: dark;
+  }
+}

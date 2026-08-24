@@ -1,0 +1,37 @@
+/* The board's column grid.
+
+   Wide: three equal columns. `minmax(0, 1fr)` lets tracks shrink below their
+   content's natural width (a bare `1fr` never goes below min-content, so long
+   card titles or inputs would force the board wider than a narrow window).
+
+   Narrow: three 100px columns is not a kanban board, it is a puzzle. Below
+   720px the board becomes ONE horizontally scrolled row of near-full-width
+   columns with scroll snapping — the pattern Trello and Linear both use on a
+   phone, where a column is legible and a swipe moves exactly one column. Card
+   moves stay reachable through each card's own ← → buttons, so nothing here
+   depends on a drag gesture. */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .board {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: min(84vw, 320px);
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+
+    /* Track width is viewport-relative, not a percentage of the container: a
+       percentage here resolves against the grid's own content box, which the
+       tracks then fill — giving three shrunken columns again instead of one
+       wide one that scrolls. */
+    padding-bottom: 4px;
+  }
+}

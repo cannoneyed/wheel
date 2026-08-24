@@ -1,0 +1,56 @@
+/* ========================================================================
+ * RECIPE: OTPField — exemplar for repeated slot inputs
+ * (data-complete/data-filled/data-invalid contract)
+ *
+ * Pattern notes:
+ *  - Each slot is its own bordered field surface; [data-complete] (set on
+ *    every input once all slots are filled) gets an accent border to
+ *    confirm the code is ready to submit.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-OTPField-Root {
+    --wheel-component-otp-field-slot-size: 2.75rem;
+
+    display: flex;
+    gap: calc(var(--wheel-component-space) * 2);
+  }
+
+  .wheel-OTPField-Input {
+    box-sizing: border-box;
+    width: var(--wheel-component-otp-field-slot-size);
+    height: var(--wheel-component-otp-field-slot-size);
+    margin: 0;
+    padding: 0;
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    border-radius: var(--wheel-component-radius-md);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    text-align: center;
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-lg);
+    line-height: var(--wheel-component-text-lg--lh);
+    font-variant-numeric: tabular-nums;
+    transition:
+      border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
+      background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-OTPField-Input[data-filled] {
+    border-color: var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-sunken);
+  }
+
+  .wheel-OTPField-Input[data-complete] {
+    border-color: var(--wheel-component-accent);
+  }
+
+  .wheel-OTPField-Input[data-invalid] {
+    border-color: var(--wheel-component-danger);
+  }
+
+  .wheel-OTPField-Input[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+}

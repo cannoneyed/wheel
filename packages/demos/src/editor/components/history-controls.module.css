@@ -1,0 +1,20 @@
+/* Undo/redo icon pair in the toolbar row. */
+
+.controls {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* Dense icon-only button (lucide): the svg IS the label, title is the a11y. */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  line-height: 0;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

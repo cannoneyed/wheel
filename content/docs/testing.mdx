@@ -1,0 +1,165 @@
+---
+title: Testing
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import testingSource from '@docs/examples/testing/testing.ts?example';
+import flakyMusicProviderSource from '@docs/examples/testing/flaky-music-provider.ts?example';
+import flakyProviderSpecSource from '@docs/examples/testing/flaky-provider.spec.ts?example';
+
+# Testing
+
+Wheel ships a **World** for sync and a **behavior harness** for the browser. `wheelDriver` reads and acts on a running Wheel app through its debug bridge.
+
+The engine is never faked. A World boots the real server engine, real client engines, an in-process SQLite database, a fixed clock, seeded ids, and a scriptable network — all in one process, no Docker. Tests reproduce byte-for-byte.
+
+Component-only tests don't need any of this — stub the connect shape as shown in [Components](#/components). Reach for a World when you're testing sync itself: convergence, offline, replay, undo across the wire.
+
+## Choose the test surface
+
+| Behavior under test | Tool |
+| --- | --- |
+| Component rendering and actions | `stubOf` with a component test |
+| Sync convergence, offline replay, or network order | `World` or `simulate` from `wheel/testing` |
+| Browser gestures or an external SDK race | `createBehaviorHarness` from `wheel/testing/playwright` |
+| Live Wheel state and service actions in a browser | `wheelDriver` from `wheel/testing`, available as `b.wheel` in each behavior |
+
+## Boot a World
+
+`setup` runs your `CREATE TABLE` DDL on the same connection the engine will use, before boot. The default backend is `better-sqlite3` `:memory:` — the real SQLite backend, over the driver that loads under vitest:
+
+```sh
+bun add --dev better-sqlite3
+```
+
+<CodeExample example={testingSource} region="world" />
+
+## Two clients converge
+
+`world.client(id)` (or `twoClients`) hands you a real `SyncClient`. `world.settle()` drains everything in flight — the server's writer loop, in-flight subscribes, and every unpaused pipe — so an assertion after `settle()` sees the fully-reconciled state:
+
+<CodeExample example={testingSource} region="convergence" />
+
+## Scripting the network
+
+`world.network.pause(clientId)` *is* the offline scenario: requests to the server and events from the server queue up, and `resume` flushes them in order. This is how you test the offline promise — a mutation made while paused queues and replays, never rolls back:
+
+```ts
+// Excerpt: inside a test with world, client, and sync declarations initialized.
+world.network.pause('web_a');
+await a.mutate(todosSync.addTodo, { text: 'made offline' }); // queues, doesn't settle
+await world.network.resume('web_a');
+await world.settle();
+// the write survived and reached the server
+```
+
+<Aside kind="note">
+  <strong>No polling, ever.</strong> <code>world.settle()</code> drains lazily-created
+  subscriptions too, so tests await a condition instead of sleeping. A paused client is skipped by
+  <code>settle</code> — scripted offline can't deadlock the drain.
+</Aside>
+
+## Chaos schedules
+
+`simulate` runs a seeded, weighted mix of operations across several clients — including deliberate drops, reorders, and reconnects — then checks four invariants at quiescence. Same seed, same run, forever: a failing seed reproduces the bug on demand.
+
+Declare the schedule and the tables to compare:
+
+<CodeExample example={testingSource} region="simulation" />
+
+The four invariants checked at quiescence:
+
+| Invariant | Asserts |
+| --- | --- |
+| `convergence` | every client sees identical rows per table |
+| `seqContinuity` | no gaps in the sync log |
+| `causesComplete` | every write has a known cause (provenance is never blank) |
+| `noOrphanOptimism` | no pending mutation left behind |
+
+A violation throws an `InvariantViolation` naming the seed and step, so you replay the exact schedule that broke.
+
+## Parity and invalidation
+
+`expectMutationParity` captures the user-visible optimistic value, settles the real World, and compares confirmed truth. Use it for result membership and order:
+
+<CodeExample example={testingSource} region="contracts" />
+
+`expectQueryInvalidation` asks SQLite's query planner which physical tables an SQL-backed query actually reads, then compares that set with the query's declared `rerunOn`. A table the SQL reads but `rerunOn` omits is a subscription that silently goes stale. The checked function above calls it too — same file, with the typed server binding and `{}` parameters.
+
+The registry also requires a server binding to reference the exact query or mutation declaration exported by the sync module. Recreating a same-name declaration no longer passes startup checks.
+
+## Driver parity
+
+Pass `driver` to `World.create()` to run the same test with another `SqliteDriver`. Everything else stays identical. Driver adapters normalize storage booleans before row validation. The wire rejects non-JSON values such as `bigint`.
+
+## Browser behaviors
+
+A World cannot drive an external browser SDK. `createBehaviorHarness` binds Playwright's `test` function to one or more app hosts. Each behavior records named actions, fails on captured Wheel app errors, and exposes `b.wheel` for state reads and service actions.
+
+The Playwright entry is Node-only. It uses structural Playwright types, so Wheel does not load Playwright or add a second test runner.
+
+### Testing a flaky provider
+
+Install the provider double with `beforeBehavior`. Playwright runs the script before app code, so the application receives the double through its normal browser SDK boundary:
+
+<CodeExample example={flakyMusicProviderSource} />
+
+`PlayerService.requestPlay` starts the provider call and returns before it settles. The provider reports `playing` while its `play()` promise is pending. The behavior stops playback before that promise completes, then proves the late completion cannot restart the player:
+
+<CodeExample example={flakyProviderSpecSource} />
+
+`b.step()` puts provider events and driver actions in the same timeline. `b.wheel` uses the shipped debug bridge; the test does not need a custom Chrome state bridge.
+
+### Demo behavior contract
+
+Wheel's demos configure the public harness in `packages/demos/browser/support/behaviors.ts`. One declaration produces standalone and embedded Playwright runs plus a recording of each.
+
+Every behavior a demo promises is a numbered row in `packages/demos/specs/*.md` — one file per demo, ids of the form `<DEMO>-<NN>`. Ids are permanent: never renumber, never reuse. A retired row stays in the table with a `~~KANBAN-07~~` strikethrough so its number is never handed out again.
+
+A test names the row it proves, in a comment and in the call:
+
+```ts
+// Excerpt: packages/demos/browser/kanban.spec.ts — the comment and the id must agree.
+// behavior: KANBAN-03
+behavior('KANBAN-03', 'the arrow buttons move a card to the neighboring column', async (b) => {
+  await openBoard(b);
+  const card = await addCard(b, uniqueTitle('mover'));
+  await b.click('move card right', card.locator('button[title^="Move to"]').first());
+  await expect(card.locator('button[title^="Move to"]')).toHaveCount(2);
+});
+```
+
+`b` is a page plus instrumented actions — `goto`, `click`, `rightClick`, `dblclick`, `fill`, `press`, `hover`. Each one records the cursor's page coordinates and start/end timestamps, so every run leaves `recordings/<host>/<ID>.webm` and `recordings/<host>/<ID>.timeline.json` behind. The timeline is what makes a failed run watchable instead of guessable.
+
+### The double run
+
+`behavior()` expands into **two** tests, one per serving topology:
+
+| Host | What it serves |
+| --- | --- |
+| `@standalone` | the demos app at `/`, real bun sync server over HTTP |
+| `@embedded` | the website host at `/demos/*`, static build, sync engine in the browser |
+
+The demos ship both ways, so a behavior that only holds in one is a bug users hit. The double run catches embed-only breakage — base-path routing, in-browser engine boot, anything that assumed a server on the other end — at the same moment as the ordinary kind.
+
+### Id checks in both directions
+
+- **Forward**: the `wheel/require-behavior-id` lint rule fails any browser test whose id is missing, malformed, or names no spec row. A green test proving nothing auditable never lands.
+- **Backward**: `packages/demos/src/specs-coverage.test.ts` fails when an active spec row has no test claiming it. A promise the suite doesn't keep is a build failure, not a TODO.
+
+<Aside kind="note">
+  <strong>A green behavior over a broken app fails.</strong> After the assertions pass, the
+  harness runs <code>assertNoAppErrors()</code>: it reads the page's capture buffer via
+  <code>window.__wheel.errors()</code> and throws if anything landed at <code>error</code> level —
+  uncaught exceptions, unhandled rejections, <code>console.error</code>, <code>logger.error</code>.
+  Warnings pass. Behaviors that provoke errors on purpose (error routes, rejection paths) opt out
+  with <code>b.allowAppErrors()</code>.
+</Aside>
+
+## Next
+
+- [A Real App](#/real-app) — the tracker's fuzz test walked file by file.
+- [Linting](#/linting) — the rules and constraint tests that run beside these suites.
+- [Components](#/components) — stubbing a connect shape for component-only tests.
+- [Live State](#/live-state) — what convergence, replay, and provenance actually mean.

@@ -1,0 +1,22 @@
+/* The card context menu: container + one class for every entry. */
+
+.menu {
+  background: var(--wheel-bg-raised);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-md);
+  box-shadow: var(--wheel-shadow-float);
+  padding: 4px;
+  min-width: 180px;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 6px 12px;
+  border-radius: var(--wheel-radius-xs);
+  cursor: pointer;
+  font-size: 13px;
+}

@@ -1,0 +1,31 @@
+.menu {
+  min-width: 200px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-md);
+  padding: 4px;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  border: none;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+}
+
+.item:hover {
+  background: var(--bg-hover);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}

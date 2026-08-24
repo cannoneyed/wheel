@@ -1,0 +1,32 @@
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.typing {
+  font-size: 11px;
+  color: var(--accent);
+  display: flex;
+  gap: 4px;
+}
+
+.input {
+  width: 100%;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.post {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.post:disabled {
+  opacity: 0.5;
+}

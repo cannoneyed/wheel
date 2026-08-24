@@ -1,0 +1,253 @@
+---
+title: Project layout
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Project layout
+
+Every Wheel app uses the same directory shape and the same four compiler options. Get both right before you write any code.
+
+Both reference apps in this repo — the tracker (`packages/tracker`) and the demos (`packages/demos`) — use the same shape. Nothing in the framework requires these names, but every lint rule, test helper, and doc example assumes them.
+
+The shape:
+
+```
+my-app/
+  index.html            entry HTML — one <div id="root"> and one module script
+  package.json
+  tsconfig.json         extends the shared compiler options (below)
+  vite.config.ts
+  server.ts             the sync server process you run with bun
+  server/               server-only helpers: schema.ts, auth.ts, config.ts
+  jobs/                 background writers (cron, webhooks) that call externalWrite
+  seed/                 deterministic seed data, shared by dev server and tests
+  test/                 integration tests that boot a World
+  browser/              Playwright specs
+  src/
+    main.tsx            mounts <WheelApp> into #root
+    routes.tsx          the route table
+    styles/tokens.css   the ONE global stylesheet
+    sync/               issues.sync.ts + issues.server.ts, one pair per domain
+    services/           issue-service.ts, selection-service.ts, …
+    components/
+      list/
+        issue-list.tsx
+        issue-list.module.css     sibling stylesheet, same base name
+    utils/
+```
+
+## File naming
+
+| Thing | File | Export |
+| --- | --- | --- |
+| Component | `issue-row.tsx` | `IssueRow` |
+| Its styles | `issue-row.module.css` | default `styles` object |
+| Service | `issue-service.ts` | `class IssueService` |
+| Sync contract | `issues.sync.ts` | tables, queries, mutations |
+| Server bindings | `issues.server.ts` | `serveQuery` / `serveMutation` + DDL |
+
+Files are kebab-case. Exports are PascalCase for components and classes. Sync files are named after the domain in plural (`issues`, `comments`, `cycles`), and the two halves of a domain always share that stem — `issues.sync.ts` is the shared declaration and `issues.server.ts` is its SQL binding. Splitting a domain means adding a new pair, never adding a third file to an existing one.
+
+## `main.tsx` versus `index.tsx`
+
+There is one `main.tsx` per browser entry point. It is the only file that calls `render()`, imports the global stylesheet, and constructs the client:
+
+```tsx
+// Excerpt: packages/tracker/src/main.tsx
+import './styles/tokens.css';
+render(
+  () => (
+    <WheelApp client={trackerClient()}>
+      <AppShell />
+    </WheelApp>
+  ),
+  document.getElementById('root')!
+);
+```
+
+An `index.tsx` is different: it exports a root *component* for something mounted by a parent. The demos package has one `main.tsx` (the shell) and one `index.tsx` per demo — each demo exports `TodosDemo`, `KanbanDemo`, and so on, and the shell's router mounts them. Use `index.tsx` when your app is a mountable piece; use `main.tsx` when it owns the page.
+
+## Styling
+
+Two layers, no framework, no CSS-in-JS.
+
+1. **One global stylesheet**, imported once from `main.tsx`. It defines custom-property tokens (`--bg`, `--ink`, `--accent`) and resets `box-sizing`. That is all it does.
+2. **Co-located CSS modules** — `issue-row.module.css` sits next to `issue-row.tsx` and is imported as `styles`. Class names are camelCase, because `styles.rowSelected` reads better than `styles['row-selected']`.
+
+Conditional classes go through Solid's `classList`, keyed by the module object so the compiled hash is preserved:
+
+```tsx
+// Excerpt: packages/tracker/src/components/list/filter-bar.tsx
+<button class={styles.chip} classList={{ [styles.chipOn]: state.stateCount > 0 }} />
+```
+
+The framework ships its own token vocabulary at `wheel/styles` — the `--wheel-*` variables the kit components read. Pull it in from the top of your global stylesheet if you want the kit's default look:
+
+```css
+@import 'wheel/styles';
+```
+
+Both reference apps do this. The tracker shows the full pattern (`packages/tracker/src/styles/tokens.css`): import `wheel/styles`, then a small `:root` block that maps the app's own short names onto wheel tokens and overrides `--wheel-accent`. Writing a palette from scratch works too; importing `wheel/styles` saves you the work.
+
+## tsconfig settings
+
+Four compiler options must be exact. Get one wrong and the failure shows up far away from the setting.
+
+Set all four:
+
+```json
+{
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js"
+  }
+}
+```
+
+| Option | What breaks without it |
+| --- | --- |
+| `verbatimModuleSyntax: true` | `use:componentRoot` silently vanishes — see below |
+| `jsx: "preserve"` | TypeScript compiles the JSX before Solid can, so reactivity is lost |
+| `jsxImportSource: "solid-js"` | JSX types resolve to React's, and every element errors |
+| `moduleResolution: "Bundler"` | `wheel/core` and friends don't resolve — subpath exports need it |
+
+The `verbatimModuleSyntax` one is worth spelling out because it produces no error message. Write this:
+
+```tsx
+// Excerpt: the failure mode proven in packages/wheel/src/core/directive-preservation.test.ts
+import { componentRoot } from 'wheel/core';
+export const Example = () => <div use:componentRoot />;
+```
+
+TypeScript does not treat `use:componentRoot` as a reference to the imported `componentRoot`. Without `verbatimModuleSyntax`, it decides the import is unused and deletes it. Solid's compiler then turns the directive into a call to a name that no longer exists. Your component renders fine, and it is invisible to the debug inspector — draw a selection rectangle over it and get nothing back. With the flag on, the import survives and no `void componentRoot` keep-alive line is needed.
+
+The full shared config is `tsconfig.base.json` at the repo root; both apps extend it and add only `noEmit` and their `types` array.
+
+## ESLint setup for a consumer
+
+The lint rules are the framework's conventions made mechanical, so wiring them is part of setup, not an optional extra. The plugin is plain ESM with no build step — import it and declare which files each layer covers.
+
+Write `eslint.config.mjs`:
+
+```js
+// Intentionally unchecked: a minimal consumer eslint.config.mjs.
+import tsParser from '@typescript-eslint/parser';
+import wheel from 'wheel/eslint';
+
+const tsOptions = {
+  parser: tsParser,
+  ecmaVersion: 2023,
+  sourceType: 'module',
+  parserOptions: { ecmaFeatures: { jsx: true } }
+};
+
+export default [
+  { ignores: ['**/node_modules/**', '**/dist/**', '**/*.mdx'] },
+
+  // App code: every architecture rule, on by default.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    languageOptions: tsOptions,
+    plugins: { wheel },
+    rules: {
+      'wheel/single-connect': 'error',
+      'wheel/connect-only': 'error',
+      'wheel/max-connect-surface': 'error',
+      'wheel/require-component-root': 'error',
+      'wheel/prefer-computed': 'error'
+      // …the rest of the app rules; see content/docs/linting.mdx for the full table
+    }
+  },
+
+  // Package-root files (server.ts, jobs/, seed/, test/) get the rules that
+  // still apply outside src/.
+  {
+    files: ['*.ts', '{test,seed,jobs,server,browser}/**/*.{ts,tsx}'],
+    languageOptions: tsOptions,
+    plugins: { wheel },
+    rules: { 'wheel/invert-return-type': 'error', 'wheel/no-unused-imports': 'error' }
+  },
+
+  // Tests keep the architecture rules; several connect() fixtures per file is
+  // the point of a test, so only that one relaxes.
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.ts'],
+    plugins: { wheel },
+    rules: { 'wheel/single-connect-per-file': 'off' }
+  }
+];
+```
+
+Scope by **wildcard minus exceptions**, not by opt-in glob. A new directory should be linted the moment it exists. When a rule genuinely cannot apply, the exception is an in-file `eslint-disable` with a written reason — greppable — never a hole in the config.
+
+## Client identity
+
+`main.tsx` builds the client, and the client carries three separate identities. They look interchangeable and are not.
+
+| Identity | Stored in | Why there |
+| --- | --- | --- |
+| Cache scope | `localStorage` | Names the IndexedDB store, so a reload reuses the offline cache |
+| Wire id | Memory only, fresh per page load | The server allows one stream per client id |
+| Actor (current user) | `sessionStorage` | Per tab, so two tabs can be two different users |
+
+Mint each one where it belongs:
+
+```ts
+// Excerpt: packages/tracker/src/utils/tracker-client.ts
+const wireId = `web_${crypto.randomUUID().slice(0, 8)}`;              // never persisted
+const storeScope = stable('axle.storeId', localStorage, newId);        // per browser
+const actor = sessionStorage.getItem('axle.actorId') ?? '';            // per tab
+```
+
+<Aside kind="warning">
+  <strong>Never put the wire id in <code>sessionStorage</code>.</strong> Browsers copy
+  sessionStorage into a duplicated tab. Two tabs holding the same wire id then fight over the
+  server's one-stream-per-client slot, each kicking the other off in a zero-delay takeover loop.
+  Minting it fresh in memory on every page load is what makes duplicate tabs harmless. The actor
+  is the opposite case: duplicated tabs sharing a user is exactly right, so the actor <em>is</em>
+  sessionStorage.
+</Aside>
+
+## Kit systems
+
+Each kit surface renders through a system component. A system that is never mounted fails quietly: the service accepts registrations, and nothing appears on screen. Mount each one once, at the root, as a sibling of your layout.
+
+| System | Needed when you use |
+| --- | --- |
+| `<KeyboardSystem />` | keyboard shortcuts |
+| `<ContextMenuSystem />` | right-click menus |
+| `<DialogSystem />` | dialogs and confirms |
+| `<CommandPaletteSystem />` | the command palette |
+| `<ToastSystem />` | toasts |
+
+Mount them beside your layout:
+
+```tsx
+// Excerpt: packages/tracker/src/components/shell/app-shell.tsx
+<Frame.Row id="tracker-shell">{/* sidebar + routed column */}</Frame.Row>
+<KeyboardSystem />
+<ContextMenuSystem />
+<DialogSystem />
+<CommandPaletteSystem />
+<ToastSystem />
+```
+
+## Package-root directories
+
+`src/` is browser code. Everything the server and the toolchain need sits beside it, at the package root, so nothing server-only can be imported into a bundle by accident.
+
+- **`server.ts`** — the process you run. It builds the driver, applies migrations, registers every sync module, and starts the HTTP handler.
+- **`server/`** — the pieces `server.ts` composes: `schema.ts` (migrations), `auth.ts` (the authenticator), and `config.ts` (environment parsing). WebSocket size and rate limits live in `SyncSocketServer`.
+- **`jobs/`** — processes that write the database outside the engine and then call `server.externalWrite({ tables })` so clients converge. Take `now` as an argument, so tests can pass a fixed clock.
+- **`seed/`** — one deterministic seed module with stable exported ids, imported by both the dev server and the tests. Same ids every run.
+- **`test/`** — integration tests that boot a real engine. The demos instead co-locate `*.test.ts` next to the code under test; both work, so pick one per package and keep it.
+- **`browser/`** — Playwright specs, driven by `playwright.config.ts` at the package root.
+
+## Next
+
+- [Walkthrough](#/walkthrough) — the same files, written in order, for a working synced todo.
+- [Linting](#/linting) — every rule the config above turns on, and why each exists.
+- [Production](#/production) — building, serving, and running the sync process for real.

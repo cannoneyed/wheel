@@ -1,0 +1,85 @@
+/* ========================================================================
+ * RECIPE: Collapsible — single trigger/panel pair
+ * (--collapsible-panel-height geometry, data-panel-open, data-starting/ending-style)
+ *
+ * Pattern notes:
+ *  - Same panel-height animation contract as Accordion, just without the
+ *    Item/Header wrapper: Trigger emits [data-panel-open] directly.
+ *  - The caret icon is decorative (no data attribute of its own), so its
+ *    rotation uses a descendant selector off the Trigger, same exception as
+ *    Accordion's chevron.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Collapsible-Root {
+    display: flex;
+    width: 100%;
+    max-width: 16rem;
+    flex-direction: column;
+    gap: calc(var(--wheel-component-space) * 2);
+  }
+
+  .wheel-Collapsible-Trigger {
+    appearance: none;
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--wheel-component-space) * 2);
+    padding: calc(var(--wheel-component-space) * 2) calc(var(--wheel-component-space) * 3);
+    border-radius: var(--wheel-component-radius-md);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    font-weight: 500;
+    white-space: nowrap;
+    user-select: none;
+    transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-Collapsible-Trigger:hover:not([data-disabled]) {
+      background: var(--wheel-component-bg-hover);
+    }
+  }
+
+  .wheel-Collapsible-Trigger:active:not([data-disabled]) {
+    background: var(--wheel-component-bg-sunken);
+  }
+
+  .wheel-Collapsible-Trigger[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    border-color: var(--wheel-component-border);
+    cursor: not-allowed;
+  }
+
+  .wheel-Collapsible-Icon {
+    flex-shrink: 0;
+    transition: transform var(--wheel-component-duration-fast) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Collapsible-Trigger[data-panel-open] .wheel-Collapsible-Icon {
+    transform: rotate(90deg);
+  }
+
+  .wheel-Collapsible-Panel {
+    display: flex;
+    height: var(--collapsible-panel-height);
+    flex-direction: column;
+    justify-content: end;
+    overflow: hidden;
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh-prose);
+    transition: height var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
+  }
+
+  .wheel-Collapsible-Panel[data-starting-style],
+  .wheel-Collapsible-Panel[data-ending-style] {
+    height: 0;
+  }
+}

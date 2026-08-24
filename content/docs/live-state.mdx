@@ -1,0 +1,174 @@
+---
+title: Live State
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import { Diagram } from '@docs/components/Diagram';
+import todosSyncSource from '@docs/examples/getting-started/todos.sync.ts?example';
+
+# Live State
+
+Wheel's sync engine keeps every client's copy of the database current, and honest about what is confirmed versus optimistic. You declare synced data once, every write applies instantly, and the client keeps its guarantees when the network drops.
+
+The mental model is one sentence: **"I have a DB query. Any time the data in that query changes, the data in my app changes."** That's the whole contract. Three founding principles back it:
+
+1. **All edits are instant.** Applied locally first, cached, eventually reconciled with the server, and synced to every client.
+2. **Mutations come from anywhere.** Other users, agents driving the server, ad-hoc scripts, background jobs — a write the engine authored and one it merely observed both converge on every client (`server.externalWrite(...)` re-runs watchers for a write made outside the engine).
+3. **Opinionated, small-scale.** Wheel optimizes for tens of concurrent users, not thousands. Simplicity wins every tie.
+
+The design: **the server is the only truth, clients guess optimistically, and every guess is either confirmed or cleanly rolled back.** There are no CRDTs and no merge algorithms to reason about. A mutation is a plain transaction.
+
+## Declaring synced data
+
+You declare tables, queries, and mutations once, in a **sync module** (`todos.sync.ts`). Both the client and the server use the same declarations, so they cannot drift apart silently.
+
+<CodeExample example={todosSyncSource} />
+
+The server side binds each declaration in `todos.server.ts` — SQL plus **re-run hints**. The SQL targets your backend's dialect (SQLite for the reference apps):
+
+```ts
+// Excerpt: todoList is imported from the checked sync module above.
+import { sql } from 'wheel/sync';
+import { serveQuery } from 'wheel/sync/server';
+
+export const todoListServer = serveQuery({
+  query: todoList,
+  sql: () => sql`select id, title, done, position from todos order by position`,
+  rerunOn: ['todos']
+});
+```
+
+`rerunOn` is a hint, not the subscription (see "How a delta reaches a client" below).
+
+The `{ sql, rerunOn }` pair above is sugar. Underneath it builds a **query handler** — an object
+that knows how to produce this query's rows and how to tell the engine they changed. Pass your own
+with `handler:` instead, and the rows need not come from the database at all: an
+incrementally-maintained view, a reactive store that pushes changes instead of taking table hints,
+or an HTTP source. The wire protocol, the diffing, and the client stay exactly the same.
+[Virtual tables](#/virtual-tables) walks through writing one.
+
+<Aside kind="note">
+  The default storage is <strong>SQLite in-process</strong> (<code>bun:sqlite</code>, zero
+  dependencies), reached through the <code>SyncBackend</code> interface. Cloudflare Durable
+  Object SQLite uses the same interface. The engine does not import a network transport. See
+  <a href="#/server">Server</a>.
+</Aside>
+
+## The write path
+
+<Diagram
+  direction="LR"
+  nodes={[
+    { id: 'action', label: 'mutate()', sub: 'optimistic apply', kind: 'client' },
+    { id: 'overlay', label: 'Overlay', sub: 'base + pending → rebase', kind: 'client' },
+    { id: 'writer', label: 'Single writer', sub: 'one transaction', kind: 'server' },
+    { id: 'log', label: 'Sync log', sub: 'seq N', kind: 'store' },
+    { id: 'delta', label: 'RowDelta', sub: 'whole rows + order', kind: 'server' },
+    { id: 'confirm', label: 'Confirm', sub: 'drop guess, keep truth', kind: 'client' }
+  ]}
+  edges={[
+    { from: 'action', to: 'overlay', label: 'instant' },
+    { from: 'action', to: 'writer', label: 'WebSocket' },
+    { from: 'writer', to: 'log' },
+    { from: 'writer', to: 'delta', label: 're-run watchers' },
+    { from: 'delta', to: 'confirm', label: 'WebSocket' },
+    { from: 'confirm', to: 'overlay', label: 'rebase' }
+  ]}
+  caption="A mutation applies instantly, then the server's answer replaces the guess."
+/>
+
+Three properties make this safe:
+
+1. **One writer.** A single loop owns all writes per database, behind the backend's `acquireWriterLease()`. SQLite rejects a second in-process engine for the same database identity. A Durable Object already has one owner for its storage.
+2. **Whole-row deltas.** The server never sends patches. Applying a delta twice is a no-op, so delivery only needs to be at-least-once and in-order.
+3. **Deterministic ids.** The client pre-generates its id stream and the server replays it. The optimistic row and the confirmed row have the same id.
+
+Writes from outside the engine still flow to clients. Call `server.externalWrite({ tables })` after a direct write. The engine mints a sequence number and re-runs watchers. A future push-based backend can use `onExternalChange` on the `SyncBackend` interface.
+
+### Four settled outcomes
+
+Every mutation resolves through **one** channel: `await handle.settled` lands on exactly one of four terminal outcomes. `mutate()` itself never throws — even invalid args settle here, as `failed`, rather than throwing out of the call.
+
+| Outcome (`state`) | Roughly |
+|---|---|
+| `confirmed` | the server committed the write; drop the guess, keep the truth |
+| `rejected` / `orphaned` | a business rule said no, or the row vanished under it; roll back cleanly |
+| `failed` | the mutation is **broken** — invalid args, a handler that threw; roll back and never retry |
+
+A transport failure is **not** a fifth outcome: it leaves the mutation *unsettled*, parks it as `queued`, and retries in order the moment the connection returns. That is the offline promise.
+
+Why the split is sacred: the client retries `queued` mutations in order, forever. If a *broken* mutation could land in that bucket, it would fail identically on every retry and silently block every mutation behind it. So the rule is: **anything the server computes travels as typed data; only failure to communicate may throw.** The WebSocket transport returns every engine verdict in a reply frame. Socket loss and retryable server errors throw.
+
+The exact outcome table, the wire envelopes that produce each one, and the three error carriers all live in one place: [Names and errors](#/reference).
+
+## How a delta reaches a client
+
+A common misreading: `rerunOn: ['todos']` looks like "the subscription is the table." It isn't. The pipeline for every committed write:
+
+<Diagram
+  direction="LR"
+  nodes={[
+    { id: 'write', label: 'Write commits', kind: 'server' },
+    { id: 'touched', label: 'Touched tables', sub: 'noted by triggers', kind: 'store' },
+    { id: 'rerun', label: 'Re-run', sub: 'queries whose rerunOn intersects', kind: 'server' },
+    { id: 'diff', label: 'Diff', sub: 'vs. last result', kind: 'server' },
+    { id: 'delta', label: 'Delta', sub: 'ONLY if rows changed', kind: 'client' }
+  ]}
+  edges={[
+    { from: 'write', to: 'touched' },
+    { from: 'touched', to: 'rerun' },
+    { from: 'rerun', to: 'diff' },
+    { from: 'diff', to: 'delta' }
+  ]}
+  caption="rerunOn decides when to re-CHECK; the diff decides whether clients hear anything."
+/>
+
+So the client-observable contract is query-level: **a subscription hears about a query exactly when that query's rows change** — an irrelevant write to the same table re-runs the SQL, diffs to nothing, and emits nothing ("an unchanged re-run emits nothing" is a passing engine test). The table hint only costs wasted server re-runs, which is a server-CPU concern, not a correctness one — and push-based handlers (`QueryHandler.subscribe`) skip hints entirely. Finer invalidation tiers (row-predicate pruning, incremental view maintenance) are known escalation paths; the coarse hint trades server CPU for a design with no query language to maintain.
+
+## Going offline
+
+The client is always local-first — the `localCache` is required, not an opt-in (`IndexedDbCache` in browsers, `MemoryCache` in tests and SSR). A reload keeps all data, and a mutation made while offline never visibly rolls back:
+
+- **Offline mutations queue — never roll back.** A mutation whose send fails keeps its optimistic state, parks as `queued`, and flushes in order the moment the connection returns. The UI reads `client.queuedMutations()` for its "N unsaved changes" banner. The transport draws a hard line between "couldn't reach the server" (queue and retry — offline means *later*) and "the server said no" (roll back and drop — a validation rejection means *never*, and retrying it would jam every mutation queued behind it).
+- **Local durability failure rolls back.** The optimistic preview appears immediately, but the wire send waits for the outbox commit. If IndexedDB refuses that write, the preview is removed and the handle settles `failed` with `local_persistence_failed`. Required local-first durability never degrades silently to session-only state.
+- **The outbox survives reloads.** Every mutation is durably persisted (with its pre-generated id stream) before the send goes out. A fresh client on the same store replays survivors on connect — and replay is **exactly-once**: the server dedupes by mutation id (a unique constraint on the sync log), answering a duplicate with the original seq instead of applying twice.
+- **Boot hydrates from cache, instantly.** Subscriptions serve their last persisted rows immediately (marked `stale`, provenance cause `hydrate`), even with no server in sight. Stale subscriptions re-open automatically when the connection lands, and the wire snapshot replaces cached truth.
+- **The transport never gives up.** Initial connects and reconnects both retry forever with capped backoff + jitter, waking immediately on `online` / `visibilitychange`. Closing your laptop overnight does not kill the app.
+- **Backoff also paces sockets that die young.** A socket that opens and dies within one second is a **flap**. Consecutive flaps use the same capped backoff. A stable socket resets the streak.
+- **Reconnect is one round trip of latency.** Re-bootstrap fetches all snapshots concurrently, swaps only after everything arrived, and the UI never flashes empty.
+- **A reconnect lands on the first try.** The server allows one WebSocket per principal and client id. A newer socket closes the older socket. Mint the client id once per page load. Do not store it in `sessionStorage`, because duplicated tabs can copy it.
+
+All of this is tested end to end in `client/outbox.test.ts` against a real in-process server — offline queue, crash-replay, exactly-once, and stale-then-refresh.
+
+## The presence channel
+
+Some state should never be a row: cursors, focus, and typing state. Presence uses the same WebSocket in both directions. It has **no database, no history, and no undo**. It gets its own page: [Presence](#/presence).
+
+<Aside kind="note">
+  TanStack DB solves the same reactive-query model client-side, but it cannot carry wheel's
+  per-write provenance, and its ordering and handler models clash with wheel's declaration
+  rules. Wheel keeps its own client; the <code>LiveQueryView</code> interface keeps that choice
+  reversible.
+</Aside>
+
+## Where a value came from
+
+Every change to client state records why it happened: `bootstrap`, `sync-apply`, `optimistic`, `rollback`, `orphaned`, or `hydrate`, with the mutation or sequence number attached.
+
+```ts
+// Excerpt: client and todos are initialized by the application.
+client.explain(todos, 'todo_0198f3a');
+// → { value: {...}, cause: { kind: 'sync-apply', seq: 41 }, history: [...] }
+```
+
+Every debugging tool in wheel stands on this record. See [State](#/state).
+
+Five engine pieces are swappable: the transport, the client storage adapter, the SQLite driver, the live-query view, and the backend itself.
+
+## Next
+
+- [Server](#/server) — choose a backend and bind your queries to it.
+- [Everyday data patterns](#/data-patterns) — loading states, failed writes, reordering.
+- [Presence](#/presence) — ephemeral state that never becomes a row.
+- [Swappable Parts](#/advanced) — the five swappable pieces, one by one.

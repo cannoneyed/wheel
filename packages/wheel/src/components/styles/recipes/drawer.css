@@ -1,0 +1,116 @@
+/* ========================================================================
+ * RECIPE: Drawer — exemplar for edge-anchored, swipe-dismissable surfaces
+ * (data-swiping/data-swipe-direction contract;
+ * --drawer-swipe-movement-x/-y, --drawer-swipe-progress, --drawer-swipe-strength
+ * geometry set by the library as the user drags)
+ *
+ * Pattern notes:
+ *  - Popup's transform follows --drawer-swipe-movement-x 1:1 while dragging
+ *    ([data-swiping] disables the transition so it tracks the pointer with
+ *    no lag), then eases to 0 (open) or fully off-screen (closed).
+ *  - Backdrop fades via --drawer-swipe-progress (0 = settled open, 1 = fully
+ *    swiped away) so the scrim visibly lightens mid-drag; scrim value
+ *    matches dialog.css's established treatment (no semantic "overlay"
+ *    token exists yet).
+ *  - This recipe assumes a trailing-edge (right) drawer, matching the hero
+ *    demo's `swipeDirection="right"`; flip the Viewport's justify-content
+ *    and the Popup's translateX sign for a leading-edge drawer.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Drawer-Backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--wheel-component-backdrop-bg);
+    opacity: calc(1 - var(--drawer-swipe-progress, 0));
+    transition: opacity var(--wheel-component-duration-slow) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Drawer-Backdrop[data-starting-style],
+  .wheel-Drawer-Backdrop[data-ending-style] {
+    opacity: 0;
+  }
+
+  .wheel-Drawer-Backdrop[data-swiping] {
+    transition: none;
+  }
+
+  .wheel-Drawer-Viewport {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .wheel-Drawer-Popup {
+    --wheel-component-drawer-width: 22rem;
+
+    box-sizing: border-box;
+    width: var(--wheel-component-drawer-width);
+    max-width: calc(100vw - var(--wheel-component-space) * 12);
+    height: 100%;
+    padding: calc(var(--wheel-component-space) * 6);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-elevated);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transform: translateX(var(--drawer-swipe-movement-x, 0px));
+    transition: transform var(--wheel-component-duration-slow) var(--wheel-component-ease-out-cubic);
+  }
+
+  .wheel-Drawer-Popup[data-starting-style],
+  .wheel-Drawer-Popup[data-ending-style] {
+    transform: translateX(calc(var(--wheel-component-drawer-width) + var(--wheel-component-space) * 4));
+  }
+
+  .wheel-Drawer-Popup[data-swiping] {
+    transition: none;
+  }
+
+  .wheel-Drawer-Popup[data-ending-style] {
+    transition-duration: calc(var(--drawer-swipe-strength, 1) * 400ms);
+  }
+
+  .wheel-Drawer-Content {
+    width: 100%;
+    max-width: 32rem;
+    margin: 0 auto;
+  }
+
+  .wheel-Drawer-Title {
+    margin: 0 0 calc(var(--wheel-component-space) * 1);
+    color: var(--wheel-component-fg);
+    font-size: var(--wheel-component-text-lg);
+    line-height: var(--wheel-component-text-lg--lh);
+    font-weight: 500;
+    letter-spacing: var(--wheel-component-tracking-heading);
+  }
+
+  .wheel-Drawer-Description {
+    margin: 0 0 calc(var(--wheel-component-space) * 6);
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+  }
+
+  .wheel-Drawer-SwipeArea {
+    position: absolute;
+    inset-block: 0;
+    width: calc(var(--wheel-component-space) * 5);
+  }
+
+  .wheel-Drawer-SwipeArea[data-disabled] {
+    display: none;
+  }
+
+  .wheel-Drawer-Indent {
+    border-radius: var(--wheel-component-radius-xl);
+    background: var(--wheel-component-bg-elevated);
+    box-shadow: var(--wheel-component-shadow-rest);
+  }
+
+  .wheel-Drawer-IndentBackground {
+    background: var(--wheel-component-bg-sunken);
+  }
+}

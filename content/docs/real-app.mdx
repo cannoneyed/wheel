@@ -1,0 +1,113 @@
+---
+title: A real app - the tracker
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# A real app: the tracker
+
+Ten files in `packages/tracker` show every convention in these docs at product size. Read them in the order below.
+
+Run it first:
+
+```
+bun run tracker:server   # sync engine on in-memory SQLite — no Docker, no setup
+bun run tracker          # vite on :4798
+```
+
+Open two browser windows, pick two different users from the bottom-left switcher, and drag a card. Then turn off your wifi and keep working.
+
+The app is called **Axle**. It is a Linear clone: teams, issues, boards, cycles, projects, comments, presence, a notification inbox, full-text search, offline support, and undo for nearly everything. It exists to answer one question — can this framework carry a real product?
+
+<Aside kind="warning">
+  The default command starts a <strong>demo</strong> deployment: in-memory database, trusted
+  in-app user switcher, sync debug output, and a reset on every restart. Production mode wants a
+  persistent filename and an external session verifier. See
+  <code>packages/tracker/ROADMAP.md</code>.
+</Aside>
+
+## Scripts
+
+All from the repo root:
+
+| Script | What it does |
+| --- | --- |
+| `bun run tracker` | Vite dev server, port 4798 |
+| `bun run tracker:server` | The sync engine, watch mode, port 4797 |
+| `bun run dev:tracker` | Same as above under `portless`, which assigns a free port |
+| `bun run dev:tracker:server` | The engine under `portless` |
+| `bun run dev:tracker:preview` | Builds, then serves the production bundle |
+
+## Read these five files first
+
+| # | File | What it shows |
+| --- | --- | --- |
+| 1 | `src/sync/issues.sync.ts` | The contract: tables, queries, every mutation with its guess and its `invert` |
+| 2 | `src/sync/issues.server.ts` | The truth: the same mutations bound to SQL |
+| 3 | `src/services/issue-service.ts` | Where state lives: keyed views, keyed derivations, failed-write toasts |
+| 4 | `src/components/list/issue-list.tsx` | A connected component, complete, in fifty lines |
+| 5 | `src/services/issue-interaction-service.ts` | How to get past the three-service connect cap |
+
+**1. `src/sync/issues.sync.ts`.** One file declares the table shape, the queries, and every mutation with its optimistic guess and its `invert`. Read the module comment first: it explains why a new issue's id travels *in the args* (`invert` runs before the optimistic apply, so a create can only name its own inverse if the id already exists) and why the `number` field starts at the sentinel `0` (the `ENG-42` sequence is per-team and only the server can assign it race-free).
+
+**2. `src/sync/issues.server.ts`.** Two things to notice: the create handler computes `max(number) + 1` for the team, which is the field the client deliberately guessed wrong; and `requireActive(tx, issueId)` is a shared guard that throws `rejection('archived', …)`. Business rules live in small reusable helpers, not inline in each handler:
+
+```ts
+// Excerpt: packages/tracker/src/sync/issues.server.ts
+async function requireActive(tx: ServerTx, issueId: string): Promise<void> {
+  const [row] = await tx.sql<{ archivedAt: number | null }>`
+    select archived_at as "archivedAt" from issues where id = ${issueId}`;
+  if (!row) throw rejection('missing', 'This issue no longer exists.');
+  if (row.archivedAt !== null) throw rejection('archived', 'This issue is archived — unarchive it first.');
+}
+```
+
+**3. `src/services/issue-service.ts`.** The largest service in the app, and the reference for three patterns: `liveQueryFor` creates one subscription per team, lazily on first read; `computedFor` caches one derivation per key; and the private `watch(handle, verb)` helper turns a failed mutation into a toast. That last one is repeated in six services and is how a user learns a write did not land:
+
+```ts
+// Excerpt: packages/tracker/src/services/issue-service.ts
+private watch(handle: MutationHandle, verb: string): MutationHandle {
+  void handle.settled.then((info) => {
+    if (info.state === 'rejected') this.toastService.flash(`reject:${info.mutationId}`,
+      info.rejection?.message ?? `Could not ${verb}.`, 'warn');
+    // …'failed' reads info.error?.code; 'orphaned' says someone else deleted it
+  });
+  return handle;
+}
+```
+
+**4. `src/components/list/issue-list.tsx`.** Fifty lines that show the whole component contract: `connect()` with a per-instance name, `view()` with named reads only, `use:componentRoot` on the real root, and a `<Switch>` over the query's three-armed status — error, loading, empty, then content. Copy this shape for any screen that renders synced data.
+
+**5. `src/services/issue-interaction-service.ts`.** Components may reach at most three services. The issue list needs more behavior than that, so this class owns *no* domain logic. It re-exports members of seven bounded services (targets, properties, movement, selection, detail, view navigation, commands). Components keep one stable dependency; each behavior keeps its own file and its own tests. When the lint cap fires, this is the refactor it is asking for.
+
+## Schema, authorization, jobs, search, and tests
+
+| # | File | What it shows |
+| --- | --- | --- |
+| 6 | `server/schema.ts` | Migrations, by hand, in sixty lines |
+| 7 | `src/sync/inbox.server.ts` | Authorization on the first read *and* on the live stream |
+| 8 | `jobs/rollover.ts` | Writing from outside the engine, safely twice |
+| 9 | `src/sync/search.server.ts` | A hand-built query handler: FTS5, bm25, two invalidation channels |
+| 10 | `test/m5-fuzz.test.ts` | The adversarial suite: three clients, network chaos, four invariants |
+
+**6. `server/schema.ts`.** Wheel ships no migration tool, so the app owns one. It is a literal array of `{version, name, statements}`, a `_axle_schema_migrations` table, and one `begin immediate` transaction that applies whatever has not run yet. The DDL itself is assembled from each `*.server.ts` module's exported statements, so a domain's table definition lives beside its handlers.
+
+**7. `src/sync/inbox.server.ts`.** A query handler receives the caller's `principal`, and the SQL compares the requested `userId` against it, so asking for someone else's inbox returns nothing. The `prune` callback does the other half: it inspects the row image of an incoming write and drops it unless it belongs to this subscriber, so a peer's notification can never leak through a live update. Both halves are required; the SQL alone protects the first read, not the stream.
+
+**8. `jobs/rollover.ts`.** The cycle rollover job runs raw SQL directly against the database, then calls `server.externalWrite({ tables: ['cycles', 'issues'] })`. The engine never saw a mutation; it learns which tables changed, re-runs the affected queries, and every subscribed client converges. `now` is a function argument so tests can pass a fixed clock, and ids are derived deterministically with `on conflict do nothing` so a rerun is a no-op. A webhook consumer or a cron worker writes through this same path.
+
+**9. `src/sync/search.server.ts`.** No sugar: a raw `QueryHandler` with SQLite FTS5, bm25 ranking, and *two* invalidation channels — `rerunOn: ['issues', 'comments']` for writes the engine can see, plus a `subscribe` push channel for changes it cannot. Read `toMatchExpr` for how user input becomes a safe MATCH expression.
+
+**10. `test/m5-fuzz.test.ts`.** Seeded weighted operations across three clients with network chaos, then four invariants checked at quiescence: every client holds identical rows, the sync log has no gaps, every write has a known cause, and no optimistic mutation is left pending. The same seed reproduces the same run forever, so a failing seed becomes a permanent fixture.
+
+## The full walkthrough
+
+`packages/tracker/TOUR.md` is the long-form tour — the architecture in one breath, the war stories behind the four-outcome mutation model and the id-stream rules, split view, the keyboard layer, virtual tables, provenance UI, and what the app gave back to the framework. Read it with the app running and the five files above open.
+
+Two more files worth a look once you are oriented: `src/machines/drag-machine.ts` is a hand-written state machine with the DOM kept entirely at its edges, unit-tested with no browser; and `src/components/shell/app-shell.tsx` is the whole layout in one screen of JSX.
+
+## Next
+
+- [Live State](#/live-state) — the sync module and server binding those first two files use.
+- [Server handlers](#/server-advanced) — the handler contract behind files 2, 7, and 9.
+- [Testing](#/testing) — the World harness that file 10 drives.

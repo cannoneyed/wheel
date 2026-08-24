@@ -1,0 +1,120 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.count {
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-family: var(--mono);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.markAll {
+  font-size: 12px;
+}
+
+.markAll:disabled {
+  opacity: 0.4;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 4px;
+}
+
+.rowUnread {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.dot {
+  font-size: 8px;
+  color: transparent;
+}
+
+.dotUnread {
+  color: var(--accent);
+}
+
+.body {
+  flex: 1;
+  border: none;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sentence {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.issueTitle {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  font-size: 12px;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  font-size: 10px;
+  color: var(--ink-muted);
+  flex: none;
+}
+
+.readToggle {
+  border: none;
+  color: var(--ink-muted);
+  flex: none;
+}
+
+.empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--ink-muted);
+}
+
+.tabActive {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}

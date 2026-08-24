@@ -1,0 +1,21 @@
+{
+  "name": "wheel-playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "catalog": "vite --config catalog.vite.config.ts",
+    "audit:build": "vite build --config catalog.vite.config.ts && node check-audit-bundle.mjs"
+  },
+  "dependencies": {
+    "solid-js": "^1.9.0",
+    "wheel": "workspace:@cannoneyed/wheel@*"
+  },
+  "devDependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.53.0-build1",
+    "vite": "^6.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}

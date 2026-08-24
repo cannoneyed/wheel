@@ -1,0 +1,94 @@
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.missing {
+  color: var(--ink-muted);
+  padding: 32px;
+  text-align: center;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.identifier {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.viewerRow {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.viewer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  border: 2px solid var(--ok);
+}
+
+.headerButton {
+  border: none;
+  color: var(--ink-muted);
+  padding: 2px 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.titleInput {
+  font-size: 17px;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+
+.section {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.description {
+  min-height: 32px;
+  cursor: text;
+}
+
+.placeholder {
+  color: var(--ink-muted);
+}
+
+.markdown :is(p, ul, ol) {
+  margin: 0 0 8px;
+}
+
+.markdown code {
+  background: var(--bg-hover);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.descriptionInput {
+  width: 100%;
+  resize: vertical;
+}

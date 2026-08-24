@@ -1,0 +1,82 @@
+/* ========================================================================
+ * RECIPE: ScrollArea — viewport + overlay scrollbar
+ * (data-hovering / data-scrolling contract)
+ *
+ * Pattern notes:
+ *  - Root/Scrollbar position themselves inline (measured geometry — the
+ *    library sets `position`, edge insets, and the thumb's cross-axis size
+ *    via --scroll-area-thumb-*); the recipe only supplies surfaces and the
+ *    hover/scrolling opacity transition.
+ *  - Scrollbar and Thumb share Root's overflow/scrolling state, so
+ *    `data-hovering`/`data-scrolling` are available flat on the Scrollbar.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-ScrollArea-Root {
+    --wheel-component-scroll-area-scrollbar-size: 0.625rem;
+
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: var(--wheel-component-radius-lg);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    box-shadow: var(--wheel-component-shadow-rest);
+  }
+
+  .wheel-ScrollArea-Viewport {
+    box-sizing: border-box;
+    height: 100%;
+  }
+
+  .wheel-ScrollArea-Content {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--wheel-component-space) * 4);
+    padding: calc(var(--wheel-component-space) * 3) calc(var(--wheel-component-space) * 5) calc(var(--wheel-component-space) * 3)
+      calc(var(--wheel-component-space) * 3);
+    color: var(--wheel-component-fg);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh-prose);
+  }
+
+  .wheel-ScrollArea-Scrollbar {
+    display: flex;
+    justify-content: center;
+    width: var(--wheel-component-scroll-area-scrollbar-size);
+    padding: 2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-ScrollArea-Scrollbar[data-orientation='horizontal'] {
+    width: auto;
+    height: var(--wheel-component-scroll-area-scrollbar-size);
+  }
+
+  .wheel-ScrollArea-Scrollbar[data-scrolling] {
+    transition-duration: 0ms;
+  }
+
+  .wheel-ScrollArea-Scrollbar[data-hovering],
+  .wheel-ScrollArea-Scrollbar[data-scrolling] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .wheel-ScrollArea-Thumb {
+    width: 100%;
+    border-radius: 9999px;
+    background: var(--wheel-component-border-strong);
+    transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-ScrollArea-Thumb[data-orientation='horizontal'] {
+    width: auto;
+    height: 100%;
+  }
+
+  .wheel-ScrollArea-Corner {
+    background: var(--wheel-component-bg-elevated);
+  }
+}

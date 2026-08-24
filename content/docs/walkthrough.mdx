@@ -1,0 +1,124 @@
+---
+title: Walkthrough
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import todosSyncSource from '@docs/examples/getting-started/todos.sync.ts?example';
+import todosServerSource from '@docs/examples/getting-started/todos.server.ts?example';
+import serverSource from '@docs/examples/getting-started/server.ts?example';
+import clientSource from '@docs/examples/getting-started/client.ts?example';
+import todoServiceSource from '@docs/examples/getting-started/todo-service.ts?example';
+import todoListSource from '@docs/examples/getting-started/todo-list.tsx?example';
+import mainSource from '@docs/examples/getting-started/main.tsx?example';
+import viteConfigSource from '@docs/examples/getting-started/vite.config.ts?example';
+
+# Walkthrough
+
+Build a synced todo app end to end: the data declaration, the server, the client, the service, the component, and the dev proxy.
+
+Every source block comes from a real file under `packages/docs/examples/getting-started`. `bun run typecheck` compiles those files, and `bun run lint` applies the same application rules a consumer gets.
+
+Install Wheel with `bun add wheel@npm:@cannoneyed/wheel@0.1.0 solid-js`. The repository examples resolve `wheel` from the workspace. [Getting Started](#/getting-started) covers both workflows.
+
+Everything from Wheel comes through a documented [public subpath](#/import-map). This example uses Bun's in-process SQLite driver, a persistent `todos.db` file, and Vite's same-origin development proxy.
+
+## 1. Declare synced data (`todos.sync.ts`)
+
+The sync module declares the tables, queries, and mutations. Both the client and the server import it. Its optimistic handlers are the client's immediate guess; the server handlers in the next file are authoritative.
+
+Create `todos.sync.ts`:
+
+<CodeExample example={todosSyncSource} />
+
+Queries must use the result table's namespace. Mutation namespaces organize operations but do not claim a complete write set. The exact rules are in [Names and errors](#/reference).
+
+## 2. Bind server behavior (`todos.server.ts`)
+
+The server bindings hold the SQL. Wheel does not generate application schema, so you write the DDL. Each query declares which tables invalidate it, and each server mutation mirrors its optimistic handler.
+
+Create `todos.server.ts`:
+
+<CodeExample example={todosServerSource} />
+
+<Aside kind="note">
+  <strong>Test the mirror.</strong> <code>expectMutationParity</code> compares immediate
+  optimistic membership and order with confirmed server truth.
+  <code>expectQueryInvalidation</code> compares each query's SQL reads with
+  <code>rerunOn</code>.
+</Aside>
+
+## 3. Boot the authenticated server (`server.ts`)
+
+One `SyncServer` owns one workspace and one database. See [Server and backends](#/server) for SQLite and ownership. `authenticateSyncSocket` verifies the WebSocket upgrade. Message bodies never choose their actor or workspace. This example accepts two demo-only query values. A real application verifies a cookie or a one-use ticket.
+
+The server handles both shutdown signals and awaits `syncServer.close()`, which closes its owned backend.
+
+Create `server.ts`:
+
+<CodeExample example={serverSource} />
+
+Run it with `bun run server.ts`.
+
+## 4. Keep storage and wire identities separate (`client.ts`)
+
+The IndexedDB scope is stable in `localStorage`, so cached rows and the durable outbox survive reloads. The WebSocket id is fresh for each page load. The server allows one live socket per id. Do not put the id in `sessionStorage`. Browsers can copy it into duplicated tabs, which makes the sockets replace each other.
+
+Using one new random id for both jobs would abandon the previous cache after each reload. The split preserves local-first continuity: the cache and outbox outlive the page, the wire id does not.
+
+Create `client.ts`:
+
+<CodeExample example={clientSource} />
+
+`IndexedDbCache` is the browser default. Tests and server rendering use `MemoryCache`.
+
+## 5. Own synced state in a service (`todo-service.ts`)
+
+A `SyncService` owns the subscription and every mutation call for one domain. It exposes the live view directly and uses `computed` only for a real transformation.
+
+Create `todo-service.ts`:
+
+<CodeExample example={todoServiceSource} />
+
+## 6. Connect one component (`todo-list.tsx`)
+
+Call the connector first. `view()` exposes only named reads and actions. Import `componentRoot` as a value and put `use:componentRoot` on the real DOM root; the shared TypeScript configuration preserves directive imports for Solid's compiler.
+
+Create `todo-list.tsx`:
+
+<CodeExample example={todoListSource} />
+
+## 7. Wrap the root (`main.tsx`)
+
+`WheelApp` is the app root. It owns the client, so services and connected components resolve beneath it.
+
+Create `main.tsx`:
+
+<CodeExample example={mainSource} />
+
+In a dev build it also mounts the docked debug panel, the component inspector, error capture, and the `window.__wheel` agent bridge. A production build renders your children and nothing else. See [Debugging](#/debugging).
+
+<Aside kind="note">
+  <strong>Can't wrap your root?</strong> Docs embeds and sandboxes render into a page that
+  already owns the tree. For those, mount <code>&lt;WheelProvider client&gt;</code> yourself and
+  drop a floating <code>&lt;WheelDebugPanel /&gt;</code> anywhere inside it — same sections, same
+  storage keys, no wrapper required. That is the fallback; everything else uses
+  <code>WheelApp</code>.
+</Aside>
+
+## 8. Proxy sync requests during development (`vite.config.ts`)
+
+The browser transport uses the current origin. This proxy sends `/sync/*` to the Bun server without weakening the server's cross-origin policy.
+
+Create `vite.config.ts`:
+
+<CodeExample example={viteConfigSource} />
+
+Start the app with `bunx vite`. Add a todo: it appears immediately, persists to SQLite, and reaches a second browser tab. Stop the server and keep editing: queued mutations remain in IndexedDB and replay after reconnect.
+
+## Next
+
+- [Project Layout](#/project-layout) — where each of these files goes in a real app.
+- [Live State](#/live-state) — optimistic writes, offline replay, and provenance.
+- [Testing](#/testing) — the World harness, parity checks, and deterministic network schedules.
+- [A Real App](#/real-app) — the tracker end to end, the same pieces at production size.

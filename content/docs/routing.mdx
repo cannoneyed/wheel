@@ -1,0 +1,299 @@
+---
+title: Routing
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import routerSource from '@docs/examples/routing-config/router.tsx?example';
+import searchAtomSource from '@docs/examples/routing-config/search-atom.ts?example';
+
+# Routing
+
+A route tree is one nested literal, params reach components through `connect()`, and filter state can live in the URL.
+
+The router adds no new concepts. The current URL is an atom, the matched route is a computed, and navigation is an action — so the router shows up in the debug panel, the inspector, and every test exactly like a todo list does:
+
+```ts
+// Excerpt: the whole public surface, in three lines.
+router.url        // Atom<string>          — the address bar, and the source of truth
+router.match()    // RouteMatch | null     — name, params, search; Zod-validated
+router.navigate() // action
+```
+
+## Define the tree
+
+One nested literal. Names compose with dots, and `$name` marks a path param:
+
+```ts
+// Intentionally inline: the tree IS the documentation here.
+// The compiled, typechecked version is the CodeExample below.
+export const appRouter = createRouter({
+  path: '/',
+  component: AppShell,            // a layout: renders <Outlet/>
+  children: {
+    home: { path: '/', component: Home },
+    team: {
+      path: 'teams/$teamId',
+      component: TeamLayout,      // also a layout
+      search: z.object({ status: z.enum(['all', 'open']).default('all') }),
+      children: {
+        issues: { path: 'issues', component: Issues },
+        board: { path: 'board', component: Board },
+        issue: { path: 'issues/$issueId', component: IssueDetail }
+      }
+    }
+  }
+});
+```
+
+That produces this URL space:
+
+| URL | Route name | Params |
+| --- | --- | --- |
+| `/` | `home` | — |
+| `/teams/core` | `team` | `{ teamId }` |
+| `/teams/core/issues` | `team.issues` | `{ teamId }` |
+| `/teams/core/issues/c-1` | `team.issue` | `{ teamId, issueId }` |
+
+<Aside kind="note">
+  The ROOT node is never a match target — it is always a layout. If <code>/</code> should render
+  something, declare an index child with <code>path: '/'</code>, as <code>home</code> does above.
+</Aside>
+
+## What `createRouter` returns
+
+One object holding everything the app mounts:
+
+| Member | What it is |
+| --- | --- |
+| `Service` | the router service — inject it in `connect()`: `c.service(appRouter.Service)` |
+| `Root` | mount once: `<appRouter.Root />` |
+| `Link` | typed link: `<appRouter.Link to="team.issues" params={{ teamId }} />` |
+| `Outlet` | where a layout renders its child route |
+| `table` | the compiled route table, for tests and tooling |
+
+The second argument is options, all optional:
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `name` | `'AppRouter'` | the label this router wears in the debug panel and in error messages. Name it when an app mounts more than one |
+| `notFound` | a plain "Not found" | what renders when the URL matches nothing |
+| `errorFallback` | a box with the message and a Retry button | what renders in place of a route node that threw |
+| `onError` | — | called for every route error, before the fallback renders |
+
+## Route params
+
+Params reach a component through `connect()`. There is no `useParams()` hook, on purpose. A hook
+would be a second door into state, and `connect()` exists to keep there being one.
+The router is injected like any other service, so the
+component's data manifest stays complete — which is what keeps the debug panel's
+component → value edges honest.
+
+<CodeExample example={routerSource} />
+
+`matchOf(name)` answers for any route in the **active chain**, not only the leaf. A layout at
+`team` reads its own `teamId` while `team.issues` is what actually matched, because params
+accumulate down the chain:
+
+```ts
+// Excerpt: matchOf answers for any route in the active chain.
+// on /teams/core/issues
+router.matchOf('team')?.params.teamId        // 'core'
+router.matchOf('team')?.matchedName          // 'team.issues'
+router.matchOf('team.board')                 // null — not in the chain
+```
+
+## Layouts stay mounted
+
+`match().nodes` is the compiled route's own array, so its identity changes only when the matched
+**route** changes — never when a param does. Navigating `/issues/a` → `/issues/b` swaps params
+without tearing down the shell around them; a text box in a layout keeps its value.
+
+## Typed search params
+
+Each route may declare a `search` schema (a `z.object`). Schemas merge down the chain, so a child
+inherits its ancestors' params and can override a key by name.
+
+Decoding runs **field by field**, trying three things in order:
+
+1. the raw string, so `z.string()` sees `'123'` as the text it is;
+2. a JSON decode, so `z.number()` sees `123` and `z.boolean()` sees `true`;
+3. the field's own default.
+
+No `z.coerce` anywhere, and no crash from a hand-edited URL — a value the schema rejects falls
+back to the default. Values equal to their default are left OUT of the URL, so a page at rest has
+a clean address bar:
+
+```ts
+// Excerpt: defaults are omitted from the URL.
+router.navigate('team.issues', { params: { teamId: 'core' }, search: { status: 'open' } });
+// → /teams/core/issues?status=open
+
+router.navigate('team.issues', { params: { teamId: 'core' }, search: { status: 'all' } });
+// → /teams/core/issues        (the default is omitted)
+```
+
+## URL-backed atoms
+
+`searchAtom` returns a real `Atom` whose value lives in the query string:
+
+<CodeExample example={searchAtomSource} />
+
+Read and write it like any other atom. Nothing that reads it knows a URL is involved — and yet
+every filter, sort, and selection built on one is a shareable link, and the back button restores
+the previous value for free.
+
+Two details that matter in practice:
+
+- **Writes are coalesced.** The atom and `url` update instantly; the address bar follows after a
+  short window (120ms by default). A filter box therefore leaves ONE history entry per visit, not
+  one per keystroke — browsers also rate-limit `replaceState`, so this is not merely tidy.
+- **`replace`, not `push`, by default.** Typing should not fill the back stack. Pass
+  `{ history: 'push' }` when a value change really is a destination.
+
+The atom is a normal field on whichever service declares it, so the debug panel attributes it
+there, not to the router. Two services claiming the same key is an error naming both declaration
+sites.
+
+## Links
+
+`<Link>` renders a real `<a href>`, so cmd-click, middle-click, "open in new tab", "copy link
+address", and the status-bar preview all work with no special handling. The click handler stands
+aside for exactly the cases the browser should own: a modifier held, a non-left button, a `target`
+set, or a default already prevented.
+
+```tsx
+// Excerpt: a real anchor the router intercepts.
+<appRouter.Link to="team.issues" params={{ teamId }} activeClass="active">
+  Issues
+</appRouter.Link>
+```
+
+`activeClass` applies while `to` is anywhere in the active chain, so a section link stays lit on
+its children. The anchor also gets `aria-current="page"` while active.
+
+<Aside kind="warning">
+  Do not destructure the router at module scope in a file the route tree imports:
+  <code>const Link = appRouter.Link</code> runs during module evaluation, and the bundler evaluates
+  the page module first — so it reads <code>appRouter</code> before its initializer has run. Dev
+  builds can get away with it; a production bundle throws “Cannot access 'appRouter' before
+  initialization” and renders a blank page. Write <code>&lt;appRouter.Link&gt;</code> inline
+  instead, which reads it at render time.
+</Aside>
+
+## Not found
+
+A URL that matches nothing yields `match() === null` and renders the `notFound` component. The
+router never throws for a bad URL, because URLs are user input: a typo in the address bar should
+look like a missing page, not a crashed app.
+
+```tsx
+// Excerpt: the not-found hook.
+createRouter(routes, { notFound: () => <MyNotFoundPage /> });
+```
+
+## Route error boundaries
+
+Solid's answer to an uncaught render error is to tear down the whole tree. In a routed app that
+turns one bad page into a blank screen with no navigation left — you cannot even click away from
+the thing that broke. So the router wraps route components in error boundaries for you. There are
+two, and the pairing is the point:
+
+1. **Per node.** Every node in the matched chain is wrapped at its own depth. A leaf that throws
+   is contained inside the layout hosting it, so the shell, the sidebar, and the links around it
+   keep working and the next click leaves the wreck behind.
+2. **Global.** The router root wraps the whole routed tree, including the root layout and the
+   not-found view. This one holds when the failure is *above* every layout — a broken shell, or a
+   throw in the chain renderer itself. It cannot keep on-screen navigation alive (the shell is
+   what died), but the router service, its URL atom, and its `popstate` listener all live outside
+   the render that failed, so browser back/forward still work.
+
+Two options configure them:
+
+```tsx
+// Excerpt: both error hooks, on the same createRouter call.
+createRouter(routes, {
+  errorFallback: (p) => <ErrorPage error={p.error} onRetry={p.reset} scope={p.scope} />,
+  onError: (error, info) => reportCrash(error, { url: info.url, scope: info.scope })
+});
+```
+
+`errorFallback` renders in place of the node that threw, at that node's own depth. It receives
+`error` (whatever was thrown — rarely an `Error`, so render defensively), `reset` to re-render the
+failed route, and `scope` (`'node'` or `'global'`), so one component can serve both boundaries.
+
+`onError` is called for **every** route error, from either boundary, before the fallback renders —
+the one place to wire crash reporting. Its `info` carries the `url`, the `scope`, and the `depth`
+in the matched chain. `depth: 0` with `scope: 'global'` means the user is looking at a fallback
+where the whole app used to be, which is the case worth paging someone about.
+
+Two behaviors worth knowing. Navigating away **resets** the boundary — Solid's `ErrorBoundary`
+latches, so without this the fallback would outlive the route that produced it and every later
+page would render the old error. And fallbacks render **inside** the service provider, so yours
+can use `<appRouter.Link>` and `router.navigate` freely. A global fallback offering "back to home"
+is the recommended shape.
+
+## Route ambiguity
+
+When two routes could match one URL, the winner is decided in this order:
+
+1. the deeper chain;
+2. then fewer path params — so `/teams/new` prefers a literal `new` route over `$teamId`;
+3. then declaration order.
+
+A malformed tree fails at startup rather than at navigation time: a `$` with no name, one param
+name twice in a chain, or a route name containing a dot all throw from `createRouter`.
+
+## Testing
+
+History is injected, the same way `Clock` and `Defer` already are. `memoryHistoryOverride` swaps
+in an array-and-index implementation through the ordinary service override mechanism:
+
+```tsx
+// Excerpt: a test swaps history through the ordinary override mechanism.
+<ServiceProvider overrides={[memoryHistoryOverride(['/teams/core/issues'])]}>
+  <appRouter.Root />
+</ServiceProvider>
+```
+
+It is fully synchronous — `back()` notifies before it returns — so a test navigates and asserts on
+the next line with nothing to wait for. Tests never touch `window.location`.
+
+For matcher-level checks, skip the service entirely:
+
+```ts
+// Excerpt: matcher-level assertions need no service at all.
+const table = appRouter.table;
+expect(matchUrl(table, '/teams/core/issues')?.params).toEqual({ teamId: 'core' });
+expect(buildUrl(table, 'team.issues', { params: { teamId: 'core' } })).toBe('/teams/core/issues');
+```
+
+## Deployment
+
+Path routing needs the host to serve `index.html` for **every** path — `/teams/core/issues` must
+return the app, not a 404. Vite's dev server and `vite preview` do this by default; a production
+host must be configured for it. This is the one operational requirement the router adds, and the
+demo app's browser suite asserts it by cold-loading a deep URL.
+
+## What the router does not do
+
+No loaders, no pending boundaries, no preloading, no code-splitting, no scroll restoration, no
+route-level caching, no file-based route generation, no navigation blocking. (Error boundaries
+*are* here — see above.)
+
+Loaders in particular would be redundant: `SyncService.liveQuery` already loads data and keeps it
+live after the route renders, which is strictly better than a one-shot loader. Route params feed a
+`computedFor` directly, with no glue:
+
+```ts
+// Excerpt: a route param keying a live derivation; no loader needed.
+readonly issueVm = this.computedFor((issueId: string) => this.buildVm(issueId));
+// in connect:  vm: () => issues.issueVm(router.matchOf('team.issue')?.params.issueId ?? '')
+```
+
+## Next
+
+- [Components](#/components) — how `connect()` and `view()` work, in full.
+- [Data Patterns](#/data-patterns) — feeding a route param into a live query.
+- [Framing](#/framing) — the resizable shell a layout route usually renders.
+- [Testing](#/testing) — the harness `memoryHistoryOverride` plugs into.

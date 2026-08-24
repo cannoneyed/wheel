@@ -1,0 +1,174 @@
+/* Routing-demo family: the demo's own nav, the two-column body, the live
+   router-state panel, the issue list, and the board.
+
+   These ~180 lines used to sit in the shell's GLOBAL stylesheet — the only
+   demo in the repo that didn't own its CSS. They are a module now like every
+   other demo's, so a routing class can't collide with a shell class (`.board`
+   and `.badge` were both one name away from kanban's).
+
+   Everything reads the theme aliases, so the routing demo follows light/dark
+   with the rest of the app. Element selectors (a, li, dd, …) are safe here:
+   CSS modules hash class names only, and each one is nested under a hashed
+   class. */
+
+.demo {
+  min-width: 0;
+}
+
+.nav,
+.tabs,
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav {
+  border-bottom: 1px solid var(--wheel-line);
+  padding-bottom: var(--wheel-space-lg);
+  margin-bottom: var(--wheel-space-xl);
+}
+
+.nav a,
+.tabs a {
+  color: var(--wheel-ink-muted);
+  text-decoration: none;
+  font-size: var(--wheel-ui-lg);
+}
+
+.nav a.active,
+.tabs a.active {
+  color: var(--wheel-accent);
+  font-weight: 600;
+}
+
+.filters button.active {
+  border-color: var(--wheel-accent);
+  color: var(--wheel-accent);
+  font-weight: 600;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: var(--wheel-space-2xl);
+  align-items: start;
+}
+
+.main {
+  min-width: 0;
+}
+
+.page h2 {
+  font-size: 20px;
+  margin: 0 0 10px;
+}
+
+/* The live readout of the router's atoms — an instrument panel, so it wears
+   the mono micro-label heading and the recessed surface. */
+.state {
+  background: var(--wheel-bg-soft);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-md);
+  padding: var(--wheel-space-lg) var(--wheel-space-xl);
+  font-size: var(--wheel-ui-xl);
+  position: sticky;
+  top: var(--wheel-space-2xl);
+}
+
+.state h3 {
+  margin: 0 0 10px;
+  font: 700 var(--wheel-ui-xs) / 1 var(--wheel-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--wheel-ink-muted);
+}
+
+.state dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: var(--wheel-space-xs) 10px;
+}
+
+.state dt {
+  color: var(--wheel-ink-muted);
+}
+
+.state dd {
+  margin: 0;
+  font-family: var(--wheel-mono);
+  font-size: var(--wheel-ui-lg);
+  overflow-wrap: anywhere;
+}
+
+.issueList input[type='search'] {
+  width: 260px;
+  margin-bottom: var(--wheel-space-lg);
+}
+
+.issueList ul,
+.board ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.issueList li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--wheel-line);
+}
+
+.issueList li a {
+  color: var(--wheel-ink);
+  text-decoration: none;
+}
+
+.issueList li a:hover {
+  color: var(--wheel-accent);
+}
+
+.badge {
+  font-size: var(--wheel-ui-md);
+  padding: 1px 7px;
+  border-radius: var(--wheel-radius-pill);
+  background: var(--wheel-bg-soft);
+  color: var(--wheel-ink-muted);
+}
+
+/* Status pills stay on the FIXED status palette rather than the theme
+   aliases: a solid pale chip with dark ink reads the same on the light page
+   and on the dark stage, and "done" should look identical in both. */
+.done {
+  background: var(--wheel-ok-tint);
+  color: var(--wheel-ok-ink);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.board h3 {
+  font: 700 var(--wheel-ui-xs) / 1 var(--wheel-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--wheel-ink-muted);
+  margin: 0 0 var(--wheel-space-md);
+}
+
+.board li {
+  padding: var(--wheel-space-md) 10px;
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-sm);
+  margin-bottom: var(--wheel-space-md);
+  font-size: var(--wheel-ui-2xl);
+}

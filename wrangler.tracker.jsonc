@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wheel-tracker",
+  "main": "cloudflare/tracker-worker.ts",
+  "compatibility_date": "2026-08-21",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "packages/tracker/dist",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "run_worker_first": true
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TRACKER_WORKSPACES",
+        "class_name": "TrackerWorkspace"
+      }
+    ]
+  },
+  "exports": {
+    "TrackerWorkspace": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  }
+}

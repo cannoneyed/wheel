@@ -1,0 +1,157 @@
+---
+title: Swappable Parts
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Swappable Parts
+
+Five parts of Wheel are swappable: the network transport, the SQLite driver, the engine those two put in the browser, writes that come from outside the engine, and kit's lower-level exports. Each section below gives the interface and the shipped code that already replaces it.
+
+You need none of them to build an app.
+
+## The transport interface
+
+The client's whole view of the network is six async methods. Implement them and the `SyncClient` cannot tell what is on the other side:
+
+```ts
+// Excerpt: SyncTransport from wheel/sync — six methods, no more.
+export interface SyncTransport {
+  connect(clientId: string, onEvent: (event: ServerEvent) => void, identity: ClientIdentity): Promise<void>;
+  subscribe(clientId: string, queryName: string, params: unknown): Promise<Snapshot>;
+  unsubscribe(clientId: string, subscriptionId: string): Promise<void>;
+  mutate(request: MutateRequest): Promise<MutateResult>;
+  setPresence(clientId: string, state: Record<string, unknown> | null): Promise<void>;
+  close(clientId: string): void;
+}
+```
+
+| Method | What it does |
+| --- | --- |
+| `connect` | Opens the transport; every server push arrives through `onEvent`. The WebSocket transport authenticates its HTTP upgrade before the engine sees it |
+| `subscribe` | Returns the query's first `Snapshot`; deltas arrive later on the event stream |
+| `unsubscribe` | Releases one server subscription immediately. Local cache retention is a separate decision |
+| `mutate` | The one write path — everything the outbox sends goes through it |
+| `setPresence` | Fire-and-forget ephemeral state: no `seq`, dies with the connection |
+| `close` | Tears the connection down |
+
+Two implementations in this repo already replace it:
+
+1. **A SharedWorker transport.** `packages/demos/src/shared/in-browser/worker-transport.ts` implements all six as `postMessage` RPC against a worker that hosts the actual sync server. No HTTP anywhere.
+2. **A swappable test transport.** `packages/demos/src/todos/server-restart.test.ts` builds a transport whose backing `World` can be replaced mid-test, then reattaches — simulating a server restart onto a fresh epoch where `seq` resets to 1. That bug was found in production and is now a 60-line test, because swapping the transport made "restart the server" a local variable assignment.
+
+A transport is also a decorator point. `packages/demos/src/shared/utils/simulated-latency.ts` wraps any transport so every request and every pushed event arrives `simulatedLatency.ms` later — that is the latency slider in the demos. The interesting part is event ordering: deliveries chain through a shared promise, each waiting until its own target time, so lowering the slider mid-stream cannot let a new event leapfrog an older one. One mutable ref read at call time, mirrored into a reactive atom for the UI.
+
+## The SQLite driver interface
+
+The engine's whole database surface is three synchronous calls:
+
+```ts
+// Excerpt: SqliteDriver from wheel/sync/server.
+export interface SqliteDriver {
+  exec(sql: string): void;
+  all(sql: string, params?: readonly unknown[]): SqliteRow[];
+  close(): void;
+}
+```
+
+`exec` runs parameter-free batches (DDL, `BEGIN`/`COMMIT`). `all` prepares, binds, and executes one statement, returning its rows — or `[]` for statements that produce none. Transactions are explicit `BEGIN`/`COMMIT` through `exec`, never a driver's own `transaction()` helper, because mutation handlers are `async` and both bundled drivers forbid awaiting inside their synchronous wrapper.
+
+Bring your own SQLite by pairing that interface with three exported helpers: `coerceParams` on the way in, `coerceRows` (or `coerceValue` for one column) on the way out. They are the single place that reconciles driver disagreements — `bigint` becomes `number`, `Buffer` becomes `Uint8Array`, a bound `true` becomes `1`, `undefined` becomes `null` — so the engine sees identical typed rows no matter what ran the SQL.
+
+The WASM adapter implements all three methods in nine lines:
+
+```ts
+// Excerpt: the entire WASM adapter body from wasm-sqlite-driver.ts.
+const db = new sqlite3.oo1.DB(':memory:');
+return {
+  exec: (sql) => { db.exec(sql); },
+  all: (sql, params) => {
+    const bound = coerceParams(params) as BoundParams;
+    return coerceRows(db.selectObjects(sql, bound.length > 0 ? bound : undefined) as SqliteRow[]);
+  },
+  close: () => db.close()
+};
+```
+
+`bunSqliteDriver` and `betterSqlite3Driver` implement the same three methods — the first is the production default, the second exists because `bun:sqlite` cannot load under plain Node. Pass any of them as `sqlite: { driver }` (see [Server](#/server)).
+
+<Aside kind="note">
+  Cloudflare Durable Object storage (<code>ctx.storage.sql</code>) exposes the same synchronous
+  shape. Wheel ships a separate adapter because Durable Objects require
+  <code>storage.transaction()</code> for asynchronous mutations. See [Server](#/server) and
+  [Cloudflare deployment](#/cloudflare).
+</Aside>
+
+## The in-browser engine
+
+Replace both interfaces and the whole sync server runs in the visitor's browser. `packages/demos/src/shared/in-browser/` boots Wheel's real server engine on WASM SQLite inside a **SharedWorker**. The sync protocol uses `postMessage`.
+
+One engine per origin means every tab is another client of the same server: tabs sync with each other, and presence spans tabs, exactly as they do against a Bun dev server. Browsers without `SharedWorker` fall back to a dedicated worker — same engines, one per tab.
+
+| File | What it is |
+| --- | --- |
+| `wasm-sqlite-driver.ts` | The `SqliteDriver` above, over the official SQLite WASM `oo1` API |
+| `worker-transport.ts` | The `SyncTransport` above, over `postMessage` |
+| `sync-worker.ts` | Boots the same engines with the same schema and seed statements the Bun demo server uses; routes each port to its own `SyncConnection` |
+| `worker-protocol.ts` | The message types. Everything crossing the boundary is JSON-safe protocol data, so structured clone carries it untranslated |
+
+Everything else is untouched wheel code: outbox, rebase, undo, presence, and the latency decorator all run as-is. Turn it on per visit with `?sync=local`, or pin it at build time with `VITE_SYNC_MODE=browser` — which is how a fully live demo ships as static files with no server at all.
+
+Two deliberate constraints: databases are `:memory:`, and the client uses `MemoryCache` rather than IndexedDB. An ephemeral server paired with a persistent cache would hydrate rows and replay an outbox from a previous server generation into a freshly seeded world. `packages/demos/src/shared/in-browser/README.md` has the full architecture diagram and the OPFS-persistence plan.
+
+## Background jobs and external writes
+
+Not every write comes from a client. Cron jobs, webhook consumers, admin scripts, and data backfills write to the database directly — and the engine has no way to know unless you tell it.
+
+`server.externalWrite({ tables, source, actor })` is the telling. It records one log entry naming the touched tables and re-runs every watcher that cares, so subscribed clients converge. Call it once, after the raw SQL:
+
+```ts
+// Excerpt: the shape of runCycleRollover — raw SQL first, then one publish.
+await db.query(
+  `insert into cycles (id, team_id, number) values (?, ?, ?) on conflict (id) do nothing`,
+  [targetId, team.id, number]
+);
+await server.externalWrite({
+  tables: ['cycles', 'issues'],
+  source: 'job:rollover',
+  actor: 'system:rollover'
+});
+```
+
+`packages/tracker/jobs/rollover.ts` is the pattern worth copying. Four properties make a job safe to run twice:
+
+1. **`now` is an argument, not `Date.now()`.** The dev server passes the real clock; tests pass fixed timestamps. A time-dependent job you cannot pin is a job you cannot test.
+2. **Ids are derived, not random.** `cycle_${teamId.slice(-12)}n${number}` regenerates identically on a rerun.
+3. **`on conflict do nothing` everywhere.** With derived ids, the second run inserts nothing.
+4. **One `externalWrite` at the end**, naming every table the whole run touched — not one per statement.
+
+The job also declares the narrowest interfaces it needs. `RolloverDb` has one `query` method. `RolloverServer` has one `externalWrite` method. A test can use a SQLite driver and a small fake.
+
+<Aside kind="note">
+  <code>externalWrite</code> is for one-off writes you control. A continuous foreign-write feed
+  (a change feed or a reactive store's push channel) belongs on the backend's
+  <code>onExternalChange</code> hook instead — it funnels into the same ingestion path.
+</Aside>
+
+## Kit's lower-level exports
+
+[Framing](#/framing) and [Patterns](#/patterns) teach the high-level surfaces: `Frame.Row`, `Frame.Dock`, `createGesture`, `KeyboardService`, `ToastService`. Underneath each sits a smaller, testable export. Reach for these when you are building the thing, not using it.
+
+| Export | Entry | When you'd reach for it |
+| --- | --- | --- |
+| `Scrollbar`, `ScrollMetrics` | `wheel/kit` | A custom scrolling pane that needs framework scrollbar chrome instead of the browser's. |
+| `thumbGeometry(track, metrics, minThumb?)` | `wheel/kit` | Unit-testing or reimplementing thumb sizing: pure function, returns `{ size, offset }` or `null` when nothing overflows. |
+| `createGestureActor`, `gestureMachine`, `NO_MODIFIERS` | `wheel/kit` | Driving drag semantics (press → slop threshold → draft → commit/cancel) from a test script or a non-DOM input, without `createGesture`'s pointer plumbing. |
+| `parseCombo`, `matchesCombo` | `wheel/kit` | Rendering a shortcut hint, or matching keys outside `KeyboardService`. `mod` resolves to cmd on macOS, ctrl elsewhere; pass `mac` explicitly for headless tests. |
+| `applyDockIntent`, `normalizeSplitTree`, `panelIds`, `removePanel` | `wheel/kit` | Manipulating a `SplitTree` in an app action — the workspace layout is plain JSON in your own atom. |
+
+The `SplitTree` API is the one most likely to matter. `Frame.Dock` reports a completed drop as a `DockIntent` and renders whatever tree you hand it; your action decides what the tree becomes. `applyDockIntent(tree, intent)` detaches the dragged panel, lands it on the target's edge, and normalizes — same-axis drops insert a sibling, cross-axis drops wrap the target in a new split. `removePanel` returns `null` when the tree empties. `normalizeSplitTree` collapses single-child splits and merges same-axis nesting; all of them keep untouched branches at their original object identity, so renderers preserve DOM.
+
+Read `packages/demos/src/shared/in-browser/README.md` next — it is the shortest end-to-end read of two replaced interfaces doing real work.
+
+## Next
+
+- [Server and backends](#/server) — the driver options and the `SyncBackend` interface in use.
+- [Framing](#/framing) — the high-level surfaces these lower-level exports sit under.
+- [A Real App](#/real-app) — `jobs/rollover.ts` and the rest of the tracker, file by file.

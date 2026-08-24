@@ -1,0 +1,53 @@
+/* ========================================================================
+ * RECIPE: Meter — static range visualization (no interaction states)
+ *
+ * Pattern notes:
+ *  - Meter never emits data-* attributes (its only piece of state,
+ *    `imageLoadingStatus`-style `value`, maps to null in
+ *    stateAttributesMapping.ts) — this recipe is pure layout + tokens.
+ *  - The Indicator's width is set inline by the library (percentage of
+ *    range); the recipe only supplies the track/indicator surface.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Meter-Root {
+    --wheel-component-meter-width: 15rem;
+    --wheel-component-meter-track-height: 0.625rem;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    row-gap: calc(var(--wheel-component-space) * 2);
+    width: var(--wheel-component-meter-width);
+    max-width: 100%;
+  }
+
+  .wheel-Meter-Label {
+    color: var(--wheel-component-fg);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+    font-weight: 500;
+  }
+
+  .wheel-Meter-Value {
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  .wheel-Meter-Track {
+    grid-column: 1 / 3;
+    height: var(--wheel-component-meter-track-height);
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--wheel-component-bg-sunken);
+  }
+
+  .wheel-Meter-Indicator {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--wheel-component-accent);
+    transition: width var(--wheel-component-duration-slow) var(--wheel-component-ease-out-quad);
+  }
+}

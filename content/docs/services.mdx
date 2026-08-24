@@ -1,0 +1,199 @@
+---
+title: Services
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import { Diagram } from '@docs/components/Diagram';
+import fieldSource from '@docs/examples/services/field.ts?example';
+import machineSource from '@docs/examples/services/machine.ts?example';
+import servicesSource from '@docs/examples/services/services.ts?example';
+import latestAsyncTaskSource from '@docs/examples/services/latest-async-task.ts?example';
+
+# Services
+
+A service is a class that owns shared state, and it reaches other services through its context. It declares fields, atoms, computeds, machines, and actions. Components read reactive values through a connection and call actions to change them.
+
+Two base classes:
+
+| Base class | Import from | Owns |
+| --- | --- | --- |
+| `Service` | `wheel/core` | Local state: selection, drag, filters, UI modes |
+| `SyncService` | `wheel/sync` | Server-synced state: subscribes to queries, fires mutations |
+
+One of each:
+
+<CodeExample example={servicesSource} />
+
+State bound to a single component — a hover, a draft input, an open/closed toggle — stays in the component. Declare it with `useSignal(initial, 'name')` from `wheel/core`, a named drop-in for Solid's `createSignal` (see [Components](#/components)). Everything else belongs to a service.
+
+<Aside kind="note">
+  <strong>Don't wrap a liveQuery view (or an atom) in a passthrough computed.</strong>
+  <code>readonly rows = this.computed(() =&gt; this.list.rows)</code> adds a memo that does
+  nothing but forward the value — an unchecked mirror that only adds a hop to trace and a place
+  to drift. Expose the view (or atom) itself and let the component read it directly:
+  <code>rows: () =&gt; todoService.list.rows</code> in <code>view()</code>. A <code>computed</code>
+  is for real derivation (filter, join, count), not for renaming.
+</Aside>
+
+Three rules do most of the work:
+
+1. **Queries go through services.** A component's connection reads `() => todoService.list.rows`; it never declares a subscription itself. One layer owns server data.
+2. **Computed-first, but only for real derivation.** If a value is *transformed* from other state, it must be a `computed`. The linter (`prefer-computed`) catches read-only methods that should be computeds — but a passthrough of one atom or one view is not a derivation, so expose it directly instead of mirroring it.
+3. **Actions group writes.** An `action` batches all its writes into one downstream update. Components never call `atom.set` directly.
+
+## Data out of a service is immutable
+
+Everything a service hands out is frozen. Synced rows are frozen by the client; every atom write is deep-frozen by the kernel — mutating a value you read from a service throws a `TypeError` instead of silently corrupting state.
+
+```ts
+// Intentionally invalid: direct writes to service-owned values throw.
+const profile = profileService.profile.get();
+profile.name = 'mallory';        // TypeError: Cannot assign to read only property
+profile.tags.push('intruder');   // TypeError — arrays freeze too
+
+// The happy path is an action using set (replace) or update (immer draft):
+profileService.rename('grace');  // internally: this.profile.update((d) => { d.name = 'grace'; })
+```
+
+<Aside kind="note">
+  <code>Set</code> and <code>Map</code> use Immer's mutation-throwing collection wrappers.
+  Direct <code>add</code>, <code>set</code>, <code>delete</code>, and <code>clear</code> calls
+  throw. Use <code>atom.update</code> to edit a draft and replace the collection. Atom values
+  reject <code>Date</code>; store epoch milliseconds because freezing a Date does not freeze
+  its internal timestamp.
+</Aside>
+
+## Private state without reactivity
+
+Use `this.field(initial)` for private service state that must not trigger a render. A field stores the exact value. It does not create a Solid signal or freeze the value.
+
+<CodeExample example={fieldSource} />
+
+Use a field for live handles, timer cancellation functions, and private bookkeeping. Use an atom when a component must react to a value.
+
+Each `set()` call adds a debug entry, including a write of the same value. The debug panel shows the current value and the latest 50 writes. Each entry includes the injected service time, previous value, and current value.
+
+The debug copy is bounded and safe. Wheel does not call getters on the stored value. A class instance appears by its constructor name. `get()` still returns the original value.
+
+The `require-tracked-service-fields` lint rule reports mutable private service properties. Declare `private readonly value = this.field(initial)` and use `get()` and `set()`.
+
+## The service tree
+
+Services are singletons inside a `ServiceContext` — a DI container that builds them lazily and resolves cross-service dependencies.
+
+<Diagram
+  direction="TB"
+  nodes={[
+    { id: 'root', label: 'Root context', sub: 'WheelProvider — owns the client', kind: 'client' },
+    { id: 'todo', label: 'TodoService', sub: 'SyncService singleton', kind: 'service' },
+    { id: 'sel', label: 'SelectionService', sub: 'Service singleton', kind: 'service' },
+    { id: 'scope', label: 'Child scope', sub: "ServiceProvider — inherit: 'live'", kind: 'client' },
+    { id: 'localsel', label: 'SelectionService′', sub: 'fresh local instance', kind: 'service' },
+    { id: 'sandbox', label: 'Sandbox scope', sub: 'overrides: [fake]', kind: 'tool' }
+  ]}
+  edges={[
+    { from: 'root', to: 'todo' },
+    { from: 'root', to: 'sel' },
+    { from: 'root', to: 'scope' },
+    { from: 'scope', to: 'localsel', label: 'isolated' },
+    { from: 'scope', to: 'todo', label: 'inherited', dashed: true },
+    { from: 'root', to: 'sandbox', dashed: true }
+  ]}
+  caption="One tree of scopes. Live data is shared; local UI state isolates per scope; sandboxes override anything."
+/>
+
+Three things fall out of the tree:
+
+- **Cross-service DI**: `this.service(OtherService)` — circular dependencies throw with the full chain named.
+- **Scoped state**: a child scope with `inheritServices: 'live'` shares synced singletons but gets fresh local services. Two editors on one screen don't share selection.
+- **Sandboxing**: `context.override(TodoService, fake, { ownership: 'caller' })` swaps the real service before first use. This is where a test plugs in its own implementation — no mocking framework, no module patching.
+
+```ts
+// Excerpt: TodoService and FakeTodoService are application classes.
+const context = new ServiceContext();
+context.override(TodoService, new FakeTodoService(context), { ownership: 'context' });
+// Everything below sees the fake. One line.
+```
+
+Override ownership is required. A `caller`-owned replacement is reusable and the scope never destroys it. A `context`-owned replacement receives its service cleanup exactly once when the scope disposes.
+
+## Time without a clock service
+
+There is no ticking domain-clock singleton. A service reads the context's injected clock with `this.now()` and schedules one-shot work with `this.defer(ms, fn)`. Client-backed contexts reuse the `SyncClient` clock and scheduler; clientless tests pass `clock` and `defer` to `ServiceContext`. Neither operation is reactive. Components use native timing only for presentation behavior and mark it with `wheel-view-timing:`.
+
+## Unidirectional flow
+
+Data flows down (service → connect → component). Intent flows up (component → action → service → mutation). A component cannot write state; it can only call an action the service chose to expose. The `no-whole-service-injection` lint rule keeps components from grabbing a service instance and going around this.
+
+## How state changes
+
+Services answer where state lives. How it changes is the other half, and untracked multi-step async logic is where the complexity hides. The escalation ladder:
+
+| Change is... | Use | Status |
+| --- | --- | --- |
+| Synchronous, one step | `action` | Shipped |
+| An async chain where the latest call wins | `this.latestAsyncTask()` | Shipped |
+| A multi-step user flow with distinct states (drag, wizard, upload) | `machine()` with an XState machine | Shipped |
+| An async pipeline with retries, timeouts, interruption | An Effect (effect.ts) run by a service | Planned |
+
+### Latest async tasks
+
+`this.latestAsyncTask()` opens one latest-call-wins scope for the service. A later call to `this.latestAsyncTask()` aborts the prior token. Service disposal also aborts the active token.
+
+A search box can start a second request before its first request completes:
+
+| Time | Event | Visible results |
+| --- | --- | --- |
+| 1 | `search('ca')` starts a slow request | Unchanged |
+| 2 | `search('cat')` starts a fast request | Unchanged |
+| 3 | The `cat` request completes | Results for `cat` |
+| 4 | The older `ca` request completes | Results for `ca`, which are stale |
+
+The example below prevents the fourth step. The second `this.latestAsyncTask()` call aborts the first token. If the old request still completes, `task.wait(...)` rejects before `results.set(...)` can replace the current results.
+
+Wrap each async boundary with `task.wait(...)`. The wait rejects with an `AbortError` when the token becomes stale. Pass `task.signal` to an API that accepts an `AbortSignal` so it can also stop its in-flight work.
+
+<CodeExample example={latestAsyncTaskSource} />
+
+Each service has one active latest async task. Put independent latest-call-wins operations in separate services. An async method that does not need supersession does not open a task.
+
+The `require-latest-async-task-wait` lint rule reports a bare `await` after a service method opens a latest async task. It also checks async callbacks nested in that method.
+
+Use a state machine when an interaction has named states or transitions. Use `retryForever` with `task.signal` when work also needs controlled retries.
+
+### State machines
+
+`machine()` owns one XState actor for the Service lifetime. It exposes the actor snapshot as a reactive accessor. Named Service actions send its events.
+
+#### Why a machine
+
+A media seek can finish out of order. If seek 1 finishes after seek 2 starts, an `isSeeking` boolean cannot tell which request finished. It can clear the flag for seek 2 and apply the wrong playback position.
+
+The machine below stores the active request ID. A completion changes state only when its ID matches the active request. Two overlapping `seek()` calls can finish in either order without applying stale data.
+
+<CodeExample example={machineSource} />
+
+`playback.seek.state()` returns the current XState snapshot. A component can read `value`, `context.target`, `context.position`, and `context.error` through its connection.
+
+Each transition builder returns an event that the XState machine accepts. Its parameters become the parameters of the generated action. TypeScript rejects a target or request ID with the wrong type.
+
+A machine with required XState input also requires `input` in the `machine()` options.
+
+XState delays use the Service context's injected defer seam. Each history entry uses the injected clock. Context disposal stops the actor and cancels its scheduled work.
+
+The debug registry stores one `machine` primitive. It shows current state, status, public transitions, and the latest 50 history entries. Named transitions appear as `<field>.<transition>`, such as `seek.start`.
+
+<Aside kind="todo">
+  The same Service treatment is planned for effect.ts (<code>flow()</code>): services run effects,
+  components only see values.
+</Aside>
+
+**The debug panel is live** — wrap your root in `<WheelApp client>` from `wheel/debug` and every service, primitive value, component manifest, and provenance entry described here shows up in the dev-build panel. Hosts that cannot wrap their root mount the floating `<WheelDebugPanel />` instead. See [Debugging](#/debugging).
+
+## Next
+
+- [Components](#/components) — how a component connects to a service
+- [State](#/state) — the primitives a service declares
+- [Live State](#/live-state) — what `SyncService` adds: queries, mutations, provenance
+- [Testing](#/testing) — overriding a service in a scope

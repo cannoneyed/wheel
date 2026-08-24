@@ -1,0 +1,77 @@
+---
+title: Configuration
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import configSource from '@docs/examples/routing-config/config.ts?example';
+
+# Configuration
+
+One Zod schema and a list of sources become one validated configuration object, before your app boots.
+
+`wheel/config` depends on nothing else in the package — it is a leaf, like `wheel/auth`. It re-exports `z`, so a config contract needs one import.
+
+Define the schema, then load it:
+
+<CodeExample example={configSource} />
+
+## Precedence
+
+Sources load in the order you list them, least authoritative first. A later source replaces earlier top-level fields; a later object or array value replaces the earlier one **as a whole**. Wheel does not deep-merge, because every deep-merge policy surprises somebody.
+
+The example above ranks them:
+
+1. bootstrapped `globalThis.__WHEEL_CONFIG__`
+2. authenticated API response
+3. URL overrides
+
+Zod defaults run **after** every source merges, so a field no source supplies still gets its schema default.
+
+A source returning `undefined` is skipped. A source returning anything that is not a JSON object throws a `TypeError`. A source that throws throws on to you, wrapped with its name: `Configuration source 'fetch:/api/config' failed: …`.
+
+## The sources
+
+| Source | Reads from | Default name |
+| --- | --- | --- |
+| `valueConfigSource(name, value)` | the object you pass — defaults, server-injected data, tests | your `name` |
+| `bootstrapConfigSource({ key, host })` | `globalThis.__WHEEL_CONFIG__`; `host` overrides the object | `bootstrap:<key>` |
+| `fetchConfigSource(input, { fetch, init })` | a JSON endpoint; throws on a non-2xx response | `fetch:<input>` |
+| `urlConfigSource({ search, prefix })` | `location.search` | `url` |
+
+Every option is injectable, so nothing reads the browser unless you let it. `bootstrapConfigSource` takes a plain object as `host`; `fetchConfigSource` takes a `fetch` implementation; `urlConfigSource` takes search text, a `URLSearchParams`, or a function returning either (the lazy form keeps browser state out of module initialization).
+
+`urlConfigSource` JSON-decodes values when possible. `?config.debug=true&config.pageSize=50` produces a boolean and a number; text that is not valid JSON stays a string. Repeated keys become arrays in query order. The `config.` prefix keeps router search parameters out of application configuration — the two share a query string and must not share a namespace.
+
+## The definition API
+
+`defineConfig(schema)` returns five things:
+
+| Member | Does |
+| --- | --- |
+| `schema` | the Zod schema you passed, for reuse |
+| `parse(value)` | validate one already-composed object |
+| `load(sources)` | run the sources in order, merge, validate once |
+| `serialize(value)` | validate, then `JSON.stringify` — use it to bootstrap a page |
+| `deserialize(json)` | `JSON.parse`, then validate |
+
+`serialize` and `deserialize` are the pair that survives a server-rendered `__WHEEL_CONFIG__` round trip. Bad JSON text throws a `SyntaxError` naming the parse failure.
+
+## The JSON boundary
+
+All source output crosses the same strict JSON check before Zod parses the merged object. `undefined`, non-finite numbers, sparse array slots, `Date`, class instances, functions, symbols, and cycles all fail, and the error names the source and the path that broke — `configuration source 'bootstrap:__WHEEL_CONFIG__'.limits.retryAfter contains non-JSON undefined`.
+
+The check runs on schema output too, so a Zod transform cannot smuggle a `Date` into a value that later has to serialize.
+
+<Aside kind="note">
+  Tests inject source data, URL search text, and fetch implementations. They do not patch
+  <code>window</code> or the network.
+</Aside>
+
+Server configuration is a different system: `process.env`, read once, in a process you control. Secrets must never cross into the browser's config. See [Production](#/production).
+
+## Next
+
+- [Routing](#/routing) — the URL as an atom, and why `config.` is prefixed.
+- [Production](#/production) — server environment config, validated at boot.
+- [Import Map](#/import-map) — every `wheel/*` subpath, including `wheel/config`.

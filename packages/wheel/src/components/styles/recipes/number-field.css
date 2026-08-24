@@ -1,0 +1,112 @@
+/* ========================================================================
+ * RECIPE: NumberField — exemplar for input-group + stepper surfaces
+ * (data-scrubbing/data-disabled/data-invalid contract, shared across every
+ * part — Root/Group/Input/Increment/Decrement/ScrubArea/ScrubAreaCursor all
+ * receive the same field state attributes)
+ *
+ * Pattern notes:
+ *  - Group is the visible field surface (border/radius/background); Input
+ *    and the stepper buttons are transparent insets so the group reads as
+ *    one control, matching the input-group language used by combobox/select.
+ *  - ScrubArea/ScrubAreaCursor style the drag-to-change-value affordance.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-NumberField-Root {
+    --wheel-component-number-field-height: 2rem;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(var(--wheel-component-space) * 1);
+  }
+
+  .wheel-NumberField-ScrubArea {
+    cursor: ew-resize;
+    user-select: none;
+    color: var(--wheel-component-fg);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    font-weight: 500;
+  }
+
+  .wheel-NumberField-ScrubArea[data-scrubbing] {
+    color: var(--wheel-component-accent);
+  }
+
+  .wheel-NumberField-ScrubAreaCursor {
+    filter: drop-shadow(0 1px 1px var(--wheel-component-shadow-tint));
+  }
+
+  .wheel-NumberField-Group {
+    box-sizing: border-box;
+    display: inline-flex;
+    height: var(--wheel-component-number-field-height);
+    border-radius: var(--wheel-component-radius-md);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    overflow: hidden;
+    transition: border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-NumberField-Group[data-invalid] {
+    border-color: var(--wheel-component-danger);
+  }
+
+  .wheel-NumberField-Group[data-disabled] {
+    background: var(--wheel-component-bg-hover);
+  }
+
+  .wheel-NumberField-Input {
+    flex: 1 1 auto;
+    min-width: 0;
+    box-sizing: border-box;
+    border: 0;
+    background: transparent;
+    padding-inline: calc(var(--wheel-component-space) * 3);
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    text-align: left;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wheel-NumberField-Input[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+
+  .wheel-NumberField-Increment,
+  .wheel-NumberField-Decrement {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--wheel-component-number-field-height);
+    border: 0;
+    border-inline-start: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: transparent;
+    color: var(--wheel-component-fg-muted);
+    transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-NumberField-Increment:hover:not([data-disabled]),
+    .wheel-NumberField-Decrement:hover:not([data-disabled]) {
+      background: var(--wheel-component-bg-hover);
+    }
+  }
+
+  .wheel-NumberField-Increment:active:not([data-disabled]),
+  .wheel-NumberField-Decrement:active:not([data-disabled]) {
+    background: var(--wheel-component-bg-sunken);
+  }
+
+  .wheel-NumberField-Increment[data-disabled],
+  .wheel-NumberField-Decrement[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+}

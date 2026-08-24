@@ -1,0 +1,396 @@
+/* The docs shell. Two rules run this file:
+
+   1. PROSE STAYS PROSE. Everything inside `.content` that is a paragraph, a
+      heading, or a list reads at the essay scale (--wheel-prose-*), 780px
+      measure, 1.6 line-height. Docs are for reading.
+   2. CHROME AND DATA GET DENSE. The sidebar, the topnav, and — the big one —
+      tables run at the instrument scale (--wheel-ui-*) with the uppercase
+      mono micro-label that is wheel's design signature. Docs pages are
+      table-heavy; a table is data, not prose.
+
+   All colors, fonts, and dimensions come from the shared wheel design tokens
+   through the site flavor layer. */
+@import './theme.css';
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: var(--wheel-prose-md);
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.6;
+}
+
+/* ---- shell + sidebar (chrome density) ---------------------------------- */
+
+/* Three columns: pages on the left, the essay in the middle at its own fixed
+   measure, this page's headings on the right. The middle column is
+   `minmax(0, 1fr)` — a plain `1fr` lets a wide table or code block push the
+   grid wider than the viewport instead of scrolling inside itself. */
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--toc-w);
+
+  /* The shared site bar sits above this grid, so every full-viewport height in
+     the shell subtracts it (bar + its 1px rule). A bare `100vh` here runs the
+     sticky rails one bar-height long and hides their last row. */
+  min-height: calc(100vh - var(--topnav-h) - 1px);
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  padding: var(--wheel-space-xl) 0;
+  position: sticky;
+  top: 0;
+  height: calc(100vh - var(--topnav-h) - 1px);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* The grouped page list (components/SidebarNav.tsx). It takes the slack in the
+   sidebar column and scrolls on its own, so a short window scrolls the list
+   rather than the rail. */
+.sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Air between sections, not a rule — the micro-label is separation enough. */
+.sidebar-group + .sidebar-group {
+  margin-top: var(--wheel-space-xl);
+}
+
+/* The uppercase mono micro-label that heads a group of nav rows. */
+.sidebar-label {
+  font-family: var(--mono);
+  font-size: var(--wheel-ui-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 var(--sidebar-pad);
+  margin-bottom: var(--wheel-space-sm);
+}
+
+.sidebar a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: var(--wheel-space-xs) var(--sidebar-pad);
+  font-size: var(--wheel-ui-xl);
+  line-height: 1.5;
+}
+
+.sidebar a:hover {
+  color: var(--ink);
+  background: var(--wheel-bg-hover);
+}
+
+/* Active page: an accent bar on the leading edge plus a faint accent wash —
+   the same row cursor the tracker uses, so "you are here" reads identically
+   across wheel surfaces. */
+.sidebar a.active {
+  color: var(--accent);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Rows sit under their group's micro-label, indented past it so the hierarchy
+   reads at a glance without any tree lines. Declared after `.sidebar a` (equal
+   specificity) so the indent wins over the shared row padding. */
+.sidebar-group a {
+  padding-left: calc(var(--sidebar-pad) + var(--wheel-space-lg));
+  font-size: var(--wheel-ui-xl);
+}
+
+/* ---- content (essay scale) --------------------------------------------- */
+
+.content {
+  max-width: 780px;
+  padding: 40px 48px 120px;
+}
+
+.content h1 {
+  font-size: var(--wheel-prose-2xl);
+  letter-spacing: -0.5px;
+  margin-top: 0;
+}
+
+/* Jumping from the "on this page" rail lands the heading a little below the
+   viewport edge instead of flush against it. */
+.content h2,
+.content h3 {
+  scroll-margin-top: var(--wheel-space-2xl);
+}
+
+.content h2 {
+  font-size: var(--wheel-prose-xl);
+  margin-top: 2.2em;
+  letter-spacing: -0.3px;
+}
+
+.content h3 {
+  font-size: var(--wheel-prose-lg);
+  margin-top: 1.8em;
+}
+
+.content code {
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: var(--wheel-radius-xs);
+  font-size: 0.9em;
+  font-family: var(--mono);
+}
+
+.content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-md);
+  padding: 14px var(--wheel-space-xl);
+  overflow-x: auto;
+  font-size: var(--wheel-prose-xs);
+  line-height: 1.55;
+}
+
+.content pre code {
+  background: none;
+  padding: 0;
+}
+
+/* ---- "on this page" rail (chrome density) ------------------------------
+   The mirror of the sidebar on the other side of the essay: same micro-label,
+   same accent row cursor, one level of indent for h3s under their h2. It is
+   built from the rendered page's own headings (components/PageToc.tsx), so it
+   needs no markup in the prose. */
+
+.page-toc {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: calc(100vh - var(--topnav-h) - 1px);
+  overflow-y: auto;
+  padding: 40px var(--wheel-space-xl) var(--wheel-space-2xl) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.page-toc .sidebar-label {
+  padding: 0 var(--wheel-space-md);
+}
+
+/* A button, not a link: both shells route on the URL hash, so an `href="#id"`
+   would rewrite the route. Reset it back to looking like a nav row. */
+.page-toc-link {
+  font: inherit;
+  font-size: var(--wheel-ui-lg);
+  line-height: 1.45;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-left: 2px solid transparent;
+  color: var(--muted);
+  padding: var(--wheel-space-xs) var(--wheel-space-md);
+  cursor: pointer;
+}
+
+.page-toc-link.level-3 {
+  padding-left: calc(var(--wheel-space-md) + var(--wheel-space-lg));
+  font-size: var(--wheel-ui-md);
+}
+
+.page-toc-link:hover {
+  color: var(--ink);
+}
+
+/* The section you are reading, marked with the same leading accent bar the
+   sidebar uses for the page you are on. */
+.page-toc-link.active {
+  color: var(--accent);
+  font-weight: 600;
+  border-left-color: var(--accent);
+}
+
+/* Below this the essay measure and two rails no longer fit side by side. The
+   rail is a convenience, the prose is not, so the rail is what goes. */
+@media (max-width: 1100px) {
+  .shell {
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  }
+
+  .page-toc {
+    display: none;
+  }
+}
+
+/* ---- tables (data, so: instrument density) ------------------------------
+   The framing demo's .frameHead/.frameRow treatment, applied to markdown
+   tables: an uppercase mono micro-label header row on the soft chrome
+   surface, hairline rules between rows instead of a box around every cell,
+   and 13px body so a wide reference table fits the 780px measure. Long values
+   wrap rather than truncate — a docs table that hides half a type signature
+   behind an ellipsis is worse than one that runs two lines. */
+
+.content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: var(--wheel-space-2xl) 0;
+  font-size: var(--wheel-ui-xl);
+  line-height: 1.5;
+}
+
+.content th {
+  font-family: var(--mono);
+  font-size: var(--wheel-ui-md);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--code-bg);
+  border-bottom: 1px solid var(--line);
+  padding: var(--wheel-space-sm) var(--wheel-space-lg);
+  text-align: left;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.content td {
+  border-bottom: 1px solid var(--line-soft);
+  padding: var(--wheel-space-sm) var(--wheel-space-lg);
+  text-align: left;
+  vertical-align: top;
+  /* break-word, never `anywhere`: `anywhere` lets the browser count a single
+     character as a column's minimum width, which collapses the identifier
+     column into a one-letter-per-line ribbon. */
+  overflow-wrap: break-word;
+  color: color-mix(in srgb, var(--ink) 82%, var(--muted));
+}
+
+/* The identifier column: the thing you scan for, so it keeps full-strength
+   ink. (No nowrap — several docs tables carry a whole sentence here.) */
+.content td:first-child {
+  color: var(--ink);
+}
+
+.content table code {
+  font-size: 0.95em;
+  padding: 0 3px;
+}
+
+/* Identifiers in the scan column stay on one line — a rule name broken across
+   two rows at its own hyphen is the thing you were scanning for. Only the
+   first column: elsewhere a long signature is free to wrap. */
+.content td:first-child code {
+  white-space: nowrap;
+}
+
+/* ---- callouts and demos ------------------------------------------------- */
+
+.aside {
+  border-left: 3px solid var(--note-line);
+  background: var(--note-bg);
+  border-radius: 0 var(--wheel-radius-md) var(--wheel-radius-md) 0;
+  padding: var(--wheel-space-lg) var(--wheel-space-xl);
+  margin: 20px 0;
+  font-size: var(--wheel-prose-sm);
+}
+
+.aside.todo {
+  border-left-color: var(--todo-line);
+  background: var(--todo-bg);
+}
+
+.aside.warning {
+  border-left-color: var(--warn-line);
+  background: var(--warn-bg);
+}
+
+/* Same micro-label as the sidebar heading and the landing page's figure
+   labels — one label treatment across the whole site. */
+.aside .aside-label,
+.demo-label {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: var(--wheel-ui-md);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: block;
+}
+
+.aside .aside-label {
+  margin-bottom: var(--wheel-space-xs);
+}
+
+.aside.todo .aside-label {
+  color: var(--todo-ink);
+}
+
+.aside.note .aside-label {
+  color: var(--accent);
+}
+
+.aside.warning .aside-label {
+  color: var(--warn-ink);
+}
+
+.diagram {
+  margin: var(--wheel-space-2xl) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-lg);
+  padding: var(--wheel-space-xl);
+  overflow-x: auto;
+}
+
+.diagram svg {
+  display: block;
+  margin: 0 auto;
+}
+
+.diagram-caption {
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--wheel-prose-xs);
+  margin-top: 10px;
+}
+
+.demo {
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-lg);
+  padding: 20px;
+  margin: var(--wheel-space-2xl) 0;
+}
+
+.demo-label {
+  color: var(--muted);
+  margin-bottom: var(--wheel-space-lg);
+}
+
+.demo button {
+  font: inherit;
+  padding: var(--wheel-space-sm) 14px;
+  border-radius: var(--wheel-radius-sm);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  margin-right: var(--wheel-space-md);
+}
+
+.demo button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

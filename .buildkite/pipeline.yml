@@ -1,0 +1,236 @@
+agents:
+  queue: "hosted-linux"
+
+cache:
+  paths:
+    - ".cache/bun"
+  name: "wheel-bun-cache"
+  size: "20g"
+
+env:
+  BUN_INSTALL_CACHE_DIR: ".cache/bun"
+
+steps:
+  - label: ":eslint: Static"
+    key: "check-static"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run check:static"
+
+  - label: ":vitest: Unit"
+    key: "check-unit"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run check:unit"
+    artifact_paths:
+      - "test-results/**/*"
+
+  - label: ":chromium: Browser apps"
+    key: "check-browser-apps"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run docs:build"
+      - "bun run test:browser"
+      - "bun run test:browser:website"
+    artifact_paths:
+      - "test-results/**/*"
+      - "playwright-report/**/*"
+
+  - label: ":chromium: Browser components and behaviors"
+    key: "check-browser-components"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run test:browser:components"
+      - "bun run test:behaviors:smoke"
+    artifact_paths:
+      - "test-results/**/*"
+      - "playwright-report/**/*"
+
+  - label: ":chromium: Browser demos"
+    key: "check-browser-demos"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run test:browser:demos"
+    artifact_paths:
+      - "test-results/**/*"
+      - "playwright-report/**/*"
+
+  - label: ":cloudflare: Workers"
+    key: "check-cloudflare"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 15
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run check:cloudflare"
+
+  - label: ":package: Package Wheel"
+    key: "package-wheel"
+    if: build.tag =~ /^wheel-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/
+    depends_on:
+      - "check-static"
+      - "check-unit"
+      - "check-browser-apps"
+      - "check-browser-components"
+      - "check-browser-demos"
+      - "check-cloudflare"
+    timeout_in_minutes: 15
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run package:wheel"
+    artifact_paths:
+      - ".artifacts/npm/*.tgz"
+      - ".artifacts/npm/wheel-release.json"
+
+  - label: ":package: Stage Wheel"
+    key: "stage-wheel"
+    if: build.tag =~ /^wheel-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/
+    depends_on:
+      - "package-wheel"
+    timeout_in_minutes: 10
+    secrets:
+      NPM_TOKEN: "NPM_PUBLISH_TOKEN"
+    plugins:
+      - mise#v1.1.5:
+          install_args: node
+    commands:
+      - "buildkite-agent artifact download '.artifacts/npm/*' . --step package-wheel"
+      - "node scripts/ci/stage-npm-release.mjs"
+
+  - label: ":globe_with_meridians: Build website"
+    key: "build-website"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    depends_on:
+      - "check-static"
+      - "check-unit"
+      - "check-browser-apps"
+      - "check-browser-components"
+      - "check-browser-demos"
+      - "check-cloudflare"
+    timeout_in_minutes: 15
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run website:build"
+      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.jsonc"
+      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.production.jsonc"
+    artifact_paths:
+      - "packages/website/dist/**/*"
+
+  - label: ":card_file_box: Build tracker"
+    key: "build-tracker"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    depends_on:
+      - "check-static"
+      - "check-unit"
+      - "check-browser-apps"
+      - "check-browser-components"
+      - "check-browser-demos"
+      - "check-cloudflare"
+    timeout_in_minutes: 15
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run build"
+      - "bun run --cwd packages/tracker build"
+      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.tracker.jsonc"
+    artifact_paths:
+      - "packages/tracker/dist/**/*"
+      - "packages/wheel/dist/**/*"
+
+  - label: ":rocket: Deploy branch"
+    key: "deploy-branch"
+    if: >-
+      (build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard") &&
+      build.source == "webhook" &&
+      build.pull_request.id == null &&
+      build.tag == null
+    depends_on:
+      - "build-website"
+      - "build-tracker"
+    timeout_in_minutes: 15
+    concurrency: 1
+    concurrency_group: "wheel/deploy/${BUILDKITE_BRANCH}"
+    concurrency_method: "eager"
+    secrets:
+      CLOUDFLARE_API_TOKEN: "CF_WORKERS_TOKEN"
+      CLOUDFLARE_ACCOUNT_ID: "CF_ACCOUNT_ID"
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      # Two patterns per directory, and BOTH are required. `**/*` matches every
+      # nested file on upload AND on download, but on DOWNLOAD it does not match
+      # files sitting directly in the directory — the two sides of
+      # `buildkite-agent artifact` use different glob implementations. Build 37
+      # uploaded 87 website files and downloaded 84: the three dropped were
+      # dist/index.html, dist/llms.txt and dist/install.md, which then 404'd in
+      # production. `dist/*` picks up exactly that top level.
+      - "buildkite-agent artifact download 'packages/website/dist/*' . --step build-website"
+      - "buildkite-agent artifact download 'packages/website/dist/**/*' . --step build-website"
+      - "buildkite-agent artifact download 'packages/tracker/dist/*' . --step build-tracker"
+      - "buildkite-agent artifact download 'packages/tracker/dist/**/*' . --step build-tracker"
+      - "buildkite-agent artifact download 'packages/wheel/dist/*' . --step build-tracker"
+      - "buildkite-agent artifact download 'packages/wheel/dist/**/*' . --step build-tracker"
+      - "bun install --frozen-lockfile --ignore-scripts"
+      - "node node_modules/wrangler/bin/wrangler.js whoami"
+      - "bun scripts/ci/deploy-branch.ts"
+
+  - label: ":game_die: Nightly fuzz"
+    key: "fuzz"
+    if: build.env("WHEEL_CI_MODE") == "fuzz"
+    timeout_in_minutes: 45
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "FUZZ_SEEDS=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 FUZZ_STEPS=500 bunx vitest run packages/tracker/test/m5-fuzz.test.ts"
+
+  - label: ":wastebasket: Cleanup branch Workers"
+    key: "cleanup-branches"
+    if: build.env("WHEEL_CI_MODE") == "cleanup"
+    timeout_in_minutes: 15
+    secrets:
+      CLOUDFLARE_API_TOKEN: "CF_WORKERS_TOKEN"
+      CLOUDFLARE_ACCOUNT_ID: "CF_ACCOUNT_ID"
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun scripts/ci/cleanup-branches.ts --apply"

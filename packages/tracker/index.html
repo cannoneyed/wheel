@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Axle</title>
+    <script>
+      // Restore the stored theme choice before first paint (no flash). With
+      // nothing stored, no attribute is set and the OS preference applies.
+      try {
+        var theme = localStorage.getItem('wheel-theme');
+        if (theme) document.documentElement.dataset.theme = theme;
+      } catch (error) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

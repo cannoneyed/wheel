@@ -1,0 +1,27 @@
+{
+  "name": "wheel-docs",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run -c vitest.config.ts"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^1.1.4",
+    "solid-js": "^1.9.0",
+    "wheel": "workspace:@cannoneyed/wheel@*"
+  },
+  "devDependencies": {
+    "@mdx-js/rollup": "^3.1.0",
+    "@shikijs/rehype": "^3.13.0",
+    "jsdom": "^25.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-mdx-frontmatter": "^5.2.0",
+    "shiki": "^3.13.0",
+    "vite": "^6.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}

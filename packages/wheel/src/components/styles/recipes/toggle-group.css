@@ -1,0 +1,30 @@
+/* ========================================================================
+ * RECIPE: ToggleGroup — single-part segmented-control container
+ * (data-orientation / data-disabled / data-multiple contract)
+ *
+ * Pattern notes:
+ *  - Single-part component: class is `wheel-ToggleGroup`. Its children are
+ *    `Toggle`s, styled by recipes/toggle.css.
+ *  - The group itself is the "well" the toggle chips sit in — hairline
+ *    border-strong + elevated background, per the fields/wells surface
+ *    treatment rule.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-ToggleGroup {
+    display: inline-flex;
+    gap: calc(var(--wheel-component-space) * 1);
+    padding: calc(var(--wheel-component-space) * 1);
+    border-radius: var(--wheel-component-radius-lg);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+  }
+
+  .wheel-ToggleGroup[data-orientation='vertical'] {
+    flex-direction: column;
+  }
+
+  .wheel-ToggleGroup[data-disabled] {
+    opacity: 0.6;
+  }
+}

@@ -1,0 +1,64 @@
+.section {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.heading {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+.progress {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.parentButton {
+  border: none;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  text-align: left;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+}
+
+.childArchived {
+  opacity: 0.45;
+}
+
+.childTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.input {
+  border: none;
+  border-bottom: 1px dashed var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 6px;
+  font-size: 12px;
+}

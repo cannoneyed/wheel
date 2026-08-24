@@ -1,0 +1,57 @@
+/* ========================================================================
+ * RECIPE: Avatar — circular image/fallback with a fade transition
+ * (data-starting-style / data-ending-style contract on Image)
+ *
+ * Pattern notes:
+ *  - Root has no interaction state of its own (imageLoadingStatus never maps
+ *    to a data attribute — see stateAttributesMapping.ts); it's pure layout.
+ *  - Image fades in/out using the library's presence attributes, exactly
+ *    like Popover.Popup's enter/exit contract.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Avatar-Root {
+    --wheel-component-avatar-size: 2.25rem;
+
+    box-sizing: border-box;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: var(--wheel-component-avatar-size);
+    height: var(--wheel-component-avatar-size);
+    overflow: hidden;
+    border-radius: 9999px;
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border);
+    background: var(--wheel-component-bg-sunken);
+    color: var(--wheel-component-fg-muted);
+    font-size: var(--wheel-component-text-sm);
+    line-height: 1;
+    user-select: none;
+  }
+
+  .wheel-Avatar-Image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 1;
+    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Avatar-Image[data-starting-style],
+  .wheel-Avatar-Image[data-ending-style] {
+    opacity: 0;
+  }
+
+  .wheel-Avatar-Fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--wheel-component-fg-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+}

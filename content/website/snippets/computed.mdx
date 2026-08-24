@@ -1,0 +1,6 @@
+```ts
+/** Derive, don't store: open-todo count can never go stale. */
+readonly remaining = this.computed(
+  () => this.list.rows.filter((todo) => !todo.done).length
+);
+```

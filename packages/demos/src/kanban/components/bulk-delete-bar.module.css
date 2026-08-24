@@ -1,0 +1,20 @@
+/* The destructive toolbar button: dense icon + count. Hover keeps the danger
+   color (the global button:hover accent must not win); disabled fades. */
+
+.danger,
+.danger:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  line-height: 0;
+  font-size: 12px;
+  border-color: var(--wheel-danger);
+  color: var(--wheel-danger);
+}
+
+.danger:disabled,
+.danger:disabled:hover {
+  opacity: 0.4;
+  cursor: default;
+}

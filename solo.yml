@@ -1,0 +1,57 @@
+name: null
+icon: null
+# Every process runs through portless, which assigns it a FREE port and
+# serves it at https://<name>.localhost. Nothing here is Solo-specific: the
+# same `bun run dev:*` scripts work in any terminal or supervisor, and the
+# repo's vite/playwright configs find these servers by reading portless's
+# registry — never by checking who launched them.
+processes:
+  demos:dev:
+    command: bun run dev:demos
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  demos:server:
+    command: bun run dev:demos:server
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  website:
+    command: bun run dev:website
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  tracker:server:
+    command: bun run dev:tracker:server
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  tracker:dev:
+    command: bun run dev:tracker
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  docs:
+    command: bun run dev:docs
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  playground:
+    command: bun run dev:playground
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}

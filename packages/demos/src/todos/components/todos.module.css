@@ -1,0 +1,95 @@
+/* Todos demo family: add row, list rows, context menu, clear-completed. */
+
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.addRow input[type='text'] {
+  flex: 1;
+  min-width: 160px;
+  max-width: 360px;
+}
+
+/* Dense icon-only button (lucide): the svg IS the label, title is the a11y. */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  line-height: 0;
+}
+
+.remaining {
+  align-self: center;
+  color: var(--wheel-ink-muted);
+  font-size: 13px;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 520px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 4px;
+  border-bottom: 1px solid var(--wheel-line);
+}
+
+.rowText {
+  flex: 1;
+}
+
+.rowTextDone {
+  text-decoration: line-through;
+  color: var(--wheel-ink-muted);
+}
+
+.clearButton {
+  margin-left: auto; /* right edge of the toolbar */
+  padding: 3px 8px;
+  font-size: 12px;
+  border-color: var(--wheel-danger);
+  color: var(--wheel-danger);
+}
+
+.clearButton:hover {
+  border-color: var(--wheel-danger-deep);
+  color: var(--wheel-danger-deep);
+}
+
+.menu {
+  background: var(--wheel-bg-raised);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-md);
+  box-shadow: var(--wheel-shadow-float);
+  padding: 4px;
+  min-width: 160px;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 6px 12px;
+  border-radius: var(--wheel-radius-xs);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.menuItem:hover {
+  background: var(--wheel-bg-hover);
+}
+
+.menuItemDanger {
+  color: var(--wheel-danger);
+}

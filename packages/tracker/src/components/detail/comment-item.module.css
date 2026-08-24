@@ -1,0 +1,77 @@
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+
+.author {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.time,
+.edited {
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.tool {
+  border: none;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.body {
+  font-size: 13px;
+  padding-left: 24px;
+}
+
+.body :is(p, ul, ol) {
+  margin: 0 0 6px;
+}
+
+.editInput {
+  width: 100%;
+  resize: vertical;
+}
+
+.reactions {
+  display: flex;
+  gap: 4px;
+  padding-left: 24px;
+}
+
+.reaction {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: var(--wheel-radius-pill);
+}
+
+.addReaction {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: var(--wheel-radius-pill);
+  color: var(--ink-muted);
+}

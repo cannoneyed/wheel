@@ -1,0 +1,211 @@
+/* ========================================================================
+ * RECIPE: Select — Menu-shaped popup (list) driving a field-like trigger
+ * (data-open/starting-ending-style on Popup; data-highlighted/-selected on
+ * Item; data-placeholder on Value; --anchor-width/--available-height)
+ *
+ * Pattern notes:
+ *  - Trigger reads like a text field (min-width, space-between layout for
+ *    the value + caret), not the generic wheel-Button pill.
+ *  - Popup's min-width locks to --anchor-width (matches trigger width);
+ *    [data-side='none'] is Select's "aligned directly over the trigger"
+ *    positioning mode — it forgoes the enter animation and offsets by a
+ *    hairline instead, matching upstream's native-select-like feel.
+ *  - Item reserves a fixed indicator column via CSS grid (see the Menu
+ *    CheckboxItem/RadioItem exemplar) so labels align whether or not the
+ *    current item is selected.
+ *  - Separator inside the popup is the shared wheel-Separator class.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Select-Backdrop {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+  }
+
+  .wheel-Select-Label {
+    display: block;
+    margin-bottom: calc(var(--wheel-component-space) * 1);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    font-weight: 500;
+  }
+
+  .wheel-Select-Icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--wheel-component-fg-muted);
+  }
+
+  .wheel-Select-Trigger {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--wheel-component-space) * 3);
+    min-width: 11rem;
+    height: 2rem;
+    padding-inline: calc(var(--wheel-component-space) * 3) calc(var(--wheel-component-space) * 2);
+    border-radius: var(--wheel-component-radius-md);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-rest);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    white-space: nowrap;
+    user-select: none;
+    transition:
+      background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
+      border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-Select-Trigger:hover:not([data-disabled]) {
+      background: var(--wheel-component-bg-hover);
+    }
+  }
+
+  .wheel-Select-Trigger[data-popup-open] {
+    background: var(--wheel-component-bg-sunken);
+  }
+
+  .wheel-Select-Trigger[data-invalid] {
+    border-color: var(--wheel-component-danger);
+  }
+
+  .wheel-Select-Trigger[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  .wheel-Select-Value[data-placeholder] {
+    color: var(--wheel-component-fg-subtle);
+  }
+
+  .wheel-Select-Popup {
+    box-sizing: border-box;
+    padding-block: calc(var(--wheel-component-space) * 1);
+    border-radius: var(--wheel-component-radius-lg);
+    background: var(--wheel-component-bg-elevated);
+    background-clip: padding-box;
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-elevated);
+    min-width: var(--anchor-width);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    transform-origin: var(--transform-origin, center);
+    transition:
+      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
+  }
+
+  .wheel-Select-Popup[data-starting-style],
+  .wheel-Select-Popup[data-ending-style] {
+    opacity: 0;
+    scale: 0.97;
+  }
+
+  .wheel-Select-Popup[data-side='none'] {
+    transition: none;
+    translate: 0 var(--wheel-component-hairline);
+    scale: 1;
+    opacity: 1;
+    min-width: calc(var(--anchor-width) + calc(var(--wheel-component-space) * 7));
+  }
+
+  .wheel-Select-Arrow {
+    fill: var(--wheel-component-bg-elevated);
+  }
+
+  .wheel-Select-List {
+    box-sizing: border-box;
+    position: relative;
+    padding-block: calc(var(--wheel-component-space) * 1);
+    overflow-y: auto;
+    max-height: var(--available-height);
+    scroll-padding-block: calc(var(--wheel-component-space) * 6);
+  }
+
+  .wheel-Select-Group {
+    padding-bottom: calc(var(--wheel-component-space) * 0.5);
+  }
+
+  .wheel-Select-GroupLabel {
+    box-sizing: border-box;
+    padding: calc(var(--wheel-component-space) * 1.5) calc(var(--wheel-component-space) * 4) calc(var(--wheel-component-space) * 1.5)
+      calc(var(--wheel-component-space) * 9);
+    color: var(--wheel-component-fg-subtle);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+    user-select: none;
+  }
+
+  .wheel-Select-Item {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 1rem 1fr;
+    align-items: center;
+    gap: calc(var(--wheel-component-space) * 2);
+    margin-inline: calc(var(--wheel-component-space) * 1);
+    padding: calc(var(--wheel-component-space) * 2) calc(var(--wheel-component-space) * 3);
+    border-radius: var(--wheel-component-radius-sm);
+    color: var(--wheel-component-fg);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    cursor: default;
+    user-select: none;
+    transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Select-Item[data-highlighted] {
+    background: var(--wheel-component-bg-hover);
+  }
+
+  .wheel-Select-Item[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+    cursor: not-allowed;
+  }
+
+  .wheel-Select-ItemIndicator {
+    grid-column-start: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .wheel-Select-ItemIndicator svg {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  .wheel-Select-ItemText {
+    grid-column-start: 2;
+  }
+
+  .wheel-Select-ScrollUpArrow,
+  .wheel-Select-ScrollDownArrow {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 1rem;
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg-muted);
+    cursor: default;
+  }
+
+  .wheel-Select-ScrollUpArrow {
+    top: 0;
+  }
+
+  .wheel-Select-ScrollDownArrow {
+    bottom: 0;
+  }
+}

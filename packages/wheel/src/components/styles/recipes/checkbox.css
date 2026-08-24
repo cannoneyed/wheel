@@ -1,0 +1,70 @@
+/* ========================================================================
+ * RECIPE: Checkbox — binary control with a tri-state indeterminate value
+ * (data-checked / data-unchecked / data-indeterminate contract)
+ *
+ * Pattern notes:
+ *  - Root is a small square control (span, role="checkbox"); Indicator is
+ *    the checkmark glyph shown while checked/indeterminate — it only
+ *    mounts while checked (unless `keepMounted`), so its enter/exit binds
+ *    to the presence attributes like the Popover exemplar.
+ *  - Field validity (`data-invalid`) tints the border danger; disabled
+ *    dims both parts.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Checkbox-Root {
+    --wheel-component-checkbox-size: 1rem;
+
+    box-sizing: border-box;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: var(--wheel-component-checkbox-size);
+    height: var(--wheel-component-checkbox-size);
+    border-radius: var(--wheel-component-radius-xs);
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-accent-fg);
+    transition:
+      background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
+      border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Checkbox-Root[data-checked],
+  .wheel-Checkbox-Root[data-indeterminate] {
+    background: var(--wheel-component-accent);
+    border-color: transparent;
+  }
+
+  .wheel-Checkbox-Root[data-invalid] {
+    border-color: var(--wheel-component-danger);
+  }
+
+  .wheel-Checkbox-Root[data-disabled] {
+    background: var(--wheel-component-bg-hover);
+    border-color: var(--wheel-component-border);
+    cursor: not-allowed;
+  }
+
+  .wheel-Checkbox-Indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Checkbox-Indicator svg {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  .wheel-Checkbox-Indicator[data-starting-style],
+  .wheel-Checkbox-Indicator[data-ending-style] {
+    opacity: 0;
+  }
+
+  .wheel-Checkbox-Indicator[data-disabled] {
+    color: var(--wheel-component-fg-subtle);
+  }
+}

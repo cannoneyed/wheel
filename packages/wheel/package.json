@@ -1,0 +1,163 @@
+{
+  "name": "@cannoneyed/wheel",
+  "version": "0.1.0",
+  "description": "A local-first Solid application framework with observable services, sync, UI primitives, and deterministic test tools.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cannoneyed/wheel.git",
+    "directory": "packages/wheel"
+  },
+  "homepage": "https://github.com/cannoneyed/wheel#readme",
+  "bugs": {
+    "url": "https://github.com/cannoneyed/wheel/issues"
+  },
+  "engines": {
+    "node": ">=20.19",
+    "bun": ">=1.1"
+  },
+  "files": [
+    "dist",
+    "eslint/index.mjs",
+    "eslint/rules",
+    "LICENSE",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": false,
+    "tag": "alpha"
+  },
+  "exports": {
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "bun": "./dist/node/auth/index.js",
+      "node": "./dist/node/auth/index.js",
+      "import": "./dist/browser/auth/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "bun": "./dist/node/core/index.js",
+      "node": "./dist/node/core/index.js",
+      "import": "./dist/browser/core/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "bun": "./dist/node/config/index.js",
+      "node": "./dist/node/config/index.js",
+      "import": "./dist/browser/config/index.js"
+    },
+    "./sync": {
+      "types": "./dist/sync/index.d.ts",
+      "bun": "./dist/node/sync/index.js",
+      "node": "./dist/node/sync/index.js",
+      "import": "./dist/browser/sync/index.js"
+    },
+    "./sync/server": {
+      "types": "./dist/sync/server/index.d.ts",
+      "bun": "./dist/node/sync/server/index.js",
+      "node": "./dist/node/sync/server/index.js",
+      "import": "./dist/browser/sync/server/index.js"
+    },
+    "./sync/server/cloudflare": {
+      "types": "./dist/sync/server/cloudflare.d.ts",
+      "import": "./dist/browser/sync/server/cloudflare.js",
+      "default": "./dist/browser/sync/server/cloudflare.js"
+    },
+    "./sync/server/testing": {
+      "types": "./dist/sync/server/testing.d.ts",
+      "bun": "./dist/node/sync/server/testing.js",
+      "node": "./dist/node/sync/server/testing.js",
+      "import": "./dist/browser/sync/server/testing.js"
+    },
+    "./kit": {
+      "types": "./dist/kit/index.d.ts",
+      "bun": "./dist/node/kit/index.js",
+      "node": "./dist/node/kit/index.js",
+      "import": "./dist/browser/kit/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "bun": "./dist/node/components/index.js",
+      "node": "./dist/node/components/index.js",
+      "import": "./dist/browser/components/index.js"
+    },
+    "./components/styles": {
+      "import": "./dist/components/styles/index.css",
+      "default": "./dist/components/styles/index.css"
+    },
+    "./components/*": {
+      "types": "./dist/components/*/index.d.ts",
+      "bun": "./dist/node/components/*/index.js",
+      "node": "./dist/node/components/*/index.js",
+      "import": "./dist/browser/components/*/index.js"
+    },
+    "./router": {
+      "types": "./dist/router/index.d.ts",
+      "bun": "./dist/node/router/index.js",
+      "node": "./dist/node/router/index.js",
+      "import": "./dist/browser/router/index.js"
+    },
+    "./styles": {
+      "import": "./dist/styles/tokens.css",
+      "default": "./dist/styles/tokens.css"
+    },
+    "./debug": {
+      "types": "./dist/debug/index.d.ts",
+      "bun": "./dist/node/debug/index.js",
+      "node": "./dist/node/debug/index.js",
+      "import": "./dist/browser/debug/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "bun": "./dist/node/testing/index.js",
+      "node": "./dist/node/testing/index.js",
+      "import": "./dist/browser/testing/index.js"
+    },
+    "./testing/playwright": {
+      "types": "./dist/testing/playwright.d.ts",
+      "bun": "./dist/node/testing/playwright.js",
+      "node": "./dist/node/testing/playwright.js"
+    },
+    "./vite": {
+      "types": "./dist/vite/index.d.ts",
+      "bun": "./dist/node/vite/index.js",
+      "node": "./dist/node/vite/index.js",
+      "import": "./dist/node/vite/index.js"
+    },
+    "./eslint": {
+      "import": "./eslint/index.mjs",
+      "default": "./eslint/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -b --force && node scripts/fix-declaration-imports.mjs && vite build --config vite.config.ts --mode browser && vite build --config vite.config.ts --mode node && node --eval \"const fs=require('node:fs');fs.mkdirSync('dist/styles',{recursive:true});fs.copyFileSync('src/styles/tokens.css','dist/styles/tokens.css');fs.cpSync('src/components/styles','dist/components/styles',{recursive:true})\""
+  },
+  "dependencies": {
+    "@floating-ui/utils": "^0.2.12",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@floating-ui/dom": "^1.8.0",
+    "immer": "^11.1.15",
+    "xstate": "^5.32.5",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "better-sqlite3": "^12.11.1",
+    "solid-js": "^1.9.10"
+  },
+  "peerDependenciesMeta": {
+    "better-sqlite3": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@solidjs/testing-library": "^0.8.10",
+    "@typescript-eslint/parser": "^8.64.0",
+    "better-sqlite3": "^12.11.1",
+    "fake-indexeddb": "^6.2.5",
+    "solid-js": "^1.9.0"
+  }
+}

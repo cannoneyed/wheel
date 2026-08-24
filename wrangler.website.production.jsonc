@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wheel-site",
+  "main": "cloudflare/website-worker.ts",
+  "compatibility_date": "2026-08-21",
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "wheel.dev/*",
+      "zone_name": "wheel.dev"
+    }
+  ],
+  "assets": {
+    "directory": "packages/website/dist",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "run_worker_first": true
+  }
+}

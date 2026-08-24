@@ -1,0 +1,22 @@
+.components-site {
+  min-height: 100vh;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.components-site .site-topnav {
+  position: relative;
+  z-index: 20;
+  background: var(--bg);
+}
+
+.components-site .component-audit__index {
+  top: 0;
+  height: calc(100vh - var(--topnav-h) - 1px);
+}
+
+@media (max-width: 820px) {
+  .components-site .component-audit__index {
+    height: auto;
+  }
+}

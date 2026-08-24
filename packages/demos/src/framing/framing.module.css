@@ -1,0 +1,793 @@
+/* Framing is the reference surface for the wheel design tokens (imported once
+   in shell/styles.css).
+
+   It used to paint from the FIXED palettes: light chrome from
+   `--wheel-chrome-*` around a stage baked dark with `--wheel-stage-*`. Those
+   names are literal colors, so the whole demo ignored the theme toggle — the
+   one surface on the site that could not go light or dark with the rest.
+
+   Everything here now reads the theme-following aliases instead. Both fixed
+   palettes run the same ladder (surfaces deepest → highest, ink and lines
+   strongest → faintest), so the depths that used to be spelled `stage-3` and
+   `chrome-2` are one alias, `--wheel-bg-soft`, and the demo keeps its layered
+   look in both themes. */
+
+.demo {
+  width: min(100%, 1100px);
+  min-width: 0;
+  color: var(--wheel-ink);
+}
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 20px;
+}
+
+.hero h1 {
+  margin: 5px 0 8px;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.hero p {
+  max-width: 680px;
+  margin: 0;
+  color: var(--wheel-ink-muted);
+  font-size: 14px;
+}
+
+.hero code {
+  color: var(--wheel-indigo-deep);
+  font-size: 12px;
+}
+
+.eyebrow {
+  color: var(--wheel-indigo);
+  font: 700 11px/1 var(--wheel-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.heroBadges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 300px;
+}
+
+.heroBadges span {
+  border: 1px solid var(--wheel-line);
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--wheel-ink-soft);
+  background: var(--wheel-bg-soft);
+  font: 600 10px/1.2 var(--wheel-mono);
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 12px;
+  border: 1px solid var(--wheel-line);
+  border-radius: 12px 12px 0 0;
+  background: var(--wheel-bg-soft);
+}
+
+.controlGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.controlGroup button,
+.resetButton,
+.smallButton {
+  border: 1px solid var(--wheel-line-strong);
+  border-radius: 6px;
+  padding: 5px 9px;
+  background: var(--wheel-bg);
+  color: var(--wheel-ink-soft);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.resetButton {
+  align-self: flex-start;
+  margin-left: auto;
+  /* Line up with the buttons in labeled groups, whose label row sits above. */
+  margin-top: 14px;
+}
+
+.controlGroup button[aria-pressed='true'] {
+  border-color: var(--wheel-indigo-edge);
+  color: var(--wheel-indigo-deep);
+  background: var(--wheel-indigo-tint);
+}
+
+.controlGroup button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.controlLabel {
+  flex-basis: 100%;
+  margin: 0 0 1px 2px;
+  color: var(--wheel-ink-faint);
+  font: 700 9px/1 var(--wheel-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.controlReadout {
+  color: var(--wheel-ink-muted);
+  font: 600 11px/1 var(--wheel-mono);
+}
+
+.resetButton {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------------- stage */
+
+.stageArea {
+  display: block;
+}
+
+.containerControls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 1px solid var(--wheel-line);
+  border-top: 0;
+  background: var(--wheel-bg);
+}
+
+.containerControls label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--wheel-ink-muted);
+  font-size: 11px;
+}
+
+.containerControls label > span {
+  display: flex;
+  min-width: 92px;
+  flex-direction: column;
+}
+
+.containerControls output {
+  color: var(--wheel-ink);
+  font: 700 12px/1.3 var(--wheel-mono);
+}
+
+.containerControls input {
+  width: 190px;
+  accent-color: var(--wheel-indigo-bright);
+}
+
+.containerControls > span {
+  margin-left: auto;
+  color: var(--wheel-ink-faint);
+  font-size: 10px;
+}
+
+.containerControls code {
+  color: var(--wheel-indigo);
+}
+
+.stageRail {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  padding: 18px;
+  overflow: auto;
+  border: 1px solid var(--wheel-line);
+  border-top: 0;
+  background-color: var(--wheel-bg-sunken);
+  background-image:
+    linear-gradient(var(--wheel-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--wheel-line) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 560px;
+  height: 460px;
+  overflow: hidden;
+  border: 1px solid var(--wheel-line);
+  border-radius: 9px;
+  background: var(--wheel-bg);
+  box-shadow: var(--wheel-shadow-stage);
+  transition: max-width 160ms ease;
+}
+
+/* --------------------------------------------------------------- workbench */
+
+.workbench {
+  --wheel-frame-divider: var(--wheel-line);
+  --wheel-frame-divider-active: var(--wheel-indigo-soft);
+  --wheel-frame-divider-snap: var(--wheel-ok-soft);
+  /* Emerald wash for the snap badge: a translucent one-off with no opaque
+     token parent (not derivable from --wheel-ok-soft), kept literal. */
+  --wheel-frame-snap-badge: rgb(16 185 129 / 22%);
+  --wheel-frame-reorder: var(--wheel-indigo-soft);
+  --wheel-dock-preview: color-mix(in srgb, var(--wheel-indigo-soft) 22%, transparent);
+  --wheel-dock-preview-border: var(--wheel-indigo-soft);
+
+  /* Tighter than the kit's 12px default: a 4px overhang keeps resize
+     affordances off the pane headers that double as drag grips. */
+  --wheel-frame-handle-size: 8px;
+
+  /* The framework scrollbar, tuned to the dark stage. */
+  --wheel-scrollbar-size: 8px;
+  --wheel-scrollbar-track: color-mix(in srgb, var(--wheel-indigo-soft) 8%, transparent);
+  --wheel-scrollbar-thumb: color-mix(in srgb, var(--wheel-ink-muted) 35%, transparent);
+  --wheel-scrollbar-thumb-active: color-mix(in srgb, var(--wheel-indigo-soft) 80%, transparent);
+
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  color: var(--wheel-ink-soft);
+  font-size: 11px;
+}
+
+.sidebarFrame {
+  background: var(--wheel-bg-soft);
+}
+
+.editorFrame {
+  background: var(--wheel-bg);
+}
+
+.panelFrame {
+  background: var(--wheel-bg-sunken);
+}
+
+.outlineFrame {
+  background: var(--wheel-bg-soft);
+}
+
+.drawerFrame {
+  --drawer-shadow: rgb(0 0 0 / 35%);
+
+  background: var(--wheel-bg-high);
+  /* Directional spill to the drawer's left: a one-off outside the three
+     shadow tokens, kept literal. */
+  box-shadow: -14px 0 32px var(--drawer-shadow);
+}
+
+.paneHeading {
+  padding: 10px 12px 7px;
+  color: var(--wheel-ink-soft);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.paneNote {
+  margin: auto 12px 12px;
+  color: var(--wheel-ink-faint);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.explorerPane,
+.outlinePane,
+.drawerPane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.fileTree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 9px;
+  color: var(--wheel-ink-soft);
+}
+
+.fileTree span,
+.fileTree strong {
+  overflow: hidden;
+  padding: 3px 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileTree strong {
+  color: var(--wheel-ink);
+  font-size: 10px;
+}
+
+.treeFile {
+  padding-left: 18px !important;
+  color: var(--wheel-ink-muted);
+}
+
+.outlinePane ul {
+  margin: 0;
+  padding: 2px 12px 12px;
+  color: var(--wheel-ink-muted);
+  list-style: none;
+  line-height: 1.8;
+}
+
+.drawerPane {
+  color: var(--wheel-ink-soft);
+}
+
+.drawerPane p {
+  margin: 0 12px 10px;
+  color: var(--wheel-ink-muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.drawerPane code {
+  color: var(--wheel-violet-soft);
+}
+
+/* ----------------------------------------------------------------- editors */
+
+.editorPane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.editorHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 27px;
+  /* Right padding keeps the close button clear of the neighbouring frame's
+     resize handle, which overhangs 4px past the boundary it straddles. */
+  padding: 0 10px 0 6px;
+  border-bottom: 1px solid var(--wheel-line-soft);
+  background: var(--wheel-bg-raised);
+}
+
+/* A pane mid-reorder-drag reads as "in hand": dimmed, outlined, above its
+   siblings, while the kit's indicator line marks where it will land. */
+.editorFrame[data-frame-dragging='true'] {
+  z-index: 35;
+  opacity: 0.55;
+  outline: 1px dashed var(--wheel-indigo-soft);
+  outline-offset: -1px;
+}
+
+.editorGrip {
+  overflow: hidden;
+  flex: 1 1 auto;
+  padding: 5px 4px;
+  border-radius: 4px;
+  color: var(--wheel-ink-soft);
+  font-size: 10px;
+  cursor: grab;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  touch-action: none;
+  user-select: none;
+}
+
+.editorGrip:hover {
+  background: var(--wheel-bg-hover);
+}
+
+.paneClose {
+  flex: none;
+  border: 0;
+  border-radius: 4px;
+  padding: 1px 5px 3px;
+  color: var(--wheel-ink-faint);
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.paneClose:hover {
+  color: var(--wheel-ink);
+  background: var(--wheel-bg-hover-strong);
+}
+
+.editorSurface {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  resize: none;
+  overflow: auto;
+  border: 0;
+  outline: 0;
+  padding: 8px 10px;
+  color: var(--wheel-ink-soft);
+  background: transparent;
+  font: 10px/1.65 var(--wheel-mono);
+  tab-size: 2;
+  white-space: pre;
+}
+
+.editorStatus {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 9px;
+  overflow: hidden;
+  color: var(--wheel-ink-faint);
+  background: var(--wheel-bg-soft);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------- dock */
+
+.dockHost {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dockBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--wheel-line-soft);
+  background: var(--wheel-bg);
+}
+
+.dockLabel {
+  color: var(--wheel-ink-soft);
+  font: 700 9px/1 var(--wheel-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dockHint {
+  color: var(--wheel-ink-faint);
+  font-size: 9px;
+}
+
+.smallButton {
+  margin-left: auto;
+  padding: 3px 7px;
+  border-color: var(--wheel-line-strong);
+  background: var(--wheel-bg-hover);
+  color: var(--wheel-ink-soft);
+  font-size: 10px;
+}
+
+.dockPanel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--wheel-line-soft);
+  background: var(--wheel-bg-sunken);
+}
+
+.dockPanel[data-dragging='true'] {
+  opacity: 0.55;
+}
+
+.dockHeader {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--wheel-line-soft);
+  background: var(--wheel-bg-raised);
+}
+
+.dockGrip {
+  overflow: hidden;
+  flex: 1 1 auto;
+  padding: 4px 8px;
+  color: var(--wheel-ink-soft);
+  font-size: 9px;
+  cursor: grab;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  touch-action: none;
+  user-select: none;
+}
+
+.paneMore {
+  margin-right: 2px;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--wheel-ink-faint);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.paneMore:hover {
+  background: var(--wheel-bg-hover);
+  color: var(--wheel-ink);
+}
+
+/* The menus belong to the dark stage they open from, not the light page. */
+.panelMenu {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid var(--wheel-line);
+  border-radius: 8px;
+  background: var(--wheel-bg-raised);
+  box-shadow: var(--wheel-shadow-menu);
+}
+
+.panelMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--wheel-ink-soft);
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.panelMenuItem:hover,
+.panelMenuItem:focus-visible {
+  background: var(--wheel-bg-hover);
+  color: var(--wheel-ink);
+}
+
+.panelMenuCheck {
+  display: inline-block;
+  width: 12px;
+  color: var(--wheel-indigo-soft);
+  font-size: 11px;
+}
+
+.panelMenuDivider {
+  margin: 4px 2px;
+  border-top: 1px solid var(--wheel-line);
+}
+
+.dockEmpty {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 12px;
+  color: var(--wheel-ink-faint);
+  font-size: 11px;
+  text-align: center;
+}
+
+.controlGroup button.chip {
+  border-radius: 999px;
+}
+
+.dockBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 0;
+  padding: 7px 8px;
+  overflow: auto;
+  color: var(--wheel-ink-muted);
+  font: 9px/1.4 var(--wheel-mono);
+}
+
+/* --------------------------------------------------------------- inspector */
+
+.layoutInspector {
+  border: 1px solid var(--wheel-line);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: var(--wheel-bg);
+}
+
+.inspectorHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--wheel-line-soft);
+  color: var(--wheel-ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.inspectorHeading > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.inspectorHeading code {
+  color: var(--wheel-ink-muted);
+  font-size: 10px;
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--wheel-ok);
+  box-shadow: 0 0 0 3px var(--wheel-ok-tint);
+}
+
+.frameTable {
+  display: flex;
+  flex-direction: column;
+}
+
+.frameHead,
+.frameRow {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border-bottom: 1px solid var(--wheel-line-soft);
+  font-size: 10px;
+}
+
+.frameHead {
+  color: var(--wheel-ink-faint);
+  background: var(--wheel-bg-soft);
+  font: 700 9px/1.2 var(--wheel-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.frameRow {
+  color: var(--wheel-ink-soft);
+}
+
+.frameRow[data-dragging='true'] {
+  background: var(--wheel-indigo-tint);
+}
+
+.frameRow code,
+.frameRow span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visibleState {
+  color: var(--wheel-ok-ink);
+}
+
+.hiddenState {
+  color: var(--wheel-danger-ink);
+}
+
+.interactionState {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  color: var(--wheel-ink-soft);
+  font-size: 10px;
+}
+
+.interactionState span {
+  color: var(--wheel-ink-faint);
+  font: 700 9px/1.2 var(--wheel-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.interactionState code {
+  overflow: hidden;
+  color: var(--wheel-indigo);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------- tour */
+
+.featureTour {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.featureTour article {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--wheel-line-soft);
+  border-radius: 9px;
+  background: var(--wheel-bg);
+}
+
+.featureTour article > span {
+  color: var(--wheel-indigo-soft);
+  font: 800 11px/1.2 var(--wheel-mono);
+}
+
+.featureTour strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--wheel-ink);
+  font-size: 12px;
+}
+
+.featureTour p {
+  margin: 0;
+  color: var(--wheel-ink-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.featureTour code {
+  color: var(--wheel-indigo-deep);
+  font-size: 10px;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .heroBadges {
+    justify-content: flex-start;
+  }
+
+  .controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .resetButton {
+    margin-left: 0;
+  }
+
+  .containerControls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .containerControls > span {
+    margin-left: 0;
+  }
+
+  .featureTour {
+    grid-template-columns: 1fr;
+  }
+}

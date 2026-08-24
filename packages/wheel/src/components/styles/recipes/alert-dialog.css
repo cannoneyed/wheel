@@ -1,0 +1,19 @@
+/* ========================================================================
+ * RECIPE: Alert Dialog — reuses the Dialog recipe entirely
+ *
+ * AlertDialog.Backdrop / .Popup / .Title / .Description / .Viewport / .Close
+ * are literal re-exports of the Dialog parts (see
+ * packages/wheel/src/components/alert-dialog/index.parts.ts and AlertDialogTrigger,
+ * which *is* DialogTrigger) — style them with recipes/dialog.css's
+ * wheel-Dialog-* classes and recipes/button.css's wheel-Button. The only thing
+ * genuinely specific to this component is the destructive-action button
+ * tone (`data-color="red"`, a demo-level convention, not a library state
+ * attribute) used on the "Discard" actions.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  :is(.wheel-Button, .wheel-Dialog-Close)[data-color='red'] {
+    background: var(--wheel-component-danger);
+    color: white;
+  }
+}

@@ -1,0 +1,11 @@
+```ts
+export const toggleTodo = mutation({
+  name: 'todos.toggle',
+  args: t.object({ todoId: t.string() }),
+  optimistic: (cache, args) => {
+    const row = cache.get(todos, args.todoId);
+    if (!row) throw orphan(`todo ${args.todoId} is gone`);
+    cache.update(todos, args.todoId, { done: !row.done });
+  }
+});
+```

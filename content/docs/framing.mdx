@@ -1,0 +1,320 @@
+---
+title: Framing
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import { Diagram } from '@docs/components/Diagram';
+import { KitchenSinkFrame } from '@docs/examples/framing/workbench';
+import workbenchSource from '@docs/examples/framing/workbench.tsx?example';
+import dockingSource from '@docs/examples/framing/docking.tsx?example';
+
+# Framing
+
+An app shell is a tree of resizable, collapsible regions.
+
+You write the structure as ordinary JSX — `Frame.Row`, `Frame.Column`, `Frame.Drawer` — and give every region an `id`. `LayoutService` owns what changes about those regions: their sizes, whether they are open, the in-flight drag, and what gets saved.
+
+One rule explains the whole design:
+
+> **Your app owns structure. Framing owns geometry.**
+
+*Structure* — which regions exist, what is inside them, how many there are — is application state rendered as ordinary JSX. *Geometry* — width, open or closed, the clamps, what survives reload — is the service's, keyed by frame id. There is no layout description format, no view registry, and no tab model: a region's contents are its children.
+
+## Live workbench
+
+Drag any divider. Or focus one (they are keyboard-reachable) and press the arrow keys. Type in the editor, then hide the sidebar: the text stays, because closing a frame hides it and never unmounts its children.
+
+<KitchenSinkFrame />
+
+Drag the width slider below 520px and the sidebar collapses by itself. That is `collapseBelow` on the sidebar frame. It does not touch the user's open/closed choice, so the sidebar comes back at its saved width when the container grows again.
+
+## The structure
+
+That workbench is this JSX:
+
+<CodeExample example={workbenchSource} region="definition" />
+
+Three components, and they nest freely:
+
+| Component | Arranges children | Notes |
+| --- | --- | --- |
+| `Frame.Row` | left to right | dividers appear between visible siblings |
+| `Frame.Column` | top to bottom | same, on the vertical axis |
+| `Frame.Drawer` | — | overlays content instead of taking space from it; starts closed |
+
+A frame's own kind decides how it arranges *its* children. Its `size` is read by its **parent** — that is why the columns inside `Frame.Row id="workbench"` are sized by width, and the frames inside `Frame.Column id="work"` are sized by height.
+
+Ids must be unique in the app. An `id` is three things at once: the persistence key, the target you pass to service actions, and the label in the debug graph. Mounting two frames with the same id throws.
+
+There is deliberately no `Frame.Sidebar`. A sidebar is not a kind of region — it is a pixel-sized column the app can close, which every frame already is.
+
+## Mounting it
+
+Render the shell anywhere:
+
+<CodeExample example={workbenchSource} region="usage" />
+
+There is nothing to configure. `LayoutService` is a plain kit singleton; the first `Frame` that mounts resolves it and registers itself. A root frame (one with no frame ancestor) fills its container, so the container is where you set the height.
+
+## Sizes and constraints
+
+`size` has exactly two accepted spellings, and the type enforces both:
+
+- `'200px'` — a fixed track.
+- `'1fr'` — a share of whatever space is left after the pixel tracks.
+
+`minSize`, `maxSize`, and `collapseBelow` are pixels only. `parseFrameSize` is the single parser behind all of them; an unparseable size is a compile error from the `FrameSize` template type, and also throws at registration.
+
+| Prop | Effect |
+| --- | --- |
+| `size` | track preference: `'200px'` or `'2fr'` |
+| `minSize` / `maxSize` | clamps applied to every resize, pointer or keyboard |
+| `collapseBelow` | hide this frame while its parent split measures narrower than this |
+| `defaultOpen` | starting open state; a saved user choice wins on remount |
+| `scrollable` | `'x'` or `'y'` — let content overflow along that axis behind a framework-drawn permanent scrollbar (the native one is hidden) |
+| `draggable` / `onReorder` | drag-to-reorder inside a split (below) |
+
+When two `fr` siblings are resized, the service redistributes their **combined** weight in proportion to the final pixels. Siblings outside the dragged pair keep their share. Pixel tracks store their new pixel value.
+
+## Dynamic regions
+
+A changing set of regions is a `<For>`. A frame registers with its nearest frame *ancestor* through context, so your own wrapper components are invisible to the system. That is what lets the live component tree be the layout tree: if the set of open editors lives in a service, the set of editor panes is a loop over it:
+
+```tsx
+// Excerpt: the set of editors is app state; the panes are a For over it.
+<Frame.Row id="editors">
+  <For each={editors.open()}>
+    {(doc) => (
+      <Frame.Column id={`editor-${doc.id}`} size="1fr" minSize="120px">
+        <Editor documentId={doc.id} />
+      </Frame.Column>
+    )}
+  </For>
+</Frame.Row>
+```
+
+Open a document in your service and a pane appears. Close one and its siblings absorb the space. Reopen it and its last size comes back, because saved geometry is keyed by id and outlives unmount. No layout API was called — you changed state and rendered JSX.
+
+## Driving geometry by id
+
+Components never hold layout refs and never receive layout props. They connect to `LayoutService` and call actions with a frame id:
+
+<CodeExample example={workbenchSource} region="controls" />
+
+The service's read and write surface:
+
+| Call | What it does |
+| --- | --- |
+| `node(id)` | live record: `open`, `visible`, `size`, `pixels`, `dragging`, constraints |
+| `has(id)` | whether a frame with this id is currently registered |
+| `visible(id)` | effective visibility — open, minus responsive collapse |
+| `childOrder(parentId)` | one split's children in DOM order, as the mounted parent reported them |
+| `open` / `close` / `toggle` | change the user's open choice for one id |
+| `resize(id, size)` | set a track preference directly |
+| `reset(id?)` | forget saved deviations for one frame, or for all of them |
+| `diagnostics()` | recoverable storage and registration failures |
+
+One more read is **not** a call. `LayoutService.interaction` is an atom holding the in-flight
+resize draft, or `null` when nothing is being dragged — so you read it with
+`layout.interaction.get()`, like any other atom.
+
+<Aside kind="note">
+  <strong>Reads never throw for an id that is not mounted; actions do.</strong> With live JSX,
+  frames coming and going is normal operation — so <code>node('gone')</code> returns
+  <code>null</code>, <code>has('gone')</code> returns <code>false</code>, and
+  <code>visible('gone')</code> returns <code>false</code>. But <code>toggle('sidbar')</code> is a
+  typo, not a state, so every action throws <code>Unknown frame</code> on an id nothing
+  registered.
+</Aside>
+
+Nothing is bound to a key for you: no shortcut is pre-registered, so your app decides what "toggle sidebar" means. And because geometry is ordinary Wheel state, everything downstream is free — actions are traced, the debug graph shows each frame's size and visibility live, and tests drive layout through the service without touching the DOM.
+
+<Diagram
+  direction="LR"
+  nodes={[
+    { id: 'app', label: 'App state', sub: 'which regions exist', kind: 'service' },
+    { id: 'jsx', label: 'Your JSX', sub: 'Frame.Row / Column', kind: 'component' },
+    { id: 'layout', label: 'LayoutService', sub: 'size, open, clamps', kind: 'service' },
+    { id: 'store', label: 'Storage', sub: 'deviations, by id', kind: 'store' },
+    { id: 'dom', label: 'Rendered shell', kind: 'component' }
+  ]}
+  edges={[
+    { from: 'app', to: 'jsx', label: 'structure' },
+    { from: 'jsx', to: 'layout', label: 'register by id' },
+    { from: 'jsx', to: 'dom' },
+    { from: 'layout', to: 'dom', label: 'geometry' },
+    { from: 'layout', to: 'store', dashed: true }
+  ]}
+  caption="Two owners, no overlap. Structure flows from app state through JSX; geometry lives in one service keyed by frame id."
+/>
+
+## Resizing
+
+Each frame renders one trailing divider, shared with its next **visible** sibling. The last child of a split has no divider, and a divider disappears when the sibling on either side closes.
+
+| Input | Result |
+| --- | --- |
+| Drag the divider | live preview; only the release writes a preference |
+| <kbd>Arrow</kbd> | 10px, along the parent's axis |
+| <kbd>Shift</kbd> + <kbd>Arrow</kbd> | 50px |
+| <kbd>Home</kbd> / <kbd>End</kbd> | run to the clamp in either direction |
+| <kbd>Enter</kbd> | toggle this frame open or closed |
+| Double-click | restore both adjacent tracks to their JSX defaults |
+| <kbd>Escape</kbd>, lost pointer capture, a second pointer, window blur | cancel the drag |
+
+The divider is a real `role="separator"` with `aria-orientation`, `aria-valuenow` from the measured size, and `aria-valuemin`/`aria-valuemax` from the constraints. Pointer and keyboard resizing run the same clamped service math, so they cannot disagree.
+
+A drag in progress lives in `LayoutService.interaction` and renders as a pixel override. It is never written to persisted geometry — only the committed release is.
+
+## Collapsed regions stay mounted
+
+Closing a frame — by `close(id)`, or automatically via `collapseBelow` — leaves its children mounted. The frame element goes to zero on the main axis with `visibility: hidden`, `aria-hidden`, and `inert`, so it is out of the layout, out of the accessibility tree, and out of tab order, while local component state inside it survives untouched.
+
+`collapseBelow` measures the **parent split**, along the parent's axis, from a `ResizeObserver` on the parent's element. It changes the frame's `visible`, never its `open`. That is all the responsive behavior there is — no named breakpoints and no condition map.
+
+## What gets saved
+
+The service saves **deviations only**. A frame sitting at the size and open state its JSX declared leaves no entry at all, so changing a default in code takes effect for everyone who never moved that divider.
+
+| State | Saved |
+| --- | --- |
+| A size a user actually changed | Yes |
+| An open/closed choice that differs from `defaultOpen` | Yes |
+| Anything still at its JSX default | No — no entry is written |
+| Measured pixels, child order, in-flight drag | No |
+
+The payload is plain JSON: `{ formatVersion: 3, nodes: { [id]: { size?, open? } } }`. Deviations are keyed by id and outlive unmount, so a frame inside a `<Show>` returns at the size the user left it.
+
+`LayoutStorage` is where saved geometry goes: a synchronous three-method interface (`read`, `write`, `remove`) you can replace with your own. It is read once during construction, so geometry is correct on the first paint. The default is `localLayoutStorage('wheel.layout')` in a browser and `memoryLayoutStorage()` when there is no `localStorage`. Storage is the one reason to subclass:
+
+```tsx
+// Excerpt: an app-owned layout service with its own storage key.
+class WorkspaceLayoutService extends LayoutService {
+  constructor(context: ServiceContext) {
+    super(context, { storage: memoryLayoutStorage(), storageKey: 'workspace' });
+  }
+}
+```
+
+There are no migrations. `parseLayoutSnapshot` accepts format version 3 and nothing else; a payload that is the wrong version, or malformed in any field, is discarded, removed from storage, and reported through `diagnostics()`. The layout falls back to the JSX defaults, which are always valid.
+
+## Rearranging regions
+
+The rule for every drag that moves a panel: **framing runs the gesture; your service applies the drop.** Pointer capture, hit testing, edge detection, and drop previews are framework code you never write — but a completed drop is not a mutation of a private graph. It arrives as an intent for your action, which updates the same state that was already rendering your JSX.
+
+**Reordering inside a split.** Mark the children `draggable`, give the split an `onReorder`, and the drop hands you the new id order:
+
+```tsx
+// Excerpt: the drop reports an order; the service owns the list.
+<Frame.Row id="editors" onReorder={(ids) => editors.setOrder(ids)}>
+  <For each={editors.open()}>
+    {(doc) => (
+      <Frame.Column id={`editor-${doc.id}`} draggable>
+        <Editor documentId={doc.id} />
+      </Frame.Column>
+    )}
+  </For>
+</Frame.Row>
+```
+
+A press on a button, link, input, or divider never starts a reorder drag. Put `data-frame-grip` on one element inside a frame and only that element does.
+
+**Free-form docking.** `Frame.Dock` is opt-in, for apps that want drag-a-panel-anywhere workspaces. The tree is **yours** — a plain-JSON `SplitTree` in one of your atoms, holding only ids:
+
+<CodeExample example={dockingSource} region="service" />
+
+`applyDockIntent` detaches the dragged panel, lands it on the target's edge, and normalizes: same-axis drops insert a sibling, cross-axis drops wrap the target in a new split, single-child splits collapse away. Untouched branches keep their object identity, so the renderer keeps that DOM. An impossible intent (unknown id, self-drop) returns the same tree. `removePanel` and `normalizeSplitTree` are exported for the rest of the workspace's editing, and `panelIds` lists what is currently placed.
+
+`Frame.Dock` renders that tree and never mutates it. A drop surfaces as a `DockIntent` (`panelId`, `targetPanelId`, `edge`); ids become components in your `panel` render prop, not in a registry:
+
+<CodeExample example={dockingSource} region="dock" />
+
+Because dock leaves and splits render as ordinary `Frame.Column`/`Frame.Row`, everything above — resizing, constraints, persistence, the debug graph — works inside a dock with no extra code.
+
+## Gesture state machines
+
+Everyone has hand-rolled a resize handle, and every hand-rolled version ships the same bug reports in week one: release the mouse outside the window and the handle drags forever; alt-tab mid-drag and it is stuck again; Escape does not cancel, or cancels but leaves the draft applied; a second finger lands and the geometry teleports; double-click-to-reset gets eaten by the drag threshold.
+
+The cause is always the same. Drag logic written as event handlers scatters one stateful process across five callbacks coordinating through `isDragging` booleans, and the booleans lie the moment events arrive in an order nobody hand-tested.
+
+So framing writes no drag event handlers. Every pointer interaction is an explicit XState machine with real states:
+
+```text
+idle → pressed → dragging ⇄ dragging (modified)
+         │            │
+         ├→ click     ├→ committed   (pointer up: one commit, one persist)
+         └→ dblclick  └→ cancelled   (Escape, pointercancel, capture loss, second pointer)
+```
+
+The machine owns every decision — the movement slop that separates a click from a drag, what modifiers mean while held, what each abnormal event means in each state. A thin DOM adapter does nothing but feed it events (pointer, key, blur, `lostpointercapture`) and run its commands: take pointer capture, batch moves through one animation frame, release, restore text selection. Decisions in the machine, effects at the edge.
+
+That split is what makes the torture cases *data*: scripted event sequences asserting the exact resulting state, hundreds of them, no browser required. One engine drives everything — split dividers, panel reorder, and dock drops — so there is no second implementation to keep in sync.
+
+Because you have hand-rolled this too, the primitive is exported:
+
+```tsx
+// Excerpt: createGesture is the machine behind every divider and drag.
+const gesture = createGesture(handleElement, {
+  slop: 4,
+  onDraft: (delta) => preview(delta.dx),
+  onCommit: (delta) => apply(delta.dx),
+  onCancel: () => preview(null),
+  onDoubleClick: () => reset()
+});
+```
+
+Capture, cancellation, slop, modifiers, and draft/commit/cancel semantics are handled; you write the callbacks that are actually your app. `gesture.dispose()` removes every listener and stops the actor.
+
+## Styling
+
+Animation is deliberately not a framework behavior. Think VS Code, not a marketing page: toggles are instant, and instant is right for a tool you live in. State flips immediately too — `open` changes on the action, never when a transition ends — so no framework or app code ever waits on an animation.
+
+When a product does want a transition, the hook is CSS. Every frame stamps stable attributes to select on:
+
+| Attribute | Where | Values |
+| --- | --- | --- |
+| `data-wheel-frame` | frame root | the frame's `id` |
+| `data-frame-kind` | frame root | `row`, `column`, `drawer` |
+| `data-frame-open` | frame root | the user's choice: `true` / `false` |
+| `data-frame-visible` | frame root | the effective result: `true` / `false` |
+| `data-wheel-frame-handle` | divider | the id of the frame it trails |
+| `data-state` | divider | `idle`, `hover`, `dragging` |
+| `data-wheel-dock-panel` | dock leaf | the panel id |
+
+```css
+/* A drawer slide is a stylesheet rule, not a framework mode. */
+[data-frame-kind='drawer'] { transition: transform 160ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  [data-frame-kind='drawer'] { transition: none; }
+}
+```
+
+Colors come from custom properties you set anywhere above the frames: `--wheel-frame-divider`, `--wheel-frame-divider-active`, `--wheel-frame-reorder`, `--wheel-dock-preview`, and `--wheel-dock-preview-border`.
+
+## Boundaries
+
+Framing imports the kernel and nothing else: no router, no sync engine, no dialogs, no command palette. Layout is local UI state, so it is never sync data. Opening the right region for a route is a job for a route service at the application layer.
+
+What is deliberately absent, and why:
+
+- **No view registry and no view schemas.** Wheel already has a state system. "Which documents are open" belongs in your service; teaching the layout engine to store validated view descriptors builds a second, worse copy of Wheel inside Wheel.
+- **No view HOC** — no `type`, `params`, `title`, or `closable` options. Those existed so an engine could rebuild and police panes it owned. The engine does not own panes; a panel is a component and already has props.
+- **No `Frame.Sidebar`** — a column with a toggle covers it.
+- **No default animation, and no snapshot migrations** — see above.
+
+<Aside kind="todo">
+  <strong>Tabs.</strong> Tabs are a content pattern — one region, many things, one visible — with
+  their own accessibility contract, equally at home in a frame, a dialog, or a plain page. Welding
+  them into a layout engine is what forces the shadow-graph design this API exists to avoid. A
+  <code>Tabs</code> kit component will ship separately, built the same way: dragging a tab out of a
+  group emits the same dock intents, your action applies them to your tree, your JSX renders the
+  result. Floating windows and browser popouts are also out of scope for now — panel ids are
+  already the indirection a popout adapter would need.
+</Aside>
+
+## Next
+
+- [Patterns](#/patterns) — the other kit systems: context menus, dialogs, focus, shortcuts.
+- [Routing](#/routing) — the route tree whose layouts render into this shell.
+- [Debugging](#/debugging) — watch each frame's size and visibility live in the panel.

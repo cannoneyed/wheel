@@ -1,0 +1,98 @@
+/* Sheet family: grid table, header cells, editable cells, edit input,
+   sums row, hint note, and the per-cell context menu. */
+
+.grid:focus {
+  /* The focus scope element takes programmatic focus (tabindex from
+     use:focusScope); the selected-cell outline is the visible cursor. */
+  outline: none;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 13px;
+  /* Fixed layout: opening/closing a cell's editor must not reflow the other
+     columns — a mid-edit click on another cell would land on shifted
+     geometry (the browser then retargets the click to the row). */
+  table-layout: fixed;
+}
+
+.headerCell {
+  border: 1px solid var(--wheel-line);
+  background: var(--wheel-bg-soft);
+  color: var(--wheel-ink-muted);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.cell {
+  border: 1px solid var(--wheel-line);
+  padding: 0;
+  width: 86px;
+  height: 30px;
+}
+
+.cellSelected {
+  outline: 2px solid var(--wheel-accent);
+  outline-offset: -2px;
+}
+
+.cellValue {
+  display: block;
+  padding: 4px 8px;
+  min-height: 22px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellInput {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  outline: 2px solid var(--wheel-accent);
+  padding: 4px 8px;
+  font: inherit;
+}
+
+.sumCell {
+  border: 1px solid var(--wheel-line);
+  min-width: 86px;
+  height: 30px;
+  padding: 4px 8px;
+  background: var(--wheel-bg-soft);
+  font-weight: 600;
+  text-align: right;
+}
+
+.note {
+  color: var(--wheel-ink-muted);
+  font-size: 13px;
+}
+
+.menu {
+  background: var(--wheel-bg-raised);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-md);
+  box-shadow: var(--wheel-shadow-float);
+  padding: 4px;
+  min-width: 160px;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 6px 12px;
+  border-radius: var(--wheel-radius-xs);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.menuItem:hover {
+  background: var(--wheel-bg-hover);
+}

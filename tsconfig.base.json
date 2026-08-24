@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "wheel/auth": ["packages/wheel/src/auth/index.ts"],
+      "wheel/config": ["packages/wheel/src/config/index.ts"],
+      "wheel/core": ["packages/wheel/src/core/index.ts"],
+      "wheel/sync": ["packages/wheel/src/sync/index.ts"],
+      "wheel/sync/server": ["packages/wheel/src/sync/server/index.ts"],
+      "wheel/sync/server/cloudflare": ["packages/wheel/src/sync/server/cloudflare.ts"],
+      "wheel/kit": ["packages/wheel/src/kit/index.ts"],
+      "wheel/components": ["packages/wheel/src/components/index.ts"],
+      "wheel/components/*": ["packages/wheel/src/components/*/index.ts"],
+      "wheel/router": ["packages/wheel/src/router/index.ts"],
+      "wheel/debug": ["packages/wheel/src/debug/index.ts"],
+      "wheel/testing": ["packages/wheel/src/testing/index.ts"],
+      "wheel/testing/playwright": ["packages/wheel/src/testing/playwright.ts"],
+      "wheel/vite": ["packages/wheel/src/vite/index.ts"]
+    }
+  }
+}

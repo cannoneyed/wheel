@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      Page metadata lives twice on purpose: crawlers read it here, and the page
+      itself is written in src/home.mdx, whose frontmatter carries the same
+      `title` and `description`. Edit home.mdx first, then paste the two strings
+      down here. There is no build step keeping them in sync.
+    -->
+    <title>wheel — the web toolkit for the agentic era</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥝</text></svg>" />
+    <meta
+      name="description"
+      content="Wheel is a batteries-included web framework for local-first apps built by people and their agents. Every piece of state has a name, an owner, and a paper trail."
+    />
+    <script>
+      // Restore the stored theme choice before first paint (no flash).
+      try {
+        var theme = localStorage.getItem('wheel-theme');
+        if (theme) document.documentElement.dataset.theme = theme;
+      } catch (error) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

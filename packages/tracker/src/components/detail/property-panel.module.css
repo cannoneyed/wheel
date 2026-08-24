@@ -1,0 +1,48 @@
+.panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: var(--wheel-radius-pill);
+  position: relative;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+
+.labelDot {
+  font-size: 11px;
+}
+
+.dateInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}

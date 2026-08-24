@@ -1,0 +1,65 @@
+/* ========================================================================
+ * RECIPE: Preview Card — Popover archetype, triggered by an inline link
+ * (data-open / starting-ending-style; --popup-width/-height from the
+ * library's own-size measurement)
+ *
+ * Pattern notes:
+ *  - Trigger is a plain inline text link (renders an <a>), so it's styled
+ *    directly rather than through wheel-Button; data-popup-open underlines it
+ *    the same way hover does, so opening reads as a sticky hover state.
+ *  - Popup is the floating-surface archetype; --popup-width/-height default
+ *    to auto so unset content (no size lock) just hugs its children.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-PreviewCard-Backdrop {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+  }
+
+  .wheel-PreviewCard-Trigger {
+    color: inherit;
+    text-decoration-line: underline;
+    text-decoration-color: var(--wheel-component-border-strong);
+    text-underline-offset: 2px;
+    transition: text-decoration-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    .wheel-PreviewCard-Trigger:hover {
+      text-decoration-color: var(--wheel-component-fg);
+    }
+  }
+
+  .wheel-PreviewCard-Trigger[data-popup-open] {
+    text-decoration-color: var(--wheel-component-fg);
+  }
+
+  .wheel-PreviewCard-Popup {
+    box-sizing: border-box;
+    position: relative;
+    width: var(--popup-width, auto);
+    height: var(--popup-height, auto);
+    border-radius: var(--wheel-component-radius-lg);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-elevated);
+    font-size: var(--wheel-component-text-base);
+    line-height: var(--wheel-component-text-base--lh);
+    transform-origin: var(--transform-origin, center);
+    transition:
+      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
+  }
+
+  .wheel-PreviewCard-Popup[data-starting-style],
+  .wheel-PreviewCard-Popup[data-ending-style] {
+    opacity: 0;
+    scale: 0.97;
+  }
+
+  .wheel-PreviewCard-Arrow {
+    fill: var(--wheel-component-bg-elevated);
+  }
+}

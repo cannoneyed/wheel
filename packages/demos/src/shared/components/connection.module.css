@@ -1,0 +1,57 @@
+/* Connection-panel family: badge, chips, latency control. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--wheel-ink-muted);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-pill);
+  padding: 3px 10px;
+  /* Right edge of the header row: the in-flight chip grows LEFTWARD into
+     empty space, so its appearance never shifts the title or controls. */
+  margin-left: auto;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--wheel-radius-pill); /* an 8px pill IS a dot */
+}
+
+.queued {
+  background: var(--wheel-warn-tint);
+  color: var(--wheel-warn-ink);
+  border-radius: var(--wheel-radius-pill);
+  padding: 1px 8px;
+  font-weight: 600;
+}
+
+.pending {
+  background: var(--wheel-indigo-tint);
+  color: var(--wheel-indigo-deep);
+  border-radius: var(--wheel-radius-pill);
+  padding: 1px 8px;
+  transition: opacity 0.2s ease;
+}
+
+.pendingSettled {
+  background: var(--wheel-ok-tint);
+  color: var(--wheel-ok-ink);
+}
+
+.latency {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--wheel-ink-muted);
+}
+
+.latency select {
+  font: inherit;
+  padding: 2px 6px;
+  border-radius: var(--wheel-radius-sm);
+  border: 1px solid var(--wheel-line);
+}

@@ -1,0 +1,120 @@
+.sidebar {
+  background: var(--bg-raised);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  /* Fills its frame track: the frame gives width, this takes the height. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.workspace {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 8px;
+  font-weight: 700;
+}
+
+.themeButton {
+  border: none;
+  padding: 2px 6px;
+  font-size: 14px;
+}
+
+.section {
+  padding: 6px 6px 2px;
+}
+
+.sectionLabel {
+  color: var(--ink-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 8px 2px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
+.item:hover {
+  background: var(--bg-hover);
+}
+
+.itemActive {
+  background: var(--bg-hover);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.teamIcon {
+  width: 16px;
+  text-align: center;
+}
+
+.teamKey {
+  color: var(--ink-muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.subItem {
+  composes: item;
+  padding-left: 28px;
+  color: var(--ink-muted);
+}
+
+.footer {
+  margin-top: auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: var(--wheel-radius-pill);
+  font-size: 10px;
+  padding: 0 7px;
+  line-height: 16px;
+}
+
+.favoriteRow {
+  display: flex;
+  align-items: center;
+}
+
+.favoriteRow > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.favoriteRow .favoriteTool {
+  visibility: hidden;
+}
+
+.favoriteRow:hover .favoriteTool {
+  visibility: visible;
+}
+
+.favoriteTool {
+  border: none;
+  color: var(--ink-muted);
+  font-size: 9px;
+  padding: 2px 4px;
+}

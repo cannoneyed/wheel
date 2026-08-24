@@ -1,0 +1,221 @@
+---
+title: Components
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import { Diagram } from '@docs/components/Diagram';
+import { CounterDemo, IsolationDemo } from '@docs/components/CounterDemo';
+import todoListSource from '@docs/examples/getting-started/todo-list.tsx?example';
+import viewModelSource from '@docs/examples/components/view-model.tsx?example';
+
+# Components
+
+A component reaches shared state through one connection function, and that function returns the component's whole data manifest — no data passed down as props.
+
+Components render. That is their whole job. They own no shared state, fetch no data, and reach exactly one thing: the shape returned by their **one** connection function.
+
+<CodeExample example={todoListSource} />
+
+The declaration is the component's **complete data manifest**. Everything shared the component can see is named in one place, greppable, statically analyzable, and recorded in the registry at runtime. That makes the audit question — "what state does this component have and where did it come from?" — answerable for every component, always. The shape is a plain object, so the same manifest is also the mocking surface: stub the shape, and the component runs anywhere.
+
+`view()` writes the shape for you: reads (any zero-arg accessor) become tracked value properties, actions pass through as bound functions. A shape field must **defer** its read into the component's render so Solid tracks it there — an eager read is a frozen snapshot — and `view()` keeps that deferral by making each property a getter over the accessor you passed. Hand-written getters stay legal:
+
+```tsx
+// Excerpt: inside a connect declaration with both services in scope.
+return view(
+  {
+    remaining: todoService.remaining,                                  // pass a computed straight through
+    card: () => boardService.rows().find((r) => r.id === props.cardId) // or any thunk — still deferred
+  },
+  { add: todoService.add }                                            // a service's bound action
+);
+```
+
+The produced shape is identical to hand-written getters, so `stubOf`, `StubProvider`, and every lint rule apply unchanged.
+
+## Composition
+
+The "super component" failure mode is a component that does too many jobs — usually a parent that gathers every child's data and passes it down as props:
+
+```tsx
+// Intentionally bad: this is the prop-drilling anti-pattern.
+// BAD: the parent does every child's job. Twenty props of plumbing,
+// and no child can render without this exact parent.
+<WikiView
+  comments={sourceThreads}
+  document={selectedSourceDocument}
+  items={sourceItems}
+  onCreateComment={createSourceComment}
+  onDeleteComment={deleteSourceComment}
+  onOpenDocument={openSourceDocument}
+  onReplyComment={replyToSourceComment}
+  onResolveComment={resolveSourceComment}
+  {/* ...twelve more... */}
+/>
+```
+
+The same view, connected instead:
+
+```tsx
+// Excerpt: the child is a smart component that declares its own needs.
+// and plugs into the state system wherever it is mounted.
+<WikiView />
+```
+
+Connecting deep in the tree is the point, not a smell. A component that declares its own dependencies needs no special handling from its parent, moves anywhere in the tree without rewiring, and can be mounted alone in a sandbox. Props are for identity and variation (`listId`, `variant`), not for data plumbing.
+
+Pass props only when they are one of:
+
+1. **Identity** — which entity this instance renders (`todoId`).
+2. **Variation** — presentation choices (`compact`, `readonly`).
+3. **Simple reusable views** — a dumb, shared leaf (a button, an avatar) may take its data as props. That's what dumb components are for.
+
+<Aside kind="todo">
+  <strong><code>no-prop-drilling</code> lint rule.</strong> Passing service values or atoms as
+  props to anything that isn't a simple reusable view should fail the build. Static detection
+  needs care (identity/variation props are fine); the planned heuristic flags connect-shape
+  fields and service reads forwarded as JSX props on non-leaf components.
+</Aside>
+
+## The vm convention
+
+A **vm** (view-model) is a display-ready object a service assembles from several rows — an issue plus its assignee, its workflow state's color, its label rows, its comment count. The temptation is to build it in a parent and hand it down as `props.vm`. Don't: that's data plumbing wearing a different hat, and it breaks the trace. When `vm.stateColor` renders wrong on screen, you can't ask the component where the value came from — the trail dead-ends at a prop, and the real source is a private method in some other service.
+
+The convention: **a service exposes the vm as a `computedFor` keyed by id, and the component connects its OWN vm by passing the id.** The identity (`issueId`) is a legal prop; the vm is not.
+
+<CodeExample example={viewModelSource} />
+
+Why this is the trail, not the plumbing:
+
+1. **One greppable hop.** The wrong value on screen is `state.vm` → grep `issueVm` → the `computedFor` that built it. No parent to trace back through.
+2. **The vm shows up in the debug panel per key.** `computedFor` registers one live entry per `(teamId, issueId)` tuple, so the panel shows this exact issue's vm — not an opaque aggregate — and `view()` records the component → vm dependency edge.
+3. **The component mounts alone.** No parent has to assemble anything; `<IssueDetail teamId={t} issueId={i} />` is the whole contract, so it drops into a sandbox or a list unchanged.
+4. **Defer, never call.** Write `vm: () => svc.issueVm(id)` — the thunk defers the read into render so the per-key memo is tracked there. Writing `vm: svc.issueVm(id)` (called in place) freezes a snapshot; the `no-called-view-read` lint rule and a runtime check in `view()` both reject it.
+
+## Local state versus shared state
+
+Ephemeral, component-bound state (an open/closed flag, a hover, an input draft) stays in the component. It needs no service; putting it in one would be ceremony.
+
+It does need a name. Use `useSignal` from `wheel/core`, not Solid's `createSignal`:
+
+```tsx
+// Excerpt: inside a component body.
+import { useSignal } from 'wheel/core';
+
+const [draft, setDraft] = useSignal('', 'draft');   // shows as `draft` in the debug tree
+```
+
+`useSignal` is a drop-in — same tuple, same options — that records the name against the mounted component. A bare `createSignal` is an anonymous closure: the debug tree shows a component driven by `isOpen` and says nothing about `isOpen`, so debugging means reading source and guessing. The `require-use-signal` rule makes the bare form a build error inside components. Services use `this.atom` instead; module-level and helper-function signals are not component state and are left alone.
+
+The line: **the moment state is read by anyone else — another component, a service, the server — it moves to a service.** Shared state in a component is invisible to the registry, the debug panel, and the stubs tests rely on, so it is not allowed to exist.
+
+## Per-instance connect names
+
+The name can be a function of props: `connect((props) => name, declare)`. Each mounted instance then registers its **own** manifest under the computed name, and unregisters through Solid's lifecycle (`onCleanup`) when it unmounts — so a `<For>` list can't grow the registry without bound, which is exactly the leak a static name avoids by registering once:
+
+```tsx
+// Excerpt: a per-instance connector declaration.
+const connectCardContextMenu = connect(
+  (props: { cardId: string }) => `contextMenu:card:${props.cardId}`,
+  (c, props) => { /* ... */ }
+);
+```
+
+Use it when instances are meaningfully distinct global surfaces you want individually auditable — "which card's menu is open right now?" is answerable from the registry (the kanban demo's context menu does this). Default to static names everywhere else: one manifest per component is simpler to audit, and per-instance identity is usually the props' job. The function form must be called inside a component so the cleanup context exists — `single-connect` checks this.
+
+## Live example
+
+The real kernel runs below — a clientless sandbox scope, the same `connect()` your app code uses:
+
+<CounterDemo />
+
+Isolation is the same mechanism tests use. Two providers, two singletons, zero shared state:
+
+<IsolationDemo />
+
+## What connects to what
+
+<Diagram
+  direction="LR"
+  nodes={[
+    { id: 'props', label: 'Props', sub: 'identity + variation only', kind: 'component' },
+    { id: 'declare', label: 'connect declaration', sub: 'the manifest', kind: 'component' },
+    { id: 'shape', label: 'Shape', sub: 'frozen values + actions', kind: 'state' },
+    { id: 'view', label: 'JSX', sub: 'tracks only what it reads', kind: 'component' },
+    { id: 'svc', label: 'Services', sub: 'own all shared state', kind: 'service' },
+    { id: 'reg', label: 'Registry', sub: 'dependency edges', kind: 'tool' }
+  ]}
+  edges={[
+    { from: 'props', to: 'declare' },
+    { from: 'declare', to: 'svc', label: 'c.service' },
+    { from: 'declare', to: 'shape', label: 'returns' },
+    { from: 'shape', to: 'view' },
+    { from: 'declare', to: 'reg', label: 'records', dashed: true }
+  ]}
+  caption="One connection per component. It resolves services, returns reactive getters, and records every dependency."
+/>
+
+## Testing a component
+
+The shape is a plain object, and the stub targets it directly — no rewiring, no mock framework:
+
+```tsx
+// Excerpt: a test file importing the exported connectTodoList from todo-list.tsx.
+const stub = stubOf(connectTodoList, {
+  rows: FAKE_ROWS,       // what the liveQuery view would have handed over
+  remaining: 2,
+  add: addSpy,
+  toggle: toggleSpy
+});
+
+<StubProvider stubs={[stub]}><TodoList /></StubProvider>   {/* no other providers */}
+```
+
+The four fields are exactly the four the declaration returns — `rows`, `remaining`, `add`, `toggle`. That is not a coincidence you have to maintain: `stubOf` is typed against the declaration, so an extra field or a missing one is a compile error, and the compiler tells you what the component needs. Note that the connection has to be **exported** for a test in another file to reach it. The stub replaces the whole shape with plain values, and `view()` changes nothing here — it produces the same getter shape a hand-written declaration does. Deeper tiers: `ServiceProvider overrides` + `fakeService` for whole subtrees, and a World-backed engine for full integration — see [Patterns](#/patterns) for the three-tier table.
+
+**The playground is live**: `bun run playground` mounts a sample component all three ways. The browser tier runs the real engine on SQLite WASM. Register your own entries in `packages/playground/src/sandboxes.tsx`.
+
+## Inspecting components
+
+Try it: open any demo, click **🐛 wheel** → **◰**, and drag a rectangle over the page. A panel lists every connected component under it — innermost first, indented by nesting. Hover a row and the component lights up in place; click it to expand its LIVE state (the actual connect-shape getters, re-read on every open); "log to console" drops the state object into devtools.
+
+Three pieces make that work:
+
+1. **`use:componentRoot`** — every connected component marks its root element(s) with this no-argument directive. `connect()` stamps the mounted instance on the Solid owner; the directive walks up to it and attaches the element. Multi-root fragments mark each root; portaled components (menus, dialogs) are measured where they actually render; headless components carry the `wheel-component-root:` pragma instead. Lint-enforced (`require-component-root`), so forgetting is a build error, not a silent hole in the inspector. The shared TypeScript config enables `verbatimModuleSyntax`, so directive imports survive until Solid compiles them; no `void componentRoot` keep-alive is needed.
+2. **The instance registry** — each mount gets a record with a **live-slot id**: repeatable names are numbered from 1 (`TodoRow#1`, `TodoRow#2` — smallest free slot, so the same mount order yields the same ids after a reload); a per-instance name like `card:42` is unique by construction and stays bare. The record carries its elements, its action names, a `state()` that re-reads the shape's real getters, and its parent instance (from the Solid owner chain — that's the component tree). Costs one Map entry per mount; nothing measures rects or reads state until an inspector asks. In dev, roots are also stamped `data-wheel-id="<instanceId>"`, so plain CSS selectors find any instance from playwright. The `require-stable-instance-name` rule pushes components that read identity props onto per-instance names — ids that follow the data, not the mount order.
+3. **`InspectorService` + `<InspectorSystem/>`** — a service plus a system: the service owns mode/rect/hits/highlight (all inspectable state, like any service); the system renders the drag overlay and results panel. Mount the system next to your other systems. No keyboard shortcut is registered by default — enter through the debug panel's ◰ button or call `InspectorService.start()` yourself.
+
+The debug panel's **components** section also lists every mounted instance — hover one to outline it on the page (inset outline, zero layout shift). That's the fastest "where IS this thing" tool in the box.
+
+Scope: **every component is in the tree.** Connected components register through `connect()`; dumb components register through `use:viewRoot={'Name'}` — a dev-only directive that costs nothing in production (`require-view-root` enforces it whenever a non-connected component renders host DOM). A plain `<span>` inside TodoRow still belongs to TodoRow's rectangle; a named dumb component (`Avatar`, `Badge`) is its own tree node, selectable and highlightable like any connected instance — it has no state or actions to show. When a dumb component grows shared state, that's still the signal it deserves its own `connect()`.
+
+## What Wheel replaces
+
+Wheel is Solid. JSX, `<For>`, `<Switch>`, `createResource`, stores, and the compiler all work exactly as they do in any Solid app. A short list of Solid reflexes is replaced, and each replacement is a drop-in the linter enforces — so you find out at build time, not while debugging:
+
+| Solid reflex | Write this instead | Why |
+| --- | --- | --- |
+| `createSignal` inside a component | `useSignal(initial, 'name')` from `wheel/core` | The name shows up in the debug tree. An anonymous signal does not. (`require-use-signal`) |
+| `createSignal` / `createMemo` for anything shared | `this.atom` / `this.computed` on a service | Shared state gets an owner, a name, and a registry entry. (`prefer-computed`) |
+| `<Show>` from `solid-js` in a component's ROOT position | `<Show>` from `wheel/core` | The tree can then say `⊘ hidden` — "off on purpose" — instead of "renders nothing, cause unknown". (`require-tracked-show`) |
+| `ref={el}`, then passing `el` down as a prop | a `use:` directive | The child reads the ref before it is assigned and gets `undefined` forever. A directive is handed the real element. |
+| `useContext`, or a `useThing()` hook, to reach state | `connect()` + `context.service(Thing)` | One door into state, so the component's manifest is the whole truth. (`connect-only`) |
+| `setTimeout`, `Date.now()`, `Math.random()` in business code | `this.defer(ms, fn)`, `this.now()`, injected randomness | A seeded test can replay the exact schedule. (`no-raw-timers`) |
+| `location.href = …`, `history.pushState`, `<a href="/page">` | `RouterService.navigate`, `<Link to="…">` | The URL is an atom; a raw write moves the address bar and leaves the atom describing the previous page. (`no-raw-location`, `no-raw-anchor-navigation`) |
+
+Everything else in Solid is untouched. See [Linting](#/linting) for the full rule list and the reason behind each one.
+
+## The rules
+
+1. **One connection per component, called first.** `single-connect` enforces the count, the position, and the `connect<Name>` naming.
+2. **Data as values, actions as bound functions.** Return `todoService.remaining()`, not `todoService`. Enforced by `no-whole-service-injection`.
+3. **No queries in connect.** Server data flows through `SyncService.liveQuery` inside a service; the connection reads service values. Keeps queries in one layer.
+4. **Manifest caps.** More than 12 fields or 3 services in one declaration is a lint error (`max-connect-surface`) — a nudge that the component is doing too many jobs.
+
+## Next
+
+- [Services](#/services) — where the state a component reads actually lives
+- [Testing](#/testing) — stubs, service overrides, and the full engine
+- [Debugging](#/debugging) — the panel, the component tree, and the rectangle inspector
+- [Linting](#/linting) — every rule named here

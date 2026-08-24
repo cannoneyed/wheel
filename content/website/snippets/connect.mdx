@@ -1,0 +1,15 @@
+```tsx
+const connectSyncBadge = connect('SyncBadge', (c) => {
+  const sync = c.service(SyncStatusService);
+  return view({
+    status: sync.status,
+    queued: sync.queued,
+    pending: sync.pending
+  });
+});
+
+export function SyncBadge() {
+  const state = connectSyncBadge({});
+  return <span>{state.status} · {state.queued} unsaved</span>;
+}
+```

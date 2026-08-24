@@ -1,0 +1,18 @@
+/* ========================================================================
+ * RECIPE: Form — single-part layout wrapper
+ * (FormState carries no attributes of its own — it only coordinates the
+ * `Field`s and `Button` nested inside it, styled by their own recipes)
+ *
+ * Pattern notes:
+ *  - Single-part component: class is `wheel-Form`. Purely layout — the visual
+ *    weight lives entirely in the Field/Button recipes it composes.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Form {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--wheel-component-space) * 4);
+    width: 100%;
+  }
+}

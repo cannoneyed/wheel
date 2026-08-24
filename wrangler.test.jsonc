@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wheel-cloudflare-tests",
+  "main": "cloudflare/test-worker.ts",
+  "compatibility_date": "2026-08-21",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TRACKER_WORKSPACES",
+        "class_name": "TrackerWorkspace"
+      },
+      {
+        "name": "BACKEND_HARNESS",
+        "class_name": "BackendHarnessWorkspace"
+      }
+    ]
+  },
+  "exports": {
+    "TrackerWorkspace": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "BackendHarnessWorkspace": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  }
+}

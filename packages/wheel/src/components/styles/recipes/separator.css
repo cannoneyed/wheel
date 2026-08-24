@@ -1,0 +1,25 @@
+/* ========================================================================
+ * RECIPE: Separator — single-part component (`wheel-Separator`, no part suffix)
+ *
+ * Pattern notes:
+ *  - Separator has one class with no descendant parts (see the naming
+ *    grammar table in README.md: "single-part class wheel-Button, wheel-Separator").
+ *  - Orientation is the only state it emits; no toggle/presence states apply.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-Separator {
+    flex-shrink: 0;
+    background: var(--wheel-component-border-strong);
+  }
+
+  .wheel-Separator[data-orientation='horizontal'] {
+    width: 100%;
+    height: var(--wheel-component-hairline);
+  }
+
+  .wheel-Separator[data-orientation='vertical'] {
+    width: var(--wheel-component-hairline);
+    align-self: stretch;
+  }
+}

@@ -1,0 +1,27 @@
+/* The add-card row at the foot of a column. */
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.titleInput {
+  min-width: 0;
+  flex: 1 1 8ch;
+}
+
+/* Fixed 72px next to the title on a wide column; on a narrow one the wrap
+   above drops it to its own line, where it takes the full width rather than
+   sitting as a 72px stub. */
+.tagInput {
+  min-width: 0;
+  flex: 0 1 72px;
+}
+
+@media (max-width: 720px) {
+  .tagInput {
+    flex: 1 1 100%;
+  }
+}

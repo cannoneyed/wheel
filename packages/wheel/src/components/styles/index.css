@@ -1,0 +1,51 @@
+@import '@fontsource-variable/inter';
+
+/* wheel/components/styles
+ *
+ * Layer order is declared here, once. `app.*` layers are reserved for the
+ * consuming application's own tokens/recipes; unlayered app CSS beats
+ * everything below by cascade-layer rules — that is the override mechanism.
+ * Import this file once for Mira defaults. Override semantic custom properties
+ * on :root, a theme container, or one component instance.
+ */
+@import './tokens.css';
+@import './base.css';
+@import './recipes/button.css';
+@import './recipes/switch.css';
+@import './recipes/popover.css';
+@import './recipes/tabs.css';
+@import './recipes/toggle.css';
+@import './recipes/toggle-group.css';
+@import './recipes/checkbox.css';
+@import './recipes/checkbox-group.css';
+@import './recipes/radio.css';
+@import './recipes/input.css';
+@import './recipes/field.css';
+@import './recipes/fieldset.css';
+@import './recipes/form.css';
+@import './recipes/avatar.css';
+@import './recipes/meter.css';
+@import './recipes/progress.css';
+@import './recipes/separator.css';
+@import './recipes/slider.css';
+@import './recipes/accordion.css';
+@import './recipes/collapsible.css';
+@import './recipes/scroll-area.css';
+@import './recipes/toolbar.css';
+@import './recipes/number-field.css';
+@import './recipes/otp-field.css';
+@import './recipes/toast.css';
+@import './recipes/combobox.css';
+@import './recipes/navigation-menu.css';
+@import './recipes/drawer.css';
+@import './recipes/tooltip.css';
+@import './recipes/dialog.css';
+@import './recipes/alert-dialog.css';
+@import './recipes/menu.css';
+@import './recipes/select.css';
+@import './recipes/context-menu.css';
+@import './recipes/menubar.css';
+@import './recipes/preview-card.css';
+@import './recipes/radio-group.css';
+
+@layer wheel.components.tokens, wheel.components.base, wheel.components.recipes, app.components.tokens, app.components.recipes;

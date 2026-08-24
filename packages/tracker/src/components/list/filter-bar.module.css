@@ -1,0 +1,35 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.chip {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: var(--wheel-radius-pill);
+  color: var(--ink-muted);
+}
+
+.chipOn {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.clear {
+  border: none;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.ordering {
+  font-size: 12px;
+  padding: 3px 6px;
+}

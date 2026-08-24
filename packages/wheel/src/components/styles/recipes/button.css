@@ -1,0 +1,88 @@
+/* ========================================================================
+ * RECIPE: Button — exemplar for single-part components
+ *
+ * Single-part components use `wheel-<Component>` (no part segment). Action
+ * and trigger parts use the same compact Mira button without extra classes.
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  :is(
+    .wheel-Button,
+    .wheel-Dialog-Trigger,
+    .wheel-Dialog-Close,
+    .wheel-Drawer-Trigger,
+    .wheel-Drawer-Close,
+    .wheel-Menu-Trigger,
+    .wheel-Popover-Trigger,
+    .wheel-Popover-Close,
+    .wheel-Tooltip-Trigger
+  ) {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--wheel-component-space) * 1.5);
+    min-height: 1.75rem;
+    padding: 0 calc(var(--wheel-component-space) * 2.5);
+    border-radius: var(--wheel-component-radius-md);
+    border: var(--wheel-component-hairline) solid transparent;
+    background: var(--wheel-component-accent);
+    color: var(--wheel-component-accent-fg);
+    box-shadow: var(--wheel-component-shadow-rest);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-xs);
+    line-height: var(--wheel-component-text-xs--lh);
+    font-weight: 500;
+    white-space: nowrap;
+    user-select: none;
+    transition:
+      background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
+      border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  @media (hover: hover) {
+    :is(
+      .wheel-Button,
+      .wheel-Dialog-Trigger,
+      .wheel-Dialog-Close,
+      .wheel-Drawer-Trigger,
+      .wheel-Drawer-Close,
+      .wheel-Menu-Trigger,
+      .wheel-Popover-Trigger,
+      .wheel-Popover-Close,
+      .wheel-Tooltip-Trigger
+    ):hover {
+      opacity: 0.9;
+    }
+  }
+
+  :is(
+    .wheel-Button,
+    .wheel-Dialog-Trigger,
+    .wheel-Dialog-Close,
+    .wheel-Drawer-Trigger,
+    .wheel-Drawer-Close,
+    .wheel-Menu-Trigger,
+    .wheel-Popover-Trigger,
+    .wheel-Popover-Close,
+    .wheel-Tooltip-Trigger
+  ):is(:active, [data-pressed], [data-popup-open]) {
+    opacity: 0.85;
+  }
+
+  :is(
+    .wheel-Button,
+    .wheel-Dialog-Trigger,
+    .wheel-Dialog-Close,
+    .wheel-Drawer-Trigger,
+    .wheel-Drawer-Close,
+    .wheel-Menu-Trigger,
+    .wheel-Popover-Trigger,
+    .wheel-Popover-Close,
+    .wheel-Tooltip-Trigger
+  ):is(:disabled, [data-disabled]) {
+    opacity: 0.5;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+}

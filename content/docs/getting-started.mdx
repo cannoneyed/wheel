@@ -1,0 +1,116 @@
+---
+title: Getting Started
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import todoServiceSource from '@docs/examples/getting-started/todo-service.ts?example';
+import todoListSource from '@docs/examples/getting-started/todo-list.tsx?example';
+import mainSource from '@docs/examples/getting-started/main.tsx?example';
+import viteConfigSource from '@docs/examples/getting-started/vite.config.ts?example';
+
+# Getting Started
+
+Start a reference app on your machine, then write the three files every feature needs: a service, a connected component, and a root.
+
+## Install Wheel
+
+```sh
+bun add wheel@npm:@cannoneyed/wheel@0.1.0 solid-js
+```
+
+`wheel` is the local npm alias for `@cannoneyed/wheel`. Keep imports such as `wheel/core` and `wheel/sync` unchanged.
+
+## Run a repository reference app
+
+Clone this repository when you want to run its reference applications.
+
+1. Install dependencies: `bun install`
+2. Start the demo sync server: `bun run demos:server`
+3. Start the demo app: `bun run demos`
+4. Open `http://localhost:4796` and add a todo.
+
+Each app is two processes: a Vite dev server for the browser, and a Bun process for sync.
+
+| App | Browser | Sync server | Opens on |
+| --- | --- | --- | --- |
+| Demos (`packages/demos`) | `bun run demos` | `bun run demos:server` | `http://localhost:4796` |
+| Tracker (`packages/tracker`) | `bun run tracker` | `bun run tracker:server` | `http://localhost:4798` |
+| Docs (this site) | `bun run docs` | — | `http://localhost:4780` |
+
+Stop the sync server and keep adding todos. Writes queue in IndexedDB and replay when the server comes back. That is the local-first guarantee — [Live State](#/live-state) explains how it holds.
+
+## 1. Own state in a service
+
+A service is a singleton class that owns shared state. `Service` (from `wheel/core`) holds local state; `SyncService` (from `wheel/sync`) adds server-synced state, where `liveQuery` subscribes to a query and `mutate` writes through it.
+
+Create `src/services/todo-service.ts`:
+
+<CodeExample example={todoServiceSource} />
+
+`todoList`, `addTodo`, and `toggleTodo` come from a sync module that the client and the server both import. [Walkthrough](#/walkthrough) writes that file and the server behind it.
+
+`list.rows` is already reactive, so expose it as-is. Use `computed` for a real derivation, like `remaining`.
+
+## 2. Connect a component
+
+`connect(name, builder)` is the only way a component reads a service. The builder returns a `view()`: named reads and named actions. The component gets that view, never the service object.
+
+Create `src/components/todo-list.tsx`:
+
+<CodeExample example={todoListSource} />
+
+Four rules the linter enforces here:
+
+| Rule | What it requires |
+| --- | --- |
+| `single-connect` | One connection function per component, named `connect<Name>`, called first |
+| `connect-only` | Services reached through `connect()` only — no context reads, no service hooks |
+| `require-component-root` | `use:componentRoot` on the component's real DOM root |
+| `require-use-signal` | `useSignal(initial, 'name')` for component-local state, not `createSignal` |
+
+Component-local state stays in the component. The draft input above is local; the todo list is not.
+
+## 3. Mount the root
+
+`WheelApp` owns the client and hosts the service tree. In a dev build it also mounts the docked debug panel, the component inspector, error capture, and the `window.__wheel` agent bridge. A production build renders your children and nothing else.
+
+Create `src/main.tsx`:
+
+<CodeExample example={mainSource} />
+
+Omit `client` for an app with no sync: `WheelApp` then hosts a clientless service tree, and `Service` classes work unchanged.
+
+<Aside kind="note">
+  <strong>Open the debug panel before you debug anything.</strong> It answers "what state does
+  this component have, and who wrote it?" without a single <code>console.log</code>. See
+  [Debugging](#/debugging).
+</Aside>
+
+## Development
+
+### Use Wheel from a local checkout
+
+Build Wheel, then install the local directory without changing the consumer manifest or lockfile:
+
+```sh
+bun run --cwd ../wheel-dev/packages/wheel build
+bun add --no-save wheel@file:../wheel-dev/packages/wheel
+```
+
+Rebuild after each Wheel source change. Run the `bun add --no-save` command again to replace the prior local output.
+
+Configure Vite before you start the app:
+
+<CodeExample example={viteConfigSource} />
+
+`resolve.dedupe` makes the app and Wheel use one `solid-js` runtime. Wheel throws during provider startup when the active Solid owner comes from a second runtime.
+
+`wheelDevTools()` enables the debug panel and `window.__wheel` during `vite serve`. It keeps those surfaces off during `vite build`, preserves service names, and rejects a direct `file:` dependency when its source no longer matches the built package.
+
+## Next
+
+- [Walkthrough](#/walkthrough) — declare the synced data, bind the server, and run the whole todo app.
+- [Project Layout](#/project-layout) — where each of these files goes.
+- [Services](#/services) — fields, atoms, computeds, machines, actions, and the service tree.
+- [Components](#/components) — `connect`, `view`, and local state in full.

@@ -1,0 +1,58 @@
+.section {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heading {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.add {
+  border: none;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.relation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kind {
+  font-size: 11px;
+  color: var(--warn);
+  width: 84px;
+  flex: none;
+}
+
+.target {
+  border: none;
+  text-align: left;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 6px;
+}
+
+.remove {
+  border: none;
+  color: var(--ink-muted);
+}

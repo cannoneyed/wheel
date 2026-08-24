@@ -1,0 +1,259 @@
+/* Sequencer family: the dark step grid, the mixer beside it, and the
+   transport in the stage toolbar. Framing's move — a dark stage inside light
+   chrome — applied to a drum machine, the same way the graph demo applies it
+   to a canvas. Every value comes from the shared tokens. */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 208px;
+  gap: var(--wheel-space-lg);
+  align-items: start;
+}
+
+.gridWrap {
+  min-width: 0;
+}
+
+/* THE STAGE. 17 columns: the lane label, then sixteen steps. Rows are the
+   ruler plus one per voice. */
+.grid {
+  display: grid;
+  grid-template-columns: 62px repeat(16, minmax(0, 1fr));
+  gap: 3px;
+  padding: var(--wheel-space-md);
+  border-radius: var(--wheel-radius-lg);
+  background: var(--wheel-stage-2);
+  touch-action: none;
+}
+
+.rulerCorner {
+  display: block;
+}
+
+/* Beat numbers above the grid. The current step lights up here too, so the
+   playhead is legible even on a lane where nothing is switched on. */
+.rulerTick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  border-radius: var(--wheel-radius-xs);
+  color: var(--wheel-stage-ink-faint);
+  font: 600 10px/1 var(--wheel-mono);
+  user-select: none;
+}
+
+.rulerTick[data-beat='true'] {
+  color: var(--wheel-stage-ink-muted);
+}
+
+.rulerTick[data-current='true'] {
+  background: var(--wheel-stage-hover-strong);
+  color: var(--wheel-stage-ink-strong);
+}
+
+.laneName {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  color: var(--wheel-stage-ink-soft);
+  font: 600 11px/1 var(--wheel-mono);
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* One cell. Dark when off, lit in the accent when on, brighter the harder it
+   hits — three velocity bands rather than a continuous ramp, so the pattern
+   reads at a glance. */
+.cell {
+  height: 30px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--wheel-stage-line);
+  border-radius: var(--wheel-radius-xs);
+  background: var(--wheel-stage-3);
+  cursor: pointer;
+  transition: background-color 90ms linear, border-color 90ms linear;
+}
+
+.cell:hover {
+  border-color: var(--wheel-indigo-soft);
+}
+
+/* Every fourth step is a beat: a slightly lighter bed, so the bar has a pulse
+   you can count without any extra elements. (An attribute, not an
+   `:nth-child` formula — the grid's children are label/cell/label/cell and a
+   positional rule would silently break the day a lane changes width.) */
+.cell[data-beat='true'] {
+  background: var(--wheel-stage-4);
+}
+
+.cell[data-on='true'] {
+  border-color: transparent;
+  background: var(--wheel-indigo-soft);
+}
+
+.cell[data-velocity='ghost'] {
+  background: color-mix(in srgb, var(--wheel-indigo-soft) 42%, transparent);
+}
+
+.cell[data-velocity='normal'] {
+  background: color-mix(in srgb, var(--wheel-indigo-soft) 72%, transparent);
+}
+
+.cell[data-velocity='accent'] {
+  background: var(--wheel-indigo-bright);
+}
+
+/* THE PLAYHEAD: the column under the audio clock's current step. This is the
+   DOM mirror of `TransportService.step` — the only thing a browser test can
+   see of an engine it cannot hear. */
+.cell[data-current='true'] {
+  border-color: var(--wheel-stage-ink-soft);
+  box-shadow: inset 0 0 0 1px var(--wheel-stage-ink-dim);
+}
+
+.cell[data-current='true'][data-on='true'] {
+  background: var(--wheel-stage-ink);
+}
+
+/* A peer's ring, in their own identity color (published on the presence
+   channel, never written to a row). */
+.cell[data-peer='true'] {
+  border-color: var(--sequencer-peer);
+  box-shadow: 0 0 0 2px var(--sequencer-peer);
+}
+
+.hint {
+  margin: var(--wheel-space-md) 0 0;
+  color: var(--wheel-ink-muted);
+  font-size: var(--wheel-ui-lg);
+}
+
+.blocked {
+  margin: var(--wheel-space-md) 0 0;
+  color: var(--wheel-warn-ink);
+  font-size: var(--wheel-ui-lg);
+}
+
+/* ---- the mixer --------------------------------------------------------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wheel-space-md);
+  min-width: 0;
+  font-size: var(--wheel-ui-lg);
+}
+
+.counts {
+  margin: 0;
+  color: var(--wheel-ink-muted);
+  font: 600 var(--wheel-ui-md) / 1.4 var(--wheel-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trackRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wheel-space-sm);
+  padding: var(--wheel-space-md);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-sm);
+  background: var(--wheel-bg-soft);
+}
+
+.trackName {
+  min-width: 0;
+  width: 100%;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--wheel-radius-xs);
+  background: transparent;
+  color: var(--wheel-ink);
+  font: 600 12px/1.4 var(--wheel-mono);
+}
+
+.trackName:hover,
+.trackName:focus {
+  border-color: var(--wheel-line);
+  background: var(--wheel-bg-raised);
+}
+
+.trackControls {
+  display: flex;
+  gap: var(--wheel-space-sm);
+  align-items: center;
+}
+
+.gain {
+  min-width: 0;
+  flex: 1;
+  accent-color: var(--wheel-accent);
+}
+
+.clearButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 7px;
+}
+
+/* ---- stage toolbar ----------------------------------------------------- */
+
+.controls {
+  display: inline-flex;
+  gap: var(--wheel-space-sm);
+  align-items: center;
+}
+
+.transportButton {
+  display: inline-flex;
+  gap: var(--wheel-space-xs);
+  align-items: center;
+  min-width: 74px;
+  padding: 4px 10px;
+}
+
+.transportButton[data-playing='true'] {
+  border-color: var(--wheel-accent);
+  color: var(--wheel-accent);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+}
+
+.bpmField {
+  display: inline-flex;
+  gap: var(--wheel-space-xs);
+  align-items: center;
+}
+
+.bpmLabel {
+  color: var(--wheel-ink-muted);
+  font: 600 10px/1 var(--wheel-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bpmInput {
+  width: 62px;
+  padding: 4px 6px;
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-sm);
+  background: var(--wheel-bg-raised);
+  color: var(--wheel-ink);
+  font: inherit;
+}
+
+.readout {
+  color: var(--wheel-ink-muted);
+  font: 600 11px/1 var(--wheel-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

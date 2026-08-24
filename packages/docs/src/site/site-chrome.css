@@ -1,0 +1,118 @@
+/* The shared wheel.dev header and footer.
+ *
+ * The landing page's bar is the reference design — mono brand, sans links,
+ * generous padding, no uppercase — and every surface now renders exactly it.
+ * Before this file there were three copies of the markup and two competing
+ * looks (an essay bar at `/` and an uppercase instrument bar at /docs and
+ * /components), which is how the fonts drifted apart in the first place.
+ *
+ * Colors and faces come from `theme.css` (`--ink`, `--muted`, `--line`,
+ * `--sans`, `--mono`), so the chrome is correct in both themes with no
+ * per-site overrides. Two knobs are left to the host page:
+ *
+ *   --site-max     the measure. The landing page runs its 44rem essay column;
+ *                  app surfaces (docs, demos, catalog) run full-bleed.
+ *   --site-rule    the hairline under the bar. `0` on the landing page, where
+ *                  whitespace does the separating; `1px` where content starts
+ *                  immediately below.
+ *
+ * `--topnav-h` stays the bar's declared height because the docs sidebar and
+ * the catalog index size their scroll viewports off it.
+ */
+
+:root {
+  --site-max: none;
+  --site-rule: 1px;
+}
+
+.site-topnav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: var(--topnav-h);
+  max-width: var(--site-max);
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+  border-bottom: var(--site-rule) solid var(--line);
+}
+
+.site-topnav .site-brand {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-topnav nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.site-topnav nav a,
+.site-footer nav a {
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.site-topnav nav a:hover,
+.site-footer nav a:hover {
+  color: var(--ink);
+}
+
+.site-topnav nav a.site-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  max-width: var(--site-max);
+  margin: 6rem auto 0;
+  padding: 2rem 1.25rem 3rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+
+.site-footer nav a {
+  margin-left: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .site-topnav,
+  .site-footer {
+    gap: 1rem;
+  }
+
+  /* The wordmark is two words and one emoji; letting it wrap costs a whole
+     line of a phone screen for no gain. */
+  .site-topnav .site-brand {
+    white-space: nowrap;
+  }
+
+  .site-topnav nav,
+  .site-footer nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem 0.85rem;
+  }
+
+  .site-topnav nav {
+    overflow-x: auto;
+  }
+
+  .site-footer {
+    align-items: flex-start;
+  }
+
+  .site-footer nav a {
+    margin-left: 0;
+  }
+}

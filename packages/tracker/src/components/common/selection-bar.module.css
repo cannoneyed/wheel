@@ -1,0 +1,32 @@
+.bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: var(--shadow-float);
+}
+
+.count {
+  color: var(--accent);
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.action {
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+}
+
+.dismiss {
+  border: none;
+  color: var(--ink-muted);
+  margin-left: 4px;
+}
