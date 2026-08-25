@@ -28,6 +28,9 @@ type PresenceState = {
 
 /** Publishes this tab's presence and reads peers'. */
 export class PresenceService extends SyncService {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'PresenceService';
+
   private readonly userService = this.service(UserService);
   private readonly teamService = this.service(TeamService);
   private readonly current = this.field<PresenceState>({ userId: '', issueId: null, typing: false });

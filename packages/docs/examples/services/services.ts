@@ -4,6 +4,9 @@ import { SyncService } from 'wheel/sync';
 import { addTodo, todoList, toggleTodo } from '../getting-started/todos.sync';
 
 export class SelectionService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'SelectionService';
+
   readonly selected = this.atom(new Set<string>(), 'selected');
   readonly count = this.computed(() => this.selected.get().size);
 
@@ -19,6 +22,9 @@ export class SelectionService extends Service {
 }
 
 export class TodoService extends SyncService {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'TodoService';
+
   readonly list = this.liveQuery(todoList, {});
 
   readonly remaining = this.computed(

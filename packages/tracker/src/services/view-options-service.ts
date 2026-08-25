@@ -55,6 +55,9 @@ export interface BoardColumnVm {
 
 /** Owns filters + display options and derives every visible row set. */
 export class ViewOptionsService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'ViewOptionsService';
+
   private readonly issueService = this.service(IssueService);
   private readonly teamService = this.service(TeamService);
   private readonly projectService = this.service(ProjectService);

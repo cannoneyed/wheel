@@ -32,6 +32,9 @@ const DEFAULT_TREE: SplitTree = {
  * undoes with your undo, and shows up in the debug graph as your own state.
  */
 export class WorkspaceService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'WorkspaceService';
+
   readonly tree = this.atom<SplitTree>(DEFAULT_TREE, 'tree');
 
   /** Which panels are open, in tree order — a real derivation, so a computed. */

@@ -87,6 +87,9 @@ function peerColor(clientId: string): string {
 
 /** Owns all three subscriptions, every pattern mutation, and presence. */
 export class SequencerService extends SyncService {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'SequencerService';
+
   constructor(context: ServiceContext) {
     super(context);
     const keyboardService = this.service(KeyboardService);

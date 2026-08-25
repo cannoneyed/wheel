@@ -25,6 +25,9 @@ export interface FavoriteVm {
 
 /** Owns the favorites subscription, star/unstar, and reorder. */
 export class FavoriteService extends SyncService {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'FavoriteService';
+
   private readonly userService = this.service(UserService);
   private readonly issueService = this.service(IssueService);
   private readonly projectService = this.service(ProjectService);

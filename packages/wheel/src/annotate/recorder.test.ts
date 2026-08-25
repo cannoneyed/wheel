@@ -19,6 +19,9 @@ import { Recorder, stateTreeSnapshot } from './recorder';
 import type { RecordedState } from './types';
 
 class BoardService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'BoardService';
+
   readonly selection = this.atom<readonly string[]>([], 'selection');
   readonly board = this.atom<{ name: string; cells: number }>({ name: 'a', cells: 0 }, 'board');
   readonly toggleCell = this.action((cellId: string) => {

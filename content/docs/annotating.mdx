@@ -79,10 +79,12 @@ The second form is the one for a live deployment: set the key in the console, re
 rolling buffer is running — no deploy needed.
 
 <Aside kind="note">
-  <strong>Keep your class names.</strong> A timeline is only worth reading because it says
-  `BoardService.toggleCell`. Minifiers rename classes to `So`/`rT`, which turns the whole record
-  illegible — `wheelDevTools()` sets esbuild's <code>keepNames</code> for exactly this reason. A
-  production build that wants annotation must keep names too.
+  <strong>Names are declared, not preserved.</strong> A timeline is only worth reading because it
+  says `BoardService.toggleCell`, and a minifier renames that class to `iu`. Every service declares
+  `static override serviceName` (enforced by `require-service-name`, auto-fixable), so identity is
+  a string literal that survives any build. If all your services declare it you can pass
+  `wheelDevTools({ keepNames: false })` and take back the 11.2 KB gzipped that esbuild's
+  `keepNames` costs — measured on Axle, which ships exactly that way.
 </Aside>
 
 ### Delivery without a dev server

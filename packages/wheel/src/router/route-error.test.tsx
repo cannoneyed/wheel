@@ -43,6 +43,9 @@ function BrokenPage(): JSX.Element {
  * while the service is being constructed, i.e. inside the page's `connect`.
  */
 class ExplodingService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ExplodingService';
+
   readonly value = this.computed((): number => {
     throw new Error('service exploded');
   }, 'value');

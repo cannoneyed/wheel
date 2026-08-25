@@ -43,6 +43,9 @@ function TeamLayout(): JSX.Element {
 
 /** The doctrine test: a route component reads its params through connect(), not a hook. */
 class TeamTitleService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TeamTitleService';
+
   readonly prefix = this.computed(() => 'Team', 'prefix');
 }
 

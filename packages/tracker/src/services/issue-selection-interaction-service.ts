@@ -14,6 +14,9 @@ import { SelectionService } from './selection-service';
 
 /** Owns selection gestures, inline editing, peek state, and archive/composer flows. */
 export class IssueSelectionInteractionService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'IssueSelectionInteractionService';
+
   private readonly issues = this.service(IssueService);
   private readonly targets = this.service(IssueTargetService);
   private readonly selection = this.service(SelectionService);

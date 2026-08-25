@@ -10,6 +10,9 @@ import { render } from 'solid-js/web';
 import { Service, ServiceProvider, connect, fakeService, view } from '../core/index';
 import { CommandPaletteService, CommandPaletteSystem, Dialog, DialogService, DialogSystem } from './index';
 class ProbeService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ProbeService';
+
   readonly dialogs = this.computed(() => this.context.get(DialogService), 'dialogs');
 }
 
@@ -218,6 +221,9 @@ describe('custom dialogs', () => {
 
   it('declarative <Dialog> keeps its declaration-site context (scoped-override flavor)', () => {
     class LabelService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'LabelService';
+
       readonly label = this.computed(() => 'from-the-service', 'label');
     }
     const connectScopedDialog = connect('ScopedDialogContent', (c) => {
@@ -275,6 +281,9 @@ describe('dialog layering', () => {
   it('launching a dialog from a command palette action closes the palette overlay', () => {
     let paletteService!: import('./command-palette').CommandPaletteService;
     class PaletteGrabber extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'PaletteGrabber';
+
       readonly palette = this.computed(() => this.context.get(CommandPaletteService), 'palette');
     }
     const connectGrabPalette = connect('PaletteGrabProbe', (c) => {

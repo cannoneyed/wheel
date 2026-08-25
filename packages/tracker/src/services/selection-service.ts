@@ -11,6 +11,9 @@ import { Service } from 'wheel/core';
 
 /** Owns the cursor row, the selected set, and the range anchor. */
 export class SelectionService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'SelectionService';
+
   /** The keyboard cursor row id (or null before first navigation). Connect directly. */
   readonly cursor = this.atom<string | null>(null, 'cursor');
   private readonly selected = this.atom<ReadonlySet<string>>(new Set(), 'selected');

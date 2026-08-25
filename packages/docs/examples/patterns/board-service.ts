@@ -7,6 +7,9 @@ export interface Card {
 }
 
 export class BoardService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'BoardService';
+
   readonly cards = this.atom<readonly Card[]>([], 'cards');
   readonly columns = this.atom<readonly string[]>([], 'columns');
 

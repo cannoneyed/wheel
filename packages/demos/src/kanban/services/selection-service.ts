@@ -7,6 +7,9 @@ import { Service } from 'wheel/core';
 
 /** Owns the selected-card set for bulk delete. */
 export class SelectionService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'SelectionService';
+
   private readonly selected = this.atom<Set<string>>(new Set(), 'selected');
 
   /** Whether one card is currently selected. */

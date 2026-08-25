@@ -12,6 +12,9 @@ import { TeamService } from './team-service';
 
 /** Owns issue detail edits, relations, parents, and project deletion. */
 export class IssueDetailInteractionService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'IssueDetailInteractionService';
+
   private readonly issues = this.service(IssueService);
   private readonly targets = this.service(IssueTargetService);
   private readonly teams = this.service(TeamService);

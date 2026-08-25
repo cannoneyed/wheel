@@ -40,6 +40,9 @@ describe('liveQuery subscribe/dispose race', () => {
     } as unknown as SyncClient;
 
     class TodoService extends SyncService {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'TodoService';
+
       readonly todos = this.liveQuery(todosAll, {});
     }
 
@@ -94,6 +97,9 @@ describe('liveQuery invalidation is collection-scoped', () => {
     } as unknown as SyncClient;
 
     class TwoTables extends SyncService {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'TwoTables';
+
       readonly alphas = this.liveQuery(alphasAll, {});
       readonly betas = this.liveQuery(betasAll, {});
     }

@@ -25,6 +25,9 @@ import { WheelContext } from './context';
 import { useContext } from 'solid-js';
 
 class ItemService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ItemService';
+
   readonly label = this.atom('hello', 'label');
   readonly rename = this.action((next: string) => this.label.set(next), 'rename');
 }

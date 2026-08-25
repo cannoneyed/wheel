@@ -23,6 +23,9 @@ import { createSignal, onCleanup, onMount } from 'solid-js';
 import { WheelApp } from './wheel-app';
 
 class GreetService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'GreetService';
+
   readonly who = this.atom('world', 'who');
   readonly rename = this.action((next: string) => this.who.set(next), 'rename');
 }

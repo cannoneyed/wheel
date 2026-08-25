@@ -39,6 +39,9 @@ const DEFAULT_STORAGE_KEY = 'frames';
  * drafts, and persistence. Structure belongs to application JSX.
  */
 export class LayoutService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'LayoutService';
+
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';
 

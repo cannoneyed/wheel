@@ -6,6 +6,9 @@ import { appRouter, type Routes } from './router';
 
 /** Filter state that lives in the URL. Nothing that reads it knows that. */
 export class IssueFilterService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'IssueFilterService';
+
   private readonly router = this.service(appRouter.Service) as RouterService<Routes>;
 
   /** Bound to `?q=`. Read and write it like any other atom. */

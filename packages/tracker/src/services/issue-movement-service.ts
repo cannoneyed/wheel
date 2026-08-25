@@ -9,6 +9,9 @@ import { ViewOptionsService } from './view-options-service';
 
 /** Owns list ordering, board drops, and the board's keyboard cursor. */
 export class IssueMovementService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'IssueMovementService';
+
   private readonly issues = this.service(IssueService);
   private readonly targets = this.service(IssueTargetService);
   private readonly selection = this.service(SelectionService);

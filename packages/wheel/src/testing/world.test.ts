@@ -109,6 +109,9 @@ const seedTodos = async (db: { query(text: string, params?: readonly unknown[]):
 const SEEDED = 'todo_0190b62e-0000-7000-8000-000000000007';
 
 class TodoFamilyService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TodoFamilyService';
+
   readonly byList = this.liveQueryFor(todosByList, (listId: string) => ({ listId }));
 }
 

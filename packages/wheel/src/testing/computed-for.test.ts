@@ -63,6 +63,9 @@ const ids = Array.from({ length: KEY_COUNT }, (_, n) => itemId(n));
 
 /** Per-item vm derivation — the shape every row component connects through. */
 class ItemService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ItemService';
+
   readonly items = this.liveQuery(itemList, {});
   readonly labelFor = this.computedFor((id: string) => {
     return this.items.rows.find((row) => row.id === id)?.label ?? '(missing)';

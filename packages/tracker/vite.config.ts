@@ -46,7 +46,16 @@ const SYNC_ORIGIN =
 export default defineConfig({
   root: here('.'),
   resolve: { alias: wheelFromSource },
-  plugins: [solid(), wheelDevTools({ devModeInBuild: process.env.WHEEL_BROWSER_DEV_MODE === '1' })],
+  plugins: [
+    solid(),
+    // Every Axle service declares `static override serviceName`, so class
+    // identity no longer depends on the compiler and the app takes back the
+    // 11.7 KB gzipped that keepNames costs.
+    wheelDevTools({
+      keepNames: false,
+      devModeInBuild: process.env.WHEEL_BROWSER_DEV_MODE === '1'
+    })
+  ],
   server: {
     // PORT is how portless (and any other proxy) assigns a port; the literal is
     // the stable fallback for a plain `bun run tracker`.

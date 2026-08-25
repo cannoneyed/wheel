@@ -73,7 +73,7 @@ export interface WheelVitePlugin {
     config?: { readonly root?: string },
     env?: { readonly command?: 'serve' | 'build' }
   ): {
-    esbuild: { keepNames: true };
+    esbuild: { keepNames: boolean };
     define: Record<string, string>;
     optimizeDeps: { esbuildOptions: { define: Record<string, string> } };
   };
@@ -89,6 +89,22 @@ export interface WheelDevToolsOptions {
   readonly devModeInBuild?: boolean;
   /** Where annotation directories land; relative paths resolve against the vite root. Default `.wheel/notes`. */
   readonly noteDir?: string;
+  /**
+   * Keep every function and class name through minification. Default `true`.
+   *
+   * Wheel needs this for ONE thing: a service's class name, which the state
+   * tree, `actService` and annotation timelines print. Services that declare
+   * `static override serviceName` (which `require-service-name` makes
+   * mandatory) no longer depend on it, so an app whose services are all
+   * declared can set this false and get the bytes back — measured at 11.7 KB
+   * gzipped on Axle.
+   *
+   * What you give up is generic name fidelity everywhere else: minified
+   * function names in raw stack traces and in `<ClassName>` debug
+   * projections. Source maps still resolve stacks; this is about the names
+   * inside the bundle itself.
+   */
+  readonly keepNames?: boolean;
 }
 
 /** How many saved notes `GET /__wheel/notes` returns, newest first. */
@@ -294,17 +310,18 @@ export function wheelDevTools(options: WheelDevToolsOptions = {}): WheelVitePlug
   };
   return {
     name: 'wheel-dev-tools',
-    // Service identity IS the class name (the state tree's labels, DebugMeta
-    // serviceName, actService lookups). Minification mangles class names to
-    // `So`/`rT` and the whole debug story goes illegible — keepNames makes
-    // esbuild preserve them at negligible size cost.
+    // Service identity used to depend entirely on the class name surviving
+    // minification, which is what keepNames buys — at the cost of a __name()
+    // call for EVERY function and class in the app. Services now declare
+    // `static override serviceName` instead (require-service-name), so an app
+    // can opt out and take the bytes back.
     config: (config = {}, env = {}) => {
       const root = resolve(config.root ?? process.cwd());
       assertFreshWheelFileDependency(root, buildStamp);
       const devMode = env.command === 'serve' || options.devModeInBuild ? 'true' : 'false';
       const define = { 'globalThis.__WHEEL_DEV_MODE__': devMode };
       return {
-        esbuild: { keepNames: true as const },
+        esbuild: { keepNames: options.keepNames ?? true },
         define,
         optimizeDeps: { esbuildOptions: { define } }
       };

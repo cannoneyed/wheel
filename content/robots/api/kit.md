@@ -30,7 +30,7 @@ Owns the command table, search ranking, and the palette's open state. Everything
 
 ## `CommandPaletteSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:214](../../../packages/wheel/src/kit/command-palette.tsx#L214).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:217](../../../packages/wheel/src/kit/command-palette.tsx#L217).
 
 Mount once at the app root. Registers the toggle combos with KeyboardService while mounted and renders the palette overlay: scrim, query input, ranked results, arrow-key selection, Enter runs, Escape closes. Focus is captured on open and restored on close via FocusService.
 
@@ -42,7 +42,7 @@ Options for the confirm/alert built-ins.
 
 ## `connectCommandPaletteSystem`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:181](../../../packages/wheel/src/kit/command-palette.tsx#L181).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:184](../../../packages/wheel/src/kit/command-palette.tsx#L184).
 
 CommandPaletteSystem's connection — exported for stubs and the states file.
 
@@ -54,13 +54,13 @@ DialogSystem's connection — exported for stubs and the states file.
 
 ## `contextMenu`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:140](../../../packages/wheel/src/kit/context-menu.tsx#L140).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:143](../../../packages/wheel/src/kit/context-menu.tsx#L143).
 
 The `use:contextMenu` directive — attach a menu to an existing element, no wrapper, no ref plumbing: <div use:contextMenu={{ id: `item:${props.id}`, menu: () => <ItemMenu id={props.id} /> }}> Re-registers reactively if the binding changes (e.g. id derived from props).
 
 ## `ContextMenu`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:183](../../../packages/wheel/src/kit/context-menu.tsx#L183).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:186](../../../packages/wheel/src/kit/context-menu.tsx#L186).
 
 Component-form fallback (directives only work on native elements): wraps the trigger surface in a plain div and binds it.
 
@@ -78,7 +78,7 @@ Global menu awareness: which menu is open and where. Single-open is enforced by 
 
 ## `ContextMenuSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:244](../../../packages/wheel/src/kit/context-menu.tsx#L244).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:247](../../../packages/wheel/src/kit/context-menu.tsx#L247).
 
 Mount once at the app root. Owns the portal, positioning, scrim, Escape, and focus restore for whatever menu is open.
 
@@ -108,7 +108,7 @@ Build a stack over `root`. `onChange` fires after every state change.
 
 ## `Dialog`
 
-Kind: function. Source: [packages/wheel/src/kit/dialog.tsx:192](../../../packages/wheel/src/kit/dialog.tsx#L192).
+Kind: function. Source: [packages/wheel/src/kit/dialog.tsx:195](../../../packages/wheel/src/kit/dialog.tsx#L195).
 
 Declarative dialog registration — mounts nothing; captures its owner so `dialogService.open(id)` renders `content` with THIS site's context (scoped service overrides included): <Dialog id="delete-item" content={() => <DeleteItemDialog … />} />
 
@@ -150,7 +150,7 @@ Every ACTION in the tree, depth first, with the groups dropped. A filtered list 
 
 ## `focusScope`
 
-Kind: function. Source: [packages/wheel/src/kit/focus.ts:331](../../../packages/wheel/src/kit/focus.ts#L331).
+Kind: function. Source: [packages/wheel/src/kit/focus.ts:334](../../../packages/wheel/src/kit/focus.ts#L334).
 
 The `use:focusScope` directive — declare a focus scope on an existing element, no wrapper, no ref plumbing: <div use:focusScope={{ id: 'board' }}>…</div> The binding may carry `data` — what the region is working on: <div use:focusScope={{ id: 'editor', data: { documentId: doc().id } }}> Registers the scope, keeps the service's active path current through focusin/focusout, and makes the element programmatically focusable (`tabindex="-1"`) so `FocusService.focus('board')` always lands. Only the scope ID re-registers; a data change is read through the accessor, because a re-registration would drop the scope out of the active path for a frame.
 
@@ -330,7 +330,7 @@ Owns the shortcut table and the matching logic. Bindings live in a reactive atom
 
 ## `KeyboardSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:260](../../../packages/wheel/src/kit/keyboard.tsx#L260).
+Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:263](../../../packages/wheel/src/kit/keyboard.tsx#L263).
 
 Mount once at the app root: the single document keydown listener feeding `KeyboardService.dispatch`. Renders nothing.
 
@@ -588,7 +588,7 @@ Toast lifecycle state (drives the enter/leave transitions).
 
 ## `ToastSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/toast.tsx:208](../../../packages/wheel/src/kit/toast.tsx#L208).
+Kind: function. Source: [packages/wheel/src/kit/toast.tsx:211](../../../packages/wheel/src/kit/toast.tsx#L211).
 
 The one toast host. Mount once inside the provider. Renders the stack bottom-right; click a toast to dismiss it. Pass `renderToast` to replace the default look entirely (the host still owns positioning and the click-to- dismiss wrapper).
 

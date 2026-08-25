@@ -170,6 +170,25 @@ function domDepth(element: Element): number {
   return depth;
 }
 
+/**
+ * A service class's display identity: its declared `static serviceName`, or
+ * its class name when it has not declared one.
+ *
+ * The declaration exists because a minifier renames the class, and the class
+ * name is what the state tree, `actService` lookups and annotation timelines
+ * print. `BoardService.toggleCell` has to survive a production build; `iu.rT`
+ * helps nobody. `require-service-name` makes the declaration mandatory.
+ *
+ * Only an OWN property counts. Statics inherit, so reading the inherited one
+ * would make `class Child extends Parent {}` report itself as `Parent`.
+ */
+export function serviceDisplayName(ServiceType: Function): string {
+  const declared = Object.hasOwn(ServiceType, 'serviceName')
+    ? (ServiceType as { serviceName?: unknown }).serviceName
+    : undefined;
+  return typeof declared === 'string' && declared.length > 0 ? declared : ServiceType.name;
+}
+
 /** Live registry for one ServiceContext tree. */
 export class DebugRegistry {
   private readonly primitives = new Map<
@@ -253,7 +272,7 @@ export class DebugRegistry {
     const id = `service_${typeId}@scope_${concreteScopeId}`;
     this.services.set(id, {
       id,
-      name: ServiceType.name,
+      name: serviceDisplayName(ServiceType),
       scopeId,
       // Static inheritance makes subclasses carry their base's group unless
       // they override it; absent entirely → 'app'.

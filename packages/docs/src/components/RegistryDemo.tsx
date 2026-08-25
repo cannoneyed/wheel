@@ -7,6 +7,9 @@ import { For } from 'solid-js';
 import { Service, ServiceContext, systemRandom01, useSignal, viewRoot } from 'wheel/core';
 
 class SelectionService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SelectionService';
+
   readonly selected = this.atom(new Set<string>(), 'selected');
   readonly count = this.computed(() => this.selected.get().size, 'count');
   readonly toggle = this.action((id: string) => {

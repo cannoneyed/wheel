@@ -156,6 +156,9 @@ describe('groupCommands', () => {
 // The data-flavored contribution pattern: a feature service registers its
 // commands in its constructor, paired with addCleanup.
 class DeckService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'DeckService';
+
   readonly played = this.atom<readonly string[]>([], 'played');
 
   constructor(context: ServiceContext) {

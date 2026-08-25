@@ -170,6 +170,9 @@ interface RegisteredBinding {
  * DOM listener in the loop.
  */
 export class KeyboardService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'KeyboardService';
+
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';
 

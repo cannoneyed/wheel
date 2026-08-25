@@ -15,6 +15,9 @@ import { ContextMenuService, ContextMenuSystem, contextMenu } from './index';
 // The directive is invoked through use: in real apps; tests reference it
 // directly so bundler tree-shaking of the import is also covered.
 class BoardService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'BoardService';
+
   readonly deleted = this.atom<readonly string[]>([], 'deleted');
   readonly deleteItem = this.action((id: string) => {
     this.deleted.update((draft) => {
@@ -264,6 +267,9 @@ describe('context-menu system', () => {
     const [items, setItems] = createSignal(['a', 'b']);
     let registry!: import('./index').DebugRegistry;
     class ProbeService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'ProbeService';
+
       readonly grab = () => this.context.registry;
     }
     const connectProbe = connect('RegistryProbe', (c) => {
@@ -317,6 +323,9 @@ describe('context-menu system', () => {
 describe('view()', () => {
   it('reads are deferred value properties; actions pass through; stubs still work', () => {
     class CounterService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'CounterService';
+
       readonly n = this.atom(1, 'n');
       readonly bump = this.action(() => this.n.set(this.n.get() + 1), 'bump');
     }

@@ -109,6 +109,16 @@ describe('wheelDevTools', () => {
     expect(served.esbuild.keepNames).toBe(true);
   });
 
+  it('keeps names by default, and lets an app take the bytes back', () => {
+    // keepNames rescues class names through minification at the cost of a
+    // __name() call per function. Services that declare `serviceName` do not
+    // need it, so an app whose services all declare can opt out.
+    expect(wheelDevTools().config({ root }, { command: 'build' }).esbuild.keepNames).toBe(true);
+    expect(
+      wheelDevTools({ keepNames: false }).config({ root }, { command: 'build' }).esbuild.keepNames
+    ).toBe(false);
+  });
+
   it('GET probes with the resolved snapshot dir', async () => {
     const { server, dispatch } = makeServer(root);
     wheelDevTools().configureServer(server as never);

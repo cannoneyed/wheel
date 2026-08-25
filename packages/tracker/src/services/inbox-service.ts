@@ -10,6 +10,9 @@ import { UserService } from './user-service';
 
 /** Owns the inbox subscription and read-state mutations. */
 export class InboxService extends SyncService {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'InboxService';
+
   private readonly userService = this.service(UserService);
   private readonly teamService = this.service(TeamService);
   private readonly toastService = this.service(ToastService);

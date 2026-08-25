@@ -44,7 +44,7 @@ import {
 
 import { canonicalParams } from './params';
 import { captureDeclSite } from './decl-site';
-import { DebugRegistry, type DebugMeta } from './debug-registry';
+import { DebugRegistry, serviceDisplayName, type DebugMeta } from './debug-registry';
 import { wheelTap } from './recorder-tap';
 import {
   systemClock,
@@ -683,6 +683,22 @@ export abstract class Service {
    */
   static group = 'app';
 
+  /**
+   * This service's name in every debug surface: the state tree, the
+   * `serviceName` stamped on its atoms and actions, `actService` lookups, and
+   * annotation timelines.
+   *
+   *   static override serviceName = 'BoardService';
+   *
+   * Declared rather than derived because a minifier renames the class, and
+   * `iu.toggleCell("3-7")` is not a debug story. Declaring it costs ~30 bytes
+   * per service; the alternative (esbuild `keepNames`) costs 11.7 KB gzipped
+   * across a whole app. Empty means "fall back to the class name", which is
+   * what an undeclared service gets. `require-service-name` makes the
+   * declaration mandatory and checks it against the class it sits in.
+   */
+  static serviceName = '';
+
   private readonly cleanups: Array<() => void> = [];
   private __debugServiceId = '';
   private activeLatestAsyncTask: AbortController | null = null;
@@ -1073,7 +1089,7 @@ export abstract class Service {
 
   /** @internal Walks own fields, stamps service ownership on primitives. */
   __registerPrimitives(): void {
-    const serviceName = this.constructor.name;
+    const serviceName = serviceDisplayName(this.constructor);
     const primitiveIds: string[] = [];
     const primitiveMetas: DebugMeta[] = [];
     for (const key of Object.getOwnPropertyNames(this)) {

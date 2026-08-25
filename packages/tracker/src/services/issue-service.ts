@@ -58,6 +58,9 @@ export interface IssueDraft {
 
 /** Owns issue/label subscriptions, mutations, ordering math, and undo/redo. */
 export class IssueService extends SyncService {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'IssueService';
+
   private readonly toastService = this.service(ToastService);
   private readonly teamService = this.service(TeamService);
   private readonly userService = this.service(UserService);

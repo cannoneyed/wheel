@@ -18,6 +18,9 @@ import { Service } from './services';
 import type { ComputedAccessor, ComputedFor, Field, LatestAsyncTask } from './services';
 
 class Probe extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'Probe';
+
   readonly count = this.atom(0, 'count');
   readonly cursor = this.field<string | null>(null, 'cursor');
 
@@ -77,6 +80,9 @@ const modeMachine = setup({
 });
 
 class MachineProbe extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'MachineProbe';
+
   readonly mode = this.machine(modeMachine, {
     transitions: {
       start: (target: number) => ({ type: 'start', target }),
@@ -109,6 +115,9 @@ const inputMachine = setup({
 });
 
 class InputMachineProbe extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'InputMachineProbe';
+
   readonly valid = this.machine(inputMachine, {
     input: { initial: 1 },
     transitions: { reset: () => ({ type: 'reset' }) }

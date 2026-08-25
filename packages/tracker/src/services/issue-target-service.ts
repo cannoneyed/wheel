@@ -9,6 +9,9 @@ import { ViewOptionsService } from './view-options-service';
 
 /** Resolves route-aware issue targets and visible ordering for interactions. */
 export class IssueTargetService extends Service {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'IssueTargetService';
+
   private readonly issues = this.service(IssueService);
   private readonly router = this.service(trackerRouter.Service) as RouterService<TrackerRoutes>;
   private readonly selection = this.service(SelectionService);

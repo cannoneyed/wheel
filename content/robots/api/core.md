@@ -138,7 +138,7 @@ Identity + provenance stamp carried by every kernel primitive.
 
 ## `DebugRegistry`
 
-Kind: class. Source: [packages/wheel/src/core/debug-registry.ts:174](../../../packages/wheel/src/core/debug-registry.ts#L174).
+Kind: class. Source: [packages/wheel/src/core/debug-registry.ts:193](../../../packages/wheel/src/core/debug-registry.ts#L193).
 
 Live registry for one ServiceContext tree.
 

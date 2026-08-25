@@ -8,6 +8,9 @@ import { Show } from 'solid-js';
 import { Service, ServiceProvider, componentRoot, connect, useSignal, viewRoot } from 'wheel/core';
 
 class CounterService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'CounterService';
+
   readonly count = this.atom(0, 'count');
   readonly doubled = this.computed(() => this.count.get() * 2, 'doubled');
   readonly add = this.action((amount: number) => {

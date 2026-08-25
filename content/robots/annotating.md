@@ -14,7 +14,7 @@ It is split in two. Resident: the rolling recorder, the chip, the chord, the loa
 
 `startAnnotateSession()` / `stopAnnotateSession()` own the page-wide recorder; the count is refcounted so several embedded apps share one. `AnnotateService` resolves its recorder on every read, so the chrome adopts the buffer that was already running.
 
-Minified class names break the record: a timeline is worth reading because it says `BoardService.toggleCell`. `wheelDevTools()` sets esbuild `keepNames`; a production build that wants annotation must keep names too.
+Service identity is declared, not preserved: every Service subclass carries `static override serviceName` (rule `require-service-name`, auto-fixable), read by `serviceDisplayName()` as an OWN property so a subclass never inherits its parent's identity. Class names may therefore be minified. `wheelDevTools()` still sets esbuild `keepNames` by default; `wheelDevTools({ keepNames: false })` opts out and saves 11.2 KB gzipped (measured on Axle), at the cost of minified function names in raw stack traces.
 
 ## Flow
 

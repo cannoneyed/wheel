@@ -18,6 +18,9 @@ import { WheelAnnotate } from './annotate-lazy';
 import { annotateRecorder, stopAnnotateSession } from './session';
 
 class BoardService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'BoardService';
+
   readonly selection = this.atom<readonly string[]>([], 'selection');
   readonly toggleCell = this.action((cellId: string) => {
     this.selection.set([cellId]);

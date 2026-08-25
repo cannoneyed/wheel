@@ -8,6 +8,9 @@ import { ToastService } from 'wheel/kit';
 
 /** Owns saved-view subscriptions and CRUD. */
 export class ViewService extends SyncService {
+         /** Identity that survives minification (see require-service-name). */
+         static override serviceName = 'ViewService';
+
   private readonly toastService = this.service(ToastService);
   private readonly view = this.liveQueryFor(viewsByTeam, (teamId: string) => ({ teamId }));
 

@@ -30,6 +30,7 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `no-handles-in-atoms`: live runtime handles stay out of frozen state.
 - `no-optional-computed-args`: keyed memo args do not include `undefined`.
 - `no-early-field-read`: eager fields do not read later fields.
+- `require-service-name`: every Service subclass declares `static override serviceName` matching its class name, so identity survives minification. Auto-fixable.
 - `require-tracked-service-fields`: mutable private service state uses `field()`.
 - `require-latest-async-task-wait`: latest-wins async boundaries use the token.
 - `invert-return-type`: mutation inverses have explicit return types.

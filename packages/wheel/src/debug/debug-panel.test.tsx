@@ -29,6 +29,9 @@ const gaugeModeMachine = setup({
 });
 
 class GaugeService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'GaugeService';
+
   private readonly calibration = this.field(1, 'calibration');
   readonly level = this.atom(1, 'level');
   readonly doubled = this.computed(() => this.level.get() * 2, 'doubled');

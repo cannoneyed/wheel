@@ -6,7 +6,7 @@ Import only from `wheel/vite`. The linked declarations are the source of truth f
 
 ## `wheelDevTools`
 
-Kind: function. Source: [packages/wheel/src/vite/index.ts:182](../../../packages/wheel/src/vite/index.ts#L182).
+Kind: function. Source: [packages/wheel/src/vite/index.ts:198](../../../packages/wheel/src/vite/index.ts#L198).
 
 The wheel dev-tools vite plugin (see module doc).
 

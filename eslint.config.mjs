@@ -133,6 +133,9 @@ export default [
       // evaluates immediately — so a dependency assigned in the constructor is
       // still undefined when a computed field reads it.
       'wheel/no-early-field-read': 'error',
+      // Service identity has to survive minification: the class name is what
+      // the state tree, actService and annotation timelines print.
+      'wheel/require-service-name': 'error',
       'wheel/require-tracked-service-fields': 'error',
       // Color literals follow no theme. Tokens (src/styles/tokens.css) do.
       // var() FALLBACKS stay legal — kit ships into apps that may not have
@@ -236,6 +239,9 @@ export default [
       'wheel/no-raw-anchor-navigation': 'error',
       // Constructor-assigned dependency read by an eagerly-evaluated field.
       'wheel/no-early-field-read': 'error',
+      // Service identity has to survive minification: the class name is what
+      // the state tree, actService and annotation timelines print.
+      'wheel/require-service-name': 'error',
       'wheel/require-tracked-service-fields': 'error',
       // One palette, defined once in tokens.css. A hex typed into a component
       // renders the same in light and dark forever. var() fallbacks are fine.

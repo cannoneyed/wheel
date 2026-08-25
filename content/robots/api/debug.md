@@ -90,7 +90,7 @@ Global inspector state + hit-testing (see module doc).
 
 ## `InspectorSystem`
 
-Kind: function. Source: [packages/wheel/src/debug/inspector.tsx:325](../../../packages/wheel/src/debug/inspector.tsx#L325).
+Kind: function. Source: [packages/wheel/src/debug/inspector.tsx:328](../../../packages/wheel/src/debug/inspector.tsx#L328).
 
 The inspector chrome: drag overlay + results panel. Mount once, next to the other systems. Renders nothing while the inspector is off. `hideResults` suppresses the floating results panel for hosts that render the hits themselves (WheelApp's docked inspect section) — the drag overlay and Escape handling stay.
 
@@ -114,7 +114,7 @@ Public export. Read the linked declaration for its complete contract.
 
 ## `SnapshotCard`
 
-Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:387](../../../packages/wheel/src/debug/snapshot.tsx#L387).
+Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:390](../../../packages/wheel/src/debug/snapshot.tsx#L390).
 
 The staged-capture card: preview, copy image, save to disk, discard.
 
@@ -138,7 +138,7 @@ The snapshot flow: marquee → staged capture → copy / save / discard.
 
 ## `SnapshotSystem`
 
-Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:290](../../../packages/wheel/src/debug/snapshot.tsx#L290).
+Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:293](../../../packages/wheel/src/debug/snapshot.tsx#L293).
 
 The marquee overlay. Mounted by WheelApp next to the other systems; renders nothing while the flow is off/staged.
 
