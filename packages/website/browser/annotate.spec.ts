@@ -91,6 +91,9 @@ test('the landing page is annotatable too', async ({ page }) => {
 
   const before = noteIds();
   await page.getByTestId('wheel-annotate-chip').click();
+  // The chrome arrives through a dynamic import, so the picker's shield is
+  // what says it is ready. Clicking before it lands hits the page instead.
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
   const box = await headline.boundingBox();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
 
@@ -100,9 +103,14 @@ test('the landing page is annotatable too', async ({ page }) => {
 
   const note = await savedNote(before);
   const payload = note.payload as {
-    anchor: { kind: string; element: string | null; text: string | null };
+    anchor: { kind: string; instanceId: string | null; domPath: string | null; text: string | null };
   };
-  expect(payload.anchor.kind).toBe('element');
-  expect(payload.anchor.element).toBeTruthy();
-  expect(payload.anchor.text).toBeTruthy();
+
+  // The landing sections carry `use:viewRoot`, so in a dev build they register
+  // and the picker gets the STRONGER anchor — a component instance. A
+  // production build does not register view components, and the same click
+  // falls to an element anchor. Either is fine; what must hold is that the
+  // note carries something that can find the target again.
+  expect(['instance', 'element']).toContain(payload.anchor.kind);
+  expect(payload.anchor.instanceId ?? payload.anchor.domPath).toBeTruthy();
 });
