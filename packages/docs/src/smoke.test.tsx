@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'solid-js/web';
 import { MDX_COMPONENTS } from './mdx-components';
 import { NAV, PAGES } from './pages';
+import { AlphaBanner } from './components/AlphaBanner';
 import Components from '../../../content/docs/components.mdx';
 import Linting from '../../../content/docs/linting.mdx';
 import LiveState from '../../../content/docs/live-state.mdx';
@@ -15,6 +16,20 @@ import Overview from '../../../content/docs/overview.mdx';
 import State from '../../../content/docs/state.mdx';
 
 describe('docs pages render', () => {
+  it('renders the shared alpha warning', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const dispose = render(() => <AlphaBanner />, host);
+    try {
+      const banner = host.querySelector('.alpha-banner');
+      expect(banner?.getAttribute('aria-label')).toBe('Alpha software warning');
+      expect(banner?.textContent).toContain('Pin an exact version');
+    } finally {
+      dispose();
+      host.remove();
+    }
+  });
+
   for (const { slug: name, component: Page } of PAGES) {
     it(`renders ${name} with a heading and content`, () => {
       const host = document.createElement('div');

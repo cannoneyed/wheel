@@ -91,13 +91,13 @@ code {
 .hero > p:has(+ ul) {
   font-size: 1rem;
   color: var(--ink);
-  margin: 0 0 0.6rem;
+  margin: 0 0 1.25rem;
 }
 
 .hero > ul {
   list-style: none;
   padding: 0;
-  margin: 0 0 2rem;
+  margin: 0 0 3rem;
   display: grid;
   gap: 0.45rem;
   font-size: 1rem;
@@ -251,6 +251,124 @@ code {
   font-size: 0.82rem;
 }
 
+/* ---- state inspector --------------------------------------------------- */
+
+.debug-preview {
+  width: min(48rem, 100vw - 2.5rem);
+  margin: 2rem calc((44rem - min(48rem, 100vw - 2.5rem)) / 2);
+  border: 1px solid var(--line);
+  border-radius: var(--wheel-radius-lg);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.debug-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--wheel-bg-soft);
+}
+
+.debug-preview-title {
+  font: 700 var(--wheel-ui-xl) var(--mono);
+}
+
+.debug-preview-status {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--accent);
+  font: 600 var(--wheel-ui-md) var(--mono);
+}
+
+.debug-preview-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(12rem, 0.65fr);
+  min-height: 14rem;
+}
+
+.debug-preview-state {
+  border-right: 1px solid var(--line);
+}
+
+.debug-preview-columns,
+.debug-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.debug-preview-columns {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font: 600 var(--wheel-ui-md) var(--mono);
+}
+
+.debug-preview-row {
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--ink);
+  font: var(--wheel-ui-xl) var(--mono);
+  text-align: left;
+  cursor: pointer;
+}
+
+.debug-preview-row:hover {
+  background: var(--wheel-bg-hover);
+}
+
+.debug-preview-row.active {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.debug-preview-row code {
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font-size: inherit;
+}
+
+.debug-preview-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 1rem;
+  background: var(--code-bg);
+}
+
+.debug-preview-trace div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.debug-preview-trace dt {
+  color: var(--muted);
+  font: 600 var(--wheel-ui-md) var(--mono);
+}
+
+.debug-preview-trace dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--wheel-ui-xl);
+}
+
+.debug-preview-trace code {
+  padding: 0;
+  background: none;
+  color: var(--accent);
+}
+
 /* ---- the live figure --------------------------------------------------- */
 
 /* Two real wheel apps sit inside this band, so it breaks the essay's 44rem
@@ -348,44 +466,78 @@ code {
   }
 }
 
-.battery-list,
-.omission-list {
-  padding-left: 1.1rem;
-  max-width: 40rem;
-}
+/* ---- syntax feature list ---------------------------------------------- */
 
-.battery-list li,
-.omission-list li {
-  margin-bottom: 0.65rem;
-  color: color-mix(in srgb, var(--ink) 88%, var(--muted));
-}
-
-.demo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-}
-
-.demo-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.feature-code {
+  margin: 1.5rem 0;
   border: 1px solid var(--line);
   border-radius: var(--wheel-radius-lg);
-  padding: 1.1rem 1.2rem;
-  text-decoration: none;
+  background: var(--code-bg);
+  overflow: hidden;
 }
 
-.demo-card:hover {
-  border-color: var(--accent);
-}
-
-.demo-card span {
+.feature-code figcaption {
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--wheel-bg-soft);
   color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font: 600 var(--wheel-ui-lg) var(--mono);
 }
 
-@media (max-width: 600px) {
+.feature-code pre {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font: var(--wheel-prose-xs) / 1.65 var(--mono);
+  white-space: pre-wrap;
+}
+
+.feature-code code {
+  padding: 0;
+  background: none;
+}
+
+.feature-code-line {
+  display: block;
+}
+
+.feature-code-entry {
+  padding-left: 1.25rem;
+}
+
+.syntax-keyword {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.syntax-variable {
+  color: var(--ink);
+}
+
+.syntax-property {
+  color: var(--warn-ink);
+}
+
+.syntax-string {
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+}
+
+.syntax-punctuation {
+  color: var(--muted);
+}
+
+@media (max-width: 680px) {
+  .debug-preview {
+    width: 100%;
+    margin: 1.5rem 0;
+  }
+
+  .debug-preview-body {
+    grid-template-columns: 1fr;
+  }
+
+  .debug-preview-state {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
 }

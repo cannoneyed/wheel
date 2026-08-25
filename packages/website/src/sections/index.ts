@@ -6,5 +6,6 @@
 export { Section, Snippet } from './section';
 export { Hero, Ctas } from './hero';
 export { AgentInstall } from './agent-install';
-export { ItemList, DemoGrid, type ListItem } from './lists';
+export { DebugPanelPreview, type DebugPreviewEntry } from './debug-panel-preview';
+export { FeatureCode, type FeatureCodeItem } from './feature-code';
 export { LiveDemo } from './live-demo';

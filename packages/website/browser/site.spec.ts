@@ -17,12 +17,19 @@ test.describe('landing page', () => {
     // The MDX document produced the whole scroll, not just the hero.
     expect(await page.getByTestId('section').count()).toBeGreaterThan(5);
     await expect(page.getByTestId('install').first()).toBeVisible();
+    await expect(page.locator('.site-topnav .site-alpha-chip')).toHaveText('alpha');
     // The live figure is a real app, not a picture — live-demo.spec.ts drives it.
     await expect(page.getByTestId('live-demo')).toBeVisible();
     await expect(page.locator('.site-topnav').getByRole('link', { name: 'Components' })).toHaveAttribute(
       'href',
       '/components/'
     );
+    const debugPreview = page.getByTestId('debug-preview');
+    const debugRows = debugPreview.locator('.debug-preview-row');
+    await expect(debugRows).toHaveCount(3);
+    await debugRows.nth(1).click();
+    await expect(debugRows.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('feature-code')).toContainText('export const');
     // Snippets go through the shared shiki pipeline.
     await expect(page.locator('pre.shiki').first()).toBeVisible();
   });
@@ -36,6 +43,7 @@ test.describe('landing page', () => {
     await page.reload();
     await expect(html).toHaveAttribute('data-theme', chosen!);
   });
+
 });
 
 test.describe('/docs', () => {
@@ -58,6 +66,7 @@ test.describe('/docs', () => {
     }
     // Exactly one row is marked as the page you are on.
     await expect(page.locator('.sidebar a.active')).toHaveCount(1);
+    await expect(page.locator('.content .alpha-banner')).toBeVisible();
     await expect(page.locator('.content h1').first()).toBeVisible();
     await expect(page.locator('.site-topnav').getByRole('link', { name: 'Components' })).toHaveAttribute(
       'href',

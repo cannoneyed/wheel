@@ -2,6 +2,8 @@
 
 Wheel is a local-first Solid application framework. One package exposes separate surfaces so clients only import the layers they use:
 
+> **Alpha software:** Wheel is in active v0 development. APIs and stored data formats can change between releases. Pin an exact version and test upgrades before deployment.
+
 ```sh
 bun add wheel@npm:@cannoneyed/wheel@0.1.0 solid-js
 ```
@@ -25,6 +27,6 @@ Import `wheel/components/styles` once to apply the default Mira zinc theme. Each
 
 The remaining runtime entries are `wheel/debug` for development inspection and `wheel/testing` for deterministic sync tests. `wheel/vite` configures local development, and `wheel/eslint` exports the plain ESM lint plugin. `wheel/auth` defines provider-neutral server authentication contracts. `wheel/config` validates JSON boot sources; `wheel/router` owns typed application routing.
 
-Wheel is alpha software under active v0 development. npm publishes it under the `alpha` tag.
+npm publishes Wheel under the `alpha` tag.
 
 See the [repository documentation](https://github.com/cannoneyed/wheel) for concepts, examples, and runtime support.

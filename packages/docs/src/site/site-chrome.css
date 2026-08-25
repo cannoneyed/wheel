@@ -37,11 +37,25 @@
 }
 
 .site-topnav .site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--ink);
   font-family: var(--mono);
   font-size: 1.05rem;
   font-weight: 700;
   text-decoration: none;
+}
+
+.site-topnav .site-alpha-chip {
+  padding: 0.2rem 0.42rem;
+  border-radius: 999px;
+  color: var(--wheel-on-accent);
+  background: var(--warn-line);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .site-topnav nav {
