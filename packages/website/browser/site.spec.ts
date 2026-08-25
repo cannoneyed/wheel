@@ -68,6 +68,13 @@ test.describe('/docs', () => {
     await expect(page.locator('.sidebar a.active')).toHaveCount(1);
     await expect(page.locator('.content .alpha-banner')).toBeVisible();
     await expect(page.locator('.content h1').first()).toBeVisible();
+    const contentLink = page.locator('.content a').first();
+    const activeTocLink = page.locator('.page-toc-link.active').first();
+    await expect(contentLink).toBeVisible();
+    await expect(activeTocLink).toBeVisible();
+    expect(await contentLink.evaluate((link) => getComputedStyle(link).color)).toBe(
+      await activeTocLink.evaluate((link) => getComputedStyle(link).color)
+    );
     await expect(page.locator('.site-topnav').getByRole('link', { name: 'Components' })).toHaveAttribute(
       'href',
       '/components/'
