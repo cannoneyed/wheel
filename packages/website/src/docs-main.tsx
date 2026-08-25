@@ -8,7 +8,8 @@
  */
 import { Dynamic, render } from 'solid-js/web';
 import { createEffect, on } from 'solid-js';
-import { useSignal } from 'wheel/core';
+import { ServiceProvider, useSignal } from 'wheel/core';
+import { WheelAnnotate } from 'wheel/annotate';
 
 import '../../docs/src/styles.css';
 import '../../docs/src/site/site-chrome.css';
@@ -59,4 +60,19 @@ function DocsApp() {
   );
 }
 
-render(() => <DocsApp />, document.getElementById('root')!);
+/**
+ * The documentation shell is plain Solid, not a wheel app — so the annotator needs a
+ * provider to hang off. `ServiceProvider` is clientless and holds no services
+ * here; it exists to give the annotator a registry and a clock. Notes on this
+ * page anchor to ELEMENTS (a DOM path plus a quote of the text), which is what
+ * prose has instead of components.
+ */
+render(
+  () => (
+    <ServiceProvider scopeId="docsapp">
+      <DocsApp />
+      <WheelAnnotate />
+    </ServiceProvider>
+  ),
+  document.getElementById('root')!
+);

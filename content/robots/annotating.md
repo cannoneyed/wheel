@@ -59,7 +59,11 @@ Cost with no tap installed: one null check per action call and per atom write.
 
 ## Anchors
 
-An anchor stores the instance id, the component name, the ancestor chain, the rectangle, and a DOM path. `resolveAnchor()` returns `exact`, `renamed`, or `orphaned`. An orphaned note keeps its rectangle, screenshot, and captured state; it is never deleted or silently re-pointed.
+An anchor stores the instance id, the component name, the ancestor chain, the rectangle, a DOM path, an element description, and a text quote. `resolveAnchor()` returns `exact`, `renamed`, or `orphaned`. An orphaned note keeps its rectangle, screenshot, and captured state; it is never deleted or silently re-pointed.
+
+Anchor kinds: `instance` (a component), `element` (plain DOM), `region` (a dragged rectangle), `page`.
+
+`element` anchors serve pages wheel does not own — docs, landing scrolls — where nothing is in the component registry. They resolve by DOM path first, then by the text quote when the path no longer matches or its content changed. A path whose content changed is a miss, not a match. Such a page needs a `ServiceProvider` (clientless, zero services) for `WheelAnnotate` to mount at all.
 
 ## Artifact
 

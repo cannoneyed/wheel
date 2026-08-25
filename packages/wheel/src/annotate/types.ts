@@ -37,8 +37,14 @@ export interface NoteRect {
  * of failing (see `resolveAnchor`).
  */
 export interface NoteAnchor {
-  /** How the target was chosen. */
-  readonly kind: 'instance' | 'region' | 'page';
+  /**
+   * How the target was chosen.
+   *
+   * `element` is the one for pages wheel does not own — a docs page, a landing
+   * scroll. There is no component to name, so the anchor leans on the DOM path
+   * and a quote of the text, which is what actually identifies a paragraph.
+   */
+  readonly kind: 'instance' | 'element' | 'region' | 'page';
   /** The component instance id, when one was picked. */
   readonly instanceId: string | null;
   /** The component's manifest name (`BoardCell`), which survives renumbering. */
@@ -49,6 +55,15 @@ export interface NoteAnchor {
   readonly rect: NoteRect | null;
   /** A plain DOM path, for the case where no component claims the element at all. */
   readonly domPath: string | null;
+  /** A short description of the element itself (`h2.title`), for element anchors. */
+  readonly element: string | null;
+  /**
+   * A quote of the target's text.
+   *
+   * Prose has no ids. When a docs paragraph moves, the sentence is what finds
+   * it again — the same trick a comment system uses to survive an edit.
+   */
+  readonly text: string | null;
 }
 
 /** How well an anchor still resolves against the live component tree. */

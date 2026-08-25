@@ -9,6 +9,8 @@
  * landing scroll styles identically).
  */
 import { render } from 'solid-js/web';
+import { ServiceProvider } from 'wheel/core';
+import { WheelAnnotate } from 'wheel/annotate';
 
 import './styles.css';
 // The live figure renders real wheel components (the unplug switch), so the
@@ -32,4 +34,19 @@ function App() {
   );
 }
 
-render(() => <App />, document.getElementById('root')!);
+/**
+ * The landing scroll is plain Solid, not a wheel app — so the annotator needs a
+ * provider to hang off. `ServiceProvider` is clientless and holds no services
+ * here; it exists to give the annotator a registry and a clock. Notes on this
+ * page anchor to ELEMENTS (a DOM path plus a quote of the text), which is what
+ * prose has instead of components.
+ */
+render(
+  () => (
+    <ServiceProvider scopeId="app">
+      <App />
+      <WheelAnnotate />
+    </ServiceProvider>
+  ),
+  document.getElementById('root')!
+);

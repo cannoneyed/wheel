@@ -129,6 +129,25 @@ function renderTarget(target: NoteTarget): string {
   ].join('\n');
 }
 
+/** What the note is attached to, in the terms that anchor actually has. */
+function describeAnchor(anchor: NotePayload['anchor']): string {
+  if (anchor.kind === 'page') return 'The page as a whole.';
+  if (anchor.instanceId) {
+    const inside = anchor.ancestors.length
+      ? ` — inside ${anchor.ancestors.map((id) => `\`${id}\``).join(' › ')}`
+      : '';
+    return `\`${anchor.instanceId}\`${inside}`;
+  }
+  if (anchor.kind === 'element') {
+    // No component owns it, so say what a human would say: which element, where
+    // in the document, and what it currently reads.
+    const where = anchor.domPath ? ` at \`${anchor.domPath}\`` : '';
+    const quote = anchor.text ? `\n\n> ${anchor.text}` : '';
+    return `The \`${anchor.element ?? 'element'}\`${where}.${quote}`;
+  }
+  return `A region of the page${anchor.domPath ? ` (\`${anchor.domPath}\`)` : ''}.`;
+}
+
 /**
  * Render the whole note as markdown. This is the file an agent is pointed at,
  * so the order is deliberate: what it is, what was said, what happened, then
@@ -168,11 +187,7 @@ export function renderNoteMarkdown(payload: NotePayload): string {
   sections.push(
     '## What it is attached to',
     '',
-    anchor.kind === 'page'
-      ? 'The page as a whole.'
-      : anchor.instanceId
-        ? `\`${anchor.instanceId}\`${anchor.ancestors.length ? ` — inside ${anchor.ancestors.map((id) => `\`${id}\``).join(' › ')}` : ''}`
-        : `A region of the page${anchor.domPath ? ` (\`${anchor.domPath}\`)` : ''}.`,
+    describeAnchor(anchor),
     ''
   );
 

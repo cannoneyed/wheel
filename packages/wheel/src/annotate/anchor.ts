@@ -31,6 +31,9 @@ const ANCESTOR_DEPTH = 6;
 /** How many levels a DOM-path fallback walks up before it stops being useful. */
 const DOM_PATH_DEPTH = 6;
 
+/** How much of a target's text an element anchor quotes to find it again. */
+const QUOTE_LENGTH = 120;
+
 /** A DOMRect as the note stores it. */
 function toRect(rect: DOMRect | NoteRect): NoteRect {
   return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
@@ -85,6 +88,12 @@ export function domPathOf(element: Element): string {
     depth += 1;
   }
   return parts.join(' > ');
+}
+
+/** A short quote of an element's text — what identifies a paragraph after it moves. */
+function quoteOf(element: Element): string | null {
+  const text = (element.textContent ?? '').replace(/\s+/g, ' ').trim();
+  return text ? text.slice(0, QUOTE_LENGTH) : null;
 }
 
 /** Enclosing instance ids, outermost first, capped at {@link ANCESTOR_DEPTH}. */
@@ -146,7 +155,31 @@ export function anchorToInstance(registry: DebugRegistry, record: InstanceRecord
     name: record.name,
     ancestors: ancestorsOf(registry, record),
     rect: element ? toRect(element.getBoundingClientRect()) : null,
-    domPath: element ? domPathOf(element) : null
+    domPath: element ? domPathOf(element) : null,
+    element: element ? describeElement(element) : null,
+    text: element ? quoteOf(element) : null
+  };
+}
+
+/**
+ * Anchor a note to a plain DOM element, for pages wheel does not own.
+ *
+ * A docs paragraph or a landing headline has no component to name, so this
+ * leans on what prose actually has: where it sits in the document, what kind
+ * of element it is, and a quote of its text. The quote is the part that
+ * survives an edit somewhere else on the page.
+ */
+export function anchorToElement(element: Element): NoteAnchor {
+  const rect = element.getBoundingClientRect();
+  return {
+    kind: 'element',
+    instanceId: null,
+    name: null,
+    ancestors: [],
+    rect: toRect(rect),
+    domPath: domPathOf(element),
+    element: describeElement(element),
+    text: quoteOf(element)
   };
 }
 
@@ -160,21 +193,66 @@ export function anchorToRegion(registry: DebugRegistry, rect: NoteRect): NoteAnc
     name: innermost?.name ?? null,
     ancestors: record ? ancestorsOf(registry, record) : [],
     rect,
-    domPath: null
+    domPath: null,
+    element: null,
+    text: null
   };
 }
 
 /** Anchor a note to the screen as a whole. */
 export function anchorToPage(): NoteAnchor {
-  return { kind: 'page', instanceId: null, name: null, ancestors: [], rect: null, domPath: null };
+  return {
+    kind: 'page',
+    instanceId: null,
+    name: null,
+    ancestors: [],
+    rect: null,
+    domPath: null,
+    element: null,
+    text: null
+  };
 }
 
-/** What re-finding an anchor produced: how good the match was, and the instance if there was one. */
+/** What re-finding an anchor produced: how good the match was, and what it landed on. */
 export interface ResolvedAnchor {
-  /** `exact`, `renamed` (found by name), or `orphaned` (gone). */
+  /** `exact`, `renamed` (found some other way), or `orphaned` (gone). */
   readonly match: AnchorMatch;
-  /** The live instance, when one was found. */
+  /** The live instance, when the anchor named a component that is still mounted. */
   readonly record: InstanceRecord | null;
+  /** The live element, for anchors on plain DOM. */
+  readonly element: Element | null;
+}
+
+/**
+ * Re-find an element anchor: its path first, then its words.
+ *
+ * The path is exact and brittle; the quote is fuzzy and durable. A docs
+ * paragraph that moved down the page keeps its sentence, and that is what
+ * finds it — the same trick a comment system uses to survive an edit.
+ */
+function resolveElement(anchor: NoteAnchor): ResolvedAnchor {
+  if (typeof document === 'undefined') return { match: 'orphaned', record: null, element: null };
+  if (anchor.domPath) {
+    try {
+      const found = document.querySelector(anchor.domPath);
+      // The path alone is not proof: the same slot can hold different content
+      // after an edit, so a recorded quote has to still agree.
+      if (found && (!anchor.text || (found.textContent ?? '').includes(anchor.text))) {
+        return { match: 'exact', record: null, element: found };
+      }
+    } catch {
+      // A stored path that is no longer valid CSS is just a miss.
+    }
+  }
+  if (anchor.text) {
+    const candidates = document.querySelectorAll(anchor.element?.split('.')[0] ?? '*');
+    for (const candidate of candidates) {
+      if ((candidate.textContent ?? '').replace(/\s+/g, ' ').trim().startsWith(anchor.text)) {
+        return { match: 'renamed', record: null, element: candidate };
+      }
+    }
+  }
+  return { match: 'orphaned', record: null, element: null };
 }
 
 /**
@@ -183,15 +261,16 @@ export interface ResolvedAnchor {
  * result says the id moved, and `orphaned` says the target is gone.
  */
 export function resolveAnchor(registry: DebugRegistry, anchor: NoteAnchor): ResolvedAnchor {
+  if (anchor.kind === 'element') return resolveElement(anchor);
   if (anchor.instanceId) {
     const exact = registry.instance(anchor.instanceId);
     if (exact && (anchor.name === null || exact.name === anchor.name)) {
-      return { match: 'exact', record: exact };
+      return { match: 'exact', record: exact, element: null };
     }
   }
   if (anchor.name) {
     const sameName = registry.instances().filter((record) => record.name === anchor.name);
-    if (sameName.length === 1) return { match: 'renamed', record: sameName[0]! };
+    if (sameName.length === 1) return { match: 'renamed', record: sameName[0]!, element: null };
     if (sameName.length > 1) {
       // Several candidates: the one whose enclosing components overlap the
       // recorded ancestors most is the best guess available.
@@ -205,8 +284,8 @@ export function resolveAnchor(registry: DebugRegistry, anchor: NoteAnchor): Reso
           bestScore = score;
         }
       }
-      if (best) return { match: 'renamed', record: best };
+      if (best) return { match: 'renamed', record: best, element: null };
     }
   }
-  return { match: 'orphaned', record: null };
+  return { match: 'orphaned', record: null, element: null };
 }

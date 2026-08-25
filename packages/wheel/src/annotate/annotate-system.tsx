@@ -35,6 +35,7 @@ import type { SyncClient } from '../sync/client/client';
 import { captureViewportRegion, tabCaptureStream } from '../debug/snapshot';
 
 import { AnnotateService, type SavedNote } from './annotate-service';
+import { describeElement } from './anchor';
 import { describeEvent } from './note-format';
 import { speechRecognitionAvailable } from './media';
 import type { NoteLabel, NoteRect } from './types';
@@ -321,9 +322,12 @@ function Picker(props: { service: AnnotateService }): JSX.Element {
     const element = under(event.clientX, event.clientY);
     const record = element ? props.service.instanceAt(element) : null;
     if (!record) {
+      // Still highlight it: on a page wheel does not own, the element IS the
+      // target, and a picker that lights up nothing looks broken.
       props.service.hover(null);
-      setRect(null);
-      setLabel('');
+      setLabel(element ? describeElement(element) : '');
+      const bare = element?.getBoundingClientRect();
+      setRect(bare ? { x: bare.x, y: bare.y, width: bare.width, height: bare.height } : null);
       return;
     }
     props.service.hover(record.instanceId);
@@ -342,6 +346,9 @@ function Picker(props: { service: AnnotateService }): JSX.Element {
           const element = under(event.clientX, event.clientY);
           const record = element ? props.service.instanceAt(element) : null;
           if (record) props.service.pickInstance(record.instanceId);
+          // No component claims it — a docs paragraph, a landing headline.
+          // Anchor to the element itself rather than shrugging at the page.
+          else if (element) props.service.pickElement(element);
           else props.service.pickPage();
         }}
       />

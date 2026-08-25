@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DebugRegistry } from '../core/debug-registry';
 
-import { anchorToInstance, describeElement, domPathOf, resolveAnchor } from './anchor';
+import { anchorToElement, anchorToInstance, describeElement, domPathOf, resolveAnchor } from './anchor';
 
 const cleanups: Array<() => void> = [];
 
@@ -104,6 +104,52 @@ describe('resolveAnchor', () => {
       domPath: null
     });
     expect(resolved.match).toBe('orphaned');
+  });
+});
+
+describe('element anchors — pages wheel does not own', () => {
+  it('anchors to the element, its path and its words', () => {
+    document.body.innerHTML =
+      '<main id="root"><p>Wheel is a web application framework.</p></main>';
+    const paragraph = document.querySelector('p')!;
+
+    const anchor = anchorToElement(paragraph);
+    expect(anchor.kind).toBe('element');
+    expect(anchor.element).toBe('p');
+    expect(anchor.domPath).toBe('#root > p');
+    expect(anchor.text).toBe('Wheel is a web application framework.');
+  });
+
+  it('re-finds it by path when nothing moved', () => {
+    document.body.innerHTML = '<main id="root"><p>The sentence.</p></main>';
+    const anchor = anchorToElement(document.querySelector('p')!);
+
+    const resolved = resolveAnchor(new DebugRegistry(), anchor);
+    expect(resolved.match).toBe('exact');
+    expect(resolved.element).toBe(document.querySelector('p'));
+  });
+
+  it('re-finds it by its words after it moved', () => {
+    document.body.innerHTML = '<main id="root"><p>The sentence.</p></main>';
+    const anchor = anchorToElement(document.querySelector('p')!);
+
+    // An edit inserts a paragraph above, so the recorded path now points at
+    // different content. The words are what still identify it.
+    document.body.innerHTML =
+      '<main id="root"><p>A new intro.</p><p>The sentence.</p></main>';
+
+    const resolved = resolveAnchor(new DebugRegistry(), anchor);
+    expect(resolved.match).toBe('renamed');
+    expect(resolved.element?.textContent).toBe('The sentence.');
+  });
+
+  it('refuses a path whose content changed underneath it', () => {
+    document.body.innerHTML = '<main id="root"><p>The sentence.</p></main>';
+    const anchor = anchorToElement(document.querySelector('p')!);
+    document.body.innerHTML = '<main id="root"><p>Something else entirely.</p></main>';
+
+    // The slot still exists but no longer holds what the note was about.
+    expect(resolveAnchor(new DebugRegistry(), anchor).match).toBe('orphaned');
   });
 });
 

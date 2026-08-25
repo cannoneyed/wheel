@@ -1,5 +1,6 @@
 import { render } from 'solid-js/web';
-import { viewRoot } from 'wheel/core';
+import { ServiceProvider, viewRoot } from 'wheel/core';
+import { WheelAnnotate } from 'wheel/annotate';
 
 import '../../docs/src/theme.css';
 import 'wheel/components/styles';
@@ -20,4 +21,19 @@ function ComponentsApp() {
   );
 }
 
-render(() => <ComponentsApp />, document.getElementById('root')!);
+/**
+ * The component gallery is plain Solid, not a wheel app — so the annotator needs a
+ * provider to hang off. `ServiceProvider` is clientless and holds no services
+ * here; it exists to give the annotator a registry and a clock. Notes on this
+ * page anchor to ELEMENTS (a DOM path plus a quote of the text), which is what
+ * prose has instead of components.
+ */
+render(
+  () => (
+    <ServiceProvider scopeId="componentsapp">
+      <ComponentsApp />
+      <WheelAnnotate />
+    </ServiceProvider>
+  ),
+  document.getElementById('root')!
+);

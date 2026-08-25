@@ -28,7 +28,15 @@ import type { InstanceRecord } from '../core/debug-registry';
 import type { SyncClient } from '../sync/client/client';
 import { activeErrorLog } from '../debug/error-capture';
 
-import { anchorToInstance, anchorToPage, anchorToRegion, resolveAnchor, targetOf, targetsUnder } from './anchor';
+import {
+  anchorToElement,
+  anchorToInstance,
+  anchorToPage,
+  anchorToRegion,
+  resolveAnchor,
+  targetOf,
+  targetsUnder
+} from './anchor';
 import { Recorder, stateTreeSnapshot } from './recorder';
 import { annotateRecorder, startAnnotateSession } from './session';
 import { downloadNote } from './download';
@@ -249,6 +257,15 @@ export class AnnotateService extends Service {
     this.openComposer(anchorToPage(), null);
   }, 'pickPage');
 
+  /**
+   * Attach a note to a plain DOM element — the door for pages wheel does not
+   * own, like a docs page or a landing scroll, where there is no component to
+   * name but there is very much something wrong on the screen.
+   */
+  readonly pickElement = this.action((element: Element) => {
+    this.openComposer(anchorToElement(element), null);
+  }, 'pickElement');
+
   /** Typed note text. */
   readonly setText = this.action((text: string) => {
     this.patchDraft({ text });
@@ -423,16 +440,15 @@ export class AnnotateService extends Service {
   /** Where a saved note's pin belongs now, and how well its anchor still resolves. */
   pinFor(note: SavedNote): { rect: NoteRect; match: 'exact' | 'renamed' | 'orphaned' } | null {
     const resolved = resolveAnchor(this.context.registry, note.payload.anchor);
-    if (resolved.record) {
-      for (const element of resolved.record.elements) {
-        if (element.isConnected) {
-          const rect = element.getBoundingClientRect();
-          return {
-            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-            match: resolved.match
-          };
-        }
-      }
+    const live = resolved.record
+      ? [...resolved.record.elements].find((element) => element.isConnected)
+      : resolved.element;
+    if (live?.isConnected) {
+      const rect = live.getBoundingClientRect();
+      return {
+        rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        match: resolved.match
+      };
     }
     const fallback = note.payload.anchor.rect;
     return fallback ? { rect: fallback, match: 'orphaned' } : null;
