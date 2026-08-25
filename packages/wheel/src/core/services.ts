@@ -43,7 +43,7 @@ import {
 
 import { canonicalParams } from './params';
 import { captureDeclSite } from './decl-site';
-import { DebugRegistry, type DebugMeta } from './debug-registry';
+import { type DebugSnapshot, DebugRegistry, type DebugMeta } from './debug-registry';
 import {
   systemClock,
   systemDefer,
@@ -479,6 +479,21 @@ export class ServiceContext {
    */
   trackDebug(): number {
     return this.debugVersion();
+  }
+
+  /**
+   * Tracked, READ-ONLY view of the debug registry: a plain-data snapshot
+   * that re-reads whenever the registry changes. The root context owns the
+   * registry and its change signal, so a call at any depth delegates the
+   * tracked read to the root. This is the inspection door `useDebugSnapshot`
+   * hands to tooling; it exposes no services and no mutable context state.
+   * Application data must never ride this channel (see trackDebug).
+   */
+  debugSnapshot(): DebugSnapshot {
+    let root: ServiceContext = this;
+    while (root.parent) root = root.parent;
+    root.trackDebug();
+    return this.registry.snapshot();
   }
 
   /**

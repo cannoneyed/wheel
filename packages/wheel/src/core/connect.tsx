@@ -25,7 +25,7 @@ import {
   type ServiceOverrideOptions
 } from './services';
 import { WheelContext, StubContext } from './context';
-import { setActiveRegistry, type InstanceRecord } from './debug-registry';
+import { setActiveRegistry, type DebugSnapshot, type InstanceRecord } from './debug-registry';
 import { isWheelDevMode } from './dev-mode';
 import { assertSingleSolidRuntime } from './solid-runtime';
 
@@ -106,6 +106,31 @@ export function ServiceProvider(props: {
       {props.children}
     </WheelContext.Provider>
   );
+}
+
+/**
+ * A reactive, READ-ONLY window onto the debug registry of the nearest
+ * provider's tree: returns an accessor that yields the plain-data
+ * `DebugSnapshot` and re-fires (inside a computation) whenever the registry
+ * changes — mounts, unmounts, field writes.
+ *
+ * This is the sanctioned TOOLING door — debug surfaces, stub-inventory
+ * pages, test probes. It deliberately exposes no services and no mutable
+ * context state, so the one-door rule for application data (connect()) is
+ * untouched; `connect-only` still forbids the service-container escapes by
+ * name. Independent of dev mode, the bridge, window globals, and storage —
+ * it works wherever a provider does, including sandboxed opaque-origin
+ * iframes.
+ *
+ * Throws outside a provider, matching connect().
+ */
+export function useDebugSnapshot(): () => DebugSnapshot {
+  const context = useContext(WheelContext);
+  if (!context) {
+    throw new Error('useDebugSnapshot() used outside a WheelProvider/ServiceProvider');
+  }
+  const services = context.services;
+  return () => services.debugSnapshot();
 }
 
 /** The declaration surface available inside connect() callbacks. */

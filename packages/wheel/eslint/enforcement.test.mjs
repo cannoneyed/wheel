@@ -100,6 +100,27 @@ describe('architecture lint regressions', () => {
     expect(messages).toEqual([]);
   });
 
+  it('still forbids useServiceContext in consumer component code', () => {
+    // The service-container escape stays closed: the tooling door is
+    // useDebugSnapshot (read-only plain data), never the live context.
+    const messages = verify(
+      `import { useServiceContext } from 'wheel/core';
+       const services = useServiceContext();`,
+      'connect-only'
+    );
+    expect(messages.map((message) => message.ruleId)).toEqual(['wheel/connect-only']);
+  });
+
+  it('allows useDebugSnapshot, the read-only tooling door', () => {
+    const messages = verify(
+      `import { useDebugSnapshot } from 'wheel/core';
+       const snapshot = useDebugSnapshot();
+       const names = snapshot().components.map((component) => component.name);`,
+      'connect-only'
+    );
+    expect(messages).toEqual([]);
+  });
+
   it('requires a substantive reason for native TSX view timing', () => {
     expect(
       verify(`const later = () => setTimeout(close, 10);`, 'no-raw-timers', [

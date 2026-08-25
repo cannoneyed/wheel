@@ -170,6 +170,18 @@ function domDepth(element: Element): number {
   return depth;
 }
 
+/**
+ * The plain-data registry snapshot debug surfaces render: primitive values,
+ * service records, and each component's declared manifest. Pure data on
+ * purpose — no services, no context, nothing callable — so handing it to a
+ * debug surface or an embedded inventory page exposes no write path.
+ */
+export interface DebugSnapshot {
+  primitives: Array<{ meta: DebugMeta; value: unknown }>;
+  services: DebugServiceRecord[];
+  components: Array<{ name: string; dependencies: string[]; queryKeys: string[] }>;
+}
+
 /** Live registry for one ServiceContext tree. */
 export class DebugRegistry {
   private readonly primitives = new Map<
@@ -542,11 +554,7 @@ export class DebugRegistry {
   }
 
   /** Full graph snapshot for the debug panel / `window.__wheel`. */
-  snapshot(): {
-    primitives: Array<{ meta: DebugMeta; value: unknown }>;
-    services: DebugServiceRecord[];
-    components: Array<{ name: string; dependencies: string[]; queryKeys: string[] }>;
-  } {
+  snapshot(): DebugSnapshot {
     return {
       primitives: [...this.primitives.values()].map(({ meta, read }) => ({
         meta,

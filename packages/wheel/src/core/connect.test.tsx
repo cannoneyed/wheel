@@ -15,6 +15,7 @@ import {
   connect,
   fakeService,
   stubOf,
+  useDebugSnapshot,
   view
 } from './index';
 import { WheelContext } from './context';
@@ -223,5 +224,54 @@ describe('connect in the DOM', () => {
     } finally {
       cleanup();
     }
+  });
+});
+
+describe('useDebugSnapshot', () => {
+  const connectLateView = connect('LateView', (c) => {
+    const counterService = c.service(CounterService);
+    return { get count() { return counterService.count.get(); } };
+  });
+  function LateView() {
+    const state = connectLateView({});
+    return <span>{state.count}</span>;
+  }
+
+  it('serves observed service reads, and re-reads reactively as later mounts record', () => {
+    const [late, setLate] = createSignal(false);
+    let names: (() => readonly string[]) | undefined;
+    let counterDeps: (() => readonly string[]) | undefined;
+    function SnapshotProbe() {
+      const snapshot = useDebugSnapshot();
+      names = () => snapshot().components.map((component) => component.name);
+      counterDeps = () =>
+        snapshot().components.find((component) => component.name === 'CounterView')?.dependencies ?? [];
+      return null;
+    }
+    const { cleanup } = mount(() => (
+      <ServiceProvider scopeId="probe">
+        <CounterView />
+        <SnapshotProbe />
+        <Show when={late()}>
+          <LateView />
+        </Show>
+      </ServiceProvider>
+    ));
+    try {
+      // The observed manifest a stub-inventory page renders: the sibling's
+      // connect and its service reads are in the snapshot.
+      expect(names!()).toContain('CounterView');
+      expect(counterDeps!().some((dep) => dep.startsWith('service:CounterService'))).toBe(true);
+      // Reactive: a component mounting AFTER the first read appears on re-read.
+      expect(names!()).not.toContain('LateView');
+      setLate(true);
+      expect(names!()).toContain('LateView');
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('throws outside a provider, matching connect()', () => {
+    expect(() => useDebugSnapshot()).toThrow(/outside a WheelProvider\/ServiceProvider/);
   });
 });

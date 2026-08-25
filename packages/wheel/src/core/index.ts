@@ -31,6 +31,7 @@ export {
   makeConnector,
   componentRoot,
   viewRoot,
+  useDebugSnapshot,
   WheelProvider,
   ServiceProvider,
   type Connector
@@ -58,6 +59,7 @@ export {
 } from './view';
 export {
   DebugRegistry,
+  type DebugSnapshot,
   type DebugMeta,
   type DebugServiceRecord,
   type ComponentRecord,
