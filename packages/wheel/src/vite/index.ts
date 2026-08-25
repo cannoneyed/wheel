@@ -141,6 +141,18 @@ interface NoteRequest {
   readonly audio?: string | null;
 }
 
+/**
+ * The shortest path to a note that still resolves from the terminal.
+ *
+ * `process.cwd()` is where the dev server was launched, which is where a human
+ * is pasting. A path that climbs out of it says nothing useful, so that case
+ * stays absolute.
+ */
+function noteCommandPath(absolutePath: string): string {
+  const fromCwd = relative(process.cwd(), absolutePath);
+  return fromCwd && !fromCwd.startsWith('..') ? fromCwd : absolutePath;
+}
+
 /** Decode a `data:…;base64,…` URL into bytes, or null when it is not one. */
 function decodeDataUrl(value: string | null | undefined): Buffer | null {
   if (!value) return null;
@@ -294,9 +306,12 @@ export function wheelDevTools(options: WheelDevToolsOptions = {}): WheelVitePlug
           for (const [name, bytes] of attachments) {
             if (bytes) writeFileSync(join(dir, name), bytes);
           }
-          // A path relative to the vite root is what a human can paste into an
-          // agent session without editing it first.
-          const command = `read ${relative(root, join(dir, 'note.md')) || join(dir, 'note.md')}`;
+          // Relative to where the dev server was STARTED, not to the vite
+          // root. An app usually roots at its own package (`packages/app`)
+          // while the terminal — and the agent session being pasted into —
+          // sits at the repo root, so a root-relative path would not resolve
+          // where it lands. An unrelated cwd falls back to absolute.
+          const command = `read ${noteCommandPath(join(dir, 'note.md'))}`;
           res.statusCode = 200;
           res.end(JSON.stringify({ ok: true, dir, command }));
         } catch (error) {

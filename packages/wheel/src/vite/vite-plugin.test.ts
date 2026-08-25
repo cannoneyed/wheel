@@ -184,12 +184,32 @@ describe('wheelDevTools notes', () => {
     const { ok, dir, command } = JSON.parse(res.body) as { ok: boolean; dir: string; command: string };
     expect(ok).toBe(true);
     expect(dir).toBe(join(root, '.wheel/notes/1755974400123-cell-clears'));
-    expect(command).toBe('read .wheel/notes/1755974400123-cell-clears/note.md');
+    // This fixture writes to a temp dir OUTSIDE the working directory, where
+    // a relative path would be a wall of `../` — so it stays absolute.
+    expect(command).toBe(`read ${join(dir, 'note.md')}`);
     expect(readFileSync(join(dir, 'note.md'), 'utf8')).toBe('# cell clears\n');
     expect(JSON.parse(readFileSync(join(dir, 'note.json'), 'utf8'))).toMatchObject({ text: 'cell clears' });
     expect(existsSync(join(dir, 'shot.png'))).toBe(true);
     expect(existsSync(join(dir, 'audio.webm'))).toBe(true);
     expect(existsSync(join(dir, 'clip.webm'))).toBe(false);
+  });
+
+  it('gives a path relative to where the server was started, not to the vite root', async () => {
+    // An app usually roots at its own package while the terminal — and the
+    // agent session being pasted into — sits at the repo root. A root-relative
+    // path would not resolve where it lands.
+    const insideCwd = join(process.cwd(), '.wheel-command-test');
+    try {
+      const { server, dispatch } = makeServer(root);
+      wheelDevTools({ noteDir: insideCwd }).configureServer(server as never);
+      const res = await dispatch('/__wheel/note', 'POST', { id: 'note-1', payload: {}, markdown: '# x\n' });
+      const { command } = JSON.parse(res.body) as { command: string };
+
+      expect(command).toBe('read .wheel-command-test/note-1/note.md');
+      expect(command).not.toContain('..');
+    } finally {
+      rmSync(insideCwd, { recursive: true, force: true });
+    }
   });
 
   it('lists saved notes newest first, skipping any that are unreadable', async () => {
