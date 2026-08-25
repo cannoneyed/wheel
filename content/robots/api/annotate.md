@@ -30,21 +30,33 @@ Anchor a note to a dragged rectangle; the innermost component under it names the
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:97](../../../packages/wheel/src/annotate/annotate-service.ts#L97).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:98](../../../packages/wheel/src/annotate/annotate-service.ts#L98).
 
 Injected capture seams, so the service runs headless in tests.
 
 ## `AnnotateMode`
 
-Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:54](../../../packages/wheel/src/annotate/annotate-service.ts#L54).
+Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:55](../../../packages/wheel/src/annotate/annotate-service.ts#L55).
 
 Where the flow currently is.
 
+## `annotateRecorder`
+
+Kind: function. Source: [packages/wheel/src/annotate/session.ts:48](../../../packages/wheel/src/annotate/session.ts#L48).
+
+The running recorder, or null when annotation is not enabled on this page.
+
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:108](../../../packages/wheel/src/annotate/annotate-service.ts#L108).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:109](../../../packages/wheel/src/annotate/annotate-service.ts#L109).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
+
+## `AnnotateSessionOptions`
+
+Kind: interface. Source: [packages/wheel/src/annotate/session.ts:25](../../../packages/wheel/src/annotate/session.ts#L25).
+
+What the resident recorder needs to run.
 
 ## `describeElement`
 
@@ -54,7 +66,7 @@ A short human description of an element: `button.primary`, `div#board`, `input`.
 
 ## `describeEvent`
 
-Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:60](../../../packages/wheel/src/annotate/note-format.ts#L60).
+Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:63](../../../packages/wheel/src/annotate/note-format.ts#L63).
 
 One timeline row's human column — what actually happened, in words.
 
@@ -64,6 +76,12 @@ Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:67](../../../pack
 
 A plain CSS path to an element, walking up to six levels. This is the last-resort anchor for the case no component claims the element at all. It is fragile by nature — that is why it is fourth in line, not first.
 
+## `downloadNote`
+
+Kind: function. Source: [packages/wheel/src/annotate/download.ts:33](../../../packages/wheel/src/annotate/download.ts#L33).
+
+Save `text` as `filename` through the browser's download path. Blob URL plus a synthetic click is the only way to name a download from a page; the URL is revoked on the next frame so the blob is not retained.
+
 ## `NoteAnchor`
 
 Kind: interface. Source: [packages/wheel/src/annotate/types.ts:39](../../../packages/wheel/src/annotate/types.ts#L39).
@@ -72,7 +90,7 @@ What a note is attached to. `instance` is the good case and the one to aim for: 
 
 ## `NoteDraft`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:57](../../../packages/wheel/src/annotate/annotate-service.ts#L57).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:58](../../../packages/wheel/src/annotate/annotate-service.ts#L58).
 
 A note being written: everything captured so far, none of it saved yet.
 
@@ -84,7 +102,7 @@ Page-level facts worth having when the note is read out of context, weeks later.
 
 ## `noteId`
 
-Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:40](../../../packages/wheel/src/annotate/note-format.ts#L40).
+Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:43](../../../packages/wheel/src/annotate/note-format.ts#L43).
 
 A note's id and directory name: `<epoch-ms>-<slug>`. Epoch first so a directory listing sorts chronologically; the slug is what makes a listing readable without opening anything.
 
@@ -184,9 +202,15 @@ Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:92](../../../p
 
 Which optional streams a recording captures. Both default ON (the 021 ruling: maximal capture).
 
+## `renderNoteFile`
+
+Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:212](../../../packages/wheel/src/annotate/note-format.ts#L212).
+
+The whole note as ONE self-contained markdown file, for when there is no dev server to write a directory — a production page, a static preview. Everything that would have been separate files is folded in: the screenshot as an inline data URL, and the complete payload as a fenced JSON block so nothing is lost on the way. Audio and video are deliberately left out; they are megabytes of base64 that no reader of a markdown file wants, and the transcript — the part an agent can actually use — is already in the prose.
+
 ## `renderNoteMarkdown`
 
-Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:134](../../../packages/wheel/src/annotate/note-format.ts#L134).
+Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:137](../../../packages/wheel/src/annotate/note-format.ts#L137).
 
 Render the whole note as markdown. This is the file an agent is pointed at, so the order is deliberate: what it is, what was said, what happened, then the state.
 
@@ -204,9 +228,15 @@ What re-finding an anchor produced: how good the match was, and the instance if 
 
 ## `SavedNote`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:89](../../../packages/wheel/src/annotate/annotate-service.ts#L89).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:90](../../../packages/wheel/src/annotate/annotate-service.ts#L90).
 
 A saved note as the dev server hands it back, for rendering pins.
+
+## `setNoteDownload`
+
+Kind: function. Source: [packages/wheel/src/annotate/download.ts:23](../../../packages/wheel/src/annotate/download.ts#L23).
+
+Public export. Read the linked declaration for its complete contract.
 
 ## `setVideoCapture`
 
@@ -222,7 +252,7 @@ Public export. Read the linked declaration for its complete contract.
 
 ## `slugify`
 
-Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:24](../../../packages/wheel/src/annotate/note-format.ts#L24).
+Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:27](../../../packages/wheel/src/annotate/note-format.ts#L27).
 
 Turn free text into a short, file-safe, greppable slug.
 
@@ -231,6 +261,12 @@ Turn free text into a short, file-safe, greppable slug.
 Kind: function. Source: [packages/wheel/src/annotate/media.ts:90](../../../packages/wheel/src/annotate/media.ts#L90).
 
 Whether this browser can turn speech into text without a server.
+
+## `startAnnotateSession`
+
+Kind: function. Source: [packages/wheel/src/annotate/session.ts:38](../../../packages/wheel/src/annotate/session.ts#L38).
+
+Start the rolling buffer, or return the one already running. Idempotent: several `WheelAnnotate` mounts (a docs page with two embedded apps) share one recorder, exactly as they share one kernel tap.
 
 ## `startVideo`
 
@@ -249,6 +285,12 @@ Start listening: transcript from speech recognition, audio from the microphone. 
 Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:497](../../../packages/wheel/src/annotate/recorder.ts#L497).
 
 Every service's atoms and computed values right now, keyed by service name. A clip stores this as its START STATE — a timeline of actions is only re-runnable against a known starting point, which is what makes replay reachable later.
+
+## `stopAnnotateSession`
+
+Kind: function. Source: [packages/wheel/src/annotate/session.ts:58](../../../packages/wheel/src/annotate/session.ts#L58).
+
+Release one mount's claim on the session; the last one out tears it down. Refcounted because a docs page can embed several wheel apps, and the first one to unmount must not take the shared taps with it.
 
 ## `targetOf`
 
@@ -288,6 +330,12 @@ A capture in progress.
 
 ## `WheelAnnotate`
 
-Kind: function. Source: [packages/wheel/src/annotate/annotate-system.tsx:190](../../../packages/wheel/src/annotate/annotate-system.tsx#L190).
+Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:80](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L80).
 
-Mount the annotation chrome. Renders nothing until it is armed, apart from the chip that arms it.
+Mount the annotator: a rolling recorder now, the chrome on demand.
+
+## `WheelAnnotateProps`
+
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:69](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L69).
+
+Props for {@link WheelAnnotate}.

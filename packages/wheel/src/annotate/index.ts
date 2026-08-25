@@ -1,17 +1,21 @@
 /**
  * wheel/annotate — leave notes on a running app, and record what it did.
  *
- * Mount `<WheelAnnotate/>` anywhere inside a wheel app. A ✎ chip appears;
- * ⌘⇧A arms it. Pick a component, say what is wrong (typed or spoken), and a
- * directory lands under `.wheel/notes/` holding the note, the component's live
- * state, a screenshot, and — for a clip — a merged timeline of every action,
- * state change, input, sync write and error that happened while you recorded.
+ * Mount `<WheelAnnotate/>` anywhere inside a wheel app. It starts a rolling
+ * 60-second recorder and shows a ✎ chip; ⌘⇧A arms it, and only then is the
+ * rest of the UI fetched. Pick a component, say what is wrong (typed or
+ * spoken), and a directory lands under `.wheel/notes/` holding the note, the
+ * component's live state, a screenshot, and — for a clip — a merged timeline
+ * of every action, state change, input, sync write and error recorded.
+ *
+ * With no dev server the note becomes a single downloaded markdown file
+ * instead, so a deployed app can be annotated without sending anyone's
+ * application state anywhere.
  *
  * Kept separate from `wheel/debug` on purpose: a production build can ship the
- * annotator without the debug panel, and everything here is dev-server-backed
- * rather than panel-backed.
+ * annotator without the debug panel.
  */
-export { WheelAnnotate } from './annotate-system';
+export { WheelAnnotate, type WheelAnnotateProps } from './annotate-lazy';
 export {
   AnnotateService,
   type AnnotateCapture,
@@ -20,6 +24,13 @@ export {
   type SavedNote
 } from './annotate-service';
 export { Recorder, stateTreeSnapshot, type RecorderOptions, type RecorderStreams } from './recorder';
+export {
+  annotateRecorder,
+  startAnnotateSession,
+  stopAnnotateSession,
+  type AnnotateSessionOptions
+} from './session';
+export { downloadNote, setNoteDownload } from './download';
 export {
   anchorToInstance,
   anchorToPage,
@@ -31,7 +42,7 @@ export {
   targetsUnder,
   type ResolvedAnchor
 } from './anchor';
-export { describeEvent, noteId, renderNoteMarkdown, slugify } from './note-format';
+export { describeEvent, noteId, renderNoteFile, renderNoteMarkdown, slugify } from './note-format';
 export {
   setVideoCapture,
   setVoiceCapture,

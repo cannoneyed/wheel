@@ -6,9 +6,15 @@ Leave a note on a running app and record what the app did. The recording is sema
 
 ## Mount
 
-`WheelAnnotate` mounts the chrome inside any Wheel provider. `wheel/annotate` is a separate entry from `wheel/debug`, so a build can ship the annotator without the debug panel.
+`WheelAnnotate` mounts inside any Wheel provider. `wheel/annotate` is a separate entry from `wheel/debug`, so a build can ship the annotator without the debug panel.
 
-Saving requires `wheelDevTools({ noteDir })` in the Vite config. Without it, `canSave` stays false and the save button is disabled.
+It is split in two. Resident: the rolling recorder, the chip, the chord, the loader — 4.1 KB gzipped measured on the tracker. Deferred behind a dynamic `import()` of `annotate-system`: picker, composer, voice, note rendering — 9.1 KB, fetched on first arm.
+
+`enabled` defaults to `isWheelDevMode()`. A production page records nothing and shows nothing unless the app passes `enabled`. The app owns that decision because it decides whose application state may be captured.
+
+`startAnnotateSession()` / `stopAnnotateSession()` own the page-wide recorder; the count is refcounted so several embedded apps share one. `AnnotateService` resolves its recorder on every read, so the chrome adopts the buffer that was already running.
+
+Minified class names break the record: a timeline is worth reading because it says `BoardService.toggleCell`. `wheelDevTools()` sets esbuild `keepNames`; a production build that wants annotation must keep names too.
 
 ## Flow
 
@@ -57,7 +63,9 @@ An anchor stores the instance id, the component name, the ancestor chain, the re
 
 ## Artifact
 
-`wheelDevTools({ noteDir })` serves three endpoints:
+Saving tries the dev server first and falls back to a download, so the delivery never depends on the capability probe having returned.
+
+With a dev server, `wheelDevTools({ noteDir })` serves three endpoints:
 
 - `GET /__wheel/note`: capability probe.
 - `POST /__wheel/note`: write one note.
@@ -76,9 +84,12 @@ Each note is one directory:
 
 `note.md` is rendered from `note.json`, so the two cannot disagree. The POST response returns a `read <path>/note.md` command, which the page copies to the clipboard.
 
+Without a dev server, `renderNoteFile()` produces ONE markdown file and `downloadNote()` hands it to the browser: prose, timeline, captured state, the screenshot as an inline data URL, and the full payload as a fenced JSON block. Audio and video are omitted — megabytes of base64 that the transcript already covers. Nothing is uploaded anywhere; there is no collector endpoint.
+
 ## Seams
 
 - `setVoiceCapture()` and `setVideoCapture()` replace hardware capture in tests.
+- `setNoteDownload()` captures downloads instead of triggering them.
 - `AnnotateService.attach()` takes the sync client and the pixel-capture seams.
 - Missing permissions set `notice`, not the error buffer. A refused screen capture, microphone, or recognizer is an expected outcome, not an application fault.
 
@@ -88,4 +99,6 @@ Primary sources:
 - [`recorder.ts`](../../packages/wheel/src/annotate/recorder.ts)
 - [`anchor.ts`](../../packages/wheel/src/annotate/anchor.ts)
 - [`note-format.ts`](../../packages/wheel/src/annotate/note-format.ts)
+- [`annotate-lazy.tsx`](../../packages/wheel/src/annotate/annotate-lazy.tsx)
+- [`session.ts`](../../packages/wheel/src/annotate/session.ts)
 - [`recorder-tap.ts`](../../packages/wheel/src/core/recorder-tap.ts)

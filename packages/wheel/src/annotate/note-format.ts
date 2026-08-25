@@ -14,6 +14,9 @@
  */
 import type { NotePayload, NoteTarget, RecordedEvent } from './types';
 
+/** Largest screenshot embedded in a downloaded note, in data-URL characters. */
+const EMBED_IMAGE_LIMIT = 2_000_000;
+
 /** Longest slug taken from a note's text, in characters. */
 const SLUG_LENGTH = 40;
 
@@ -194,4 +197,36 @@ export function renderNoteMarkdown(payload: NotePayload): string {
   );
 
   return `${sections.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
+}
+
+/**
+ * The whole note as ONE self-contained markdown file, for when there is no dev
+ * server to write a directory — a production page, a static preview.
+ *
+ * Everything that would have been separate files is folded in: the screenshot
+ * as an inline data URL, and the complete payload as a fenced JSON block so
+ * nothing is lost on the way. Audio and video are deliberately left out; they
+ * are megabytes of base64 that no reader of a markdown file wants, and the
+ * transcript — the part an agent can actually use — is already in the prose.
+ */
+export function renderNoteFile(payload: NotePayload, shot: string | null): string {
+  const parts = [renderNoteMarkdown(payload)];
+
+  if (shot && shot.length <= EMBED_IMAGE_LIMIT) {
+    parts.push('## Screenshot', '', `![${payload.id}](${shot})`, '');
+  } else if (shot) {
+    parts.push('## Screenshot', '', '_Too large to embed; re-capture with a dev server running._', '');
+  }
+
+  const dropped = payload.attachments.filter((name) => name !== 'shot.png');
+  if (dropped.length > 0) {
+    parts.push(
+      `_${dropped.join(' and ')} ${dropped.length === 1 ? 'was' : 'were'} recorded but not embedded — ` +
+        'save with a dev server running to keep the media._',
+      ''
+    );
+  }
+
+  parts.push('## Payload', '', '```json', JSON.stringify(payload, null, 2), '```', '');
+  return `${parts.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
 }

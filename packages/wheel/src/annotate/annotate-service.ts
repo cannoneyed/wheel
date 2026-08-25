@@ -23,7 +23,6 @@
  */
 import { Service } from '../core/services';
 import { logger } from '../core/logger';
-import { isWheelDevMode } from '../core/dev-mode';
 import { serializeValue } from '../core/serialize';
 import type { InstanceRecord } from '../core/debug-registry';
 import type { SyncClient } from '../sync/client/client';
@@ -31,7 +30,9 @@ import { activeErrorLog } from '../debug/error-capture';
 
 import { anchorToInstance, anchorToPage, anchorToRegion, resolveAnchor, targetOf, targetsUnder } from './anchor';
 import { Recorder, stateTreeSnapshot } from './recorder';
-import { noteId, renderNoteMarkdown } from './note-format';
+import { annotateRecorder, startAnnotateSession } from './session';
+import { downloadNote } from './download';
+import { noteId, renderNoteFile, renderNoteMarkdown } from './note-format';
 import { startVideo, startVoice, type VideoSession, type VoiceSession } from './media';
 import type { NoteAnchor, NoteLabel, NotePayload, NoteRect, NoteTarget, RecordedEvent } from './types';
 
@@ -137,10 +138,23 @@ export class AnnotateService extends Service {
    */
   readonly notice = this.atom<string | null>(null, 'notice');
 
-  private readonly recorder = new Recorder({
+  /** Used only when nothing started a page-wide session (direct service use, tests). */
+  private readonly ownRecorder = new Recorder({
     now: () => this.now(),
     registry: this.context.registry
   });
+
+  /**
+   * The rolling buffer, resolved on every read.
+   *
+   * It has to be lazy: `WheelAnnotate` starts the page-wide session, and this
+   * service is constructed by the chrome that loads AFTERWARDS. Binding the
+   * recorder at construction time picked the private fallback and quietly
+   * recorded into a buffer no tap was feeding.
+   */
+  private get recorder(): Recorder {
+    return annotateRecorder() ?? this.ownRecorder;
+  }
   private readonly client = this.field<SyncClient | null>(null, 'client');
   private readonly capture = this.field<AnnotateCapture | null>(null, 'capture');
   private readonly voice = this.field<VoiceSession | null>(null, 'voice');
@@ -164,11 +178,12 @@ export class AnnotateService extends Service {
   /**
    * Start the rolling retro buffer. `WheelAnnotate` calls this on MOUNT, not
    * on arm — "save the last minute" is worthless if the minute only starts
-   * once you have already noticed the bug. Dev only; a production build
-   * records nothing until someone presses record.
+   * once you have already noticed the bug. Whether it runs at all is the
+   * mount's decision (`enabled`), so a public production page records
+   * nothing unless the app says otherwise.
    */
   readonly beginSession = this.action(() => {
-    if (isWheelDevMode()) this.recorder.install();
+    startAnnotateSession({ now: () => this.now(), registry: this.context.registry });
   }, 'beginSession');
 
   /** Turn annotation mode on: pins appear and the picker goes live. */
@@ -191,16 +206,14 @@ export class AnnotateService extends Service {
     this.video.set(null);
     this.recorder.endClip();
     this.recording.set(false);
-    if (!isWheelDevMode()) this.recorder.uninstall();
     this.draft.set(null);
     this.hovered.set(null);
     this.mode.set('off');
   }, 'disarm');
 
-  /** Unmount: disarm and remove the taps, whatever mode the session is in. */
+  /** Unmount: disarm. The session recorder keeps running; `stopAnnotateSession` ends it. */
   readonly endSession = this.action(() => {
     this.disarm();
-    this.recorder.uninstall();
   }, 'endSession');
 
   /** Highlight-follows-cursor while the picker is live. */
@@ -365,28 +378,24 @@ export class AnnotateService extends Service {
     };
     this.draft.set(null);
     this.mode.set('armed');
+    // Try the dev server; fall back to a download. Deciding from the probe
+    // instead would race it — arm, type fast, hit save, and a note would go to
+    // a file even though a server was right there.
     void fetch(NOTE_ENDPOINT, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body)
     })
       .then(async (response) => {
-        const result = (await response.json()) as {
-          ok: boolean;
-          dir?: string;
-          command?: string;
-          error?: string;
-        };
-        if (!result.ok) {
-          logger.warn('wheel: note save failed', result.error ?? response.status);
-          return;
-        }
+        if (!response.ok) throw new Error(`note endpoint answered ${response.status}`);
+        const result = (await response.json()) as { ok: boolean; dir?: string; command?: string; error?: string };
+        if (!result.ok) throw new Error(result.error ?? 'note endpoint refused the note');
         this.savedTo.set(result.dir ?? null);
         this.lastCommand.set(result.command ?? null);
         if (result.command) void copyToClipboard(result.command);
         this.loadNotes();
       })
-      .catch((error: unknown) => logger.warn('wheel: note save failed', error));
+      .catch(() => this.deliverAsDownload(payload, draft.shot));
   }, 'save');
 
   /** Re-read the notes on disk (pins). */
@@ -572,6 +581,21 @@ export class AnnotateService extends Service {
         ? { connection: client.connectionStatus(), pendingMutations: client.pendingMutations() }
         : null
     };
+  }
+
+  /**
+   * Hand the note to the human as one self-contained file.
+   *
+   * This is what production annotation ends in: no endpoint to POST to, and
+   * no server quietly collecting other people's application state.
+   */
+  private deliverAsDownload(payload: NotePayload, shot: string | null): void {
+    const filename = `${payload.id}.md`;
+    downloadNote(filename, renderNoteFile(payload, shot));
+    const command = `read ~/Downloads/${filename}`;
+    this.savedTo.set(`${filename} (downloaded)`);
+    this.lastCommand.set(command);
+    void copyToClipboard(command);
   }
 
   /** Ask the dev server whether saving is possible at all. */

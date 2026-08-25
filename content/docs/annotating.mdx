@@ -39,9 +39,9 @@ render(() => (
 ), root);
 ```
 
-A ✎ chip appears in the bottom-left corner; **⌘⇧A** (Ctrl+Shift+A) arms and disarms it, Escape
-leaves. `wheel/annotate` is a separate entry point from `wheel/debug` on purpose: a build can ship
-the annotator without the debug panel.
+A ✎ chip appears in the bottom-left corner; **⌘⇧A** (Ctrl+Shift+A) arms it, Escape leaves.
+`wheel/annotate` is a separate entry point from `wheel/debug` on purpose: a build can ship the
+annotator without the debug panel.
 
 Saving needs the dev-server endpoint, which comes from the same plugin the rich screenshots use:
 
@@ -53,6 +53,51 @@ export default defineConfig({
   plugins: [solid(), wheelDevTools({ noteDir: '.wheel/notes' })]
 });
 ```
+
+## In production
+
+Mounting `<WheelAnnotate/>` costs a rolling recorder and a chip. Everything else — picker,
+composer, voice, note rendering — is behind a dynamic `import()` and arrives the first time
+someone arms. Measured on the tracker:
+
+| | gzipped |
+| --- | --- |
+| resident: recorder, chip, chord, loader | **4.1 KB** |
+| deferred: the whole armed experience | 9.1 KB, fetched on arm |
+
+`enabled` defaults to dev mode, so a production build records nothing and shows nothing until the
+app says otherwise. That decision belongs to the app, because it decides whose application state
+may be captured:
+
+```tsx
+// Excerpt: a production entry.
+<WheelAnnotate enabled={session.actor?.isStaff === true} />
+<WheelAnnotate enabled={localStorage.getItem('wheel.annotate') === '1'} />
+```
+
+The second form is the one for a live deployment: set the key in the console, reload, and the
+rolling buffer is running — no deploy needed.
+
+<Aside kind="note">
+  <strong>Keep your class names.</strong> A timeline is only worth reading because it says
+  `BoardService.toggleCell`. Minifiers rename classes to `So`/`rT`, which turns the whole record
+  illegible — `wheelDevTools()` sets esbuild's <code>keepNames</code> for exactly this reason. A
+  production build that wants annotation must keep names too.
+</Aside>
+
+### Delivery without a dev server
+
+A deployed app has no `/__wheel/note` to POST to, so the save button becomes **download note** and
+produces one self-contained markdown file: the note, the timeline, the captured state, the
+screenshot inlined as a data URL, and the complete payload as a fenced JSON block. Drop it wherever
+your agent is looking.
+
+The save path always tries the server first and falls back to the download, so it cannot be fooled
+by a slow capability probe. Audio and video are left out of a download on purpose — they are
+megabytes of base64, and the transcript is already in the prose.
+
+Nothing is sent anywhere. There is no collector endpoint, which is why production notes need no
+redaction story yet: the state stays on the machine that captured it until a human moves it.
 
 ## The three things you can do
 

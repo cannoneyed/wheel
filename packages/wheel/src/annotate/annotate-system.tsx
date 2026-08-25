@@ -1,15 +1,14 @@
 /**
- * `<WheelAnnotate/>` — the on-page chrome for leaving notes.
+ * `<AnnotateChrome/>` — everything you SEE when annotation mode is armed.
  *
- *   <WheelApp client={client}>
- *     <YourApp />
- *     <WheelAnnotate />
- *   </WheelApp>
+ * This module is the lazy half. `WheelAnnotate` (annotate-lazy.tsx) imports it
+ * dynamically the first time someone arms, so a production bundle carries the
+ * recorder and a chip rather than the picker, the composer, voice capture and
+ * note rendering. Measured on the tracker: 8.1 KB gzipped stays out of the
+ * main bundle this way.
  *
- * Mounting it starts the rolling 60-second recorder in dev, and puts a ✎ chip
- * in the bottom-left corner (⌘⇧A / Ctrl+Shift+A toggles it). Arming shows the
- * chrome: pins for existing notes, a picker that highlights the component
- * under the cursor, and a toolbar with the other capture modes.
+ * Armed, it renders pins for existing notes, a picker that highlights the
+ * component under the cursor, and a toolbar with the other capture modes.
  *
  * The picker's shield swallows every press, so it steps aside while a clip is
  * recording — a clip is made by USING the app.
@@ -184,10 +183,10 @@ function rectStyle(rect: NoteRect): JSX.CSSProperties {
 }
 
 /**
- * Mount the annotation chrome. Renders nothing until it is armed, apart from
- * the chip that arms it.
+ * Mount the annotation chrome. The chip lives in the stub that loaded this
+ * module, so everything here is the armed experience.
  */
-export function WheelAnnotate(): JSX.Element {
+export function AnnotateChrome(): JSX.Element {
   const context = useContext(WheelContext);
   if (!context) return null;
   const service = context.services.get(AnnotateService);
@@ -217,7 +216,11 @@ export function WheelAnnotate(): JSX.Element {
     onCleanup(() => document.removeEventListener('keydown', onKeyDown));
   });
 
+  // The stub mounts this module only after someone armed, so arming here is
+  // what "the chunk arrived" means. beginSession is idempotent: the rolling
+  // buffer is normally already running by now.
   service.beginSession();
+  service.arm();
   onCleanup(() => service.endSession());
 
   return (
@@ -472,11 +475,15 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
               type="button"
               style={styles.button}
               data-testid="wheel-annotate-save"
-              disabled={!props.service.canSave.get() || !props.service.hasContent()}
-              title={props.service.canSave.get() ? undefined : 'wheelDevTools() vite plugin not detected'}
+              disabled={!props.service.hasContent()}
+              title={
+                props.service.canSave.get()
+                  ? undefined
+                  : 'No dev server here — the note downloads as one markdown file'
+              }
               onClick={() => props.service.save()}
             >
-              save note
+              {props.service.canSave.get() ? 'save note' : 'download note'}
             </button>
             <button type="button" style={styles.button} onClick={() => props.service.discard()}>
               discard

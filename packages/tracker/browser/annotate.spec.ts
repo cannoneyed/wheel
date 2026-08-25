@@ -162,3 +162,36 @@ test('a clip records the real actions and state changes behind an interaction', 
   expect(note.markdown).toContain('## Timeline');
   expect(note.markdown).toMatch(/\| \+\d+ms \| action \| \w+\.\w+/);
 });
+
+test('falls back to one downloaded file when the app has no dev server', async ({ page }) => {
+  // A deployed app has no /__wheel/note. Killing the endpoint is the honest
+  // way to test what production actually does.
+  await page.route('**/__wheel/note', (route) => route.abort());
+
+  await page.getByTestId('wheel-annotate-chip').click();
+  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
+  await page.mouse.click(target!.x + target!.width / 2, target!.y + target!.height / 2);
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await page.getByTestId('wheel-annotate-text').fill('no server here');
+
+  const save = page.getByTestId('wheel-annotate-save');
+  await expect(save).toHaveText('download note');
+
+  const [download] = await Promise.all([page.waitForEvent('download'), save.click()]);
+  expect(download.suggestedFilename()).toMatch(/^\d+-no-server-here\.md$/);
+
+  const file = await download.path();
+  const text = readFileSync(file, 'utf8');
+
+  // One file has to carry what a whole directory would have.
+  expect(text).toContain('# no server here');
+  expect(text).toContain('## What it is attached to');
+  expect(text).toContain('## State at capture');
+  expect(text).toContain('## Payload');
+  const payload = JSON.parse(text.split('```json').pop()!.split('```')[0]!) as {
+    text: string;
+    anchor: { instanceId: string | null };
+  };
+  expect(payload.text).toBe('no server here');
+  expect(payload.anchor.instanceId).toBeTruthy();
+});

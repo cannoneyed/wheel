@@ -15,8 +15,10 @@ import { ServiceProvider, Service, connect, componentRoot, view } from '../core'
 import { WheelContext, type WheelContextValue } from '../core/context';
 
 import { AnnotateService } from './annotate-service';
-import { WheelAnnotate } from './annotate-system';
+import { AnnotateChrome } from './annotate-system';
+import { setNoteDownload } from './download';
 import { setVideoCapture, setVoiceCapture } from './media';
+import { stopAnnotateSession } from './session';
 import type { NotePayload } from './types';
 
 class BoardService extends Service {
@@ -46,6 +48,7 @@ function BoardCell() {
 let teardown: (() => void) | null = null;
 const posted: Array<Record<string, unknown>> = [];
 const copied: string[] = [];
+const downloaded: Array<{ filename: string; text: string }> = [];
 
 /** A fetch stub that answers the annotator's three endpoints. */
 function stubFetch(): void {
@@ -107,8 +110,11 @@ function annotator(context: WheelContextValue): AnnotateService {
 afterEach(() => {
   teardown?.();
   teardown = null;
+  stopAnnotateSession();
   posted.length = 0;
   copied.length = 0;
+  downloaded.length = 0;
+  setNoteDownload(null);
   document.body.innerHTML = '';
   vi.unstubAllGlobals();
   setVoiceCapture(null);
@@ -205,6 +211,57 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
+  it('downloads one self-contained file when no dev server answers', async () => {
+    // A deployed app: the endpoint is not there, so the POST fails and the
+    // note has to reach the human some other way.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })));
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (text: string) => (copied.push(text), Promise.resolve()) }
+    });
+    setNoteDownload((filename, text) => downloaded.push({ filename, text }));
+
+    const context = mountApp();
+    const service = annotator(context);
+    service.arm();
+    service.pickInstance('BoardCell:3-7');
+    service.setText('this cell never turns on');
+    service.save();
+
+    await vi.waitFor(() => expect(downloaded).toHaveLength(1));
+    const file = downloaded[0]!;
+    expect(file.filename).toMatch(/^\d+-this-cell-never-turns-on\.md$/);
+
+    // One file has to carry everything a directory would have: the prose, the
+    // component state, and the machine-readable payload.
+    expect(file.text).toContain('# this cell never turns on');
+    expect(file.text).toContain('## State at capture');
+    expect(file.text).toContain('## Payload');
+    expect(JSON.parse(file.text.split('```json').pop()!.split('```')[0]!).text).toBe(
+      'this cell never turns on'
+    );
+    expect(copied[0]).toBe(`read ~/Downloads/${file.filename}`);
+    service.disarm();
+  });
+
+  it('embeds the screenshot in a downloaded note but leaves media out', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })));
+    setNoteDownload((filename, text) => downloaded.push({ filename, text }));
+
+    const context = mountApp();
+    const service = annotator(context);
+    service.arm();
+    service.pickInstance('BoardCell:3-7');
+    await vi.waitFor(() => expect(service.draft.get()?.shot).toBeTruthy());
+    service.setText('look at this');
+    service.save();
+
+    await vi.waitFor(() => expect(downloaded).toHaveLength(1));
+    expect(downloaded[0]!.text).toContain('![');
+    expect(downloaded[0]!.text).toContain('data:image/png;base64,AAA');
+    service.disarm();
+  });
+
   it('keeps the transcript as the readable half of a voice note', async () => {
     stubFetch();
     setVoiceCapture((options) => {
@@ -251,27 +308,22 @@ describe('AnnotateService', () => {
 });
 
 describe('<WheelAnnotate/>', () => {
-  it('shows a chip that arms the flow', () => {
+  it('arms itself when mounted, because only an arm mounts it', () => {
     stubFetch();
-    const context = mountApp(() => <WheelAnnotate />);
+    const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
 
-    const chip = document.querySelector<HTMLButtonElement>('[data-testid="wheel-annotate-chip"]')!;
-    expect(chip).toBeTruthy();
-    expect(document.querySelector('[data-testid="wheel-annotate-toolbar"]')).toBeNull();
-
-    chip.click();
     expect(service.mode.get()).toBe('armed');
     expect(document.querySelector('[data-testid="wheel-annotate-toolbar"]')).toBeTruthy();
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy();
 
-    chip.click();
+    document.querySelector<HTMLButtonElement>('[data-testid="wheel-annotate-chip"]')!.click();
     expect(service.mode.get()).toBe('off');
   });
 
   it('steps the picker aside while a clip records, so the app stays usable', () => {
     stubFetch();
-    const context = mountApp(() => <WheelAnnotate />);
+    const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
 
     service.arm();
@@ -289,7 +341,7 @@ describe('<WheelAnnotate/>', () => {
 
   it('buffers from mount, so the last minute covers what happened before arming', () => {
     stubFetch();
-    const context = mountApp(() => <WheelAnnotate />);
+    const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
     const board = context.services.get(BoardService);
 
@@ -306,7 +358,7 @@ describe('<WheelAnnotate/>', () => {
 
   it('opens the composer when a component is picked', () => {
     stubFetch();
-    const context = mountApp(() => <WheelAnnotate />);
+    const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
     service.arm();
     service.pickInstance('BoardCell:3-7');

@@ -11,7 +11,10 @@ render(
   () => (
     <WheelApp client={trackerClient()}>
       <AppShell />
-      <WheelAnnotate />
+      {/* Axle is our own app, so annotation is on in every build — including
+          the production preview the browser suite runs against. That is the
+          production story working, not a dev convenience. */}
+      <WheelAnnotate enabled />
     </WheelApp>
   ),
   document.getElementById('root')!
