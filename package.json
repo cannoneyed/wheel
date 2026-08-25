@@ -17,6 +17,7 @@
     "test:package": "node --test scripts/package-validation.test.mjs && node scripts/check-package.mjs",
     "package:wheel": "node scripts/check-package.mjs --output-dir .artifacts/npm",
     "audit:public": "node scripts/audit-public-history.mjs",
+    "preview-url": "bun scripts/ci/preview-url.ts",
     "report:tracker-services": "node scripts/tracker-service-report.mjs --write",
     "check:tracker-services": "node scripts/tracker-service-report.mjs --check",
     "docs": "vite --config packages/docs/vite.config.ts",

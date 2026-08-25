@@ -35,4 +35,5 @@ On `main`, `wheel-site` serves `wheel.dev` and Tracker remains an isolated previ
 ## Deploy
 
 - Buildkite secrets: `CF_WORKERS_TOKEN` (API token) and `CF_ACCOUNT_ID` (32 characters).
+- `bun run preview-url` prints the deployed website URL for the current Git branch. Pass a branch name to inspect another branch.
 - The deploy step downloads the exact website and tracker assets from the build steps, deploys both Workers in parallel, then checks the website URL, the tracker URL, and the tracker `/readyz` route.

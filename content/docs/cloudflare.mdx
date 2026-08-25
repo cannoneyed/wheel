@@ -260,6 +260,18 @@ A manual standard build tests the pipeline but does not deploy. The deploy condi
 
 `scripts/ci/branch-key.ts` makes one stable key from the complete branch name. The readable part is 30 characters. An eight-character SHA-256 suffix prevents slash and dash variants from colliding.
 
+Run this command from a worktree to print its deployed website URL:
+
+```sh
+bun run preview-url
+```
+
+The command reads the current Git branch. Pass a branch name to inspect another branch:
+
+```sh
+bun run preview-url feature/auth
+```
+
 The deploy step downloads the exact website and tracker assets from the build steps. It deploys both Workers in parallel. It then checks the website URL, tracker URL, and tracker `/readyz` route. A Buildkite annotation contains both checked URLs and the commit.
 
 `main` reuses the stable website Worker `wheel-site`. Other branches reuse names derived from their branch keys. Tracker Durable Object data stays in place while its branch exists.

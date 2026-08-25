@@ -9,6 +9,7 @@ import {
   waitForOk,
   waitForWorkerNames
 } from './deploy-branch';
+import { previewBranch, previewWebsiteUrl } from './preview-url';
 
 describe('branch Worker names', () => {
   test('are stable, safe, bounded, and collision-resistant', () => {
@@ -17,6 +18,18 @@ describe('branch Worker names', () => {
     expect(first).toMatch(/^[a-z0-9-]+-[a-f0-9]{8}$/);
     expect(branchKey('feature/auth')).not.toBe(branchKey('feature-auth'));
     expect(`wheel-tracker-${branchKey('feature/'.repeat(30))}`.length).toBeLessThan(64);
+  });
+
+  test('prints the website URL for the current branch by default', () => {
+    const branch = previewBranch(undefined, () => 'feature/auth');
+    expect(previewWebsiteUrl(branch)).toBe(
+      `https://wheel-site-${branchKey('feature/auth')}.cannoneyed.workers.dev`
+    );
+  });
+
+  test('accepts an explicit branch and maps main to production', () => {
+    expect(previewBranch('main', () => 'ignored')).toBe('main');
+    expect(previewWebsiteUrl('main')).toBe('https://wheel.dev');
   });
 });
 
