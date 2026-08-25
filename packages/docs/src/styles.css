@@ -319,6 +319,20 @@ body {
   background: var(--warn-bg);
 }
 
+.alpha-banner {
+  margin-top: 0;
+  margin-bottom: var(--wheel-space-2xl);
+}
+
+.alpha-banner p {
+  margin: 0;
+}
+
+.alpha-banner .aside-label {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 /* Same micro-label as the sidebar heading and the landing page's figure
    labels — one label treatment across the whole site. */
 .aside .aside-label,

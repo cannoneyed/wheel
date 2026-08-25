@@ -15,6 +15,7 @@ import './styles.css';
 import './site/site-chrome.css';
 import { MDX_COMPONENTS } from './mdx-components';
 import { PAGES } from './pages';
+import { AlphaBanner } from './components/AlphaBanner';
 import { PageToc } from './components/PageToc';
 import { SidebarNav } from './components/SidebarNav';
 import { SiteHeader } from './site/SiteHeader';
@@ -48,6 +49,7 @@ function App() {
           <SidebarNav slug={slug()} />
         </nav>
         <main class="content" ref={content}>
+          <AlphaBanner />
           <Dynamic component={page().component} components={MDX_COMPONENTS} />
         </main>
         <PageToc slug={slug()} container={() => content} />

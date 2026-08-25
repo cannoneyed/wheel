@@ -23,7 +23,8 @@ export function SiteHeader(props: { active?: LinkKey }) {
     <header use:viewRoot={{ name: 'SiteHeader', props }} class="site-topnav">
       {/* wheel-raw-anchor: separate builds per surface — a full page load is the correct navigation */}
       <a class="site-brand" href="/">
-        🥝 wheel
+        <span>🥝 wheel</span>
+        <span class="site-alpha-chip">alpha</span>
       </a>
       <nav>
         <For each={NAV}>
