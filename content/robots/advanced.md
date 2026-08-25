@@ -4,7 +4,7 @@ Human page: [Swappable Parts](../docs/advanced.mdx). API: [`wheel/sync`](api/syn
 
 ## Transport
 
-`SyncTransport` has six operations: connect, subscribe, unsubscribe, mutate, set presence, and close. It carries plain protocol values. The HTTP transport and in-process demo transport implement the same contract.
+`SyncTransport` has six operations: connect, subscribe, unsubscribe, mutate, set presence, and close. It carries plain protocol values. The shipped implementations are the WebSocket transport and the in-browser worker transport.
 
 Wrap a transport to add latency, tracing, or fault injection. Preserve event order across delayed deliveries.
 
@@ -18,7 +18,7 @@ Cache scope identifies one durable local store. It is separate from the wire cli
 
 `SyncBackend` replaces database-specific storage, writer leasing, exactly-once mutation commits, reads, transient-error classification, and close.
 
-Use `createSqliteSyncBackend()` and `CloudflareSyncBackend` as implementation references. Run conformance tests for another backend.
+Use `createSqliteSyncBackend()` and `createCloudflareSyncBackend()` as implementation references. Run conformance tests for another backend.
 
 ## SQLite driver
 
@@ -36,7 +36,7 @@ Use `SyncServer.externalWrite()` after a controlled direct database write. Use b
 
 ## In-browser engine
 
-The demos combine a WASM SQLite driver with a SharedWorker message transport. They run the real server engine without HTTP. Storage is memory-only and dedicated-worker fallback isolates tabs.
+The demos combine a WASM SQLite driver with a SharedWorker message transport. They run the real server engine without a hosted server. Storage is memory-only and dedicated-worker fallback isolates tabs.
 
 ## Low-level kit exports
 

@@ -6,7 +6,7 @@ import { Aside } from '@docs/components/Aside';
 
 # A real app: the tracker
 
-Ten files in `packages/tracker` show every convention in these docs at product size. Read them in the order below.
+The files in `packages/tracker` and `cloudflare/tracker-worker.ts` show these conventions at product size. Read them in the order below.
 
 Run it first:
 
@@ -20,10 +20,10 @@ Open two browser windows, pick two different users from the bottom-left switcher
 The app is called **Axle**. It is a Linear clone: teams, issues, boards, cycles, projects, comments, presence, a notification inbox, full-text search, offline support, and undo for nearly everything. It exists to answer one question — can this framework carry a real product?
 
 <Aside kind="warning">
-  The default command starts a <strong>demo</strong> deployment: in-memory database, trusted
-  in-app user switcher, sync debug output, and a reset on every restart. Production mode wants a
-  persistent filename and an external session verifier. See
-  <code>packages/tracker/ROADMAP.md</code>.
+  These commands start the local Bun demo: in-memory database, trusted user switcher, detailed
+  WebSocket errors, and a reset on restart. The branch preview uses a Worker and Durable Object.
+  Public production still needs workspace routing, verified identity, backups, restore, and a
+  rollout policy. See <code>packages/tracker/ROADMAP.md</code>.
 </Aside>
 
 ## Scripts
@@ -38,14 +38,14 @@ All from the repo root:
 | `bun run dev:tracker:server` | The engine under `portless` |
 | `bun run dev:tracker:preview` | Builds, then serves the production bundle |
 
-## Read these five files first
+## Read these app files first
 
 | # | File | What it shows |
 | --- | --- | --- |
 | 1 | `src/sync/issues.sync.ts` | The contract: tables, queries, every mutation with its guess and its `invert` |
 | 2 | `src/sync/issues.server.ts` | The truth: the same mutations bound to SQL |
 | 3 | `src/services/issue-service.ts` | Where state lives: keyed views, keyed derivations, failed-write toasts |
-| 4 | `src/components/list/issue-list.tsx` | A connected component, complete, in fifty lines |
+| 4 | `src/components/list/issue-list.tsx` | A compact connected component with query states |
 | 5 | `src/services/issue-interaction-service.ts` | How to get past the three-service connect cap |
 
 **1. `src/sync/issues.sync.ts`.** One file declares the table shape, the queries, and every mutation with its optimistic guess and its `invert`. Read the module comment first: it explains why a new issue's id travels *in the args* (`invert` runs before the optimistic apply, so a create can only name its own inverse if the id already exists) and why the `number` field starts at the sentinel `0` (the `ENG-42` sequence is per-team and only the server can assign it race-free).
@@ -62,7 +62,7 @@ async function requireActive(tx: ServerTx, issueId: string): Promise<void> {
 }
 ```
 
-**3. `src/services/issue-service.ts`.** The largest service in the app, and the reference for three patterns: `liveQueryFor` creates one subscription per team, lazily on first read; `computedFor` caches one derivation per key; and the private `watch(handle, verb)` helper turns a failed mutation into a toast. That last one is repeated in six services and is how a user learns a write did not land:
+**3. `src/services/issue-service.ts`.** This service is the reference for three patterns: `liveQueryFor` creates one subscription per team, lazily on first read; `computedFor` caches one derivation per key; and the private `watch(handle, verb)` helper turns a failed mutation into a toast. That last one is repeated across services and is how a user learns a write did not land:
 
 ```ts
 // Excerpt: packages/tracker/src/services/issue-service.ts
@@ -76,23 +76,36 @@ private watch(handle: MutationHandle, verb: string): MutationHandle {
 }
 ```
 
-**4. `src/components/list/issue-list.tsx`.** Fifty lines that show the whole component contract: `connect()` with a per-instance name, `view()` with named reads only, `use:componentRoot` on the real root, and a `<Switch>` over the query's three-armed status — error, loading, empty, then content. Copy this shape for any screen that renders synced data.
+**4. `src/components/list/issue-list.tsx`.** This file shows the component contract: `connect()` with a per-instance name, `view()` with named reads, `use:componentRoot` on the real root, and a `<Switch>` over error, loading, empty, and content states.
 
 **5. `src/services/issue-interaction-service.ts`.** Components may reach at most three services. The issue list needs more behavior than that, so this class owns *no* domain logic. It re-exports members of seven bounded services (targets, properties, movement, selection, detail, view navigation, commands). Components keep one stable dependency; each behavior keeps its own file and its own tests. When the lint cap fires, this is the refactor it is asking for.
+
+## Read the Worker and Durable Object runtime
+
+| File | What it shows |
+| --- | --- |
+| `cloudflare/tracker-worker.ts` | Worker routing, Durable Object boot, WebSocket hibernation, alarms, and readiness |
+| `packages/tracker/sync-version.ts` | Application and minimum-client versions shared by all runtimes |
+| `packages/tracker/server/schema.ts` | One migration list consumed by Bun and Durable Object runners |
+| `cloudflare/tracker.worker.test.ts` | Real Durable Object storage, hibernation restore, and migration failure cases |
+
+The outer Worker serves assets and sends `/sync/*` and `/readyz` to a Durable Object. The object runs `applyDurableObjectMigrations()` before it creates `createCloudflareSyncBackend()`. It accepts sockets through `ctx.acceptWebSocket()`, restores attachments after wake, and runs cycle rollover from a ten-minute alarm.
+
+`packages/tracker/server.ts` remains useful for local development, self-hosting, and runtime parity. Its production-shaped mode proves persistent SQLite, verified sessions, limits, readiness, and graceful shutdown. It is not the default hosted topology.
 
 ## Schema, authorization, jobs, search, and tests
 
 | # | File | What it shows |
 | --- | --- | --- |
-| 6 | `server/schema.ts` | Migrations, by hand, in sixty lines |
+| 6 | `server/schema.ts` | The shared migration list and Bun migration runner |
 | 7 | `src/sync/inbox.server.ts` | Authorization on the first read *and* on the live stream |
 | 8 | `jobs/rollover.ts` | Writing from outside the engine, safely twice |
 | 9 | `src/sync/search.server.ts` | A hand-built query handler: FTS5, bm25, two invalidation channels |
 | 10 | `test/m5-fuzz.test.ts` | The adversarial suite: three clients, network chaos, four invariants |
 
-**6. `server/schema.ts`.** Wheel ships no migration tool, so the app owns one. It is a literal array of `{version, name, statements}`, a `_axle_schema_migrations` table, and one `begin immediate` transaction that applies whatever has not run yet. The DDL itself is assembled from each `*.server.ts` module's exported statements, so a domain's table definition lives beside its handlers.
+**6. `server/schema.ts`.** Wheel ships no application schema generator, so the app owns one migration list. The Bun runner uses `_axle_schema_migrations` and `begin immediate`. The Durable Object runner consumes the same list through `applyDurableObjectMigrations()`, which owns its bookkeeping format, checksums, and storage transaction. Domain DDL still lives beside its handlers.
 
-**7. `src/sync/inbox.server.ts`.** A query handler receives the caller's `principal`, and the SQL compares the requested `userId` against it, so asking for someone else's inbox returns nothing. The `prune` callback does the other half: it inspects the row image of an incoming write and drops it unless it belongs to this subscriber, so a peer's notification can never leak through a live update. Both halves are required; the SQL alone protects the first read, not the stream.
+**7. `src/sync/inbox.server.ts`.** A query handler receives the caller's `principal`, and the SQL compares the requested `userId` against it. That SQL authorizes the first run and every rerun. Its `prune` callback can skip unrelated work only when a backend supplies row images. The shipped SQLite and Cloudflare backends do not, so they rerun the authorized SQL. Pruning is never a security boundary.
 
 **8. `jobs/rollover.ts`.** The cycle rollover job runs raw SQL directly against the database, then calls `server.externalWrite({ tables: ['cycles', 'issues'] })`. The engine never saw a mutation; it learns which tables changed, re-runs the affected queries, and every subscribed client converges. `now` is a function argument so tests can pass a fixed clock, and ids are derived deterministically with `on conflict do nothing` so a rerun is a no-op. A webhook consumer or a cron worker writes through this same path.
 
@@ -104,7 +117,7 @@ private watch(handle: MutationHandle, verb: string): MutationHandle {
 
 `packages/tracker/TOUR.md` is the long-form tour — the architecture in one breath, the war stories behind the four-outcome mutation model and the id-stream rules, split view, the keyboard layer, virtual tables, provenance UI, and what the app gave back to the framework. Read it with the app running and the five files above open.
 
-Two more files worth a look once you are oriented: `src/machines/drag-machine.ts` is a hand-written state machine with the DOM kept entirely at its edges, unit-tested with no browser; and `src/components/shell/app-shell.tsx` is the whole layout in one screen of JSX.
+Two more files are worth a look once you are oriented. `src/machines/drag-machine.ts` keeps the DOM at the edges of a testable state machine. `src/components/shell/app-shell.tsx` composes the root layout and system components.
 
 ## Next
 

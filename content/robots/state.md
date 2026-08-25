@@ -45,7 +45,8 @@ Live-query views expose rows and a `loading`, `live`, or `error` status. Releasi
 
 - Atom writes notify readers of that atom.
 - Computeds notify readers when their derived value changes.
-- Client events bump one context revision read by live query and client-read views.
+- Live-query rows track the revision for their result table.
+- Query status and `clientRead` views track the coarse context revision.
 - Actions batch synchronous writes.
 
 ## Debug registration

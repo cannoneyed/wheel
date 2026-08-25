@@ -25,7 +25,7 @@ Wheel is batteries-included and very opinionated. That's ok! It stands on the sh
 - **Strict conventions** that tie components to global state for debuggability, traceability, testability, and maintainability.
 - **lint rules + constraint tests** that turn the conventions into build failures, so the rules hold as the app grows.
 - **batteries-included modules** for some of the most common application features, including routing, keyboard shortcuts and focus management, undo/redo, command palettes, context menus, dialogs, and configuration.
-- **a component library** based on ShadCN and BaseUI, with everything you need and nothing you don't.
+- **a component library** built from the Solid port of Base UI primitives with Mira recipes.
 
 ## Why
 
@@ -50,16 +50,15 @@ Follow [Getting Started](./content/docs/getting-started.mdx).
 
 ```
 bun run docs            # the documentation site
-bun run demos           # demos
-bun run tracker         # tracker demo (Linear clone for stress testing) 
+bun run demos           # demos browser; add ?sync=local for the in-browser engine
+bun run demos:server    # WebSocket sync for the normal demos mode
+bun run tracker         # tracker browser (Linear clone for stress testing)
+bun run tracker:server  # local Tracker WebSocket server
 bun run check           # lint, types, tests, docs build, backends, packed consumers
 bun run lint            # the convention linter — zero errors is the only passing state
 ```
 
-Tracker is a stress test, not a production template. Its
-[production-shaped mode and remaining roadmap](packages/tracker/ROADMAP.md)
-separate executable server hardening from application-specific identity,
-provisioning, authorization, and operations work.
+Tracker is a stress test, not a production template. Its branch preview runs on a Worker and Durable Object. The [production roadmap](packages/tracker/ROADMAP.md) separates shipped runtime proof from identity, workspace, backup, restore, and rollout work.
 
 ## Repository layout
 
@@ -67,7 +66,7 @@ provisioning, authorization, and operations work.
 packages/wheel       the framework package and eslint rules
 packages/docs        the documentation site (MDX → Solid)
 packages/tracker     Axle, a Linear clone — the reference app (see TOUR.md)
-packages/demos       todos, kanban, editor, sheet, routing, framing
+packages/demos       todos, kanban, editor, sheet, graph, sequencer, framing, routing, shell
 packages/playground  any component at three sandbox tiers
 ```
 
@@ -78,10 +77,12 @@ packages/playground  any component at three sandbox tiers
 | `wheel/core` | `Service`, `atom`, `computed`, `computedFor`, `connect`, `view`, providers |
 | `wheel/sync` | declarations (`table`/`query`/`mutation`/`presence`), `SyncClient`, `SyncService`, `liveQuery`, transports, local cache |
 | `wheel/sync/server` | `createSyncServer`, `serveQuery`/`serveMutation`, WebSocket sessions, and SQLite backends |
+| `wheel/sync/server/cloudflare` | Worker-safe engine exports, Durable Object backend, and migration runner |
 | `wheel/sync/server/testing` | Runtime-neutral backend conformance contract |
+| `wheel/components` | 38 aggregate and deep component-family entries, plus `wheel/components/styles` |
 | `wheel/kit` | Framing/LayoutService, Keyboard, Focus, Dialog, Command Palette, Context Menu, Toasts |
 | `wheel/router` | Path routing where the URL is an atom: nested routes, typed params and search, URL-backed atoms |
 | `wheel/debug` | the debug panel + on-screen inspector |
 | `wheel/testing` | the `World` harness and `simulate` chaos schedules |
 
-The Wheel state layers form a strict DAG (`core` at the bottom; `sync` and `kit` siblings above it; `sync/server` on `sync`; `debug` on `core`+`sync`; `testing` on `sync`+`server`). Auth and config stay independent; router builds on `core` only. `no-cross-layer-imports` enforces every internal edge.
+The Wheel state layers form a strict DAG. `core` is the bottom. `components` is independent. `sync` builds on `core`; `kit` builds on `core` and `components`; `sync/server` builds on `sync`; `debug` and `testing` read downward. Auth and config stay independent. Router builds on `core` only. `no-cross-layer-imports` enforces every internal edge.

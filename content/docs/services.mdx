@@ -135,7 +135,7 @@ Services answer where state lives. How it changes is the other half, and untrack
 | Synchronous, one step | `action` | Shipped |
 | An async chain where the latest call wins | `this.latestAsyncTask()` | Shipped |
 | A multi-step user flow with distinct states (drag, wizard, upload) | `machine()` with an XState machine | Shipped |
-| An async pipeline with retries, timeouts, interruption | An Effect (effect.ts) run by a service | Planned |
+| Retryable async work | `retryForever` with an `AbortSignal` | Shipped |
 
 ### Latest async tasks
 
@@ -183,11 +183,6 @@ A machine with required XState input also requires `input` in the `machine()` op
 XState delays use the Service context's injected defer seam. Each history entry uses the injected clock. Context disposal stops the actor and cancels its scheduled work.
 
 The debug registry stores one `machine` primitive. It shows current state, status, public transitions, and the latest 50 history entries. Named transitions appear as `<field>.<transition>`, such as `seek.start`.
-
-<Aside kind="todo">
-  The same Service treatment is planned for effect.ts (<code>flow()</code>): services run effects,
-  components only see values.
-</Aside>
 
 **The debug panel is live** — wrap your root in `<WheelApp client>` from `wheel/debug` and every service, primitive value, component manifest, and provenance entry described here shows up in the dev-build panel. Hosts that cannot wrap their root mount the floating `<WheelDebugPanel />` instead. See [Debugging](#/debugging).
 

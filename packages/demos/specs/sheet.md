@@ -39,11 +39,12 @@ reuse; retire a row with ~~strikethrough~~, keep it in place.
   exact rows), but this demo mounts no undo UI and registers no undo shortcut,
   so a browser test has nothing to click. Covered by `src/sheet/sheet.test.ts`
   ("clear column is one mutation and one undo/redo step").
-- **Two-window convergence and reload persistence.** The embedded host runs a
-  private sync engine per page load (WASM SQLite in a worker), so a second tab
-  or a reload starts from a fresh seeded world. A behavior must hold on both
-  hosts, so cross-window convergence stays in the vitest suite, which drives
-  two real clients against one engine.
+- **Two-window convergence and reload persistence.** The embedded host uses one
+  SharedWorker engine per origin, so supported desktop tabs converge. Browsers
+  without SharedWorker use one dedicated worker per tab. Reload persistence is
+  absent because the WASM database is in memory. Cross-window behavior cannot
+  be asserted on every supported topology, so the deterministic World suite
+  proves multi-client convergence and the browser suite covers each host alone.
 - **The "loading…" note.** It renders only while the first subscription is in
   flight; on both hosts that window is a race with no deterministic hook.
 - **Offline / queued mutations.** The sheet's header exposes latency only —

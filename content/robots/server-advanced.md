@@ -4,7 +4,9 @@ Human page: [Server handlers](../docs/server-advanced.mdx). API: [`wheel/sync/se
 
 ## Migrations
 
-Wheel does not generate application schema. A package migration runner should:
+Wheel does not generate application schema. Keep one append-only migration list. Production Durable Objects run it with `applyDurableObjectMigrations()` before engine boot. The runner applies pending versions in one storage transaction and checks stored SHA-256 checksums.
+
+A local or self-hosted Bun migration runner should:
 
 1. Create a migration bookkeeping table.
 2. Read applied versions.
@@ -41,6 +43,8 @@ Pass `handler` for a custom `QueryHandler`. A handler must define `run` and at l
 - Missing images fall back to running the query.
 - Never use pruning as authorization.
 
+The shipped in-process SQLite and Cloudflare Durable Object backends do not capture row images. They run the authorized query after invalidation.
+
 ## Mutation binding
 
 `serveMutation()` runs one authoritative handler inside `ServerTx`.
@@ -67,6 +71,7 @@ Pass `handler` for a custom `QueryHandler`. A handler must define `run` and at l
 - Use `real` for fractional positions.
 - Use `?` in raw SQLite statements.
 - Use `sql` fragments for portable parameter binding.
+- Do not use `$1` in raw SQLite text. Wheel does not rewrite raw placeholders.
 
 ## External jobs
 
@@ -77,4 +82,5 @@ Primary sources:
 - [`serve.ts`](../../packages/wheel/src/sync/server/serve.ts)
 - [`query-handler.ts`](../../packages/wheel/src/sync/server/query-handler.ts)
 - [`packages/tracker/server/schema.ts`](../../packages/tracker/server/schema.ts)
+- [`cloudflare/tracker-worker.ts`](../../cloudflare/tracker-worker.ts)
 - [`packages/tracker/jobs/rollover.ts`](../../packages/tracker/jobs/rollover.ts)

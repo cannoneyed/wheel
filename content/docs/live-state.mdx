@@ -45,14 +45,13 @@ The `{ sql, rerunOn }` pair above is sugar. Underneath it builds a **query handl
 that knows how to produce this query's rows and how to tell the engine they changed. Pass your own
 with `handler:` instead, and the rows need not come from the database at all: an
 incrementally-maintained view, a reactive store that pushes changes instead of taking table hints,
-or an HTTP source. The wire protocol, the diffing, and the client stay exactly the same.
+or another remote source. The wire protocol, the diffing, and the client stay exactly the same.
 [Virtual tables](#/virtual-tables) walks through writing one.
 
 <Aside kind="note">
-  The default storage is <strong>SQLite in-process</strong> (<code>bun:sqlite</code>, zero
-  dependencies), reached through the <code>SyncBackend</code> interface. Cloudflare Durable
-  Object SQLite uses the same interface. The engine does not import a network transport. See
-  <a href="#/server">Server</a>.
+  Production uses Durable Object SQLite through the <code>SyncBackend</code> interface. Local and
+  self-hosted Bun servers use in-process SQLite through that same seam. Browsers use one
+  WebSocket for all sync operations. See <a href="#/server">Server</a>.
 </Aside>
 
 ## The write path
@@ -148,8 +147,8 @@ Some state should never be a row: cursors, focus, and typing state. Presence use
 <Aside kind="note">
   TanStack DB solves the same reactive-query model client-side, but it cannot carry wheel's
   per-write provenance, and its ordering and handler models clash with wheel's declaration
-  rules. Wheel keeps its own client; the <code>LiveQueryView</code> interface keeps that choice
-  reversible.
+  rules. Wheel keeps its own client. <code>LiveQueryView</code> is the reactive value returned to
+  a service; it is not an injectable replacement seam.
 </Aside>
 
 ## Where a value came from
@@ -164,7 +163,7 @@ client.explain(todos, 'todo_0198f3a');
 
 Every debugging tool in wheel stands on this record. See [State](#/state).
 
-Five engine pieces are swappable: the transport, the client storage adapter, the SQLite driver, the live-query view, and the backend itself.
+Five seams are replaceable: `SyncTransport`, `LocalCache`, `SyncBackend`, `SqliteDriver`, and `QueryHandler`.
 
 ## Next
 

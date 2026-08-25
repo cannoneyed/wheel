@@ -6,7 +6,7 @@ import { Aside } from '@docs/components/Aside';
 
 # Swappable Parts
 
-Five parts of Wheel are swappable: the network transport, the SQLite driver, the engine those two put in the browser, writes that come from outside the engine, and kit's lower-level exports. Each section below gives the interface and the shipped code that already replaces it.
+Wheel exposes five replacement seams: `SyncTransport`, `LocalCache`, `SyncBackend`, `SqliteDriver`, and `QueryHandler`. Browser-hosted engines, external writes, and kit exports compose those seams; they are separate capabilities, not extra interfaces.
 
 You need none of them to build an app.
 
@@ -28,7 +28,7 @@ export interface SyncTransport {
 
 | Method | What it does |
 | --- | --- |
-| `connect` | Opens the transport; every server push arrives through `onEvent`. The WebSocket transport authenticates its HTTP upgrade before the engine sees it |
+| `connect` | Opens the transport; every server push arrives through `onEvent`. The WebSocket transport authenticates its upgrade before the engine sees it |
 | `subscribe` | Returns the query's first `Snapshot`; deltas arrive later on the event stream |
 | `unsubscribe` | Releases one server subscription immediately. Local cache retention is a separate decision |
 | `mutate` | The one write path — everything the outbox sends goes through it |
@@ -41,6 +41,22 @@ Two implementations in this repo already replace it:
 2. **A swappable test transport.** `packages/demos/src/todos/server-restart.test.ts` builds a transport whose backing `World` can be replaced mid-test, then reattaches — simulating a server restart onto a fresh epoch where `seq` resets to 1. That bug was found in production and is now a 60-line test, because swapping the transport made "restart the server" a local variable assignment.
 
 A transport is also a decorator point. `packages/demos/src/shared/utils/simulated-latency.ts` wraps any transport so every request and every pushed event arrives `simulatedLatency.ms` later — that is the latency slider in the demos. The interesting part is event ordering: deliveries chain through a shared promise, each waiting until its own target time, so lowering the slider mid-stream cannot let a new event leapfrog an older one. One mutable ref read at call time, mirrored into a reactive atom for the UI.
+
+## The local cache interface
+
+`SyncClient` requires a `LocalCache`. The cache stores row snapshots and the durable mutation outbox. `IndexedDbCache` is the standard browser implementation. `MemoryCache` keeps tests, server rendering, and ephemeral in-browser engines isolated from persistent browser state.
+
+Keep snapshot and outbox scopes separate. Version snapshot scopes when row shapes change. Keep the outbox scope stable so a new client version does not abandon pending writes.
+
+The cache is not the server database. Replacing it changes local hydration and replay, not query execution or authorization.
+
+## The backend interface
+
+`SyncBackend` owns authoritative storage, writer leases, transactions, committed reads, and external-change ingestion. The sync engine owns subscriptions. Wheel ships an in-process SQLite backend for Bun and tests, plus `createCloudflareSyncBackend()` for Durable Object SQLite.
+
+The Cloudflare backend uses `ctx.storage.transaction()` for asynchronous mutations. The in-process backend uses explicit SQLite transactions. Both obey the same conformance suite, so the writer loop and sync protocol do not depend on a runtime.
+
+Use a custom backend when the runtime owns storage or transaction boundaries. Use a `SqliteDriver` when only the SQLite library changes.
 
 ## The SQLite driver interface
 
@@ -74,7 +90,7 @@ return {
 };
 ```
 
-`bunSqliteDriver` and `betterSqlite3Driver` implement the same three methods — the first is the production default, the second exists because `bun:sqlite` cannot load under plain Node. Pass any of them as `sqlite: { driver }` (see [Server](#/server)).
+`bunSqliteDriver` and `betterSqlite3Driver` implement the same three methods. The first serves local and self-hosted Bun processes. The second exists because `bun:sqlite` cannot load under plain Node. Pass either one as `sqlite: { driver }` (see [Server](#/server)).
 
 <Aside kind="note">
   Cloudflare Durable Object storage (<code>ctx.storage.sql</code>) exposes the same synchronous
@@ -83,9 +99,17 @@ return {
   [Cloudflare deployment](#/cloudflare).
 </Aside>
 
+## The query handler interface
+
+`QueryHandler` binds a declared query to authoritative rows. `serveQuery()` is the normal SQL adapter. A custom handler can compute rows elsewhere and add a push channel with `subscribe(params, invalidate)`.
+
+Every handler must declare at least one invalidation channel. `rerunOn` names tables that cause a rerun after engine mutations and `externalWrite({ tables })`. `subscribe` handles a foreign reactive source that can call `invalidate()` itself. The diff still decides whether clients receive a delta.
+
+Query handlers receive the authenticated principal and workspace context. They must authorize every run, including reruns. Pruning can skip work when row images exist, but it cannot replace query authorization.
+
 ## The in-browser engine
 
-Replace both interfaces and the whole sync server runs in the visitor's browser. `packages/demos/src/shared/in-browser/` boots Wheel's real server engine on WASM SQLite inside a **SharedWorker**. The sync protocol uses `postMessage`.
+Replace the WebSocket transport and SQLite driver, and the whole sync server runs in the visitor's browser. `packages/demos/src/shared/in-browser/` boots Wheel's real server engine on WASM SQLite inside a **SharedWorker**. The sync protocol uses `postMessage`.
 
 One engine per origin means every tab is another client of the same server: tabs sync with each other, and presence spans tabs, exactly as they do against a Bun dev server. Browsers without `SharedWorker` fall back to a dedicated worker — same engines, one per tab.
 

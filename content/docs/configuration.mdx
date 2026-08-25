@@ -68,10 +68,10 @@ The check runs on schema output too, so a Zod transform cannot smuggle a `Date` 
   <code>window</code> or the network.
 </Aside>
 
-Server configuration is a different system: `process.env`, read once, in a process you control. Secrets must never cross into the browser's config. See [Production](#/production).
+Server configuration is a different system. A Cloudflare Worker reads bindings and secrets from its `env` argument. A self-hosted Bun process reads `process.env` once at boot. Secrets must never cross into the browser's config. See [Production](#/production).
 
 ## Next
 
 - [Routing](#/routing) — the URL as an atom, and why `config.` is prefixed.
-- [Production](#/production) — server environment config, validated at boot.
+- [Production](#/production) — runtime bindings, secrets, and boot validation.
 - [Import Map](#/import-map) — every `wheel/*` subpath, including `wheel/config`.

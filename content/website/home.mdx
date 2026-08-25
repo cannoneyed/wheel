@@ -125,7 +125,7 @@ Two clients, one server, right on this page. Type in one pane, watch the other. 
       readers: 'TodoList, SidebarCount'
     },
     {
-      name: 'SyncService.pending',
+      name: 'SyncStatusService.pending',
       value: '1 mutation',
       write: 'network.offline',
       readers: 'ConnectionBadge'
@@ -145,11 +145,11 @@ A drop-in debug panel renders the entire state tree of a running app and the cau
 
 <Section title="Rules, not conventions">
 
-Every convention above ships as a lint rule, and every rule file opens with the story of the real bug it prevents. Zero errors is the only passing state. Escapes are in-file pragmas with a written reason — never a glob carve-out.
+Source conventions ship as lint rules, and every rule file opens with the story of the real bug it prevents. Protocol and runtime contracts use executable tests. Zero lint errors is the only passing state. Escapes are in-file pragmas with a written reason — never a glob carve-out.
 
 <Snippet of={LintSnippet} />
 
-This is what makes the whole thing agent-proof: an agent can't drift out of the architecture, because the architecture is a build failure. When a new failure mode shows up, the fix is a new rule — the framework gets stricter as it ages, not looser.
+This makes architectural drift visible as a build or contract-test failure. When a new source failure mode can be detected without false positives, its fix includes a rule.
 
 </Section>
 
@@ -178,8 +178,12 @@ These modules obey the same state and service rules. An agent extends the comman
       text: 'Forms, navigation, overlays, and display primitives ship with an opt-in default theme.'
     },
     {
-      name: 'Presence & config',
-      text: 'Who else is here, and typed app configuration, on the same sync engine.'
+      name: 'Presence',
+      text: 'Typed peer state shares the sync WebSocket without becoming database rows.'
+    },
+    {
+      name: 'Configuration',
+      text: 'Validated JSON sources compose before boot, separate from synced data.'
     }
   ]}
 />

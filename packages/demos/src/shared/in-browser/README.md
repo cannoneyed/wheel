@@ -36,7 +36,7 @@ Two seams in wheel made this a proxy job rather than a port:
 ```
 tab 1                                shared worker (one per origin)
 ─────                                ─────────────────────────────
-SyncClient                           SyncServer × 4 (one per demo)
+SyncClient                           SyncServer × 6 (one per synced demo)
   └─ withSimulatedLatency              └─ SqliteDriver → WASM SQLite (:memory:)
        └─ WorkerSyncTransport  ←port RPC + event stream→  per-port RPC router
 tab 2 … n                                 ▲
@@ -66,7 +66,7 @@ still works — it wraps the worker transport the same way it wraps WebSockets.
   per-page MemoryCache instead.
 - **No auth layer.** There is no untrusted hop; `connect` attaches the same
   principal shape the WebSocket authenticator would have produced.
-- **One worker, four engines.** The WASM runtime loads once; each demo gets
+- **One worker, six engines.** The WASM runtime loads once; each synced demo gets
   its own database, matching the Bun server's one-driver-per-engine layout.
 
 ## Next steps (designed, not built)
@@ -76,10 +76,7 @@ still works — it wraps the worker transport the same way it wraps WebSockets.
    `PRAGMA user_version` guards around schema/seed, so a visitor's demo data
    survives reloads. Then IndexedDbCache can return, keyed per server
    generation.
-2. **Shared rooms on Cloudflare.** The same engine runs against Durable
-   Object SQLite (`ctx.storage.sql` is the same synchronous shape as
-   `SqliteDriver` — the seam was designed for it). One DO per room, alarms for
-   expiry. In-browser mode stays the zero-infra fallback and the offline story.
-3. **The wheel.dev hero demo.** Two iframes (or two clients in one page) on
-   one worker engine — type in one pane, watch the other, with the latency
-   slider between them.
+2. **Shared demo rooms on Cloudflare.** Wheel already ships the Durable Object
+   backend and Tracker uses it. Demo rooms still need room provisioning,
+   visitor identity, and expiry alarms. In-browser mode stays the zero-infra
+   fallback.

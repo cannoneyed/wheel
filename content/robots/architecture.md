@@ -26,7 +26,7 @@ The rule implementation is [`no-cross-layer-imports.mjs`](../../packages/wheel/e
 - Core uses Solid, Immer, and XState.
 - Components use Solid and floating UI utilities where needed.
 - Auth and config remain independent; config re-exports Zod.
-- Server owns database and Node/Bun dependencies.
+- Server runtime adapters isolate Bun, Node, browser Worker, and Durable Object dependencies.
 
 ## Locked engine decisions
 
@@ -40,7 +40,7 @@ The rule implementation is [`no-cross-layer-imports.mjs`](../../packages/wheel/e
 
 `SyncClient` is renderer-independent. It owns base rows, optimistic operations, query membership, local cache, outbox, transport, connection state, undo stacks, presence, and provenance.
 
-`SyncService` is the Solid adapter. It reads one client revision and exposes service primitives.
+`SyncService` is the Solid adapter. Live-query rows track per-table revisions. Query status and `clientRead` bookkeeping track the coarse context revision.
 
 ## Server architecture
 

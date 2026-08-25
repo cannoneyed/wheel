@@ -30,7 +30,7 @@ export default defineConfig({
   resolve: { dedupe: ['solid-js'] },
   plugins: [solid(), wheelDevTools()],
   server: {
-    proxy: { '/sync': { target: 'http://localhost:4795' } }
+    proxy: { '/sync': { target: 'http://localhost:4795', ws: true } }
   }
 });
 ```
@@ -58,11 +58,11 @@ import { SyncService } from 'wheel/sync';
 import { addTodo, todoList, toggleTodo } from '../sync/todos.sync';
 
 export class TodoService extends SyncService {
-  readonly list = this.liveQuery(todoList, () => ({}));
+  readonly list = this.liveQuery(todoList, {});
   readonly remaining = this.computed(() => this.list.rows.filter((r) => !r.done).length);
 
-  readonly add = this.action('add', (text: string) => this.mutate(addTodo, { text }));
-  readonly toggle = this.action('toggle', (id: string) => this.mutate(toggleTodo, { id }));
+  readonly add = (text: string) => this.mutate(addTodo, { text });
+  readonly toggle = (todoId: string) => this.mutate(toggleTodo, { todoId });
 }
 ```
 
@@ -149,6 +149,165 @@ either confirmed or cleanly rolled back. `mutate()` never throws — four typed
 outcomes arrive on one settled channel, so there is no try/catch to write.
 
 `localCache` is a required client option. There is no non-local-first mode.
+
+### Create the browser client
+
+Use a stable IndexedDB scope and a fresh wire id. A reload should reuse local
+rows and the outbox. Two live pages must never share one wire id.
+
+```ts
+// src/sync/client.ts
+import {
+  IndexedDbCache,
+  SyncClient,
+  createWebSocketTransport,
+  systemClock,
+  systemRandomBytes
+} from 'wheel/sync';
+
+const APPLICATION_VERSION = 1;
+const scopeKey = 'todos.storeScope';
+let storeScope = localStorage.getItem(scopeKey);
+if (!storeScope) {
+  storeScope = crypto.randomUUID();
+  localStorage.setItem(scopeKey, storeScope);
+}
+
+const wireId = `web_${crypto.randomUUID().slice(0, 8)}`;
+
+export let client: SyncClient;
+const transport = createWebSocketTransport({
+  baseUrl: '',
+  applicationVersion: APPLICATION_VERSION,
+  params: { demoActor: `user:${wireId}`, demoSession: wireId },
+  onReconnect: () => void client.rebootstrap(),
+  onStatus: (status) => client.setConnectionStatus(status),
+  onVersionMismatch: ({ reason }) => {
+    if (reason === 'server_updating') return;
+    // wheel-raw-location: incompatible client assets require a full reload.
+    location.reload();
+  }
+});
+
+client = new SyncClient({
+  transport,
+  clientId: wireId,
+  actor: `user:${wireId}`,
+  clock: systemClock,
+  randomBytes: systemRandomBytes,
+  localCache: new IndexedDbCache('todos', {
+    snapshots: `${storeScope}|snapshots:v${APPLICATION_VERSION}`,
+    outbox: `${storeScope}|outbox`,
+    retires: (scope) =>
+      scope.startsWith(`${storeScope}|`) &&
+      scope !== `${storeScope}|snapshots:v${APPLICATION_VERSION}` &&
+      scope !== `${storeScope}|outbox`
+  })
+});
+```
+
+The query values above are demo identity only. A production browser uses a
+same-origin session cookie or a short-lived WebSocket ticket. The server owns
+the actor and workspace after it verifies the upgrade.
+
+### Create the local Bun server
+
+The server accepts only `/sync/websocket`. It authenticates before the upgrade,
+then passes every frame to `SyncSocketServer`.
+
+```ts
+// server.ts
+import type { ServerWebSocket } from 'bun';
+import { defineAuthenticator } from 'wheel/auth';
+import {
+  SyncSocketServer,
+  authenticateSyncSocket,
+  bunSqliteDriver,
+  createSyncServer,
+  type SyncServerSocket,
+  type SyncSocketHandshake
+} from 'wheel/sync/server';
+import * as todosServer from './src/sync/todos.server';
+import * as todosSync from './src/sync/todos.sync';
+import { TODOS_SCHEMA } from './src/sync/todos.server';
+
+const driver = bunSqliteDriver('./todos.db');
+for (const statement of TODOS_SCHEMA) driver.all(statement);
+
+const syncServer = await createSyncServer({
+  sqlite: { driver },
+  syncModules: [todosSync],
+  servers: [todosServer]
+});
+
+const authenticator = defineAuthenticator((request) => {
+  const url = new URL(request.url);
+  const actor = url.searchParams.get('demoActor');
+  const sessionId = url.searchParams.get('demoSession');
+  return actor && sessionId
+    ? { actor, sessionId, workspaceId: 'todos' }
+    : null;
+});
+
+const sockets = new SyncSocketServer({
+  server: syncServer,
+  applicationVersion: 1,
+  schemaVersion: 1
+});
+
+interface SocketData {
+  readonly handshake: SyncSocketHandshake;
+  attachment: unknown;
+}
+
+function adapt(socket: ServerWebSocket<SocketData>): SyncServerSocket {
+  return {
+    send: (message) => socket.send(message),
+    close: (code, reason) => socket.close(code, reason),
+    getAttachment: () => socket.data.attachment,
+    setAttachment: (value) => { socket.data.attachment = value; }
+  };
+}
+
+const httpServer = Bun.serve<SocketData>({
+  port: 4795,
+  async fetch(request, server) {
+    if (new URL(request.url).pathname !== '/sync/websocket') {
+      return new Response('Not found.', { status: 404 });
+    }
+    const authenticated = await authenticateSyncSocket(request, {
+      authenticator,
+      workspaceId: 'todos'
+    });
+    if (!authenticated.ok) return authenticated.response;
+    const upgraded = server.upgrade(request, {
+      data: { handshake: authenticated.handshake, attachment: null }
+    });
+    return upgraded ? undefined : new Response('Upgrade failed.', { status: 500 });
+  },
+  websocket: {
+    open(socket) { sockets.accept(adapt(socket), socket.data.handshake); },
+    message(socket, message) { void sockets.message(adapt(socket), message); },
+    close(socket) { sockets.close(adapt(socket)); }
+  }
+});
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    sockets.closeAll(1001, 'server_shutdown');
+    void httpServer.stop(true).then(() => syncServer.close());
+  });
+}
+```
+
+Run `bun run server.ts`, then run Vite. The browser proxy forwards the WebSocket
+upgrade because it sets `ws: true`.
+
+For production, keep the client and declarations. Replace the Bun entry point
+with a Cloudflare Worker that routes trusted workspaces to Durable Objects. Each
+object applies `applyDurableObjectMigrations()`, creates
+`createCloudflareSyncBackend()`, and restores hibernated sockets before it
+handles messages. See the Cloudflare guide below.
 
 ## 5. Verify
 

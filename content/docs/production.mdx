@@ -6,91 +6,64 @@ import { Aside } from '@docs/components/Aside';
 
 # Production
 
-Shipping a Wheel app takes two build artifacts, four things the server process must do, and somewhere for errors to go once real users arrive.
+Wheel's production shape is a static browser build plus a Cloudflare Worker and Durable Object. The browser opens one WebSocket at `/sync/websocket`. The Durable Object owns one workspace, one SQLite database, and every socket for that workspace.
 
-A deployed Wheel app is two artifacts:
-
-1. `vite build` → `dist/` — HTML, JS, CSS. Put it on any static host or CDN.
-2. `bun run server.ts` — the sync server. One process owns one workspace and one database.
-
-The client uses one WebSocket at `/sync/websocket`. Everything else about your hosting is your own.
-
-## The server process
-
-`packages/tracker/server.ts` is the reference, and it is 212 lines. Four things in it are not optional in production.
-
-**Health checks.** `/healthz` answers "the process is alive." `/readyz` answers "the database answers," which is the one a load balancer should gate traffic on:
-
-```ts
-// Excerpt: server.ts — readiness proves the database answers, not just the process.
-if (request.method === 'GET' && url.pathname === '/healthz') return json({ ok: true });
-if (request.method === 'GET' && url.pathname === '/readyz') {
-  try {
-    driver.all('select 1');
-    return json({ ok: true });
-  } catch {
-    return json({ ok: false, error: { code: 'not_ready' } }, 503);
-  }
-}
+```text
+browser assets on a CDN
+          |
+          | /sync/websocket
+          v
+Cloudflare Worker -- workspace id --> Durable Object
+                                      SQLite + SyncServer
 ```
 
-**Graceful shutdown, exactly once.** A container gets `SIGTERM`, then often a second signal. Memoize the shutdown promise so the second one waits on the first instead of closing a half-closed engine:
+The outer Worker authenticates the upgrade and chooses a Durable Object from trusted identity. The object applies migrations before engine boot, accepts the socket with the Hibernation API, and restores its attachment after wake. Keep browser assets separate from the sync Worker when that makes static hosting simpler; the browser only needs the correct WebSocket origin.
 
-```ts
-// Excerpt: server.ts — the memoized promise makes a second signal a no-op.
-let shutdownPromise: Promise<void> | null = null;
-const shutdown = (signal: string) => {
-  shutdownPromise ??= (async () => {
-    await httpServer.stop(true);
-    await live.close(); // SyncServer owns and closes the driver exactly once
-  })();
-  return shutdownPromise;
-};
-```
+## Durable Object entry point
 
-Register it with `process.once('SIGTERM', …)` and `process.once('SIGINT', …)`. Do not close the SQLite driver yourself — `close()` on the server already did, and a second close throws.
+`cloudflare/tracker-worker.ts` is the reference. Its preview routes `/sync/*` and `/readyz` to one object named `axle-demo`. A multi-workspace deployment derives the object name from the authenticated workspace instead.
 
-**WebSocket hardening.** Cap each message and rate-limit each connection. `SyncSocketServer` applies both limits before it runs an operation:
+Boot the object in this order:
 
-```ts
-// Excerpt: server.ts — limits belong to the WebSocket session layer.
-const sockets = new SyncSocketServer({
-  server: live,
-  applicationVersion: TRACKER_APPLICATION_VERSION,
-  schemaVersion: TRACKER_MIGRATIONS.length,
-  maxMessageBytes: config.maxBodyBytes,
-  messagesPerMinute: config.requestsPerMinute
-});
-```
+1. Run `applyDurableObjectMigrations()` inside `ctx.blockConcurrencyWhile()`.
+2. Build `createCloudflareSyncBackend()` from `ctx.storage`.
+3. Create the sync engine and `SyncSocketServer`.
+4. Restore every socket returned by `ctx.getWebSockets()`.
+5. Process new WebSocket messages only after restore completes.
 
-The limit state lives in the WebSocket attachment. Durable Object hibernation does not reset it. One noisy tab does not throttle other tabs behind the same network address.
+Accept sockets with `ctx.acceptWebSocket(server)`, not `server.accept()`. Wheel stores the principal, presence, subscriptions, rate state, and version data in the socket attachment. Keep that JSON below Wheel's 15 KiB limit and Cloudflare's 16 KiB attachment limit.
 
-**Sanitized errors.** `SyncSocketServer({ detailedErrors: true })` is a development setting. Keep it off in production, so internal messages do not cross the wire.
+Use `applicationVersion` for client/server behavior and the migration result for `schemaVersion`. Keep the IndexedDB snapshot scope versioned, but keep the outbox scope stable. A deploy may close sockets; the browser reconnects, fetches fresh snapshots, and replays unconfirmed mutation IDs.
 
-## Server config
+## Worker bindings and secrets
 
-Read the environment once, validate it with Zod, and make production *fail to boot* rather than start with an in-memory database and a header-trusting authenticator:
+Cloudflare passes bindings and secrets through the Worker's `env` argument. Declare the Durable Object namespace in Wrangler configuration. Store session verifier keys, signing keys, and service credentials as secrets. Do not put them in Vite variables or `wheel/config`.
 
-```ts
-// Excerpt: server/config.ts — production refuses the demo defaults.
-const Environment = z.object({
-  TRACKER_MODE: z.enum(['demo', 'production']).default('demo'),
-  TRACKER_DATABASE_FILENAME: z.string().trim().min(1).optional()
-}).superRefine((value, context) => {
-  if (value.TRACKER_MODE !== 'production') return;
-  if (!value.TRACKER_DATABASE_FILENAME || value.TRACKER_DATABASE_FILENAME === ':memory:')
-    context.addIssue({ code: 'custom', path: ['TRACKER_DATABASE_FILENAME'],
-      message: 'must name a persistent SQLite file in production mode' });
-});
-```
+Fail a request when identity cannot select exactly one allowed workspace. Do not accept workspace, actor, or session claims from a sync message. Those values come from the authenticated upgrade and remain attached to the socket.
 
-The tracker guards three settings this way: a persistent database file, an explicit workspace id, and a session-verification URL. A crash on boot naming the field is the cheapest possible failure. Honor `PORT` too — that is how most supervisors assign one.
+Expose `/readyz` through the same object route used by sync. Readiness should prove that the object can boot, migrate, and query storage. Cloudflare manages process liveness.
+
+## WebSocket limits and errors
+
+Set `maxMessageBytes` and `messagesPerMinute` on `SyncSocketServer`. Limits apply per connection and survive hibernation because their state lives in the attachment. One noisy tab does not throttle other tabs behind the same network address.
+
+Keep `detailedErrors` off in production. The server then returns stable error codes without exposing internal messages. Application logs still receive the full error.
+
+Cloudflare can close sockets during a code deploy. It also enforces platform limits on message size, CPU, storage, alarms, and object concurrency. Treat those limits as part of the runtime contract; do not translate them into process or HTTP-body settings.
+
+## Self-hosted Bun
+
+`packages/tracker/server.ts` is the local and self-hosted alternative. It uses the same sync declarations and WebSocket protocol with an in-process SQLite database.
+
+A self-hosted process must provide `/healthz` and `/readyz`, persistent storage, verified authentication, per-socket limits, sanitized errors, and graceful shutdown. Read `process.env` once, validate it, and refuse production defaults such as `:memory:` storage or demo authentication. Honor `PORT` when a supervisor assigns it.
+
+Memoize shutdown so repeated `SIGTERM` or `SIGINT` signals wait on one close. Stop accepting sockets, close them, stop the Bun server, and await `syncServer.close()`. The sync server owns its backend, so do not close the SQLite driver a second time.
 
 <Aside kind="note">
-  <strong>Server config and client config are different systems.</strong> This is
-  <code>process.env</code>, read once, in a process you control. The browser's config —
-  <code>wheel/config</code>, its sources, and its precedence rules — is a separate system, and
-  secrets must never cross into it. See <a href="#/configuration">Configuration</a>.
+  <strong>Server config and browser config are different systems.</strong> Cloudflare uses Worker
+  bindings and secrets. Bun uses <code>process.env</code>. The browser uses
+  <code>wheel/config</code>, and secrets must never cross into it. See{' '}
+  <a href="#/configuration">Configuration</a>.
 </Aside>
 
 ## Deploying under a base path
@@ -116,13 +89,13 @@ render(() => (
 
 The host needs one more rule: **every unmatched path under the base must serve `index.html`**. Path routing means `/app/issues/abc` is a real URL a user can reload or paste, and without the fallback the host 404s a file that was never emitted. `vite preview` applies this rule, which is why the browser suites run against it; on Netlify, Vercel, Caddy, or nginx it is one rewrite line.
 
-## The no-backend option
+## The no-hosted-backend option
 
-There is a third deployment shape with no server process at all. Wheel's real server engine runs on WASM SQLite inside a SharedWorker. The sync protocol uses `postMessage`. One engine per origin lets tabs sync with each other and share presence.
+Wheel can also run its real server engine on WASM SQLite inside a SharedWorker. The sync protocol uses `postMessage`. One engine per origin lets tabs sync with each other and share presence.
 
 Two interfaces make this a proxy rather than a port: `SqliteDriver` (three synchronous calls) and `SyncTransport` (six async methods). Build it with `VITE_SYNC_MODE=browser vite build`. This is how a static site hosts fully live demos.
 
-Databases are `:memory:` and die with the last tab, so it suits demos, offline sandboxes, and single-visitor tools — not shared data. Read `packages/demos/src/shared/in-browser/README.md` for the design and its planned OPFS persistence.
+Databases are `:memory:` and die with the last tab, so this shape suits demos, offline sandboxes, and single-visitor tools. It does not provide shared production data. Read `packages/demos/src/shared/in-browser/README.md` for the design and its planned OPFS persistence.
 
 ## Observability
 

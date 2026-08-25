@@ -8,7 +8,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/sync': {
-        target: 'http://localhost:4795'
+        target: 'http://localhost:4795',
+        ws: true
       }
     }
   }

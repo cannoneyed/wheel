@@ -10,7 +10,7 @@ Human page: [Import map](../docs/import-map.mdx). Generated APIs: [`api/`](api/)
 | `wheel/config` | Zod-backed JSON configuration | Browser-safe and server-safe |
 | `wheel/core` | Services, providers, connections, views, state, stubs, runtime seams | Browser-safe |
 | `wheel/sync` | Declarations, schema, SQL fragments, client, transport, cache, SyncService | Browser-safe |
-| `wheel/sync/server` | Handlers, engine, HTTP, drivers, backends, adapters | Server-only |
+| `wheel/sync/server` | Handlers, engine, WebSocket sessions, drivers, backends, adapters | Server and Worker runtimes; exclude from the main client bundle |
 | `wheel/sync/server/cloudflare` | Runtime-neutral server engine and Durable Object backend | Worker-safe |
 | `wheel/sync/server/testing` | Backend conformance runner and harness contract | Runtime-neutral test code |
 | `wheel/kit` | Application UI services, systems, framing, gesture and menu helpers | Browser-safe |

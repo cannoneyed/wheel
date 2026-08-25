@@ -49,7 +49,7 @@ Persist a failing seed and operations as `ReplayFixture`. `replayFixture()` veri
 
 `createBehaviorHarness()` binds structural Playwright types. It supports named hosts, setup hooks, instrumented gestures, Wheel driver access, and action timelines.
 
-Repository demo behaviors run against standalone HTTP sync and embedded in-browser sync. Every active behavior spec id maps to one test and recording.
+Repository demo behaviors run against standalone WebSocket sync and embedded in-browser sync. Every active behavior spec id maps to one test and recording.
 
 ## Deterministic utilities
 

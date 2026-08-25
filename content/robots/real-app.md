@@ -2,7 +2,7 @@
 
 Human page: [A real app](../docs/real-app.mdx).
 
-The tracker application, Axle, exercises local-first sync, routing, framing, kit systems, components, authentication modes, jobs, search, tests, and production process controls.
+The tracker application, Axle, exercises local-first sync, routing, framing, kit systems, components, authentication modes, jobs, search, tests, Bun self-hosting, and a Durable Object runtime.
 
 ## Run
 
@@ -21,13 +21,16 @@ Default mode uses memory SQLite and demo identity. It resets on restart.
 4. [`issue-list.tsx`](../../packages/tracker/src/components/list/issue-list.tsx) - one complete connected list.
 5. [`issue-interaction-service.ts`](../../packages/tracker/src/services/issue-interaction-service.ts) - bounded composition across domain services.
 6. [`schema.ts`](../../packages/tracker/server/schema.ts) - append-only application migrations.
-7. [`inbox.server.ts`](../../packages/tracker/src/sync/inbox.server.ts) - principal-scoped reads and row-image pruning.
+7. [`inbox.server.ts`](../../packages/tracker/src/sync/inbox.server.ts) - principal-scoped SQL and optional row-image pruning.
 8. [`rollover.ts`](../../packages/tracker/jobs/rollover.ts) - deterministic external writes.
 9. [`search.server.ts`](../../packages/tracker/src/sync/search.server.ts) - custom FTS query handler with table and push invalidation.
 10. [`m5-fuzz.test.ts`](../../packages/tracker/test/m5-fuzz.test.ts) - seeded multi-client adversarial checks.
 
 ## Additional references
 
+- [`cloudflare/tracker-worker.ts`](../../cloudflare/tracker-worker.ts) - Worker routing, Durable Object migrations, hibernation, alarms, and readiness.
+- [`packages/tracker/sync-version.ts`](../../packages/tracker/sync-version.ts) - shared client/server application versions.
+- [`cloudflare/tracker.worker.test.ts`](../../cloudflare/tracker.worker.test.ts) - hibernation and migration checks on real Durable Object test storage.
 - [`packages/tracker/TOUR.md`](../../packages/tracker/TOUR.md) - long-form code tour.
 - [`packages/tracker/ROADMAP.md`](../../packages/tracker/ROADMAP.md) - current application-level production gaps.
 - [`packages/tracker/server.ts`](../../packages/tracker/server.ts) - process composition and shutdown.
@@ -36,3 +39,5 @@ Default mode uses memory SQLite and demo identity. It resets on restart.
 ## Do not copy blindly
 
 Demo auth trusts local controls. Default storage is ephemeral. The tracker demonstrates framework patterns; application identity, provisioning, authorization policy, and operations remain product-specific.
+
+The shipped SQLite and Cloudflare backends do not capture row images. They rerun principal-scoped SQL on invalidation. Treat `prune` as a work-saving option, never as authorization.

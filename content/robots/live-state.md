@@ -61,7 +61,7 @@ Shared declaration modules import from `wheel/sync`. Server binding modules impo
 
 ## Current limits
 
-Server-authoritative reconciliation uses no CRDT. The design targets small collaborative applications. The shipped HTTP transport uses request/response plus server events.
+Server-authoritative reconciliation uses no CRDT. The design targets small collaborative applications. The shipped WebSocket transport carries subscriptions, mutations, presence, replies, and server events over one bidirectional socket.
 
 Primary sources:
 

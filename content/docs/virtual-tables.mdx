@@ -41,7 +41,7 @@ A handler must offer at least one channel. `serveQuery` throws at boot when a ha
 
 | Channel | Declared with | Re-runs the query when |
 | --- | --- | --- |
-| Table hint | `rerunOn: ['issues']` | The engine writes one of the named tables |
+| Table hint | `rerunOn: ['issues']` | The engine writes one of the named tables, or `externalWrite({ tables })` reports one |
 | Push | `subscribe(params, invalidate)` | Your code calls `invalidate()` |
 
 ## When a delta reaches clients

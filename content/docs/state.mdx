@@ -88,7 +88,7 @@ this.selected.update((draft) => {
 
 | `SyncService` view | What it exposes | Invalidation |
 | --- | --- | --- |
-| `liveQuery` | Rows + status for one server subscription | the context's client revision |
+| `liveQuery` | Rows + status for one server subscription | rows track the result table; status tracks the context revision |
 | `clientRead` | A memoized read of non-signal client bookkeeping | the context's client revision |
 
 | Keyed helper | What it creates | Lifetime |
@@ -121,7 +121,7 @@ Releasing the last query handle removes its local live membership and unsubscrib
 
 ## How invalidation flows
 
-There are two channels on purpose. Atom writes are fine-grained — only readers of that atom re-run. Server data rides one revision signal per context — a delta bumps it, and every live view re-reads. Keeping them separate means an atom write never re-renders a query-only component.
+There are three channels on purpose. Atom writes notify their readers. Live-query rows track the revision for their result table. Query status and `clientRead` bookkeeping track the coarse context revision.
 
 <Diagram
   direction="LR"
@@ -130,18 +130,21 @@ There are two channels on purpose. Atom writes are fine-grained — only readers
     { id: 'computed', label: 'computed', sub: 'memo graph', kind: 'state' },
     { id: 'comp', label: 'Component', sub: 'tracks what it reads', kind: 'component' },
     { id: 'delta', label: 'Server delta', kind: 'server' },
-    { id: 'rev', label: 'Revision signal', sub: 'one per context', kind: 'client' },
+    { id: 'table', label: 'Table revision', sub: 'one per result table', kind: 'client' },
+    { id: 'rev', label: 'Context revision', sub: 'status + bookkeeping', kind: 'client' },
     { id: 'lq', label: 'liveQuery view', sub: 'status + rows', kind: 'state' }
   ]}
   edges={[
     { from: 'atom', to: 'computed', label: 'tracks' },
     { from: 'computed', to: 'comp' },
     { from: 'atom', to: 'comp' },
-    { from: 'delta', to: 'rev', label: 'bump' },
-    { from: 'rev', to: 'lq' },
+    { from: 'delta', to: 'table', label: 'bump touched results' },
+    { from: 'delta', to: 'rev', label: 'bump status' },
+    { from: 'table', to: 'lq' },
+    { from: 'rev', to: 'lq', label: 'status' },
     { from: 'lq', to: 'comp' }
   ]}
-  caption="Two invalidation channels: atoms notify their own readers; server data bumps one revision per context."
+  caption="Rows use per-table revisions. Status and client bookkeeping use the coarse context revision."
 />
 
 ## Every primitive is registered
@@ -156,11 +159,10 @@ Server data goes one level deeper — `client.explain(...)` returns any row's cu
 
 **The debug panel ships with the library.** Wrap your root in `<WheelApp client>` (from `wheel/debug`) and a dev build mounts it for you: the service tree with live primitive values, every component's declared dependencies, client tables, and the cause-colored change stream (`bootstrap` grey, `hydrate` purple, `optimistic` amber, `sync-apply` teal, `rollback` and `orphaned` red). It works in clientless sandboxes too — the client sections hide. Hosts that cannot wrap their root mount the floating `<WheelDebugPanel />` instead. The full tour is on [Debugging](#/debugging).
 
-<Aside kind="todo">
-  <strong>Snapshot export.</strong> The rectangle inspector ships (see <a href="#/components">Components</a>):
-  drag a rectangle over the running app and list every connected component under it, with its
-  live state. The remaining piece is capture — exporting each hit's connect manifest, injected
-  values, and provenance tail as agent-readable JSON plus a screenshot.
+<Aside kind="note">
+  <strong>Snapshot export ships with the inspector.</strong> Drag over the running app, then copy
+  the cropped PNG or save a capture. The Vite plugin writes <code>shot.png</code> and
+  <code>context.json</code> with the selected component tree and live connect state.
 </Aside>
 
 ## State is frozen after a write

@@ -14,7 +14,9 @@ On top of a backend you write four things: your schema and migrations, the two h
 
 Wheel generates no application schema. It owns its own bookkeeping tables and nothing else — your tables, your DDL, your migration runner. There is no `wheel migrate` command.
 
-Copy the pattern in `packages/tracker/server/schema.ts`: a literal array of versioned migrations, a table recording which ones ran, and one `begin immediate` transaction around the whole apply:
+Put application DDL in a literal versioned migration list. The production Durable Object runs that list with `applyDurableObjectMigrations()` inside `ctx.blockConcurrencyWhile()`. It applies pending versions in one storage transaction and records a SHA-256 checksum for each name and SQL body.
+
+The local and self-hosted Bun server uses `packages/tracker/server/schema.ts`: a table recording which versions ran and one `begin immediate` transaction around the apply:
 
 <CodeExample example={migrationsSource} />
 
@@ -22,7 +24,7 @@ Three properties make this worth copying:
 
 1. **Append, never edit.** Version 1 is frozen the moment it runs anywhere. A schema change is a new entry.
 2. **One transaction.** `begin immediate` takes the write lock up front, so a crash mid-migration rolls back to a clean version rather than a half-applied one.
-3. **Production never depends on seed DDL.** Tests and the dev server run the same `migrations` array the production boot runs; seed rows are a separate, dev-only step.
+3. **Production never depends on seed DDL.** Durable Object boot, Bun development, and tests consume the same migration list. Seed rows are separate.
 
 The DDL itself lives next to the bindings that use it — each `*.server.ts` exports its own `*_DDL` array, and `schema.ts` concatenates them.
 
@@ -49,9 +51,9 @@ export const activityByIssueServer = serveQuery({
 
 <Aside kind="warning">
   <strong><code>prune</code> is an optimization, never authorization.</strong> It requires
-  row-image data from the backend. The current SQLite backends do not capture row images, so
-  they always re-run the query. When images are missing, the engine stays correct and skips no
-  work. A
+  row-image data from the backend. The shipped in-process SQLite and Cloudflare Durable Object
+  backends do not capture row images, so they always re-run the query. When images are missing,
+  the engine stays correct and skips no work. A
   <code>prune</code> that filters by user does not keep anyone's rows private. The
   <code>sql</code> does that, by comparing <code>params</code> against the connection's
   <code>principal</code>.
@@ -184,14 +186,14 @@ The reference apps target SQLite. Three details show up in nearly every binding:
 - **Quote reserved words.** `row` is one. `packages/demos/src/sheet/sync/sheet.server.ts` writes `"row"` everywhere, including in `on conflict ("row", col)`.
 
 <Aside kind="note">
-  Placeholders are bound positionally, once per occurrence. The rewriter maps each
-  <code>$n</code> to a <code>?</code> and does <strong>not</strong> reuse a parameter across
-  positions — so a value needed twice is passed twice, as
-  <code>[match, match]</code> in the search handler above.
+  Raw SQLite text uses <code>?</code> placeholders with a positional value array. Do not write
+  <code>$1</code>: SQLite treats it as a named parameter, and Wheel does not rewrite raw SQL.
+  A <code>sql</code> tagged template compiles each interpolation directly to <code>?</code>. Repeat
+  an interpolation when the value appears twice.
 </Aside>
 
 ## Next
 
 - [Virtual tables](#/virtual-tables) — rows that never come from a table of their own.
-- [A Real App](#/real-app) — `packages/tracker/src/sync/`, ten `.sync.ts` / `.server.ts` pairs with every rule above in production use.
+- [A Real App](#/real-app) — the Tracker's `.sync.ts` / `.server.ts` pairs and both server runtimes.
 - [Live State](#/live-state) — what the engine does with the rows your handler returns.

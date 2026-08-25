@@ -2,7 +2,7 @@
 
 Human page: [Project layout](../docs/project-layout.mdx).
 
-The repository uses package-root server and test files plus browser code under `src/`.
+The repository keeps application modules under `src/` and runtime entry points at the package or repository root.
 
 ## Directory contract
 
@@ -12,8 +12,12 @@ app/
   package.json
   tsconfig.json
   vite.config.ts
-  server.ts
-  server/       schema, auth, config, request guards
+  sync-version.ts
+  cloudflare/
+    worker.ts    Worker router and Durable Object
+  wrangler.jsonc
+  server.ts      optional local or self-hosted Bun entry
+  server/        schema, auth, config, migration helpers
   jobs/         external writers
   seed/         deterministic seed data
   test/         World integration tests
@@ -28,7 +32,7 @@ app/
     utils/
 ```
 
-Server-only code remains outside `src/`. Browser-safe sync declarations can live in `src/sync`; `*.server.ts` files are excluded from browser imports by convention and constraints.
+Browser-safe sync declarations and server bindings can share `src/sync`. Browser entries import only `*.sync.ts`; server runtimes import the matching `*.server.ts`. Build graphs and constraints keep server bindings out of the main client bundle.
 
 ## Compiler contract
 
@@ -65,7 +69,7 @@ Server-only code remains outside `src/`. Browser-safe sync declarations can live
 
 - Cache scope: stable in `localStorage`.
 - Wire client id: memory only, new per page load.
-- Actor selection: application-defined; `sessionStorage` is acceptable for per-tab demo identity.
+- Actor: comes from the server's verified principal. `sessionStorage` is acceptable only for a demo user switcher.
 
 ## Root mounts
 

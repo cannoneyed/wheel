@@ -20,6 +20,8 @@ bun run demos
 
 The demos browser runs at `http://localhost:4796`. The docs site uses `bun run docs`. The tracker uses `bun run tracker:server` and `bun run tracker`.
 
+Open `http://localhost:4796/?sync=local` to run the demos' six sync engines in a SharedWorker without the Bun server. Shared production data uses a Worker and Durable Object.
+
 ## Use a local checkout
 
 ```sh
@@ -33,12 +35,14 @@ bun add --no-save wheel@file:../wheel-dev/packages/wheel
 
 ```text
 src/sync/todos.sync.ts       shared declarations and optimistic handlers
-src/sync/todos.server.ts     SQL and authoritative handlers
+src/sync/todos.server.ts     SQL and authoritative handlers shared by server runtimes
 src/services/todo-service.ts shared state and actions
 src/components/todo-list.tsx connected view
 src/main.tsx                 WheelApp and client root
-server.ts                    backend and sync HTTP process
-vite.config.ts               Solid plugin, Wheel plugin, and /sync proxy
+cloudflare/worker.ts         production Worker router and Durable Object
+sync-version.ts              shared application and minimum-client versions
+server.ts                    optional local or self-hosted Bun server
+vite.config.ts               Solid plugin, Wheel plugin, and WebSocket proxy
 ```
 
 Use the checked examples in [`packages/docs/examples/getting-started`](../../packages/docs/examples/getting-started).
@@ -56,8 +60,9 @@ Use the checked examples in [`packages/docs/examples/getting-started`](../../pac
 - Apply application migrations before server creation.
 - Pass shared sync modules and matching server modules.
 - Configure one backend source: `sqlite`, `db`, or `backend`.
-- Create an authenticated HTTP handler.
-- Await `SyncServer.close()` during shutdown.
+- Authenticate the WebSocket upgrade before accepting it.
+- In production, apply Durable Object migrations before boot and restore hibernated sockets.
+- In Bun, await `SyncServer.close()` during shutdown.
 
 ## Verification
 

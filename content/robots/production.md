@@ -2,26 +2,33 @@
 
 Human page: [Production](../docs/production.mdx). API: [`wheel/vite`](api/vite.md), [`wheel/debug`](api/debug.md), [`wheel/sync/server`](api/sync-server.md).
 
-## Artifacts
+## Production topology
 
 - Browser: `vite build` output served by a static host or CDN.
-- Sync: long-running server process with one workspace and backend.
+- Router: a Cloudflare Worker authenticates `/sync/websocket` and selects a workspace.
+- State: one Durable Object owns each workspace, SQLite database, sync engine, and socket set.
 
-The browser uses `/sync/*` on its current origin unless the application transport changes that behavior.
+The browser opens one WebSocket at `/sync/websocket`. The asset host and sync Worker can be separate origins when the client uses the correct base URL and credential flow.
 
-## Server process requirements
+## Durable Object requirements
 
-1. Apply migrations before accepting sync requests.
-2. Expose liveness and database readiness endpoints.
-3. Limit request body size and request rate.
-4. Disable detailed sync errors and debug routes.
-5. Validate environment and reject demo defaults in production mode.
-6. Handle `SIGTERM` and `SIGINT` with one memoized shutdown promise.
-7. Await HTTP stop and `SyncServer.close()`.
+1. Run `applyDurableObjectMigrations()` inside `blockConcurrencyWhile()` before engine boot.
+2. Build `createCloudflareSyncBackend()` from Durable Object storage.
+3. Accept sockets with `ctx.acceptWebSocket()` and restore attachments after hibernation.
+4. Expose object-backed database readiness.
+5. Limit message bytes and messages per minute on `SyncSocketServer`.
+6. Disable detailed sync errors.
+7. Share application and minimum-client versions with the browser.
+
+Cloudflare bindings declare the Durable Object namespace. Store verifier keys and service credentials as Worker secrets. Do not expose them through Vite or `wheel/config`.
+
+## Self-hosted Bun
+
+`packages/tracker/server.ts` is the local and self-hosted alternative. A production Bun process needs persistent SQLite, verified sessions, liveness and readiness, socket limits, sanitized errors, and memoized signal shutdown. Await the Bun server stop and `SyncServer.close()`.
 
 ## Authentication
 
-Production mode needs a real session verifier, explicit workspace id, and persistent database configuration. Header-trusting demo authentication is not a production mode.
+Production needs verified identity and trusted workspace routing. Native browser sockets use same-origin cookies or short-lived tickets. Query- or header-trusting demo authentication is not production authentication.
 
 ## Base path
 
@@ -43,4 +50,4 @@ The demos can run the real engine in a SharedWorker over WASM SQLite and a messa
 
 `wheelDevTools()` enables development mode during serve, preserves service class names, verifies direct `file:` dependencies, and serves rich snapshot endpoints. It does not enable debug mode during production build.
 
-Reference process: [`packages/tracker/server.ts`](../../packages/tracker/server.ts).
+References: [`cloudflare/tracker-worker.ts`](../../cloudflare/tracker-worker.ts), [`packages/tracker/server.ts`](../../packages/tracker/server.ts).

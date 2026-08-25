@@ -21,7 +21,7 @@ Queries can target the virtual table. Their server handler computes rows from ph
 
 Virtual table queries update only through handler invalidation channels:
 
-- `rerunOn`: engine-authored writes to physical tables.
+- `rerunOn`: engine-authored writes and matching `externalWrite({ tables })` reports.
 - `subscribe(params, invalidate)`: application push source.
 
 At least one channel is required. A handler can use both.

@@ -6,7 +6,7 @@ import { Aside } from '@docs/components/Aside';
 
 # Auth & authorization
 
-Wheel learns who is making a request from one function you write: it takes an HTTP `Request` and returns the caller's identity.
+Wheel learns who is opening a sync socket from one function you write. It receives the WebSocket upgrade `Request` and returns the caller's identity.
 
 Every read and write downstream is scoped to that one answer — which rows a query returns, who a mutation is attributed to, which writes are refused.
 
@@ -27,22 +27,23 @@ Wheel never reads a principal out of a request body. The client cannot claim to 
 
 `defineAuthenticator` wraps your verification function. Return a principal, or `null` for "no session here."
 
-A demo authenticator trusts headers and verifies nothing:
+A browser demo can trust query values and verify nothing:
 
 ```ts
-// Excerpt: a DEMO authenticator — trusted headers, no verification at all.
+// Intentionally insecure: DEMO query identity, with no verification.
 import { defineAuthenticator } from 'wheel/auth';
 
 export const demoAuth = defineAuthenticator((request) => {
-  const userId = request.headers.get('x-demo-user');
-  const sessionId = request.headers.get('x-demo-session');
+  const url = new URL(request.url);
+  const userId = url.searchParams.get('demoActor');
+  const sessionId = url.searchParams.get('demoSession');
   return userId && sessionId
-    ? { actor: `user:${userId}`, workspaceId: 'acme', sessionId }
+    ? { actor: userId, workspaceId: 'acme', sessionId }
     : null;
 });
 ```
 
-That one is a fixture, not a login. Anyone who can set a header is anyone they like. It exists so a demo can switch users from a dropdown — the reference app (`packages/tracker/server/auth.ts`) ships it under `mode === 'demo'` and throws at boot in production mode when no session URL is configured.
+That one is a fixture, not a login. Anyone who can change the URL can become anyone they like. Same-origin cookies are the normal browser production input. Header-based identities belong in tests and non-browser fixtures because native browser WebSockets cannot set custom headers.
 
 The production shape delegates to whatever already knows your users, then runs the reply through `validateAuthPrincipal`:
 
@@ -150,7 +151,7 @@ Without it, one user commenting on issue A re-runs the activity query of every c
 Two rules follow:
 
 - **Check both images.** A row that moves out of your set only shows the old value in `image.o`. Miss it and the client goes stale — pruning too hard is a correctness bug.
-- **`rowImages: true` is required** on `createSyncServer` (pruning falls back to re-running whenever images are missing — external writes, overflow).
+- **Missing images must re-run.** The shipped in-process SQLite and Cloudflare backends do not capture row images. Their SQL authorization runs on every invalidation. A custom backend may provide images and use `prune` only to skip safe work.
 
 <Aside kind="warning">
   <code>prune</code> receives the raw <strong>table</strong> row — snake_case columns, exactly as
@@ -181,5 +182,5 @@ Each handler starts with `await requireActive(tx, args.issueId)`. The guard is a
 ## Next
 
 - [Production](#/production) — health checks, rate limits, and config that refuses demo defaults.
-- [Server handlers](#/server) — where queries and mutations run.
+- [Server handlers](#/server-advanced) — where queries and mutations run.
 - [A Real App](#/real-app) — `packages/tracker/server/auth.ts` read alongside the rest of the server.

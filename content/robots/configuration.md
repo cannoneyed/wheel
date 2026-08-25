@@ -37,6 +37,6 @@ Every source value and final schema output must be plain JSON. Reject `undefined
 
 ## Security boundary
 
-Client configuration is public. Keep secrets in server process environment. Server environment parsing is application code, not `wheel/config`.
+Client configuration is public. Keep secrets in Cloudflare Worker bindings or a self-hosted Bun process environment. Server runtime parsing is application code, not `wheel/config`.
 
 Primary source: [`packages/wheel/src/config/index.ts`](../../packages/wheel/src/config/index.ts).

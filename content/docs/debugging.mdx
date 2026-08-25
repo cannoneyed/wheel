@@ -25,9 +25,9 @@ render(() => (
 
 In dev builds that mounts the docked debug panel, the component inspector, the rich-screenshot
 tool, error capture, and the `window.__wheel` agent bridge. In production builds it renders your
-children and nothing else — every surface described here is dev-gated, and a production bundle pays
-nothing. (Demos and other showcase apps can opt production builds in with
-`setWheelDevMode(true)`.)
+children without those systems. Connected-component instance registration remains part of the
+runtime contract, so the production cost is not zero. Demos and other showcase apps can opt
+production builds into the debug systems with `setWheelDevMode(true)`.
 
 ## The debugging playbook
 

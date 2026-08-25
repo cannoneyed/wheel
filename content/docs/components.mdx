@@ -11,13 +11,13 @@ import viewModelSource from '@docs/examples/components/view-model.tsx?example';
 
 # Components
 
-A component reaches shared state through one connection function, and that function returns the component's whole data manifest — no data passed down as props.
+A component reaches shared state through one connection function. That function returns the component's data manifest.
 
-Components render. That is their whole job. They own no shared state, fetch no data, and reach exactly one thing: the shape returned by their **one** connection function.
+Components render. They own no shared state and fetch no data. A connected component resolves shared state only through its connection shape. An owned leaf may also render display-ready props from its connected parent.
 
 <CodeExample example={todoListSource} />
 
-The declaration is the component's **complete data manifest**. Everything shared the component can see is named in one place, greppable, statically analyzable, and recorded in the registry at runtime. That makes the audit question — "what state does this component have and where did it come from?" — answerable for every component, always. The shape is a plain object, so the same manifest is also the mocking surface: stub the shape, and the component runs anywhere.
+The declaration is the component's **complete service-state manifest**. Every service value it resolves is named in one place, statically analyzable, and recorded in the registry. Props remain visible as mounted-instance inputs. The shape is also the mocking surface: stub it, and the component runs anywhere.
 
 `view()` writes the shape for you: reads (any zero-arg accessor) become tracked value properties, actions pass through as bound functions. A shape field must **defer** its read into the component's render so Solid tracks it there — an eager read is a frozen snapshot — and `view()` keeps that deferral by making each property a getter over the accessor you passed. Hand-written getters stay legal:
 
@@ -63,30 +63,34 @@ The same view, connected instead:
 <WikiView />
 ```
 
-Connecting deep in the tree is the point, not a smell. A component that declares its own dependencies needs no special handling from its parent, moves anywhere in the tree without rewiring, and can be mounted alone in a sandbox. Props are for identity and variation (`listId`, `variant`), not for data plumbing.
+Connecting deep in the tree is the point, not a smell. An independently mounted detail component declares its own dependencies and accepts identity or variation props. A list owner may pass display-ready view models to its row, card, or item leaves when that keeps one subscription and one derivation for the list.
 
 Pass props only when they are one of:
 
 1. **Identity** — which entity this instance renders (`todoId`).
 2. **Variation** — presentation choices (`compact`, `readonly`).
 3. **Simple reusable views** — a dumb, shared leaf (a button, an avatar) may take its data as props. That's what dumb components are for.
+4. **Owned list leaves** — a connected list may pass a display-ready vm to its row, card, or item component.
 
-<Aside kind="todo">
-  <strong><code>no-prop-drilling</code> lint rule.</strong> Passing service values or atoms as
-  props to anything that isn't a simple reusable view should fail the build. Static detection
-  needs care (identity/variation props are fine); the planned heuristic flags connect-shape
-  fields and service reads forwarded as JSX props on non-leaf components.
+<Aside kind="note">
+  <strong>There is no <code>no-prop-drilling</code> rule.</strong> Static analysis cannot reliably
+  distinguish identity, variation, and owned display data from hidden shared-state plumbing.
+  Wheel enforces the parts it can prove: service access goes through <code>connect()</code>, and
+  each connected component exposes one bounded manifest.
 </Aside>
 
 ## The vm convention
 
-A **vm** (view-model) is a display-ready object a service assembles from several rows — an issue plus its assignee, its workflow state's color, its label rows, its comment count. The temptation is to build it in a parent and hand it down as `props.vm`. Don't: that's data plumbing wearing a different hat, and it breaks the trace. When `vm.stateColor` renders wrong on screen, you can't ask the component where the value came from — the trail dead-ends at a prop, and the real source is a private method in some other service.
+A **vm** (view-model) is a display-ready object a service assembles from several rows — an issue plus its assignee, its workflow state's color, its label rows, and its comment count.
 
-The convention: **a service exposes the vm as a `computedFor` keyed by id, and the component connects its OWN vm by passing the id.** The identity (`issueId`) is a legal prop; the vm is not.
+Use two patterns based on ownership:
+
+1. **Independent detail component:** pass an id and connect the component to a `computedFor` vm. It can then mount anywhere.
+2. **Owned list leaf:** let the connected list read its vm collection and pass one `vm` to each row or card. Tracker uses this for `IssueRow`, `BoardCard`, and `CommentItem`.
 
 <CodeExample example={viewModelSource} />
 
-Why this is the trail, not the plumbing:
+For the independent detail pattern above, the trace stays local:
 
 1. **One greppable hop.** The wrong value on screen is `state.vm` → grep `issueVm` → the `computedFor` that built it. No parent to trace back through.
 2. **The vm shows up in the debug panel per key.** `computedFor` registers one live entry per `(teamId, issueId)` tuple, so the panel shows this exact issue's vm — not an opaque aggregate — and `view()` records the component → vm dependency edge.
@@ -110,9 +114,11 @@ const [draft, setDraft] = useSignal('', 'draft');   // shows as `draft` in the d
 
 The line: **the moment state is read by anyone else — another component, a service, the server — it moves to a service.** Shared state in a component is invisible to the registry, the debug panel, and the stubs tests rely on, so it is not allowed to exist.
 
-## Per-instance connect names
+## Per-instance registration and names
 
-The name can be a function of props: `connect((props) => name, declare)`. Each mounted instance then registers its **own** manifest under the computed name, and unregisters through Solid's lifecycle (`onCleanup`) when it unmounts — so a `<For>` list can't grow the registry without bound, which is exactly the leak a static name avoids by registering once:
+Every `connect()` call registers one mounted instance and unregisters it through Solid's lifecycle. Static names still record every live instance; siblings appear as `TodoRow#1`, `TodoRow#2`, and so on.
+
+The name can also be a function of props: `connect((props) => name, declare)`. Use that when the domain identity belongs in the registry label:
 
 ```tsx
 // Excerpt: a per-instance connector declaration.
@@ -122,7 +128,7 @@ const connectCardContextMenu = connect(
 );
 ```
 
-Use it when instances are meaningfully distinct global surfaces you want individually auditable — "which card's menu is open right now?" is answerable from the registry (the kanban demo's context menu does this). Default to static names everywhere else: one manifest per component is simpler to audit, and per-instance identity is usually the props' job. The function form must be called inside a component so the cleanup context exists — `single-connect` checks this.
+Use it when instances are meaningfully distinct global surfaces you want individually auditable — "which card's menu is open right now?" is answerable from the registry. Default to static names when numbered mounted instances are clear enough. The function form must be called inside a component so the cleanup context exists — `single-connect` checks this.
 
 ## Live example
 
@@ -139,7 +145,7 @@ Isolation is the same mechanism tests use. Two providers, two singletons, zero s
 <Diagram
   direction="LR"
   nodes={[
-    { id: 'props', label: 'Props', sub: 'identity + variation only', kind: 'component' },
+    { id: 'props', label: 'Props', sub: 'identity, variation, owned display data', kind: 'component' },
     { id: 'declare', label: 'connect declaration', sub: 'the manifest', kind: 'component' },
     { id: 'shape', label: 'Shape', sub: 'frozen values + actions', kind: 'state' },
     { id: 'view', label: 'JSX', sub: 'tracks only what it reads', kind: 'component' },

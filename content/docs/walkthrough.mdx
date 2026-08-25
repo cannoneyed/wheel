@@ -21,7 +21,7 @@ Every source block comes from a real file under `packages/docs/examples/getting-
 
 Install Wheel with `bun add wheel@npm:@cannoneyed/wheel@0.1.0 solid-js`. The repository examples resolve `wheel` from the workspace. [Getting Started](#/getting-started) covers both workflows.
 
-Everything from Wheel comes through a documented [public subpath](#/import-map). This example uses Bun's in-process SQLite driver, a persistent `todos.db` file, and Vite's same-origin development proxy.
+Everything from Wheel comes through a documented [public subpath](#/import-map). This local and self-hosted example uses Bun's in-process SQLite driver, a persistent `todos.db` file, and Vite's same-origin development proxy. The production path uses the same declarations and WebSocket protocol in a Cloudflare Worker and Durable Object.
 
 ## 1. Declare synced data (`todos.sync.ts`)
 
@@ -70,7 +70,7 @@ Create `client.ts`:
 
 <CodeExample example={clientSource} />
 
-`IndexedDbCache` is the browser default. Tests and server rendering use `MemoryCache`.
+`SyncClient` requires a `localCache`; it does not choose one. `IndexedDbCache` is the standard browser choice. Tests and server rendering usually use `MemoryCache`.
 
 ## 5. Own synced state in a service (`todo-service.ts`)
 
@@ -96,7 +96,7 @@ Create `main.tsx`:
 
 <CodeExample example={mainSource} />
 
-In a dev build it also mounts the docked debug panel, the component inspector, error capture, and the `window.__wheel` agent bridge. A production build renders your children and nothing else. See [Debugging](#/debugging).
+In a dev build it also mounts the docked debug panel, the component inspector, error capture, and the `window.__wheel` agent bridge. Those dev systems do not mount in production. See [Debugging](#/debugging).
 
 <Aside kind="note">
   <strong>Can't wrap your root?</strong> Docs embeds and sandboxes render into a page that
@@ -108,13 +108,15 @@ In a dev build it also mounts the docked debug panel, the component inspector, e
 
 ## 8. Proxy sync requests during development (`vite.config.ts`)
 
-The browser transport uses the current origin. This proxy sends `/sync/*` to the Bun server without weakening the server's cross-origin policy.
+The browser transport uses the current origin. This proxy forwards the `/sync/websocket` upgrade to the Bun server without weakening the server's cross-origin policy. Vite needs `ws: true` because this route is a WebSocket, not an HTTP request.
 
 Create `vite.config.ts`:
 
 <CodeExample example={viteConfigSource} />
 
 Start the app with `bunx vite`. Add a todo: it appears immediately, persists to SQLite, and reaches a second browser tab. Stop the server and keep editing: queued mutations remain in IndexedDB and replay after reconnect.
+
+For production, keep the client and sync declarations. Replace this Bun entry point with a Worker that routes `/sync/*` to a Durable Object. [Cloudflare deployment](#/cloudflare) covers hibernation, migrations, and deploy versions.
 
 ## Next
 

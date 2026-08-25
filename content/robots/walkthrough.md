@@ -6,7 +6,7 @@ The checked todo example implements one complete sync path. Read these files in 
 
 1. [`todos.sync.ts`](../../packages/docs/examples/getting-started/todos.sync.ts) declares the row schema, table, query, mutation, optimistic handler, and projection.
 2. [`todos.server.ts`](../../packages/docs/examples/getting-started/todos.server.ts) binds SQL, invalidation hints, and the authoritative mutation.
-3. [`server.ts`](../../packages/docs/examples/getting-started/server.ts) applies DDL, creates the SQLite server, and exposes authenticated HTTP routes.
+3. [`server.ts`](../../packages/docs/examples/getting-started/server.ts) applies DDL, creates the local SQLite server, and authenticates the WebSocket upgrade.
 4. [`client.ts`](../../packages/docs/examples/getting-started/client.ts) separates cache scope, wire id, and actor identity.
 5. [`todo-service.ts`](../../packages/docs/examples/getting-started/todo-service.ts) owns one query and its mutations.
 6. [`todo-list.tsx`](../../packages/docs/examples/getting-started/todo-list.tsx) connects the service to rendering.
@@ -21,6 +21,9 @@ The checked todo example implements one complete sync path. Read these files in 
 - Creating mutation ids travel in args when undo must name the row.
 - Server identity comes from authentication, not mutation args.
 - `SyncServer` owns backend close.
+- Vite forwards `/sync/websocket` with `ws: true`.
+
+Production keeps the declarations and client. A Cloudflare Worker routes the authenticated socket to a Durable Object, which applies migrations before engine boot and restores hibernated sessions.
 
 ## Expected behavior
 

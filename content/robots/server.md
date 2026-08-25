@@ -13,7 +13,7 @@ It also receives shared sync modules, matching server modules, an optional clock
 
 ## SQLite
 
-- `bunSqliteDriver(filename)` is the Bun production and development driver.
+- `bunSqliteDriver(filename)` is the local and self-hosted Bun driver.
 - `betterSqlite3Driver(filename)` supports Node and Vitest.
 - `createSqliteSyncBackend()` wraps a driver.
 - `databaseId` identifies separate wrappers that point at one database for the writer lease.
@@ -53,11 +53,13 @@ Raw SQL strings pass through unchanged. Use raw text for DDL and dialect-owned s
 
 Run the backend conformance suite for a new implementation.
 
-## HTTP
+## WebSocket sessions
 
-`createSyncHttpHandler()` binds a server, authenticator, workspace id, and scheduler to `/sync/*` routes. Configure detailed errors and debug endpoints only in development.
+`authenticateSyncSocket()` authenticates the `/sync/websocket` upgrade and creates a trusted handshake. `SyncSocketServer` accepts the runtime socket and handles subscribe, unsubscribe, mutate, presence, replies, and server events.
 
-`SYNC_CONNECTION_HEADER` carries the connection token on later requests.
+Use `maxMessageBytes` and `messagesPerMinute` for per-connection limits. Keep `detailedErrors` off in production.
+
+For Cloudflare, import `wheel/sync/server/cloudflare`. Build `createCloudflareSyncBackend()` from Durable Object storage, accept through `ctx.acceptWebSocket()`, and restore socket attachments after hibernation. For local or self-hosted Bun, adapt `Bun.serve` WebSockets to `SyncServerSocket`.
 
 ## External writes
 

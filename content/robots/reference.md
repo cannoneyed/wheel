@@ -35,7 +35,7 @@ Reject bigint, `Date`, non-finite numbers, undefined, sparse arrays, class insta
 - `{ ok: true, seq }` confirms.
 - `{ ok: false, rejection }` rejects.
 - `{ ok: false, error }` fails terminally.
-- Network errors, 5xx responses, invalid responses, and retryable backend recovery throw at transport and leave queued state.
+- Socket loss, invalid reply frames, retryable server codes, and backend recovery throw at transport and leave queued state.
 
 Anything the server computed travels as data. Only failure to communicate remains retryable.
 
@@ -43,7 +43,7 @@ Anything the server computed travels as data. Only failure to communicate remain
 
 - `RejectionError`: created by `rejection(code, message)` and thrown in authoritative handlers.
 - `OrphanedError`: created by `orphan(message)` and thrown by optimistic replay when a row legitimately vanished.
-- `SyncServerError`: stable server and backend code with HTTP mapping.
+- `SyncServerError`: stable server and backend code that maps to a WebSocket error reply when safe to expose.
 
 ## Transient backend errors
 

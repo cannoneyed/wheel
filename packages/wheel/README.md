@@ -16,8 +16,9 @@ Install `better-sqlite3` separately when Node code calls `betterSqlite3Driver` o
 import { defineAuthenticator } from 'wheel/auth';
 import { defineConfig, z } from 'wheel/config';
 import { Service, connect } from 'wheel/core';
-import { table, query, mutation } from 'wheel/sync';
+import { createWebSocketTransport, table, query, mutation } from 'wheel/sync';
 import { createSyncServer } from 'wheel/sync/server';
+import { createCloudflareSyncBackend } from 'wheel/sync/server/cloudflare';
 import { DialogService, LayoutService } from 'wheel/kit';
 import { Button, Dialog } from 'wheel/components';
 import { createRouter } from 'wheel/router';
@@ -25,7 +26,7 @@ import { createRouter } from 'wheel/router';
 
 Import `wheel/components/styles` once to apply the default Mira zinc theme. Each of the 38 component families also has a deep entry such as `wheel/components/dialog`. Override `--wheel-component-*` tokens or the stable `wheel-*` part classes to customize the theme.
 
-The remaining runtime entries are `wheel/debug` for development inspection and `wheel/testing` for deterministic sync tests. `wheel/vite` configures local development, and `wheel/eslint` exports the plain ESM lint plugin. `wheel/auth` defines provider-neutral server authentication contracts. `wheel/config` validates JSON boot sources; `wheel/router` owns typed application routing.
+The remaining runtime entries are `wheel/debug` for development inspection, `wheel/testing` for deterministic sync tests, and `wheel/testing/playwright` for browser behavior harnesses. `wheel/vite` configures local development, and `wheel/eslint` exports the plain ESM lint plugin. `wheel/auth` defines provider-neutral server authentication contracts. `wheel/config` validates JSON boot sources; `wheel/router` owns typed application routing. `wheel/components/styles` is the component CSS entry.
 
 npm publishes Wheel under the `alpha` tag.
 

@@ -59,6 +59,10 @@ function socketAdapter(socket: ServerWebSocket<SocketData>): SyncServerSocket {
 const httpServer = Bun.serve<SocketData>({
   port: 4795,
   async fetch(request, server) {
+    const url = new URL(request.url);
+    if (url.pathname !== '/sync/websocket') {
+      return new Response('Not found.', { status: 404 });
+    }
     const authenticated = await authenticateSyncSocket(request, {
       authenticator,
       workspaceId: 'todos'

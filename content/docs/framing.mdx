@@ -303,14 +303,10 @@ What is deliberately absent, and why:
 - **No `Frame.Sidebar`** — a column with a toggle covers it.
 - **No default animation, and no snapshot migrations** — see above.
 
-<Aside kind="todo">
-  <strong>Tabs.</strong> Tabs are a content pattern — one region, many things, one visible — with
-  their own accessibility contract, equally at home in a frame, a dialog, or a plain page. Welding
-  them into a layout engine is what forces the shadow-graph design this API exists to avoid. A
-  <code>Tabs</code> kit component will ship separately, built the same way: dragging a tab out of a
-  group emits the same dock intents, your action applies them to your tree, your JSX renders the
-  result. Floating windows and browser popouts are also out of scope for now — panel ids are
-  already the indirection a popout adapter would need.
+<Aside kind="note">
+  <strong>Tabs stay separate from framing.</strong> <code>wheel/components/tabs</code> ships the
+  accessible content pattern. It does not support dragging a tab into a dock tree. Draggable dock
+  tabs, floating windows, and browser popouts remain outside the current framing API.
 </Aside>
 
 ## Next

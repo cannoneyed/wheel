@@ -66,7 +66,7 @@ Validation happens at the client's edges, and the two directions behave differen
 
 The editor demo builds "watch your peer type" on nothing but this. Uncommitted keystrokes ride presence as a display-only preview (capped at 4KB — beyond that, caret only), peers render it as decorations, and the committed row stays the only truth. See `packages/demos/src/editor`.
 
-For sub-50ms or per-keystroke frequency at scale, the next step up is a WebSocket transport. It plugs into the existing `SyncTransport` interface, so you swap the transport and leave the engine alone.
+The shipped WebSocket transport already carries presence. At larger scale, reduce payload size, increase `coalesceMs`, and split workspaces across Durable Objects. Presence stays ephemeral and scoped to one workspace.
 
 ## Next
 

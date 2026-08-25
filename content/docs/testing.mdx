@@ -48,7 +48,7 @@ bun add --dev better-sqlite3
 ```ts
 // Excerpt: inside a test with world, client, and sync declarations initialized.
 world.network.pause('web_a');
-await a.mutate(todosSync.addTodo, { text: 'made offline' }); // queues, doesn't settle
+a.mutate(todosSync.addTodo, { text: 'made offline' }); // queues, doesn't settle
 await world.network.resume('web_a');
 await world.settle();
 // the write survived and reached the server
@@ -138,7 +138,7 @@ behavior('KANBAN-03', 'the arrow buttons move a card to the neighboring column',
 
 | Host | What it serves |
 | --- | --- |
-| `@standalone` | the demos app at `/`, real bun sync server over HTTP |
+| `@standalone` | the demos app at `/`, real Bun sync server over WebSocket |
 | `@embedded` | the website host at `/demos/*`, static build, sync engine in the browser |
 
 The demos ship both ways, so a behavior that only holds in one is a bug users hit. The double run catches embed-only breakage — base-path routing, in-browser engine boot, anything that assumed a server on the other end — at the same moment as the ordinary kind.

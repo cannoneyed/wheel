@@ -30,7 +30,7 @@ Clone this repository when you want to run its reference applications.
 3. Start the demo app: `bun run demos`
 4. Open `http://localhost:4796` and add a todo.
 
-Each app is two processes: a Vite dev server for the browser, and a Bun process for sync.
+The local Bun setup uses two processes: a Vite dev server for the browser and a sync server.
 
 | App | Browser | Sync server | Opens on |
 | --- | --- | --- | --- |
@@ -39,6 +39,8 @@ Each app is two processes: a Vite dev server for the browser, and a Bun process 
 | Docs (this site) | `bun run docs` | — | `http://localhost:4780` |
 
 Stop the sync server and keep adding todos. Writes queue in IndexedDB and replay when the server comes back. That is the local-first guarantee — [Live State](#/live-state) explains how it holds.
+
+The demos also run without Bun. Open `http://localhost:4796/?sync=local` to host the real sync engine in a SharedWorker. This serverless mode is for demos and single-visitor tools. Shared production data uses a Worker and Durable Object; see [Production](#/production).
 
 ## 1. Own state in a service
 
@@ -73,7 +75,7 @@ Component-local state stays in the component. The draft input above is local; th
 
 ## 3. Mount the root
 
-`WheelApp` owns the client and hosts the service tree. In a dev build it also mounts the docked debug panel, the component inspector, error capture, and the `window.__wheel` agent bridge. A production build renders your children and nothing else.
+`WheelApp` owns the client and hosts the service tree. In a dev build it also mounts the docked debug panel, the component inspector, error capture, and the `window.__wheel` agent bridge. Those dev systems do not mount in a production build. Connected components still register their instances for the normal component contract.
 
 Create `src/main.tsx`:
 

@@ -6,9 +6,9 @@ import { Diagram } from '@docs/components/Diagram';
 
 # Architecture
 
-Wheel's ten surfaces stack in one direction, and five locked decisions explain the shape of everything above them.
+Wheel's public surfaces stack in one direction, and five locked decisions explain the shape of everything above them.
 
-Wheel is one package with ten subpath surfaces. Each surface imports only from its allowed dependencies. A constraint test and the `no-cross-layer-imports` lint rule fail the build if anyone cheats. The entry-by-entry breakdown is in the [Import Map](#/import-map).
+Wheel is one package with focused subpath surfaces. Each surface imports only from its allowed dependencies. A constraint test and the `no-cross-layer-imports` lint rule fail the build if anyone cheats. The entry-by-entry breakdown is in the [Import Map](#/import-map).
 
 <Diagram
   direction="TB"
@@ -19,14 +19,16 @@ Wheel is one package with ten subpath surfaces. Each surface imports only from i
     { id: 'config', label: 'wheel/config', sub: 'Zod, JSON sources', kind: 'tool' },
     { id: 'vite', label: 'wheel/vite', sub: 'dev-server plugin', kind: 'tool' },
     { id: 'router', label: 'wheel/router', sub: 'URL as an atom', kind: 'component' },
-    { id: 'server', label: 'wheel/sync/server', sub: 'engine, http, backends', kind: 'server' },
+    { id: 'server', label: 'wheel/sync/server', sub: 'engine, WebSocket, backends', kind: 'server' },
     { id: 'sync', label: 'wheel/sync', sub: 'declarations, SyncClient, SyncService', kind: 'client' },
     { id: 'kit', label: 'wheel/kit', sub: 'Keyboard, Dialog, Palette, Toasts', kind: 'service' },
+    { id: 'components', label: 'wheel/components', sub: '38 component families', kind: 'component' },
     { id: 'core', label: 'wheel/core', sub: 'Service, atom, computed, connect, view', kind: 'store' }
   ]}
   edges={[
     { from: 'sync', to: 'core' },
     { from: 'kit', to: 'core' },
+    { from: 'kit', to: 'components' },
     { from: 'router', to: 'core' },
     { from: 'vite', to: 'core' },
     { from: 'server', to: 'sync' },
@@ -36,17 +38,17 @@ Wheel is one package with ten subpath surfaces. Each surface imports only from i
     { from: 'testing', to: 'server', label: 'in-process transport' },
     { from: 'testing', to: 'sync' }
   ]}
-  caption="Every import edge points down toward core; auth and config import nothing internal at all."
+  caption="State edges point toward core. Components are independent, and kit may compose them."
 />
 
 Why this shape:
 
 - **`wheel/auth` and `wheel/config` import nothing internal.** They own trust data and boot-time JSON, so nothing in Wheel has to exist for them to work.
 - **`wheel/router` builds on `core` and nothing else.** `RouterService` is a Service like any other, so the URL lands in the same registry as every atom. `wheel/vite` is the same one-edge shape, one layer out: it runs in your build and touches `core` only for the shared clock.
-- **`wheel/core` depends only on solid-js, immer, and XState.** Service primitives, the DI container, `connect()`/`view()`/providers, stubs, and registry recording live here. No client, database, or transport enters this layer.
+- **`wheel/core` depends only on Solid, Immer, and XState.** Service primitives, the DI container, `connect()`/`view()`/providers, stubs, and registry recording live here. No client, database, or transport enters this layer.
 - **`wheel/sync` is renderer-free where it counts.** The `SyncClient` knows nothing about Solid; it exposes plain methods plus one change listener. That is why the whole engine runs headless in tests. `SyncService` and its `liveQuery` views are the thin reactive layer on top, and they depend only on `core`.
-- **`wheel/kit` needs `core` only, never `sync`.** The batteries (Keyboard, Focus, Dialog, Command Palette, Context Menu, Toasts) are local UI-state services — they are not synced data, so they sit beside `sync`, not above it.
-- **`wheel/sync/server` never reaches the browser.** It is the only surface that owns database drivers. A constraint test bans node builtins and DB drivers from every client-safe directory.
+- **`wheel/components` is independent.** It ships component families and styles without importing Wheel state layers. `wheel/kit` may compose `components` and `core`, but never `sync`.
+- **`wheel/sync/server` is runtime-neutral at its core.** A browser Worker hosts it for local demos, and a Cloudflare Worker hosts it in production. Runtime adapters isolate Bun, Node, WASM, and Durable Object storage so they do not enter the app's main client bundle.
 
 ## Locked decisions
 
@@ -64,8 +66,8 @@ The engine is backend-agnostic. The writer loop, subscriptions, presence, row va
 
 | Backend | Driver | Use it for |
 | --- | --- | --- |
-| SQLite in-process (default) | `bun:sqlite`, zero dependencies — or `better-sqlite3` under Node and vitest | Everything, until a constraint says otherwise |
-| Durable Object SQLite | `ctx.storage.sql` | Cloudflare deployment, hibernation, and one database per workspace |
+| Durable Object SQLite | `ctx.storage.sql` | Production deployment, hibernation, and one database per workspace |
+| SQLite in-process | `bun:sqlite`, or `better-sqlite3` under Node and Vitest | Local development, self-hosting, and tests |
 
 ## File conventions
 

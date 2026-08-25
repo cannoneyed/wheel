@@ -23,7 +23,7 @@ For the website, the docs, and anything else with wheel's name on it.
 
 ## Where the words live
 
-- Home page: `packages/website/src/home.mdx` — every word, including the section
+- Home page: `content/website/home.mdx` — every word, including the section
   labels and the button text. Layout components in `src/sections/` hold no copy.
 - Docs pages: `content/docs/*.mdx`.
 - Page title and meta description: the frontmatter of `home.mdx`, mirrored by hand

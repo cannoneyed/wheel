@@ -32,7 +32,7 @@ query({ name: 'cards.list', into: todos, ... }); // ❌ namespace does not equal
 
 ## JSON data boundary
 
-Query params, mutation args, rows, and presence must round-trip through JSON without coercion. Zod validation runs first; Wheel then rejects `bigint`, `Date`, `NaN`, infinity, `undefined`, sparse arrays, class instances, functions, symbols, and cycles with the declaration name and offending path. Table key extractors must return non-empty strings. A query that returns the same key twice fails with the query, table, key, and both row indexes instead of silently dropping one row.
+Query params, mutation args, rows, and presence must round-trip through JSON without coercion. Each declaration's Wheel `t` schema validates first. Wheel then rejects `bigint`, `Date`, `NaN`, infinity, `undefined`, sparse arrays, class instances, functions, symbols, and cycles with the declaration name and offending path. Table key extractors must return non-empty strings. A query that returns the same key twice fails with the query, table, key, and both row indexes instead of silently dropping one row.
 
 ## The four mutation outcomes
 

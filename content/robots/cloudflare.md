@@ -2,7 +2,7 @@
 
 Human page: [Cloudflare deployment](../docs/cloudflare.mdx). Sources: [`cloudflare/website-worker.ts`](../../cloudflare/website-worker.ts), [`cloudflare/tracker-worker.ts`](../../cloudflare/tracker-worker.ts).
 
-Each trusted branch push deploys two Workers: `wheel-site-<branch-key>` and `wheel-tracker-<branch-key>`. Branch previews only; no production domain or production identity.
+On `main`, `wheel-site` serves `wheel.dev` and Tracker remains an isolated preview. Other branches deploy `wheel-site-<branch-key>` and `wheel-tracker-<branch-key>` previews. There is no production Tracker identity or data deployment.
 
 ## Workers
 

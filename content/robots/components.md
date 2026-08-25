@@ -31,9 +31,9 @@ export function IssueRow(props: { issueId: string }) {
 
 ## Props boundary
 
-Use props for domain identity and presentation variation. Self-connecting children resolve their own shared data. Reusable leaf components can accept display data directly.
+Use props for domain identity and presentation variation. Independently mounted detail components resolve their own shared data. Reusable leaves and rows owned by a connected list can accept display-ready data directly.
 
-Display-ready multi-table view models belong in service `computedFor` fields. Components receive the id and connect the keyed view themselves.
+Display-ready multi-table view models belong in services. An independent component accepts an id and connects a keyed `computedFor` vm. A connected list can read its vm collection and pass one `vm` to each owned row or card. Tracker uses the second pattern for `IssueRow`, `BoardCard`, and `CommentItem`.
 
 ## Root registration
 
@@ -41,6 +41,7 @@ Display-ready multi-table view models belong in service `computedFor` fields. Co
 - Non-connected host roots use `use:viewRoot`.
 - View components with props pass them in the directive object.
 - Headless components use an explicit lint pragma with a reason.
+- Every `connect()` call registers one mounted instance, including static-name connections. Cleanup unregisters it.
 
 ## Local state
 

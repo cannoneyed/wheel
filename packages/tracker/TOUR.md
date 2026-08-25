@@ -1,12 +1,11 @@
 # Axle: A Guided Tour of a Local-First Linear Clone
 
 > [!WARNING]
-> The default command starts a demo deployment, not a production server. It
-> trusts the in-app user switcher, uses an in-memory database, enables sync
-> debug output, and resets on restart. Production mode requires a persistent
-> filename and an external session verifier; [ROADMAP.md](./ROADMAP.md) names
-> the remaining application and deployment work before Axle can be treated as
-> a production template.
+> The default commands start the local Bun demo. It trusts the user switcher,
+> uses an in-memory database, enables detailed WebSocket errors, and resets on
+> restart. The branch preview runs on a Worker and Durable Object.
+> [ROADMAP.md](./ROADMAP.md) names the identity, workspace, backup, restore, and
+> rollout work required before Axle can be a public production template.
 
 *Or: what happens when you stress-test a sync framework by rebuilding the most
 keyboard-obsessed app in the industry.*
@@ -42,8 +41,8 @@ multiplayer, all of it functional offline.
 Two things you won't find in most clones: press <kbd>ⓘ</kbd> on any issue and get a
 **provenance receipt** — every write that produced the row you're looking at, color-coded
 by cause. And the auto-rollover job writes raw SQL from outside the app entirely, then calls
-`server.externalWrite(...)` — and the change appears in your browser a second later, in a
-process that never touched a mutation. We'll get to how.
+`server.externalWrite(...)` — and the change reaches your browser even though the writer
+never touched a mutation. We'll get to how.
 
 ---
 
@@ -52,18 +51,24 @@ process that never touched a mutation. We'll get to how.
 Axle is three layers, each with one job:
 
 ```
-*.sync.ts  ──  the CONTRACT: tables, queries, mutations (shared client/server, Zod-typed)
+*.sync.ts  ──  the CONTRACT: tables, queries, mutations (shared client/server, Wheel t schemas)
 services/  ──  the STATE: singleton services own every subscription and every mutation call
 components ──  the VIEW: each component declares its exact data needs through connect()
 ```
 
 Data flows down (server → subscriptions → service computeds → connected components) and
-intent flows up (component → service action → mutation → server), and nothing is allowed to
-shortcut. The framework's linter enforces the boundaries — one `connect()` per component,
-called first, at most 3 services and 12 fields per connection, no whole-service injection,
-no raw hooks. Every connected component marks its real DOM root, including portals and
-multi-root fragments, so rectangle inspection sees the same component graph the runtime
-registry sees. The application passes those rules without a package-wide carveout.
+intent flows up (component → service action → mutation → server). Source lint rules enforce
+the connection and layer boundaries: one `connect()` per component, called first, at most 3
+services and 12 fields per connection, and no whole-service injection. Runtime and contract
+tests enforce protocol rules that syntax cannot prove. Connected components mark their real
+DOM roots so rectangle inspection sees the runtime component graph.
+
+Axle has two server runtimes. `packages/tracker/server.ts` runs local or self-hosted Bun with
+SQLite. `cloudflare/tracker-worker.ts` is the hosted shape: an outer Worker routes
+`/sync/websocket` to a Durable Object, which owns one SQLite database and socket set. Object
+boot applies the shared migration list before engine creation. WebSocket attachments preserve
+the principal, subscriptions, presence, rate state, and version data across hibernation. The
+browser, Bun server, and Worker share application versions through `sync-version.ts`.
 
 Let's walk the layers bottom-up.
 
@@ -195,6 +200,11 @@ grow past 3 services, the linter fails the build — and the one time that fired
 (the sidebar reaching for a fourth service), the forced split produced genuinely better
 factoring. The cap is the design review you can't skip.
 
+`IssueRow` receives `props.vm` on purpose. The connected list owns one vm collection and passes
+display-ready rows to its owned leaves. Independently mounted detail components take an id and
+connect their own keyed vm. Both patterns keep shared state in services while avoiding duplicate
+list subscriptions.
+
 `IssueInteractionService` is the component-facing surface, not a second kernel. It delegates
 to bounded owners for target resolution, property/filter pickers, list/board movement,
 selection/composer state, issue details, saved-view navigation, and global command
@@ -241,15 +251,16 @@ machine (`idle → pressed → dragging`, events in, `{state, drop?}` out) with 
 entirely at the edges — hit-testing turns pointer coordinates into a `DropTarget` before
 the machine ever sees them. The machine is exhaustively unit-tested with zero DOM, and its
 design notes (reactive state holding, effects-as-return-values, the synthetic-click
-swallow) are the written brief for the framework's future `machine()` primitive.
+swallow) also informed the shipped `Service.machine()` XState primitive. The drag machine stays
+hand-written because its pure command model already fits its DOM adapter and tests.
 
 ---
 
 ## Derived tables and foreign writers
 
 Three tables in Axle have no physical existence. `project_counts`, `cycle_stats`, and
-`search_results` are **virtual**: their queries compute rows (a `GROUP BY` over issues, a
-`ts_rank` over text) and re-run purely through watch lists. Complete an issue and a project
+`search_results` are **virtual**: their queries compute rows (a `GROUP BY` over issues and
+SQLite FTS5 `bm25` ranking) and re-run through invalidation channels. Complete an issue and a project
 progress bar updates on every client — no table written, no trigger fired, just a query
 whose answer changed.
 
@@ -270,7 +281,11 @@ and makes every subscribed client converge. The engine never saw a mutation; it 
 "these tables changed" and does the rest. (The job's first design processed ended cycles one
 by one and stranded issues in intermediate dead cycles; the convergence test caught it in
 minutes. Time-based jobs should converge to the correct current state, not replay past
-events — a lesson now filed as the `flow()` brief.)
+events.)
+
+The Cloudflare runtime runs this job from a Durable Object alarm every ten minutes. The Bun
+runtime uses the same interval. Both call the same deterministic function and report the same
+touched tables.
 
 `externalWrite` is the honest door for foreign writers. A process that writes the database
 directly can call it to bring clients back in sync. A future change-feed backend can use the
@@ -299,7 +314,7 @@ rendering zero — in about ninety seconds of looking.
 ## The testing story, because it's half the point
 
 The test pyramid never faked the engine. Every Tier-3 test boots a **World**: the real
-server engine, real client engines, an in-process SQLite database (the default backend, on
+server engine, real client engines, an in-process SQLite test database (on
 `better-sqlite3` under vitest), a fixed clock, seeded ids, and a scriptable network.
 `world.network.pause('web_a')` *is* the offline scenario; `world.settle()` drains everything
 in flight — including lazily-created subscriptions, a harness improvement that deleted every
@@ -334,7 +349,8 @@ within minutes.
 
 Axle covers the complete product-shaped path: multiple sync domains, projected and virtual
 queries, local and live services, connected component roots, a self-documenting keyboard
-map, undo, presence, provenance, and deterministic integration/fuzz/backend suites. The
+map, undo, presence, provenance, WebSocket hibernation, Durable Object migrations, and
+deterministic integration/fuzz/backend suites. The
 repository's tests and lint configuration are the source of those inventories; this tour
 does not copy volatile counts that drift when code changes.
 
