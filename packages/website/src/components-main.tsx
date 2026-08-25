@@ -1,6 +1,7 @@
 import { render } from 'solid-js/web';
 import { ServiceProvider, viewRoot } from 'wheel/core';
 import { WheelAnnotate } from 'wheel/annotate';
+import { annotationEnabled } from './annotation';
 
 import '../../docs/src/theme.css';
 import 'wheel/components/styles';
@@ -32,7 +33,7 @@ render(
   () => (
     <ServiceProvider scopeId="componentsapp">
       <ComponentsApp />
-      <WheelAnnotate />
+      <WheelAnnotate enabled={annotationEnabled()} />
     </ServiceProvider>
   ),
   document.getElementById('root')!

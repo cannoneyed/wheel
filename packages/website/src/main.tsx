@@ -11,6 +11,7 @@
 import { render } from 'solid-js/web';
 import { ServiceProvider } from 'wheel/core';
 import { WheelAnnotate } from 'wheel/annotate';
+import { annotationEnabled } from './annotation';
 
 import './styles.css';
 // The live figure renders real wheel components (the unplug switch), so the
@@ -45,7 +46,7 @@ render(
   () => (
     <ServiceProvider scopeId="app">
       <App />
-      <WheelAnnotate />
+      <WheelAnnotate enabled={annotationEnabled()} />
     </ServiceProvider>
   ),
   document.getElementById('root')!

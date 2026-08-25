@@ -10,6 +10,7 @@ import { Dynamic, render } from 'solid-js/web';
 import { createEffect, on } from 'solid-js';
 import { ServiceProvider, useSignal } from 'wheel/core';
 import { WheelAnnotate } from 'wheel/annotate';
+import { annotationEnabled } from './annotation';
 
 import '../../docs/src/styles.css';
 import '../../docs/src/site/site-chrome.css';
@@ -71,7 +72,7 @@ render(
   () => (
     <ServiceProvider scopeId="docsapp">
       <DocsApp />
-      <WheelAnnotate />
+      <WheelAnnotate enabled={annotationEnabled()} />
     </ServiceProvider>
   ),
   document.getElementById('root')!
