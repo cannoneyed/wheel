@@ -148,6 +148,22 @@ body {
   margin-top: 1.8em;
 }
 
+/* Every prose link uses the same accent as the active "On this page" row.
+   State changes alter the underline, never the color, so visited links do not
+   fall back to the browser's purple. Navigation chrome keeps its own hierarchy. */
+.content a,
+.content a:visited {
+  color: var(--accent);
+  text-decoration-color: color-mix(in srgb, var(--accent) 52%, transparent);
+  text-underline-offset: 0.15em;
+}
+
+.content a:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+}
+
 .content code {
   background: var(--code-bg);
   padding: 1px 5px;
