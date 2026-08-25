@@ -45,7 +45,10 @@ test.afterAll(() => {
 
 test('a docs paragraph can be annotated, and the note can find it again', async ({ page }) => {
   await page.goto('/docs/');
-  const paragraph = page.locator('main.content p').first();
+  // A DIRECT child, which is what MDX prose emits — the alpha banner above
+  // every docs page keeps its paragraph nested inside an <aside>, and the
+  // subject here is documentation prose.
+  const paragraph = page.locator('main.content > p').first();
   await expect(paragraph).toBeVisible();
   const prose = (await paragraph.innerText()).trim();
 
