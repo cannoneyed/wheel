@@ -39,7 +39,9 @@ steps:
         wait "$$unit_pid" || status=$$?
         wait "$$cloudflare_pid" || status=$$?
         wait "$$website_pid" || status=$$?
-        exit "$$status"
+        if [ "$$status" -ne 0 ]; then
+          exit "$$status"
+        fi
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.jsonc"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.production.jsonc"
     artifact_paths:
@@ -63,7 +65,9 @@ steps:
         wait "$$docs_pid" || status=$$?
         wait "$$tracker_pid" || status=$$?
         wait "$$website_pid" || status=$$?
-        exit "$$status"
+        if [ "$$status" -ne 0 ]; then
+          exit "$$status"
+        fi
       - "bun run build"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.tracker.jsonc"
     artifact_paths:

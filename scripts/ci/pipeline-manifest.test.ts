@@ -222,6 +222,30 @@ describe("Buildkite pipeline manifest", () => {
     }
   });
 
+  // Build 89 passed the parallel checks, then stopped at `exit 0`. Buildkite
+  // runs a step's command list in one shell, so the Wheel build and dry runs
+  // after that block never ran. Only exit the shell when a child failed.
+  test("continues after successful parallel command blocks", () => {
+    for (const [key, laterCommand] of [
+      ["check-unit", "wrangler.website.jsonc"],
+      ["check-browser-apps-sqlite", "bun run build"],
+    ]) {
+      const contents = step(key);
+      const guard = 'if [ "$$status" -ne 0 ]; then';
+
+      expect(contents).toContain(guard);
+      expect(contents.indexOf(laterCommand)).toBeGreaterThan(
+        contents.indexOf(guard),
+      );
+      expect(contents).toContain(
+        `${guard}\n          exit "$$status"\n        fi`,
+      );
+      expect(contents).not.toContain(
+        'wait "$$website_pid" || status=$$?\n        exit "$$status"',
+      );
+    }
+  });
+
   test("keeps wheel.dev on the main-only website configuration", () => {
     expect(productionWebsite).toContain('"pattern": "wheel.dev/*"');
     expect(previewWebsite).not.toContain("wheel.dev");
