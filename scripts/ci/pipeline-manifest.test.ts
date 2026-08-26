@@ -29,11 +29,25 @@ function commandCount(command: string): number {
     .length;
 }
 
+function textCount(value: string): number {
+  return pipeline.split(value).length - 1;
+}
+
+function step(key: string): string {
+  const match = pipeline
+    .split("\n  - label:")
+    .find((candidate) => candidate.includes(`\n    key: "${key}"\n`));
+  expect(match, `missing Buildkite step ${key}`).toBeDefined();
+  return match!;
+}
+
 describe("Buildkite pipeline manifest", () => {
   test("runs every local check lane once", () => {
-    for (const lane of ["static", "unit", "cloudflare"]) {
-      expect(commandCount(`bun run check:${lane}`)).toBe(1);
+    for (const lane of ["static", "cloudflare"]) {
+      expect(textCount(`bun run check:${lane}`)).toBe(1);
     }
+    expect(textCount("bun run check:unit:js")).toBe(1);
+    expect(commandCount("bun run check:unit")).toBe(0);
   });
 
   // Build 37 deployed a site missing three files. `buildkite-agent artifact`
@@ -44,24 +58,19 @@ describe("Buildkite pipeline manifest", () => {
   // BOTH patterns, and nothing about the failure was visible in a green build —
   // which is why it is asserted here rather than left to review.
   test("downloads the top level of every artifact directory, not just nested files", () => {
-    for (const directory of [
-      "packages/website/dist",
-      "packages/tracker/dist",
-      "packages/wheel/dist",
+    for (const [directory, sourceStep] of [
+      ["packages/website/dist", "check-unit"],
+      ["packages/tracker/dist", "check-browser-apps-sqlite"],
+      ["packages/wheel/dist", "check-browser-apps-sqlite"],
     ]) {
-      const step = pipeline.includes(
-        `'${directory}/**/*' . --step build-website`,
-      )
-        ? "build-website"
-        : "build-tracker";
       expect(
         pipeline,
         `${directory} downloads nested files but not its top level`,
       ).toContain(
-        `buildkite-agent artifact download '${directory}/*' . --step ${step}`,
+        `buildkite-agent artifact download '${directory}/*' . --step ${sourceStep}`,
       );
       expect(pipeline).toContain(
-        `buildkite-agent artifact download '${directory}/**/*' . --step ${step}`,
+        `buildkite-agent artifact download '${directory}/**/*' . --step ${sourceStep}`,
       );
     }
   });
@@ -70,19 +79,33 @@ describe("Buildkite pipeline manifest", () => {
     for (const command of [
       "bun run docs:build",
       "bash scripts/ci/test-elixir-backends.sh",
+      "bun run test:browser:tracker:sqlite",
       "bun run test:browser:website",
       "bun run test:browser:components",
       "bun run test:behaviors:smoke",
       "bun run test:browser:demos",
     ]) {
-      expect(commandCount(command)).toBe(1);
+      expect(textCount(command)).toBe(1);
     }
-    expect(elixirBackends).toContain("WHEEL_WIRE_URL=http://127.0.0.1:4801");
-    expect(elixirBackends).toContain("bun run test:browser:tracker:sqlite");
+    expect(elixirBackends).toContain('WHEEL_WIRE_URL="$wire_url"');
+    expect(elixirBackends).not.toContain("bun run test:browser:tracker:sqlite");
     expect(elixirBackends).toContain("bun run test:browser:tracker:postgres");
     expect(elixirBackends).toContain(
-      "TRACKER_BROWSER_SYNC_ORIGIN=http://127.0.0.1:4799",
+      'TRACKER_BROWSER_SYNC_ORIGIN="$tracker_url"',
     );
+  });
+
+  test("runs SQLite and Elixir/Postgres browser apps in parallel jobs", () => {
+    expect(pipeline).toContain('key: "check-browser-apps-sqlite"');
+    expect(pipeline).toContain('key: "check-browser-apps-postgres"');
+    expect(pipeline).not.toContain('key: "check-browser-apps"');
+
+    for (const key of [
+      "check-browser-apps-sqlite",
+      "check-browser-apps-postgres",
+    ]) {
+      expect(pipeline.match(new RegExp(`- "${key}"`, "g"))).toHaveLength(2);
+    }
   });
 
   test("keeps all CI modes in Buildkite", () => {
@@ -124,7 +147,27 @@ describe("Buildkite pipeline manifest", () => {
       "hexpm/elixir:1.18.4-erlang-27.3.4.7-debian-bookworm-20260610-slim";
     expect(elixirUnit).toContain(image);
     expect(elixirBackends).toContain(image);
-    expect(pipeline).toContain('WHEEL_ELIXIR_DOCKER: "1"');
+    expect(pipeline).not.toContain("WHEEL_ELIXIR_DOCKER");
+  });
+
+  test("runs Elixir checks once in the Postgres lane", () => {
+    expect(elixirBackends.match(/mix format --check-formatted/g)).toHaveLength(
+      2,
+    );
+    expect(elixirBackends).toContain("MIX_ENV=test mix test --warnings-as-errors");
+    expect(elixirBackends).not.toContain("--only postgres");
+    expect(elixirBackends).toContain("mix compile --warnings-as-errors");
+  });
+
+  test("isolates PostgreSQL and Elixir in a job-local Docker network", () => {
+    expect(elixirBackends).toContain('docker network create "$docker_network"');
+    expect(elixirBackends).toContain('--network "$docker_network"');
+    expect(elixirBackends).toContain('--network-alias postgres');
+    expect(elixirBackends).toContain('--publish 127.0.0.1::4801');
+    expect(elixirBackends).toContain('--publish 127.0.0.1::4799');
+    expect(elixirBackends).toContain('cat /proc/1/comm');
+    expect(elixirBackends).not.toContain("--network host");
+    expect(elixirBackends).not.toContain("--publish 55432:5432");
   });
 
   test("injects Cloudflare secrets only into deploy and cleanup", () => {
@@ -133,11 +176,44 @@ describe("Buildkite pipeline manifest", () => {
   });
 
   test("deploys the named build artifacts", () => {
-    expect(pipeline).toContain("--step build-website");
-    expect(pipeline).toContain("--step build-tracker");
+    expect(pipeline).toContain("--step check-unit");
+    expect(pipeline).toContain("--step check-browser-apps-sqlite");
     expect(pipeline).toContain("mise#v1.1.5");
     expect(pipeline).toContain("install_args: node bun");
     expect(pipeline).toContain("bun scripts/ci/deploy-branch.ts");
+  });
+
+  test("keeps the standard pipeline to six balanced jobs", () => {
+    expect(pipeline).not.toContain('key: "check-cloudflare"');
+    expect(pipeline).not.toContain('key: "build-website"');
+    expect(pipeline).not.toContain('key: "build-tracker"');
+
+    const unit = step("check-unit");
+    expect(unit).toContain("bun run check:cloudflare");
+    expect(unit).toContain("bun run website:build");
+    expect(unit).toContain("unit_pid=$$!");
+    expect(unit).toContain('"packages/website/dist/**/*"');
+
+    const sqlite = step("check-browser-apps-sqlite");
+    expect(sqlite).toContain("bun run build");
+    expect(sqlite).toContain('"packages/tracker/dist/**/*"');
+    expect(sqlite).toContain('"packages/wheel/dist/**/*"');
+
+    expect(step("check-browser-apps-postgres")).toContain(
+      "bun run test:behaviors:smoke",
+    );
+
+    const deploy = step("deploy-branch");
+    for (const dependency of [
+      "check-static",
+      "check-unit",
+      "check-browser-apps-sqlite",
+      "check-browser-apps-postgres",
+      "check-browser-components",
+      "check-browser-demos",
+    ]) {
+      expect(deploy).toContain(`- "${dependency}"`);
+    }
   });
 
   test("keeps wheel.dev on the main-only website configuration", () => {

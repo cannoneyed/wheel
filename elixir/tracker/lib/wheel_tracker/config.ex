@@ -7,6 +7,7 @@ defmodule WheelTracker.Config do
       supervisor_name: WheelTracker.Sync.Supervisor,
       database_url: fetch_env!("DATABASE_URL"),
       pool_size: integer_env("TRACKER_DATABASE_POOL_SIZE", 10),
+      ip: address_env("TRACKER_IP", {127, 0, 0, 1}),
       port: integer_env("TRACKER_PORT", integer_env("PORT", 4797)),
       serve: true,
       application_version: 1,
@@ -36,6 +37,19 @@ defmodule WheelTracker.Config do
     case System.get_env(name) do
       nil -> fallback
       value -> String.to_integer(value)
+    end
+  end
+
+  defp address_env(name, fallback) do
+    case System.get_env(name) do
+      nil ->
+        fallback
+
+      value ->
+        case :inet.parse_address(String.to_charlist(value)) do
+          {:ok, address} -> address
+          {:error, :einval} -> raise "#{name} must be an IPv4 or IPv6 address"
+        end
     end
   end
 end

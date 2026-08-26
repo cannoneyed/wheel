@@ -22,23 +22,32 @@ steps:
       - "bun install --frozen-lockfile"
       - "bun run check:static"
 
-  - label: ":vitest: Unit"
+  - label: ":vitest: Unit, Workers, and website build"
     key: "check-unit"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
-    env:
-      WHEEL_ELIXIR_DOCKER: "1"
     plugins:
       - mise#v1.1.5:
           install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
-      - "bun run check:unit"
+      - |
+        status=0
+        bun run check:unit:js & unit_pid=$$!
+        bun run check:cloudflare & cloudflare_pid=$$!
+        bun run website:build & website_pid=$$!
+        wait "$$unit_pid" || status=$$?
+        wait "$$cloudflare_pid" || status=$$?
+        wait "$$website_pid" || status=$$?
+        exit "$$status"
+      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.jsonc"
+      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.production.jsonc"
     artifact_paths:
       - "test-results/**/*"
+      - "packages/website/dist/**/*"
 
-  - label: ":chromium: Browser apps"
-    key: "check-browser-apps"
+  - label: ":chromium: Browser apps (SQLite)"
+    key: "check-browser-apps-sqlite"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
     plugins:
@@ -46,14 +55,44 @@ steps:
           install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
-      - "bun run docs:build"
-      - "bash scripts/ci/test-elixir-backends.sh"
-      - "bun run test:browser:website"
+      - |
+        status=0
+        bun run docs:build & docs_pid=$$!
+        bun run test:browser:tracker:sqlite & tracker_pid=$$!
+        bun run test:browser:website & website_pid=$$!
+        wait "$$docs_pid" || status=$$?
+        wait "$$tracker_pid" || status=$$?
+        wait "$$website_pid" || status=$$?
+        exit "$$status"
+      - "bun run build"
+      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.tracker.jsonc"
+    artifact_paths:
+      - "test-results/**/*"
+      - "playwright-report/**/*"
+      - "packages/tracker/dist/**/*"
+      - "packages/wheel/dist/**/*"
+
+  - label: ":elixir: Browser apps (Elixir/Postgres) and behaviors"
+    key: "check-browser-apps-postgres"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - |
+        status=0
+        bash scripts/ci/test-elixir-backends.sh & elixir_pid=$$!
+        bun run test:behaviors:smoke & behaviors_pid=$$!
+        wait "$$elixir_pid" || status=$$?
+        wait "$$behaviors_pid" || status=$$?
+        exit "$$status"
     artifact_paths:
       - "test-results/**/*"
       - "playwright-report/**/*"
 
-  - label: ":chromium: Browser components and behaviors"
+  - label: ":chromium: Browser components"
     key: "check-browser-components"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
@@ -63,7 +102,6 @@ steps:
     commands:
       - "bun install --frozen-lockfile"
       - "bun run test:browser:components"
-      - "bun run test:behaviors:smoke"
     artifact_paths:
       - "test-results/**/*"
       - "playwright-report/**/*"
@@ -82,27 +120,16 @@ steps:
       - "test-results/**/*"
       - "playwright-report/**/*"
 
-  - label: ":cloudflare: Workers"
-    key: "check-cloudflare"
-    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
-    timeout_in_minutes: 15
-    plugins:
-      - mise#v1.1.5:
-          install_args: node bun
-    commands:
-      - "bun install --frozen-lockfile"
-      - "bun run check:cloudflare"
-
   - label: ":package: Package Wheel"
     key: "package-wheel"
     if: build.tag =~ /^wheel-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/
     depends_on:
       - "check-static"
       - "check-unit"
-      - "check-browser-apps"
+      - "check-browser-apps-sqlite"
+      - "check-browser-apps-postgres"
       - "check-browser-components"
       - "check-browser-demos"
-      - "check-cloudflare"
     timeout_in_minutes: 15
     plugins:
       - mise#v1.1.5:
@@ -129,51 +156,6 @@ steps:
       - "buildkite-agent artifact download '.artifacts/npm/*' . --step package-wheel"
       - "node scripts/ci/stage-npm-release.mjs"
 
-  - label: ":globe_with_meridians: Build website"
-    key: "build-website"
-    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
-    depends_on:
-      - "check-static"
-      - "check-unit"
-      - "check-browser-apps"
-      - "check-browser-components"
-      - "check-browser-demos"
-      - "check-cloudflare"
-    timeout_in_minutes: 15
-    plugins:
-      - mise#v1.1.5:
-          install_args: node bun
-    commands:
-      - "bun install --frozen-lockfile"
-      - "bun run website:build"
-      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.jsonc"
-      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.production.jsonc"
-    artifact_paths:
-      - "packages/website/dist/**/*"
-
-  - label: ":card_file_box: Build tracker"
-    key: "build-tracker"
-    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
-    depends_on:
-      - "check-static"
-      - "check-unit"
-      - "check-browser-apps"
-      - "check-browser-components"
-      - "check-browser-demos"
-      - "check-cloudflare"
-    timeout_in_minutes: 15
-    plugins:
-      - mise#v1.1.5:
-          install_args: node bun
-    commands:
-      - "bun install --frozen-lockfile"
-      - "bun run build"
-      - "bun run --cwd packages/tracker build"
-      - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.tracker.jsonc"
-    artifact_paths:
-      - "packages/tracker/dist/**/*"
-      - "packages/wheel/dist/**/*"
-
   - label: ":rocket: Deploy branch"
     key: "deploy-branch"
     if: >-
@@ -182,8 +164,12 @@ steps:
       build.pull_request.id == null &&
       build.tag == null
     depends_on:
-      - "build-website"
-      - "build-tracker"
+      - "check-static"
+      - "check-unit"
+      - "check-browser-apps-sqlite"
+      - "check-browser-apps-postgres"
+      - "check-browser-components"
+      - "check-browser-demos"
     timeout_in_minutes: 15
     concurrency: 1
     concurrency_group: "wheel/deploy/${BUILDKITE_BRANCH}"
@@ -202,12 +188,12 @@ steps:
       # uploaded 87 website files and downloaded 84: the three dropped were
       # dist/index.html, dist/llms.txt and dist/install.md, which then 404'd in
       # production. `dist/*` picks up exactly that top level.
-      - "buildkite-agent artifact download 'packages/website/dist/*' . --step build-website"
-      - "buildkite-agent artifact download 'packages/website/dist/**/*' . --step build-website"
-      - "buildkite-agent artifact download 'packages/tracker/dist/*' . --step build-tracker"
-      - "buildkite-agent artifact download 'packages/tracker/dist/**/*' . --step build-tracker"
-      - "buildkite-agent artifact download 'packages/wheel/dist/*' . --step build-tracker"
-      - "buildkite-agent artifact download 'packages/wheel/dist/**/*' . --step build-tracker"
+      - "buildkite-agent artifact download 'packages/website/dist/*' . --step check-unit"
+      - "buildkite-agent artifact download 'packages/website/dist/**/*' . --step check-unit"
+      - "buildkite-agent artifact download 'packages/tracker/dist/*' . --step check-browser-apps-sqlite"
+      - "buildkite-agent artifact download 'packages/tracker/dist/**/*' . --step check-browser-apps-sqlite"
+      - "buildkite-agent artifact download 'packages/wheel/dist/*' . --step check-browser-apps-sqlite"
+      - "buildkite-agent artifact download 'packages/wheel/dist/**/*' . --step check-browser-apps-sqlite"
       - "bun install --frozen-lockfile --ignore-scripts"
       - "node node_modules/wrangler/bin/wrangler.js whoami"
       - "bun scripts/ci/deploy-branch.ts"
