@@ -55,8 +55,8 @@ describe("Buildkite pipeline manifest", () => {
   // collects top-level files on the way up but not on the way down, so
   // dist/index.html, dist/llms.txt and dist/install.md uploaded and never came
   // back, and 404'd in production. Website and Tracker therefore need BOTH
-  // patterns. Wheel's dist has only nested files, so asking for its empty top
-  // level fails the download command.
+  // patterns. Wheel uses one archive because uploading over a thousand files
+  // separately added avoidable time and made glob behavior part of deployment.
   test("downloads top-level artifacts only from directories that have them", () => {
     for (const [directory, sourceStep] of [
       ["packages/website/dist", "check-unit"],
@@ -74,10 +74,13 @@ describe("Buildkite pipeline manifest", () => {
     }
 
     expect(pipeline).toContain(
-      "buildkite-agent artifact download 'packages/wheel/dist/**/*' . --step check-browser-apps-sqlite",
+      "buildkite-agent artifact download '.artifacts/wheel-dist.tgz' . --step check-browser-apps-sqlite",
+    );
+    expect(pipeline).toContain(
+      "tar -xzf .artifacts/wheel-dist.tgz -C packages/wheel",
     );
     expect(pipeline).not.toContain(
-      "buildkite-agent artifact download 'packages/wheel/dist/*' . --step check-browser-apps-sqlite",
+      "artifact download 'packages/wheel/dist/",
     );
   });
 
@@ -201,9 +204,11 @@ describe("Buildkite pipeline manifest", () => {
     expect(unit).toContain('"packages/website/dist/**/*"');
 
     const sqlite = step("check-browser-apps-sqlite");
-    expect(sqlite).toContain("bun run build");
+    expect(sqlite).toContain("bun run build & wheel_pid=$$!");
+    expect(sqlite).toContain('wait "$$wheel_pid" || status=$$?');
     expect(sqlite).toContain('"packages/tracker/dist/**/*"');
-    expect(sqlite).toContain('"packages/wheel/dist/**/*"');
+    expect(sqlite).toContain('".artifacts/wheel-dist.tgz"');
+    expect(sqlite).not.toContain('"packages/wheel/dist/**/*"');
 
     expect(step("check-browser-apps-postgres")).toContain(
       "bun run test:behaviors:smoke",
@@ -228,7 +233,7 @@ describe("Buildkite pipeline manifest", () => {
   test("continues after successful parallel command blocks", () => {
     for (const [key, laterCommand] of [
       ["check-unit", "wrangler.website.jsonc"],
-      ["check-browser-apps-sqlite", "bun run build"],
+      ["check-browser-apps-sqlite", "tar -czf .artifacts/wheel-dist.tgz"],
     ]) {
       const contents = step(key);
       const guard = 'if [ "$$status" -ne 0 ]; then';
