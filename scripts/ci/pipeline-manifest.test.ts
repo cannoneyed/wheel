@@ -166,6 +166,7 @@ describe("Buildkite pipeline manifest", () => {
     expect(elixirBackends).toContain('--network-alias postgres');
     expect(elixirBackends).toContain('--publish 127.0.0.1::4801');
     expect(elixirBackends).toContain('--publish 127.0.0.1::4799');
+    expect(elixirBackends).toContain('cat /proc/1/comm');
     expect(elixirBackends).not.toContain("--network host");
     expect(elixirBackends).not.toContain("--publish 55432:5432");
   });

@@ -35,14 +35,23 @@ docker run --rm --detach \
   --env POSTGRES_DB=wheel_sync \
   postgres:17-alpine >/dev/null
 
+# The official image starts a temporary Postgres server while it creates the
+# requested database, stops it, then replaces PID 1 with the final server.
+# pg_isready alone can observe that temporary server and race its shutdown.
+postgres_is_ready() {
+  docker exec "$postgres_container" sh -c \
+    'test "$(cat /proc/1/comm)" = postgres && pg_isready -U postgres -d wheel_sync' \
+    >/dev/null 2>&1
+}
+
 for _attempt in $(seq 1 60); do
-  if docker exec "$postgres_container" pg_isready -U postgres -d wheel_sync >/dev/null 2>&1; then
+  if postgres_is_ready; then
     break
   fi
   sleep 0.5
 done
 
-if ! docker exec "$postgres_container" pg_isready -U postgres -d wheel_sync >/dev/null; then
+if ! postgres_is_ready; then
   docker logs "$postgres_container"
   exit 1
 fi
