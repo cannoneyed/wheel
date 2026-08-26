@@ -1,0 +1,108 @@
+/* ========================================================================
+ * RECIPE: Code and Code Block — highlighted source without a syntax engine
+ * ==================================================================== */
+
+@layer wheel.components.recipes {
+  .wheel-CodeBlock {
+    box-sizing: border-box;
+    min-width: 0;
+    margin: 0;
+    overflow: auto;
+    border: var(--wheel-component-hairline) solid var(--wheel-component-border);
+    border-radius: var(--wheel-component-radius-lg);
+    color: var(--wheel-component-fg);
+    background: var(--wheel-component-bg-sunken);
+    font-family: var(--wheel-component-font-mono);
+    font-variant-ligatures: none;
+    font-size: var(--wheel-component-text-xs);
+    line-height: 1.7;
+    tab-size: 2;
+    white-space: pre;
+  }
+
+  .wheel-CodeBlock[data-wrap] {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .wheel-CodeBlock > .wheel-Code {
+    display: block;
+    padding: calc(var(--wheel-component-space) * 4) calc(var(--wheel-component-space) * 4.5);
+    border-radius: 0;
+    background: transparent;
+    font-size: inherit;
+    line-height: inherit;
+    white-space: inherit;
+  }
+
+  .wheel-Code {
+    padding: 0 calc(var(--wheel-component-space) * 1);
+    border-radius: var(--wheel-component-radius-xs);
+    color: var(--wheel-component-fg);
+    background: var(--wheel-component-bg-sunken);
+    font-family: var(--wheel-component-font-mono);
+    font-variant-ligatures: none;
+    font-size: 0.92em;
+    line-height: inherit;
+  }
+
+  .wheel-Code-token {
+    font-family: inherit;
+  }
+
+  .wheel-Code-token--comment {
+    color: var(--wheel-component-code-comment);
+    font-style: italic;
+  }
+
+  .wheel-Code-token--keyword,
+  .wheel-Code-token--type {
+    color: var(--wheel-component-code-keyword);
+  }
+
+  .wheel-Code-token--inserted,
+  .wheel-Code-token--string {
+    color: var(--wheel-component-code-string);
+  }
+
+  .wheel-Code-token--literal,
+  .wheel-Code-token--number {
+    color: var(--wheel-component-code-number);
+  }
+
+  .wheel-Code-token--function,
+  .wheel-Code-token--heading,
+  .wheel-Code-token--link,
+  .wheel-Code-token--tag {
+    color: var(--wheel-component-code-title);
+  }
+
+  .wheel-Code-token--attr,
+  .wheel-Code-token--deleted,
+  .wheel-Code-token--property,
+  .wheel-Code-token--variable {
+    color: var(--wheel-component-code-variable);
+  }
+
+  .wheel-Code-token--code-inline,
+  .wheel-Code-token--command,
+  .wheel-Code-token--meta,
+  .wheel-Code-token--operator,
+  .wheel-Code-token--selector {
+    color: var(--wheel-component-code-meta);
+  }
+
+  @media (forced-colors: active) {
+    .wheel-CodeBlock {
+      border-color: CanvasText;
+      color: CanvasText;
+      background: Canvas;
+    }
+
+    .wheel-Code,
+    .wheel-Code-token {
+      color: CanvasText;
+      background: Canvas;
+    }
+  }
+}

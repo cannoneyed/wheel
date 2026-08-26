@@ -43,7 +43,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
   .wheel-Radio-Indicator::before {
@@ -54,7 +56,6 @@
     background: var(--wheel-component-accent);
   }
 
-  .wheel-Radio-Indicator[data-starting-style],
   .wheel-Radio-Indicator[data-ending-style] {
     opacity: 0;
   }

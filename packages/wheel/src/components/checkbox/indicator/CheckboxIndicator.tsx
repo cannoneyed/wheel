@@ -52,6 +52,12 @@ export function CheckboxIndicator(componentProps: CheckboxIndicator.Props) {
     get indeterminate() {
       return rootState.indeterminate;
     },
+    get size() {
+      return rootState.size;
+    },
+    get status() {
+      return rootState.status;
+    },
     get touched() {
       return rootState.touched;
     },

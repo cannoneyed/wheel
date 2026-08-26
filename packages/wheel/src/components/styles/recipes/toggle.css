@@ -1,50 +1,119 @@
-/* ========================================================================
- * RECIPE: Toggle — single-part pressed/unpressed button
- * (data-pressed contract)
- *
- * Pattern notes:
- *  - Single-part component (no sub-parts): class is `wheel-Toggle`, matching
- *    the Button exemplar's single-part grammar.
- *  - Works standalone (an icon favorite button) and as a child of
- *    `ToggleGroup` (a segmented control) — the pressed treatment reads as
- *    a filled accent chip in both contexts.
- * ==================================================================== */
-
+/* Toggle uses the Button size scale with a distinct pressed-state contract. */
 @layer wheel.components.recipes {
   .wheel-Toggle {
-    --wheel-component-toggle-size: 2rem;
+    --wheel-toggle-height: 1.75rem;
+    --wheel-toggle-padding: calc(var(--wheel-component-space) * 2);
+    --wheel-toggle-icon-size: 1rem;
 
     appearance: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: var(--wheel-component-toggle-size);
-    height: var(--wheel-component-toggle-size);
-    padding: 0;
-    border: 0;
+    gap: var(--wheel-component-space);
+    min-width: var(--wheel-toggle-height);
+    height: var(--wheel-toggle-height);
+    padding: 0 var(--wheel-toggle-padding);
+    border: var(--wheel-component-hairline) solid transparent;
     border-radius: var(--wheel-component-radius-md);
     background: transparent;
     color: var(--wheel-component-fg-muted);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-xs);
+    line-height: var(--wheel-component-text-xs--lh);
+    font-weight: 500;
+    white-space: nowrap;
     user-select: none;
-    transition:
-      background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
-      color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition-property: background-color, border-color, color, box-shadow, opacity;
+    transition-duration: var(--wheel-component-duration-fast);
+    transition-timing-function: var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Toggle[data-size='sm'] {
+    --wheel-toggle-height: 1.5rem;
+    --wheel-toggle-padding: calc(var(--wheel-component-space) * 1.5);
+    --wheel-toggle-icon-size: 0.875rem;
+  }
+
+  .wheel-Toggle[data-size='lg'] {
+    --wheel-toggle-height: 2rem;
+    --wheel-toggle-padding: calc(var(--wheel-component-space) * 2.5);
+    --wheel-toggle-icon-size: 1.125rem;
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+  }
+
+  .wheel-Toggle[data-icon-only] {
+    width: var(--wheel-toggle-height);
+    padding-inline: 0;
+  }
+
+  .wheel-Toggle-icon,
+  .wheel-Toggle-label {
+    color: inherit;
+  }
+
+  .wheel-Toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: var(--wheel-toggle-icon-size);
+    height: var(--wheel-toggle-icon-size);
+  }
+
+  .wheel-Toggle-icon > :is(svg, img) {
+    width: 100%;
+    height: 100%;
   }
 
   @media (hover: hover) {
-    .wheel-Toggle:hover:not([data-disabled]):not([data-pressed]) {
+    .wheel-Toggle:hover:not([data-disabled], [data-pressed]) {
       background: var(--wheel-component-bg-hover);
       color: var(--wheel-component-fg);
     }
   }
 
-  .wheel-Toggle[data-pressed] {
+  .wheel-Toggle:is(:hover, :active, [data-pressed]):not([data-disabled]) {
+    transition-duration: var(--wheel-component-duration-instant);
+  }
+
+  .wheel-Toggle[data-pressed][data-variant='primary'] {
     background: var(--wheel-component-accent);
     color: var(--wheel-component-accent-fg);
   }
 
+  .wheel-Toggle[data-pressed][data-variant='secondary'] {
+    border-color: var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-sunken);
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-rest);
+  }
+
+  .wheel-Toggle[data-pressed][data-variant='ghost'] {
+    background: var(--wheel-component-bg-hover);
+    color: var(--wheel-component-fg);
+  }
+
+  .wheel-Toggle[data-pressed][data-variant='destructive'] {
+    background: var(--wheel-component-danger);
+    color: var(--wheel-component-danger-fg);
+  }
+
   .wheel-Toggle[data-disabled] {
-    color: var(--wheel-component-fg-subtle);
+    opacity: 0.48;
+    box-shadow: none;
     cursor: not-allowed;
+  }
+
+  @media (forced-colors: active) {
+    .wheel-Toggle {
+      border-color: ButtonText;
+    }
+
+    .wheel-Toggle[data-pressed] {
+      border-color: Highlight;
+      background: Highlight;
+      color: HighlightText;
+    }
   }
 }

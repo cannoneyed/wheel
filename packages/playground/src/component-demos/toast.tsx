@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-view-root -- Isolated catalog fixtures render library parts and icons; the catalog owns their inspection boundary. */
 import { For, type JSX } from 'solid-js';
 import { useSignal } from 'wheel/core';
-import { Toast } from 'wheel/components';
+import { Button, Toast } from 'wheel/components';
 
 // Wheel supplies the component recipe classes.
 export default function ExampleToast() {
@@ -33,9 +33,9 @@ function ToastButton(): JSX.Element {
   }
 
   return (
-    <button type="button" class="wheel-Button" data-testid="toast-create" onClick={createToast}>
+    <Button data-testid="toast-create" onClick={createToast}>
       Create toast
-    </button>
+    </Button>
   );
 }
 

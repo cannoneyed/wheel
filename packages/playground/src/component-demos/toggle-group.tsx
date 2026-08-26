@@ -1,66 +1,82 @@
-/* eslint-disable wheel/require-view-root -- Isolated catalog fixtures render library parts and icons; the catalog owns their inspection boundary. */
-import type { JSX } from 'solid-js';
+/* eslint-disable wheel/require-view-root -- The catalog owns this fixture's inspection boundary. */
 import { Toggle, ToggleGroup } from 'wheel/components';
+import { DirectionProvider } from 'wheel/components/direction-provider';
+import { AlignCenterIcon, AlignLeftIcon, AlignRightIcon } from './button-icons';
+import { DemoGroup } from './demo-group';
 
-// Wheel supplies the component recipe classes.
+function AlignmentToggles() {
+  return (
+    <>
+      <Toggle label="Align left" value="left" icon={<AlignLeftIcon />} />
+      <Toggle label="Align center" value="center" icon={<AlignCenterIcon />} />
+      <Toggle label="Align right" value="right" icon={<AlignRightIcon />} />
+    </>
+  );
+}
+
 export default function ExampleToggleGroup() {
   return (
-    <ToggleGroup aria-label="Text alignment" defaultValue={['left']}>
-      <Toggle aria-label="Align left" value="left">
-        <AlignLeftIcon />
-      </Toggle>
-      <Toggle aria-label="Align center" value="center">
-        <AlignCenterIcon />
-      </Toggle>
-      <Toggle aria-label="Align right" value="right">
-        <AlignRightIcon />
-      </Toggle>
-    </ToggleGroup>
-  );
-}
+    <div class="button-family-fixture button-family-fixture--wide button-family-fixture--documented">
+      <DemoGroup title="Selection modes">
+        <ToggleGroup aria-label="Text alignment" defaultValue="left" data-testid="toggle-group-single">
+          <AlignmentToggles />
+        </ToggleGroup>
 
-function AlignLeftIcon(props: JSX.SvgSVGAttributes<SVGSVGElement>) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      fill="none"
-      viewBox="0 0 16 16"
-      stroke="currentColor"
-      {...props}
-      style={{ display: 'block' }}
-    >
-      <path stroke-linecap="square" stroke-linejoin="round" d="M2.5 4.5h11m-11 7h9M2.5 8h5" />
-    </svg>
-  );
-}
+        <ToggleGroup
+          aria-label="Text formatting"
+          type="multiple"
+          defaultValue={['bold', 'italic']}
+          size="sm"
+          variant="primary"
+          data-testid="toggle-group-multiple"
+        >
+          <Toggle value="bold" label="Bold" />
+          <Toggle value="italic" label="Italic" />
+          <Toggle value="underline" label="Underline" />
+        </ToggleGroup>
+      </DemoGroup>
 
-function AlignCenterIcon(props: JSX.SvgSVGAttributes<SVGSVGElement>) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      stroke="currentColor"
-      {...props}
-      style={{ display: 'block' }}
-    >
-      <path stroke-linecap="square" stroke-linejoin="round" d="M2.5 4.5h11m-10 7h9M5.5 8h5" />
-    </svg>
-  );
-}
+      <DemoGroup title="Layout and orientation">
+        <ToggleGroup
+          aria-label="Text alignment full width"
+          defaultValue="center"
+          size="lg"
+          variant="ghost"
+          layout="fill"
+          data-testid="toggle-group-fill"
+        >
+          <AlignmentToggles />
+        </ToggleGroup>
 
-function AlignRightIcon(props: JSX.SvgSVGAttributes<SVGSVGElement>) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      stroke="currentColor"
-      {...props}
-      style={{ display: 'block' }}
-    >
-      <path stroke-linecap="square" stroke-linejoin="round" d="M2.5 4.5h11m-9 7h9M8.5 8h5" />
-    </svg>
+        <ToggleGroup
+          aria-label="Vertical alignment"
+          defaultValue="left"
+          orientation="vertical"
+          variant="destructive"
+          data-testid="toggle-group-vertical"
+        >
+          <AlignmentToggles />
+        </ToggleGroup>
+      </DemoGroup>
+
+      <DemoGroup title="Disabled and right-to-left">
+        <ToggleGroup aria-label="Disabled alignment" defaultValue="left" disabled>
+          <AlignmentToggles />
+        </ToggleGroup>
+
+        <div dir="rtl">
+          <DirectionProvider direction="rtl">
+            <ToggleGroup
+              aria-label="Right-to-left alignment"
+              defaultValue="first"
+              data-testid="toggle-group-rtl"
+            >
+              <Toggle value="first" label="First" />
+              <Toggle value="second" label="Second" />
+            </ToggleGroup>
+          </DirectionProvider>
+        </div>
+      </DemoGroup>
+    </div>
   );
 }

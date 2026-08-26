@@ -18,6 +18,54 @@ Kind: export. Source: [packages/wheel/src/components/alert-dialog/index.parts.ts
 
 Public export. Read the linked declaration for its complete contract.
 
+## `AppShell`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:109](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L109).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AspectRatio`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:110](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L110).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AstryxComponentDensity`
+
+Kind: type. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:14](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L14).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AstryxComponentOrientation`
+
+Kind: type. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:15](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L15).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AstryxComponentProps`
+
+Kind: interface. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:27](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L27).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AstryxComponentSize`
+
+Kind: type. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:6](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L6).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AstryxComponentState`
+
+Kind: interface. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:17](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L17).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AstryxComponentTone`
+
+Kind: type. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:7](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L7).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Autocomplete`
 
 Kind: export. Source: [packages/wheel/src/components/autocomplete/index.parts.ts:1](../../../packages/wheel/src/components/autocomplete/index.parts.ts#L1).
@@ -30,11 +78,245 @@ Kind: export. Source: [packages/wheel/src/components/avatar/index.parts.ts:1](..
 
 Public export. Read the linked declaration for its complete contract.
 
+## `AvatarGroup`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:111](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L111).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AvatarGroupOverflow`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:112](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L112).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AvatarShape`
+
+Kind: type. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:10](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L10).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AvatarSize`
+
+Kind: type. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:9](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L9).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AvatarStatus`
+
+Kind: type. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:11](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L11).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `AvatarStatusDot`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:113](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L113).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Badge`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:114](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L114).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Banner`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:115](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L115).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Blockquote`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:116](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L116).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `BottomSheet`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:117](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L117).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `BottomSheetSwitcher`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:118](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L118).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `BreadcrumbItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:120](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L120).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Breadcrumbs`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:119](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L119).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Button`
 
-Kind: function. Source: [packages/wheel/src/components/button/Button.tsx:13](../../../packages/wheel/src/components/button/Button.tsx#L13).
+Kind: function. Source: [packages/wheel/src/components/button/Button.tsx:33](../../../packages/wheel/src/components/button/Button.tsx#L33).
 
-A button component that can be used to trigger actions. Renders a `<button>` element. Documentation: [Base UI Button](https://base-ui.com/react/components/button)
+Starts an action, submits a form, or follows a link with button styling. Renders a `<button>` by default and an `<a>` when `href` is set. Behavior contract: `packages/wheel/src/components/button/button.spec.md`.
+
+## `ButtonGroup`
+
+Kind: function. Source: [packages/wheel/src/components/button-group/ButtonGroup.tsx:13](../../../packages/wheel/src/components/button-group/ButtonGroup.tsx#L13).
+
+Joins related action buttons into one connected, roving-focus control. Behavior contract: `packages/wheel/src/components/button-group/button-group.spec.md`.
+
+## `ButtonGroupProps`
+
+Kind: interface. Source: [packages/wheel/src/components/button-group/ButtonGroup.tsx:83](../../../packages/wheel/src/components/button-group/ButtonGroup.tsx#L83).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ButtonGroupState`
+
+Kind: interface. Source: [packages/wheel/src/components/button-group/ButtonGroup.tsx:72](../../../packages/wheel/src/components/button-group/ButtonGroup.tsx#L72).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ButtonProps`
+
+Kind: interface. Source: [packages/wheel/src/components/button/Button.tsx:240](../../../packages/wheel/src/components/button/Button.tsx#L240).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ButtonSize`
+
+Kind: type. Source: [packages/wheel/src/components/button/Button.tsx:11](../../../packages/wheel/src/components/button/Button.tsx#L11).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ButtonState`
+
+Kind: interface. Source: [packages/wheel/src/components/button/Button.tsx:227](../../../packages/wheel/src/components/button/Button.tsx#L227).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ButtonVariant`
+
+Kind: type. Source: [packages/wheel/src/components/button/Button.tsx:10](../../../packages/wheel/src/components/button/Button.tsx#L10).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Calendar`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:121](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L121).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Card`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:163](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L163).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Carousel`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:122](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L122).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Center`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:160](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L160).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatComposer`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:123](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L123).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatComposerDrawer`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:124](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L124).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatComposerInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:125](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L125).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatComposerTokenElement`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:126](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L126).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatDictationButton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:127](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L127).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatLayout`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:129](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L129).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatLayoutScrollButton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:130](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L130).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatMessage`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:131](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L131).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatMessageBubble`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:132](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L132).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatMessageList`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:133](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L133).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatMessageMetadata`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:134](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L134).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatSendButton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:128](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L128).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatSystemMessage`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:135](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L135).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatTokenizedText`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:136](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L136).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ChatToolCalls`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:137](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L137).
+
+Public export. Read the linked declaration for its complete contract.
 
 ## `Checkbox`
 
@@ -44,9 +326,123 @@ Public export. Read the linked declaration for its complete contract.
 
 ## `CheckboxGroup`
 
-Kind: function. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:34](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L34).
+Kind: function. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:36](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L36).
 
 Provides a shared state to a series of checkboxes. Documentation: [Base UI Checkbox Group](https://base-ui.com/react/components/checkbox-group)
+
+## `CheckboxGroupDensity`
+
+Kind: type. Source: [packages/wheel/src/components/checkbox-group/types.ts:2](../../../packages/wheel/src/components/checkbox-group/types.ts#L2).
+
+Spacing between direct Checkbox Group members.
+
+## `CheckboxGroupProps`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:231](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L231).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CheckboxGroupState`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:214](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L214).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CheckboxList`
+
+Kind: function. Source: [packages/wheel/src/components/checkbox-list/CheckboxList.tsx:22](../../../packages/wheel/src/components/checkbox-list/CheckboxList.tsx#L22).
+
+Presents a labeled multi-value field built from Checkbox Group and Checkbox List Item. Behavior contract: `packages/wheel/src/components/checkbox-list/checkbox-list.spec.md`.
+
+## `CheckboxListItem`
+
+Kind: function. Source: [packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx:16](../../../packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx#L16).
+
+Renders one labeled Checkbox row with optional description and end content. Behavior contract: `packages/wheel/src/components/checkbox-list/checkbox-list-item.spec.md`.
+
+## `CheckboxListItemProps`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx:126](../../../packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx#L126).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CheckboxListItemState`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx:115](../../../packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx#L115).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CheckboxListProps`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-list/CheckboxList.tsx:145](../../../packages/wheel/src/components/checkbox-list/CheckboxList.tsx#L145).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CheckboxListState`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-list/CheckboxList.tsx:128](../../../packages/wheel/src/components/checkbox-list/CheckboxList.tsx#L128).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CheckboxSize`
+
+Kind: type. Source: [packages/wheel/src/components/checkbox/types.ts:2](../../../packages/wheel/src/components/checkbox/types.ts#L2).
+
+Dense Checkbox control sizes.
+
+## `CheckboxStatus`
+
+Kind: type. Source: [packages/wheel/src/components/checkbox/types.ts:5](../../../packages/wheel/src/components/checkbox/types.ts#L5).
+
+Validation tone shown by a Checkbox or Checkbox family container.
+
+## `Citation`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:138](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L138).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ClickableCard`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:164](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L164).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Code`
+
+Kind: function. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:54](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L54).
+
+Displays an inline code token, with optional trusted syntax-token markup.
+
+## `CodeBlock`
+
+Kind: function. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:7](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L7).
+
+Displays a highlighted or plain source block without owning a syntax engine.
+
+## `CodeBlockProps`
+
+Kind: interface. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:92](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L92).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CodeBlockState`
+
+Kind: interface. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:87](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L87).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CodeProps`
+
+Kind: interface. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:110](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L110).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `CodeState`
+
+Kind: interface. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:106](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L106).
+
+Public export. Read the linked declaration for its complete contract.
 
 ## `Collapsible`
 
@@ -60,9 +456,39 @@ Kind: export. Source: [packages/wheel/src/components/combobox/index.parts.ts:1](
 
 Public export. Read the linked declaration for its complete contract.
 
+## `CommandPalette`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:139](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L139).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ComplexSelect`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:198](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L198).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `ContextMenu`
 
 Kind: export. Source: [packages/wheel/src/components/context-menu/index.parts.ts:1](../../../packages/wheel/src/components/context-menu/index.parts.ts#L1).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `DateInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:140](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L140).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `DateRangeInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:141](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L141).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `DateTimeInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:142](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L142).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -72,9 +498,21 @@ Kind: export. Source: [packages/wheel/src/components/dialog/index.parts.ts:1](..
 
 Public export. Read the linked declaration for its complete contract.
 
+## `DialogHeader`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:143](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L143).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Drawer`
 
 Kind: export. Source: [packages/wheel/src/components/drawer/index.parts.ts:1](../../../packages/wheel/src/components/drawer/index.parts.ts#L1).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `EmptyState`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:144](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L144).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -90,17 +528,209 @@ Kind: export. Source: [packages/wheel/src/components/fieldset/index.parts.ts:1](
 
 Public export. Read the linked declaration for its complete contract.
 
+## `FileInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:146](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L146).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Form`
 
 Kind: function. Source: [packages/wheel/src/components/form/Form.tsx:23](../../../packages/wheel/src/components/form/Form.tsx#L23).
 
 A native form element with consolidated error handling. Renders a `<form>` element. Documentation: [Base UI Form](https://base-ui.com/react/components/form)
 
+## `FormLayout`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:162](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L162).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Grid`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:158](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L158).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `GridSpan`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:159](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L159).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Heading`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:206](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L206).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Icon`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:147](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L147).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `IconButton`
+
+Kind: function. Source: [packages/wheel/src/components/icon-button/IconButton.tsx:10](../../../packages/wheel/src/components/icon-button/IconButton.tsx#L10).
+
+Exposes one compact action through an icon and a required accessible label. Behavior contract: `packages/wheel/src/components/icon-button/icon-button.spec.md`.
+
+## `IconButtonProps`
+
+Kind: interface. Source: [packages/wheel/src/components/icon-button/IconButton.tsx:22](../../../packages/wheel/src/components/icon-button/IconButton.tsx#L22).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `IconButtonState`
+
+Kind: type. Source: [packages/wheel/src/components/icon-button/IconButton.tsx:29](../../../packages/wheel/src/components/icon-button/IconButton.tsx#L29).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Indicator`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:148](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L148).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Input`
 
-Kind: function. Source: [packages/wheel/src/components/input/Input.tsx:17](../../../packages/wheel/src/components/input/Input.tsx#L17).
+Kind: function. Source: [packages/wheel/src/components/input/Input.tsx:22](../../../packages/wheel/src/components/input/Input.tsx#L22).
 
 A native input element that automatically works with [Field](https://base-ui.com/react/components/field). Renders an `<input>` element. Documentation: [Base UI Input](https://base-ui.com/react/components/input)
+
+## `InputGroup`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:145](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L145).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `InputProps`
+
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:50](../../../packages/wheel/src/components/input/Input.tsx#L50).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `InputSize`
+
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:12](../../../packages/wheel/src/components/input/Input.tsx#L12).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `InputState`
+
+Kind: interface. Source: [packages/wheel/src/components/input/Input.tsx:60](../../../packages/wheel/src/components/input/Input.tsx#L60).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `InputStatus`
+
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:14](../../../packages/wheel/src/components/input/Input.tsx#L14).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `InputVariant`
+
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:13](../../../packages/wheel/src/components/input/Input.tsx#L13).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `InternationalizationProvider`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:214](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L214).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Item`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:149](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L149).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Kbd`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:150](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L150).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `LayerProvider`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:215](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L215).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Layout`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:151](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L151).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `LayoutContent`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:153](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L153).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `LayoutFooter`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:154](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L154).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `LayoutHeader`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:152](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L152).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `LayoutPanel`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:155](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L155).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Lightbox`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:166](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L166).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Link`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:167](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L167).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `LinkProvider`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:216](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L216).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `List`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:168](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L168).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ListItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:169](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L169).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Markdown`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:170](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L170).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `MediaTheme`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:217](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L217).
+
+Public export. Read the linked declaration for its complete contract.
 
 ## `Menu`
 
@@ -114,9 +744,51 @@ Kind: function. Source: [packages/wheel/src/components/menubar/Menubar.tsx:31](.
 
 The container for menus. Documentation: [Base UI Menubar](https://base-ui.com/react/components/menubar) Deviations from upstream: - No `allowMouseUpTriggerRef` on the context (see `MenubarContext.ts`'s doc comment) — the mousedown-then-mouseup-on-item "drag select" affordance it backs isn't ported. - Only *contained* triggers are supported end to end (a `Menu.Trigger` that is a descendant of the `Menu.Root` it opens) — the Menu port doesn't carry `handle`/detached-trigger support at all (see `menu/root/MenuRoot.tsx`'s doc comment), so Menubar inherits that limitation.
 
+## `MetadataList`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:171](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L171).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `MetadataListItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:172](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L172).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Meter`
 
 Kind: export. Source: [packages/wheel/src/components/meter/index.parts.ts:1](../../../packages/wheel/src/components/meter/index.parts.ts#L1).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `MobileNav`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:173](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L173).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `MobileNavToggle`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:174](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L174).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `MultiSelect`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:197](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L197).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `NavHeadingMenu`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:175](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L175).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `NavIcon`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:176](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L176).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -138,9 +810,39 @@ Kind: export. Source: [packages/wheel/src/components/otp-field/index.parts.ts:1]
 
 Public export. Read the linked declaration for its complete contract.
 
+## `Outline`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:189](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L189).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `OverflowList`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:190](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L190).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Overlay`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:191](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L191).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Pagination`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:192](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L192).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Popover`
 
 Kind: export. Source: [packages/wheel/src/components/popover/index.parts.ts:1](../../../packages/wheel/src/components/popover/index.parts.ts#L1).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `PowerSearch`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:193](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L193).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -168,9 +870,33 @@ Kind: function. Source: [packages/wheel/src/components/radio-group/RadioGroup.ts
 
 Provides a shared state to a series of radio buttons. Renders a `<div>` element. Documentation: [Base UI Radio Group](https://base-ui.com/react/components/radio)
 
+## `Resizable`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:194](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L194).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ResizeHandle`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:195](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L195).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `ScrollArea`
 
 Kind: export. Source: [packages/wheel/src/components/scroll-area/index.parts.ts:1](../../../packages/wheel/src/components/scroll-area/index.parts.ts#L1).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Section`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:161](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L161).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SegmentedControl`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:196](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L196).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -180,9 +906,69 @@ Kind: export. Source: [packages/wheel/src/components/select/index.parts.ts:1](..
 
 Public export. Read the linked declaration for its complete contract.
 
+## `SelectableCard`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:165](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L165).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SelectSize`
+
+Kind: type. Source: [packages/wheel/src/components/select/types.ts:2](../../../packages/wheel/src/components/select/types.ts#L2).
+
+Shared Select control sizes.
+
+## `SelectStatus`
+
+Kind: type. Source: [packages/wheel/src/components/select/types.ts:8](../../../packages/wheel/src/components/select/types.ts#L8).
+
+Select validation tones.
+
+## `SelectVariant`
+
+Kind: type. Source: [packages/wheel/src/components/select/types.ts:5](../../../packages/wheel/src/components/select/types.ts#L5).
+
+Select trigger surface treatments.
+
 ## `Separator`
 
 Kind: function. Source: [packages/wheel/src/components/separator/Separator.tsx:17](../../../packages/wheel/src/components/separator/Separator.tsx#L17).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SideNav`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:177](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L177).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SideNavCollapseButton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:178](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L178).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SideNavHeading`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:179](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L179).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SideNavItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:180](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L180).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SideNavSection`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:181](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L181).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Skeleton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:199](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L199).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -192,15 +978,111 @@ Kind: export. Source: [packages/wheel/src/components/slider/index.parts.ts:1](..
 
 Public export. Read the linked declaration for its complete contract.
 
+## `Spinner`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:200](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L200).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Stack`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:156](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L156).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `StackItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:157](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L157).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `StatusDot`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:201](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L201).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Step`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:203](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L203).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Stepper`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:202](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L202).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Switch`
 
 Kind: export. Source: [packages/wheel/src/components/switch/index.parts.ts:1](../../../packages/wheel/src/components/switch/index.parts.ts#L1).
 
 Public export. Read the linked declaration for its complete contract.
 
+## `SwitchSize`
+
+Kind: type. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:30](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L30).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SwitchStatus`
+
+Kind: type. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:31](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L31).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `SyntaxTheme`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:218](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L218).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Table`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:204](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L204).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `Tabs`
 
 Kind: export. Source: [packages/wheel/src/components/tabs/index.parts.ts:1](../../../packages/wheel/src/components/tabs/index.parts.ts#L1).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Text`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:205](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L205).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TextArea`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:207](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L207).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Theme`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:219](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L219).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Thumbnail`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:208](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L208).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TimeInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:209](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L209).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Timestamp`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:210](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L210).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -212,15 +1094,75 @@ Public export. Read the linked declaration for its complete contract.
 
 ## `Toggle`
 
-Kind: function. Source: [packages/wheel/src/components/toggle/Toggle.tsx:24](../../../packages/wheel/src/components/toggle/Toggle.tsx#L24).
+Kind: function. Source: [packages/wheel/src/components/toggle/Toggle.tsx:32](../../../packages/wheel/src/components/toggle/Toggle.tsx#L32).
 
-A two-state button that can be on or off. Renders a `<button>` element. Documentation: [Base UI Toggle](https://base-ui.com/react/components/toggle)
+A two-state button for pressed tools and temporary choices. Behavior contract: `packages/wheel/src/components/toggle/toggle.spec.md`.
 
 ## `ToggleGroup`
 
-Kind: function. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:23](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L23).
+Kind: function. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:26](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L26).
 
-Provides a shared state to a series of toggle buttons. Documentation: [Base UI Toggle Group](https://base-ui.com/react/components/toggle-group)
+Coordinates typed single-select or multi-select Toggle values and roving focus. Behavior contract: `packages/wheel/src/components/toggle-group/toggle-group.spec.md`.
+
+## `ToggleGroupLayout`
+
+Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:19](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L19).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ToggleGroupMultipleProps`
+
+Kind: interface. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:219](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L219).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ToggleGroupProps`
+
+Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:233](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L233).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ToggleGroupSingleProps`
+
+Kind: interface. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:205](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L205).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ToggleGroupState`
+
+Kind: interface. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:175](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L175).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ToggleGroupType`
+
+Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:18](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L18).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ToggleProps`
+
+Kind: interface. Source: [packages/wheel/src/components/toggle/Toggle.tsx:209](../../../packages/wheel/src/components/toggle/Toggle.tsx#L209).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `ToggleState`
+
+Kind: interface. Source: [packages/wheel/src/components/toggle/Toggle.tsx:196](../../../packages/wheel/src/components/toggle/Toggle.tsx#L196).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Token`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:211](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L211).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `Tokenizer`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:212](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L212).
+
+Public export. Read the linked declaration for its complete contract.
 
 ## `Toolbar`
 
@@ -231,6 +1173,60 @@ Public export. Read the linked declaration for its complete contract.
 ## `Tooltip`
 
 Kind: export. Source: [packages/wheel/src/components/tooltip/index.parts.ts:1](../../../packages/wheel/src/components/tooltip/index.parts.ts#L1).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TopNav`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:182](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L182).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TopNavHeading`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:183](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L183).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TopNavItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:184](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L184).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TopNavMegaMenu`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:186](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L186).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TopNavMegaMenuFeaturedCard`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:188](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L188).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TopNavMegaMenuItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:187](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L187).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TopNavMenu`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:185](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L185).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `TreeList`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:213](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L213).
+
+Public export. Read the linked declaration for its complete contract.
+
+## `VisuallyHidden`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:220](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L220).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -260,19 +1256,112 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `Button`
 
-Kind: function. Source: [packages/wheel/src/components/button/Button.tsx:13](../../../packages/wheel/src/components/button/Button.tsx#L13).
+Kind: function. Source: [packages/wheel/src/components/button/Button.tsx:33](../../../packages/wheel/src/components/button/Button.tsx#L33).
 
-A button component that can be used to trigger actions. Renders a `<button>` element. Documentation: [Base UI Button](https://base-ui.com/react/components/button)
+Starts an action, submits a form, or follows a link with button styling. Renders a `<button>` by default and an `<a>` when `href` is set. Behavior contract: `packages/wheel/src/components/button/button.spec.md`.
 
 ### `ButtonProps`
 
-Kind: interface. Source: [packages/wheel/src/components/button/Button.tsx:57](../../../packages/wheel/src/components/button/Button.tsx#L57).
+Kind: interface. Source: [packages/wheel/src/components/button/Button.tsx:240](../../../packages/wheel/src/components/button/Button.tsx#L240).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ButtonSize`
+
+Kind: type. Source: [packages/wheel/src/components/button/Button.tsx:11](../../../packages/wheel/src/components/button/Button.tsx#L11).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ButtonState`
 
-Kind: interface. Source: [packages/wheel/src/components/button/Button.tsx:50](../../../packages/wheel/src/components/button/Button.tsx#L50).
+Kind: interface. Source: [packages/wheel/src/components/button/Button.tsx:227](../../../packages/wheel/src/components/button/Button.tsx#L227).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ButtonVariant`
+
+Kind: type. Source: [packages/wheel/src/components/button/Button.tsx:10](../../../packages/wheel/src/components/button/Button.tsx#L10).
+
+Public export. Read the linked declaration for its complete contract.
+
+
+## `wheel/components/button-group`
+
+### `ButtonGroup`
+
+Kind: function. Source: [packages/wheel/src/components/button-group/ButtonGroup.tsx:13](../../../packages/wheel/src/components/button-group/ButtonGroup.tsx#L13).
+
+Joins related action buttons into one connected, roving-focus control. Behavior contract: `packages/wheel/src/components/button-group/button-group.spec.md`.
+
+### `ButtonGroupProps`
+
+Kind: interface. Source: [packages/wheel/src/components/button-group/ButtonGroup.tsx:83](../../../packages/wheel/src/components/button-group/ButtonGroup.tsx#L83).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ButtonGroupState`
+
+Kind: interface. Source: [packages/wheel/src/components/button-group/ButtonGroup.tsx:72](../../../packages/wheel/src/components/button-group/ButtonGroup.tsx#L72).
+
+Public export. Read the linked declaration for its complete contract.
+
+
+## `wheel/components/code-block`
+
+### `Code`
+
+Kind: function. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:54](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L54).
+
+Displays an inline code token, with optional trusted syntax-token markup.
+
+### `CodeBlock`
+
+Kind: function. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:7](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L7).
+
+Displays a highlighted or plain source block without owning a syntax engine.
+
+### `CodeBlockProps`
+
+Kind: interface. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:92](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L92).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `CodeBlockState`
+
+Kind: interface. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:87](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L87).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `CodeProps`
+
+Kind: interface. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:110](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L110).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `CodeState`
+
+Kind: interface. Source: [packages/wheel/src/components/code-block/CodeBlock.tsx:106](../../../packages/wheel/src/components/code-block/CodeBlock.tsx#L106).
+
+Public export. Read the linked declaration for its complete contract.
+
+
+## `wheel/components/icon-button`
+
+### `IconButton`
+
+Kind: function. Source: [packages/wheel/src/components/icon-button/IconButton.tsx:10](../../../packages/wheel/src/components/icon-button/IconButton.tsx#L10).
+
+Exposes one compact action through an icon and a required accessible label. Behavior contract: `packages/wheel/src/components/icon-button/icon-button.spec.md`.
+
+### `IconButtonProps`
+
+Kind: interface. Source: [packages/wheel/src/components/icon-button/IconButton.tsx:22](../../../packages/wheel/src/components/icon-button/IconButton.tsx#L22).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `IconButtonState`
+
+Kind: type. Source: [packages/wheel/src/components/icon-button/IconButton.tsx:29](../../../packages/wheel/src/components/icon-button/IconButton.tsx#L29).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -281,31 +1370,31 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `Toggle`
 
-Kind: function. Source: [packages/wheel/src/components/toggle/Toggle.tsx:24](../../../packages/wheel/src/components/toggle/Toggle.tsx#L24).
+Kind: function. Source: [packages/wheel/src/components/toggle/Toggle.tsx:32](../../../packages/wheel/src/components/toggle/Toggle.tsx#L32).
 
-A two-state button that can be on or off. Renders a `<button>` element. Documentation: [Base UI Toggle](https://base-ui.com/react/components/toggle)
+A two-state button for pressed tools and temporary choices. Behavior contract: `packages/wheel/src/components/toggle/toggle.spec.md`.
 
 ### `ToggleChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/toggle/Toggle.tsx:202](../../../packages/wheel/src/components/toggle/Toggle.tsx#L202).
+Kind: type. Source: [packages/wheel/src/components/toggle/Toggle.tsx:237](../../../packages/wheel/src/components/toggle/Toggle.tsx#L237).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToggleChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/toggle/Toggle.tsx:200](../../../packages/wheel/src/components/toggle/Toggle.tsx#L200).
+Kind: type. Source: [packages/wheel/src/components/toggle/Toggle.tsx:236](../../../packages/wheel/src/components/toggle/Toggle.tsx#L236).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToggleProps`
 
-Kind: interface. Source: [packages/wheel/src/components/toggle/Toggle.tsx:168](../../../packages/wheel/src/components/toggle/Toggle.tsx#L168).
+Kind: interface. Source: [packages/wheel/src/components/toggle/Toggle.tsx:209](../../../packages/wheel/src/components/toggle/Toggle.tsx#L209).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToggleState`
 
-Kind: interface. Source: [packages/wheel/src/components/toggle/Toggle.tsx:157](../../../packages/wheel/src/components/toggle/Toggle.tsx#L157).
+Kind: interface. Source: [packages/wheel/src/components/toggle/Toggle.tsx:196](../../../packages/wheel/src/components/toggle/Toggle.tsx#L196).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -320,25 +1409,37 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `SwitchRootChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:377](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L377).
+Kind: type. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:399](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L399).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SwitchRootChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:376](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L376).
+Kind: type. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:398](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L398).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SwitchRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:314](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L314).
+Kind: interface. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:332](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L332).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SwitchRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:295](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L295).
+Kind: interface. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:309](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L309).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SwitchSize`
+
+Kind: type. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:30](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L30).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SwitchStatus`
+
+Kind: type. Source: [packages/wheel/src/components/switch/root/SwitchRoot.tsx:31](../../../packages/wheel/src/components/switch/root/SwitchRoot.tsx#L31).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -365,43 +1466,61 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `AvatarFallbackProps`
 
-Kind: interface. Source: [packages/wheel/src/components/avatar/fallback/AvatarFallback.tsx:66](../../../packages/wheel/src/components/avatar/fallback/AvatarFallback.tsx#L66).
+Kind: interface. Source: [packages/wheel/src/components/avatar/fallback/AvatarFallback.tsx:78](../../../packages/wheel/src/components/avatar/fallback/AvatarFallback.tsx#L78).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `AvatarFallbackState`
 
-Kind: interface. Source: [packages/wheel/src/components/avatar/fallback/AvatarFallback.tsx:64](../../../packages/wheel/src/components/avatar/fallback/AvatarFallback.tsx#L64).
+Kind: interface. Source: [packages/wheel/src/components/avatar/fallback/AvatarFallback.tsx:76](../../../packages/wheel/src/components/avatar/fallback/AvatarFallback.tsx#L76).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `AvatarImageProps`
 
-Kind: interface. Source: [packages/wheel/src/components/avatar/image/AvatarImage.tsx:104](../../../packages/wheel/src/components/avatar/image/AvatarImage.tsx#L104).
+Kind: interface. Source: [packages/wheel/src/components/avatar/image/AvatarImage.tsx:116](../../../packages/wheel/src/components/avatar/image/AvatarImage.tsx#L116).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `AvatarImageState`
 
-Kind: interface. Source: [packages/wheel/src/components/avatar/image/AvatarImage.tsx:97](../../../packages/wheel/src/components/avatar/image/AvatarImage.tsx#L97).
+Kind: interface. Source: [packages/wheel/src/components/avatar/image/AvatarImage.tsx:109](../../../packages/wheel/src/components/avatar/image/AvatarImage.tsx#L109).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `AvatarRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:54](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L54).
+Kind: interface. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:79](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L79).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `AvatarRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:47](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L47).
+Kind: interface. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:69](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L69).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AvatarShape`
+
+Kind: type. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:10](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L10).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AvatarSize`
+
+Kind: type. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:9](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L9).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AvatarStatus`
+
+Kind: type. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:11](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L11).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ImageLoadingStatus`
 
-Kind: type. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:45](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L45).
+Kind: type. Source: [packages/wheel/src/components/avatar/root/AvatarRoot.tsx:67](../../../packages/wheel/src/components/avatar/root/AvatarRoot.tsx#L67).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -560,70 +1679,100 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxIndicatorProps`
 
-Kind: interface. Source: [packages/wheel/src/components/checkbox/indicator/CheckboxIndicator.tsx:114](../../../packages/wheel/src/components/checkbox/indicator/CheckboxIndicator.tsx#L114).
+Kind: interface. Source: [packages/wheel/src/components/checkbox/indicator/CheckboxIndicator.tsx:120](../../../packages/wheel/src/components/checkbox/indicator/CheckboxIndicator.tsx#L120).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxIndicatorState`
 
-Kind: interface. Source: [packages/wheel/src/components/checkbox/indicator/CheckboxIndicator.tsx:107](../../../packages/wheel/src/components/checkbox/indicator/CheckboxIndicator.tsx#L107).
+Kind: interface. Source: [packages/wheel/src/components/checkbox/indicator/CheckboxIndicator.tsx:113](../../../packages/wheel/src/components/checkbox/indicator/CheckboxIndicator.tsx#L113).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxRootChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx:600](../../../packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx#L600).
+Kind: type. Source: [packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx:620](../../../packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx#L620).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxRootChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx:599](../../../packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx#L599).
+Kind: type. Source: [packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx:619](../../../packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx#L619).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx:519](../../../packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx#L519).
+Kind: interface. Source: [packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx:535](../../../packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx#L535).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx:496](../../../packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx#L496).
+Kind: interface. Source: [packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx:508](../../../packages/wheel/src/components/checkbox/root/CheckboxRoot.tsx#L508).
 
 Public export. Read the linked declaration for its complete contract.
+
+### `CheckboxSize`
+
+Kind: type. Source: [packages/wheel/src/components/checkbox/types.ts:2](../../../packages/wheel/src/components/checkbox/types.ts#L2).
+
+Dense Checkbox control sizes.
+
+### `CheckboxStatus`
+
+Kind: type. Source: [packages/wheel/src/components/checkbox/types.ts:5](../../../packages/wheel/src/components/checkbox/types.ts#L5).
+
+Validation tone shown by a Checkbox or Checkbox family container.
 
 
 ## `wheel/components/input`
 
 ### `Input`
 
-Kind: function. Source: [packages/wheel/src/components/input/Input.tsx:17](../../../packages/wheel/src/components/input/Input.tsx#L17).
+Kind: function. Source: [packages/wheel/src/components/input/Input.tsx:22](../../../packages/wheel/src/components/input/Input.tsx#L22).
 
 A native input element that automatically works with [Field](https://base-ui.com/react/components/field). Renders an `<input>` element. Documentation: [Base UI Input](https://base-ui.com/react/components/input)
 
 ### `InputChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:26](../../../packages/wheel/src/components/input/Input.tsx#L26).
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:67](../../../packages/wheel/src/components/input/Input.tsx#L67).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `InputChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:25](../../../packages/wheel/src/components/input/Input.tsx#L25).
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:66](../../../packages/wheel/src/components/input/Input.tsx#L66).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `InputProps`
 
-Kind: interface. Source: [packages/wheel/src/components/input/Input.tsx:21](../../../packages/wheel/src/components/input/Input.tsx#L21).
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:50](../../../packages/wheel/src/components/input/Input.tsx#L50).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `InputSize`
+
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:12](../../../packages/wheel/src/components/input/Input.tsx#L12).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `InputState`
 
-Kind: interface. Source: [packages/wheel/src/components/input/Input.tsx:23](../../../packages/wheel/src/components/input/Input.tsx#L23).
+Kind: interface. Source: [packages/wheel/src/components/input/Input.tsx:60](../../../packages/wheel/src/components/input/Input.tsx#L60).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `InputStatus`
+
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:14](../../../packages/wheel/src/components/input/Input.tsx#L14).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `InputVariant`
+
+Kind: type. Source: [packages/wheel/src/components/input/Input.tsx:13](../../../packages/wheel/src/components/input/Input.tsx#L13).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -689,31 +1838,55 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `ToggleGroup`
 
-Kind: function. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:23](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L23).
+Kind: function. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:26](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L26).
 
-Provides a shared state to a series of toggle buttons. Documentation: [Base UI Toggle Group](https://base-ui.com/react/components/toggle-group)
+Coordinates typed single-select or multi-select Toggle values and roving focus. Behavior contract: `packages/wheel/src/components/toggle-group/toggle-group.spec.md`.
 
 ### `ToggleGroupChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:211](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L211).
+Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:238](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L238).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToggleGroupChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:209](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L209).
+Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:237](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L237).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ToggleGroupLayout`
+
+Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:19](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L19).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ToggleGroupMultipleProps`
+
+Kind: interface. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:219](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L219).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToggleGroupProps`
 
-Kind: interface. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:165](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L165).
+Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:233](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L233).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ToggleGroupSingleProps`
+
+Kind: interface. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:205](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L205).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToggleGroupState`
 
-Kind: interface. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:147](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L147).
+Kind: interface. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:175](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L175).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ToggleGroupType`
+
+Kind: type. Source: [packages/wheel/src/components/toggle-group/ToggleGroup.tsx:18](../../../packages/wheel/src/components/toggle-group/ToggleGroup.tsx#L18).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -881,31 +2054,76 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxGroup`
 
-Kind: function. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:34](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L34).
+Kind: function. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:36](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L36).
 
 Provides a shared state to a series of checkboxes. Documentation: [Base UI Checkbox Group](https://base-ui.com/react/components/checkbox-group)
 
 ### `CheckboxGroupChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:219](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L219).
+Kind: type. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:273](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L273).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxGroupChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:218](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L218).
+Kind: type. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:272](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L272).
 
 Public export. Read the linked declaration for its complete contract.
 
+### `CheckboxGroupDensity`
+
+Kind: type. Source: [packages/wheel/src/components/checkbox-group/types.ts:2](../../../packages/wheel/src/components/checkbox-group/types.ts#L2).
+
+Spacing between direct Checkbox Group members.
+
 ### `CheckboxGroupProps`
 
-Kind: interface. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:187](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L187).
+Kind: interface. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:231](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L231).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `CheckboxGroupState`
 
-Kind: interface. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:180](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L180).
+Kind: interface. Source: [packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx:214](../../../packages/wheel/src/components/checkbox-group/CheckboxGroup.tsx#L214).
+
+Public export. Read the linked declaration for its complete contract.
+
+
+## `wheel/components/checkbox-list`
+
+### `CheckboxList`
+
+Kind: function. Source: [packages/wheel/src/components/checkbox-list/CheckboxList.tsx:22](../../../packages/wheel/src/components/checkbox-list/CheckboxList.tsx#L22).
+
+Presents a labeled multi-value field built from Checkbox Group and Checkbox List Item. Behavior contract: `packages/wheel/src/components/checkbox-list/checkbox-list.spec.md`.
+
+### `CheckboxListItem`
+
+Kind: function. Source: [packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx:16](../../../packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx#L16).
+
+Renders one labeled Checkbox row with optional description and end content. Behavior contract: `packages/wheel/src/components/checkbox-list/checkbox-list-item.spec.md`.
+
+### `CheckboxListItemProps`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx:126](../../../packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx#L126).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `CheckboxListItemState`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx:115](../../../packages/wheel/src/components/checkbox-list/CheckboxListItem.tsx#L115).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `CheckboxListProps`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-list/CheckboxList.tsx:145](../../../packages/wheel/src/components/checkbox-list/CheckboxList.tsx#L145).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `CheckboxListState`
+
+Kind: interface. Source: [packages/wheel/src/components/checkbox-list/CheckboxList.tsx:128](../../../packages/wheel/src/components/checkbox-list/CheckboxList.tsx#L128).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -2135,13 +3353,13 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `SelectItemProps`
 
-Kind: interface. Source: [packages/wheel/src/components/select/item/SelectItem.tsx:282](../../../packages/wheel/src/components/select/item/SelectItem.tsx#L282).
+Kind: interface. Source: [packages/wheel/src/components/select/item/SelectItem.tsx:290](../../../packages/wheel/src/components/select/item/SelectItem.tsx#L290).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SelectItemState`
 
-Kind: interface. Source: [packages/wheel/src/components/select/item/SelectItem.tsx:267](../../../packages/wheel/src/components/select/item/SelectItem.tsx#L267).
+Kind: interface. Source: [packages/wheel/src/components/select/item/SelectItem.tsx:275](../../../packages/wheel/src/components/select/item/SelectItem.tsx#L275).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -2207,13 +3425,13 @@ A container for the select list. Renders a `<div>` element. Documentation: [Base
 
 ### `SelectPopupProps`
 
-Kind: interface. Source: [packages/wheel/src/components/select/popup/SelectPopup.tsx:477](../../../packages/wheel/src/components/select/popup/SelectPopup.tsx#L477).
+Kind: interface. Source: [packages/wheel/src/components/select/popup/SelectPopup.tsx:488](../../../packages/wheel/src/components/select/popup/SelectPopup.tsx#L488).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SelectPopupState`
 
-Kind: interface. Source: [packages/wheel/src/components/select/popup/SelectPopup.tsx:494](../../../packages/wheel/src/components/select/popup/SelectPopup.tsx#L494).
+Kind: interface. Source: [packages/wheel/src/components/select/popup/SelectPopup.tsx:505](../../../packages/wheel/src/components/select/popup/SelectPopup.tsx#L505).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -2255,37 +3473,37 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `SelectRoot`
 
-Kind: function. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:51](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L51).
+Kind: function. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:52](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L52).
 
 Groups all parts of the select. Doesn't render its own HTML element. Documentation: [Base UI Select](https://base-ui.com/react/components/select) Deviation: upstream also accepts an `actionsRef` (imperative `unmount`) — not ported, matching `Tooltip.Root`'s equivalent deviation (React ref-forwarding pattern with no direct Solid equivalent; `store.set('mounted', false)` remains reachable directly on the store for a future imperative API if needed).
 
 ### `SelectRootActions`
 
-Kind: interface. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:696](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L696).
+Kind: interface. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:712](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L712).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SelectRootChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:711](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L711).
+Kind: type. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:727](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L727).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SelectRootChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:700](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L700).
+Kind: type. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:716](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L716).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SelectRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:584](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L584).
+Kind: interface. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:594](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L594).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SelectRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:582](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L582).
+Kind: interface. Source: [packages/wheel/src/components/select/root/SelectRoot.tsx:592](../../../packages/wheel/src/components/select/root/SelectRoot.tsx#L592).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -2325,6 +3543,18 @@ Kind: interface. Source: [packages/wheel/src/components/select/scroll-up-arrow/S
 
 Public export. Read the linked declaration for its complete contract.
 
+### `SelectSize`
+
+Kind: type. Source: [packages/wheel/src/components/select/types.ts:2](../../../packages/wheel/src/components/select/types.ts#L2).
+
+Shared Select control sizes.
+
+### `SelectStatus`
+
+Kind: type. Source: [packages/wheel/src/components/select/types.ts:8](../../../packages/wheel/src/components/select/types.ts#L8).
+
+Select validation tones.
+
 ### `SelectTrigger`
 
 Kind: function. Source: [packages/wheel/src/components/select/trigger/SelectTrigger.tsx:41](../../../packages/wheel/src/components/select/trigger/SelectTrigger.tsx#L41).
@@ -2333,13 +3563,13 @@ A button that opens the select popup. Renders a `<button>` element. Documentatio
 
 ### `SelectTriggerProps`
 
-Kind: interface. Source: [packages/wheel/src/components/select/trigger/SelectTrigger.tsx:325](../../../packages/wheel/src/components/select/trigger/SelectTrigger.tsx#L325).
+Kind: interface. Source: [packages/wheel/src/components/select/trigger/SelectTrigger.tsx:346](../../../packages/wheel/src/components/select/trigger/SelectTrigger.tsx#L346).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SelectTriggerState`
 
-Kind: interface. Source: [packages/wheel/src/components/select/trigger/SelectTrigger.tsx:302](../../../packages/wheel/src/components/select/trigger/SelectTrigger.tsx#L302).
+Kind: interface. Source: [packages/wheel/src/components/select/trigger/SelectTrigger.tsx:317](../../../packages/wheel/src/components/select/trigger/SelectTrigger.tsx#L317).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -2360,6 +3590,12 @@ Public export. Read the linked declaration for its complete contract.
 Kind: interface. Source: [packages/wheel/src/components/select/value/SelectValue.tsx:88](../../../packages/wheel/src/components/select/value/SelectValue.tsx#L88).
 
 Public export. Read the linked declaration for its complete contract.
+
+### `SelectVariant`
+
+Kind: type. Source: [packages/wheel/src/components/select/types.ts:5](../../../packages/wheel/src/components/select/types.ts#L5).
+
+Select trigger surface treatments.
 
 
 ## `wheel/components/menu`
@@ -5229,5 +6465,716 @@ Public export. Read the linked declaration for its complete contract.
 ### `DrawerVirtualKeyboardProviderState`
 
 Kind: interface. Source: [packages/wheel/src/components/drawer/virtual-keyboard-provider/DrawerVirtualKeyboardProvider.tsx:431](../../../packages/wheel/src/components/drawer/virtual-keyboard-provider/DrawerVirtualKeyboardProvider.tsx#L431).
+
+Public export. Read the linked declaration for its complete contract.
+
+
+## `wheel/components/astryx`
+
+### `AppShell`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:109](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L109).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AspectRatio`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:110](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L110).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AstryxComponentDensity`
+
+Kind: type. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:14](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L14).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AstryxComponentOrientation`
+
+Kind: type. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:15](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L15).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AstryxComponentProps`
+
+Kind: interface. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:27](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L27).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AstryxComponentSize`
+
+Kind: type. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:6](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L6).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AstryxComponentState`
+
+Kind: interface. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:17](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L17).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AstryxComponentTone`
+
+Kind: type. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:7](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L7).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AvatarGroup`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:111](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L111).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AvatarGroupOverflow`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:112](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L112).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `AvatarStatusDot`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:113](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L113).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Badge`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:114](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L114).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Banner`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:115](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L115).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Blockquote`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:116](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L116).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `BottomSheet`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:117](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L117).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `BottomSheetSwitcher`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:118](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L118).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `BreadcrumbItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:120](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L120).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Breadcrumbs`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:119](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L119).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Calendar`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:121](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L121).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Card`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:163](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L163).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Carousel`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:122](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L122).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Center`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:160](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L160).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatComposer`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:123](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L123).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatComposerDrawer`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:124](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L124).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatComposerInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:125](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L125).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatComposerTokenElement`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:126](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L126).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatDictationButton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:127](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L127).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatLayout`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:129](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L129).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatLayoutScrollButton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:130](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L130).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatMessage`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:131](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L131).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatMessageBubble`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:132](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L132).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatMessageList`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:133](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L133).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatMessageMetadata`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:134](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L134).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatSendButton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:128](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L128).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatSystemMessage`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:135](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L135).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatTokenizedText`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:136](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L136).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ChatToolCalls`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:137](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L137).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Citation`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:138](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L138).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ClickableCard`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:164](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L164).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `CommandPalette`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:139](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L139).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ComplexSelect`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:198](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L198).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `DateInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:140](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L140).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `DateRangeInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:141](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L141).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `DateTimeInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:142](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L142).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `DialogHeader`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:143](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L143).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `EmptyState`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:144](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L144).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `FileInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:146](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L146).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `FormLayout`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:162](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L162).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Grid`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:158](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L158).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `GridSpan`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:159](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L159).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Heading`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:206](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L206).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Icon`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:147](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L147).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Indicator`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:148](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L148).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `InputGroup`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:145](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L145).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `InternationalizationProvider`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:214](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L214).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Item`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:149](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L149).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Kbd`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:150](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L150).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `LayerProvider`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:215](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L215).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Layout`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:151](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L151).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `LayoutContent`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:153](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L153).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `LayoutFooter`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:154](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L154).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `LayoutHeader`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:152](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L152).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `LayoutPanel`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:155](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L155).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Lightbox`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:166](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L166).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Link`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:167](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L167).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `LinkProvider`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:216](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L216).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `List`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:168](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L168).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ListItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:169](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L169).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Markdown`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:170](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L170).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `MediaTheme`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:217](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L217).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `MetadataList`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:171](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L171).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `MetadataListItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:172](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L172).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `MobileNav`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:173](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L173).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `MobileNavToggle`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:174](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L174).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `MultiSelect`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:197](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L197).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `NavHeadingMenu`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:175](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L175).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `NavIcon`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:176](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L176).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Outline`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:189](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L189).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `OverflowList`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:190](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L190).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Overlay`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:191](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L191).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Pagination`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:192](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L192).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `PowerSearch`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:193](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L193).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Resizable`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:194](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L194).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `ResizeHandle`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:195](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L195).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Section`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:161](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L161).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SegmentedControl`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:196](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L196).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SelectableCard`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:165](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L165).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SideNav`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:177](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L177).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SideNavCollapseButton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:178](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L178).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SideNavHeading`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:179](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L179).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SideNavItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:180](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L180).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SideNavSection`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:181](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L181).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Skeleton`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:199](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L199).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Spinner`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:200](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L200).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Stack`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:156](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L156).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `StackItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:157](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L157).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `StatusDot`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:201](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L201).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Step`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:203](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L203).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Stepper`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:202](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L202).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `SyntaxTheme`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:218](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L218).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Table`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:204](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L204).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Text`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:205](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L205).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TextArea`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:207](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L207).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Theme`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:219](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L219).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Thumbnail`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:208](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L208).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TimeInput`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:209](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L209).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Timestamp`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:210](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L210).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Token`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:211](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L211).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `Tokenizer`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:212](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L212).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TopNav`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:182](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L182).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TopNavHeading`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:183](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L183).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TopNavItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:184](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L184).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TopNavMegaMenu`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:186](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L186).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TopNavMegaMenuFeaturedCard`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:188](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L188).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TopNavMegaMenuItem`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:187](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L187).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TopNavMenu`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:185](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L185).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `TreeList`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:213](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L213).
+
+Public export. Read the linked declaration for its complete contract.
+
+### `VisuallyHidden`
+
+Kind: value. Source: [packages/wheel/src/components/astryx/AstryxComponents.tsx:220](../../../packages/wheel/src/components/astryx/AstryxComponents.tsx#L220).
 
 Public export. Read the linked declaration for its complete contract.

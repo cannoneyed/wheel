@@ -213,6 +213,12 @@ describe('<Checkbox.Root />', () => {
   });
 
   describe('style hooks', () => {
+    it('exposes the resolved size and validation status', () => {
+      const { getByRole } = render(() => <Checkbox.Root size="sm" status="warning" />);
+      expect(getByRole('checkbox')).toHaveAttribute('data-size', 'sm');
+      expect(getByRole('checkbox')).toHaveAttribute('data-status', 'warning');
+    });
+
     it('places data-checked/unchecked/disabled/readonly/required on the root', async () => {
       const user = userEvent.setup();
       const [disabled, setDisabled] = createSignal(true);

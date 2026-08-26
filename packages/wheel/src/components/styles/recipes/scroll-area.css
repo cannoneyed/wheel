@@ -46,7 +46,9 @@
     padding: 2px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
   .wheel-ScrollArea-Scrollbar[data-orientation='horizontal'] {
@@ -55,7 +57,7 @@
   }
 
   .wheel-ScrollArea-Scrollbar[data-scrolling] {
-    transition-duration: 0ms;
+    transition-duration: var(--wheel-component-duration-instant);
   }
 
   .wheel-ScrollArea-Scrollbar[data-hovering],

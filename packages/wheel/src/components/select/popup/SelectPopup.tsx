@@ -74,6 +74,8 @@ export function SelectPopup(componentProps: SelectPopup.Props): JSX.Element {
     handleScrollArrowVisibility,
     scrollHandlerRef,
     listRef,
+    size,
+    status,
   } = useSelectRootContext();
   const { side, align, alignItemWithTriggerActive, isPositioned, setControlledAlignItemWithTrigger } =
     useSelectPositionerContext();
@@ -248,7 +250,10 @@ export function SelectPopup(componentProps: SelectPopup.Props): JSX.Element {
   });
 
   createEffect(() => {
-    if (open() || alignItemWithTriggerActive()) {
+    // Aligned mode writes measured top, bottom, height, and margin values onto the positioner.
+    // Clear that snapshot after every close so reopening measures from the trigger's current
+    // viewport position instead of reusing stale geometry from the previous popup.
+    if (open() || !alignItemWithTriggerActive()) {
       return;
     }
 
@@ -457,7 +462,13 @@ export function SelectPopup(componentProps: SelectPopup.Props): JSX.Element {
     },
     state,
     stateAttributesMapping,
-    props: [popupProps, defaultProps, () => getDisabledMountTransitionStyles(transitionStatus()), elementProps],
+    props: [
+      popupProps,
+      defaultProps,
+      () => ({ 'data-size': size(), 'data-status': status() }),
+      () => getDisabledMountTransitionStyles(transitionStatus()),
+      elementProps,
+    ],
   });
 
   return (

@@ -74,9 +74,13 @@ const connectDashboard = connect('Dashboard', (c) => ({ ... }));
 
 That is all 38 rules.
 
-## CSS colors
+## CSS rules
 
 `stylelint.config.mjs` applies the same token boundary to every CSS file under `packages/*/src`.
+
+Stylelint rejects every `[data-starting-style]` selector. Components render their final entry state on the first frame and use `[data-ending-style]` only for exit motion.
+
+Stylelint also rejects timing literals in Wheel component transition and animation declarations. Define durations and easing curves in `packages/wheel/src/components/styles/tokens.css`, then read them with `var()`.
 
 Literal hex, `rgb()`, `rgba()`, `hsl()`, and `hsla()` values are valid in custom-property declarations. Normal declarations read those values with `var()`:
 

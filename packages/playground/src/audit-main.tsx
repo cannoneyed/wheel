@@ -11,6 +11,7 @@ import { render } from 'solid-js/web';
 
 import 'wheel/styles';
 import 'wheel/components/styles';
+import './component-demos.css';
 import './component-audit.css';
 import { ComponentAudit } from './component-audit';
 

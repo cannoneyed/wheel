@@ -1,4 +1,5 @@
 export * as Select from './index.parts';
+export type { SelectSize, SelectStatus, SelectVariant } from './types';
 
 export type * from './root/SelectRoot';
 export type * from './label/SelectLabel';

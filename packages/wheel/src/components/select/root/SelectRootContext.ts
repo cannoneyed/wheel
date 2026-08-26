@@ -4,6 +4,7 @@ import type { FloatingRootStore } from '../../floating-ui-solid';
 import type { FieldValidation } from '../../internals/field-root-context/FieldRootContext';
 import { SelectStore } from '../store';
 import type { SelectRoot } from './SelectRoot';
+import type { SelectSize, SelectStatus, SelectVariant } from '../types';
 
 export interface SelectSelectionRef {
   allowSelectedMouseUp: boolean;
@@ -15,6 +16,9 @@ export interface SelectRootContext {
   store: SelectStore;
   name: () => string | undefined;
   disabled: () => boolean;
+  size: () => SelectSize;
+  status: () => SelectStatus | undefined;
+  variant: () => SelectVariant;
   readOnly: () => boolean;
   required: () => boolean;
   multiple: () => boolean;

@@ -1,14 +1,13 @@
 /* ========================================================================
  * RECIPE: Field — label/control/description/error composite
- * (data-invalid / data-disabled, Field validity + starting/ending-style
- * contract)
+ * (data-invalid / data-disabled, Field validity + data-ending-style contract)
  *
  * Pattern notes:
  *  - Root is a plain layout wrapper (no chrome); Control is the same text
  *    field archetype as recipes/input.css's `.wheel-Input` (fields use a
  *    hairline `--wheel-component-border-strong` border, never a shadow).
- *  - Error only mounts while invalid, so its enter/exit binds to the
- *    presence attributes like the Popover exemplar.
+ *  - Error mounts at full opacity while invalid and binds exit to the
+ *    ending presence attribute.
  * ==================================================================== */
 
 @layer wheel.components.recipes {
@@ -81,10 +80,11 @@
     font-size: var(--wheel-component-text-sm);
     line-height: var(--wheel-component-text-sm--lh);
     color: var(--wheel-component-danger);
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
-  .wheel-Field-Error[data-starting-style],
   .wheel-Field-Error[data-ending-style] {
     opacity: 0;
   }

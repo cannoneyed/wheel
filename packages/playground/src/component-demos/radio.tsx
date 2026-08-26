@@ -1,36 +1,39 @@
-/* eslint-disable wheel/require-view-root -- Isolated catalog fixtures render library parts and icons; the catalog owns their inspection boundary. */
-import { createUniqueId } from 'solid-js';
+/* eslint-disable wheel/require-view-root -- The catalog owns this fixture boundary. */
 import { Radio, RadioGroup } from 'wheel/components';
 
-// Wheel supplies the component recipe classes.
-export default function ExampleRadioGroup() {
-  const id = createUniqueId();
+import { DemoGroup } from './demo-group';
+
+export default function ExampleRadio() {
   return (
-    <RadioGroup aria-labelledby={id} defaultValue="fuji-apple">
-      <div id={id} style={{ 'font-size': 'var(--wheel-component-text-base)', 'font-weight': 500 }}>
-        Best apple
-      </div>
+    <div class="radio-family-fixture">
+      <DemoGroup title="Selection states">
+        <RadioGroup aria-label="Radio states" defaultValue="selected">
+          <RadioLabel value="selected" label="Selected" />
+          <RadioLabel value="available" label="Available" />
+          <RadioLabel value="disabled" label="Disabled" disabled />
+        </RadioGroup>
+      </DemoGroup>
+      <DemoGroup title="Constraints">
+        <RadioGroup aria-label="Radio constraints" defaultValue="readonly" readOnly>
+          <RadioLabel value="readonly" label="Read only" />
+          <RadioLabel value="unchanged" label="Cannot change" />
+        </RadioGroup>
+      </DemoGroup>
+    </div>
+  );
+}
 
-      <label style={{ display: 'flex', 'align-items': 'center', gap: '0.5rem' }}>
-        <Radio.Root value="fuji-apple">
-          <Radio.Indicator />
-        </Radio.Root>
-        Fuji
-      </label>
-
-      <label style={{ display: 'flex', 'align-items': 'center', gap: '0.5rem' }}>
-        <Radio.Root value="gala-apple">
-          <Radio.Indicator />
-        </Radio.Root>
-        Gala
-      </label>
-
-      <label style={{ display: 'flex', 'align-items': 'center', gap: '0.5rem' }}>
-        <Radio.Root value="granny-smith-apple">
-          <Radio.Indicator />
-        </Radio.Root>
-        Granny Smith
-      </label>
-    </RadioGroup>
+function RadioLabel(props: {
+  readonly value: string;
+  readonly label: string;
+  readonly disabled?: boolean | undefined;
+}) {
+  return (
+    <label class="radio-demo-option">
+      <Radio.Root value={props.value} disabled={props.disabled}>
+        <Radio.Indicator />
+      </Radio.Root>
+      {props.label}
+    </label>
   );
 }

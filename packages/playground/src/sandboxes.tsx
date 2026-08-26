@@ -151,7 +151,7 @@ export const SANDBOXES: Sandbox[] = [
   {
     id: 'component-catalog',
     title: 'Wheel component catalog',
-    note: 'All 38 component families with the default Mira theme in light and dark modes.',
+    note: 'All 40 component pages with the default Mira theme in light and dark modes.',
     mount: () => <ComponentCatalog />
   },
   {

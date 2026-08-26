@@ -1,12 +1,11 @@
 /* ========================================================================
  * RECIPE: Menu — floating surface (Popover archetype) + item list states
- * (data-open / starting-ending-style on Popup; data-highlighted/-checked/
- * -disabled on items)
+ * (data-open / data-ending-style on Popup; data-highlighted/-checked/-disabled on items)
  *
  * Pattern notes:
  *  - Popup shares the Popover exemplar's surface treatment: elevated bg,
- *    no border (the shadow ring is the border), scale/fade from
- *    --transform-origin.
+ *    no border because the shadow ring is the border, with exit scale/fade
+ *    from --transform-origin.
  *  - Items use a flat highlighted-background style (no inverted colors):
  *    `--wheel-component-bg-hover` on [data-highlighted], inset by a small margin so the
  *    highlight reads as a rounded chip rather than edge-to-edge.
@@ -39,11 +38,10 @@
     line-height: var(--wheel-component-text-base--lh);
     transform-origin: var(--transform-origin, center);
     transition:
-      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out),
       scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
   }
 
-  .wheel-Menu-Popup[data-starting-style],
   .wheel-Menu-Popup[data-ending-style] {
     opacity: 0;
     scale: 0.97;
@@ -143,7 +141,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
   .wheel-Menu-CheckboxItemIndicator svg,
@@ -152,9 +152,7 @@
     height: 0.75rem;
   }
 
-  .wheel-Menu-CheckboxItemIndicator[data-starting-style],
   .wheel-Menu-CheckboxItemIndicator[data-ending-style],
-  .wheel-Menu-RadioItemIndicator[data-starting-style],
   .wheel-Menu-RadioItemIndicator[data-ending-style] {
     opacity: 0;
   }

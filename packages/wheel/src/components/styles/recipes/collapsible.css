@@ -1,9 +1,9 @@
 /* ========================================================================
  * RECIPE: Collapsible — single trigger/panel pair
- * (--collapsible-panel-height geometry, data-panel-open, data-starting/ending-style)
+ * (--collapsible-panel-height geometry, data-panel-open, data-ending-style)
  *
  * Pattern notes:
- *  - Same panel-height animation contract as Accordion, just without the
+ *  - Same exit-only panel-height contract as Accordion, without the
  *    Item/Header wrapper: Trigger emits [data-panel-open] directly.
  *  - The caret icon is decorative (no data attribute of its own), so its
  *    rotation uses a descendant selector off the Trigger, same exception as
@@ -78,7 +78,6 @@
     transition: height var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
   }
 
-  .wheel-Collapsible-Panel[data-starting-style],
   .wheel-Collapsible-Panel[data-ending-style] {
     height: 0;
   }

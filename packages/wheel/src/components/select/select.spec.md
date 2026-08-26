@@ -1,0 +1,35 @@
+# Select behavior specification
+
+- Select composes its trigger, value, popup, list, option, grouping, indicator, arrow, portal, and positioning parts without adding a root wrapper.
+- The trigger renders as a button with `combobox` semantics, exposes the popup state through `aria-expanded`, and points to the open list through `aria-controls`.
+- Pointer activation opens a closed select and closes an open select.
+- Selecting one option updates the value, closes a single-select popup, and returns focus to the trigger.
+- After any option closes the popup, the same trigger can open it again and commit another option.
+- `ArrowDown` or `ArrowUp` opens a closed select and starts keyboard navigation.
+- Arrow keys move through enabled options without leaving the list. `Home` and `End` move to the first and last enabled options.
+- `Enter` or `Space` commits the highlighted option. `Escape` closes without changing the value.
+- Typeahead moves to matching options while open. Typeahead changes the value without opening after the closed trigger has registered its options.
+- Disabled options remain visible but cannot receive a committed value.
+- A disabled root removes the trigger from the tab order and blocks pointer and keyboard changes.
+- A read-only root can open for inspection but cannot change its value.
+- Multiple mode toggles values in an array and keeps the popup open after each option press.
+- Controlled `open` and `value` props remain authoritative. Their change callbacks report requested changes without replacing the controlled values.
+- Change callbacks include a reason and may cancel an uncontrolled open or value change.
+- The hidden input submits the selected value under `name`. Multiple mode submits one hidden input for each value.
+- `required`, `disabled`, `readOnly`, `form`, and `autoComplete` reach the hidden form control.
+- Object values use the supplied label, value, and equality functions for display, submission, and selection checks.
+- `items` supplies labels for the trigger value and supports grouped option data.
+- Group labels describe their option groups without becoming selectable options.
+- The selected option exposes `data-selected`. The active option exposes `data-highlighted`.
+- The selected option indicator renders only for selected options.
+- The popup stays within available viewport space and matches the trigger width by default.
+- The popup opens beside the trigger by default. `alignItemWithTrigger` opts into native-select-style overlap when that geometry is useful.
+- Long lists scroll. Scroll arrows expose more content while the pointer remains over them.
+- `size="sm"`, `size="md"`, and `size="lg"` change trigger and option density together.
+- `variant="input"` uses a bordered field surface. `variant="ghost"` removes the resting surface while preserving hover, focus, disabled, and open feedback.
+- `status="success"`, `status="warning"`, and `status="error"` tint the trigger border without replacing form validity semantics.
+- The default status remains neutral. Invalid form state always uses the error border.
+- Opening is immediate. No select part uses a fade-in, scale-in, or slide-in transition.
+- Closing uses the shared 100 ms fade-out token. Interaction and focus do not wait for the visual exit.
+- Reduced-motion mode disables the exit transition through the shared motion rules.
+- Forced-colors mode keeps trigger borders, disabled text, and highlighted options visible.

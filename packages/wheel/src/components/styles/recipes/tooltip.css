@@ -1,8 +1,8 @@
 /* ========================================================================
- * RECIPE: Tooltip — floating surface (data-open / starting-ending-style)
+ * RECIPE: Tooltip — floating surface (data-open / data-ending-style)
  *
  * Same shape as the Popover exemplar: elevated surface, no border (the
- * shadow's ring is the border), scale/fade in from --transform-origin.
+ * shadow's ring is the border), with exit scale/fade from --transform-origin.
  * Tooltip popups are smaller and denser than Popover, so padding + text
  * size are tighter.
  * ==================================================================== */
@@ -19,11 +19,10 @@
     line-height: var(--wheel-component-text-sm--lh);
     transform-origin: var(--transform-origin, center);
     transition:
-      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out),
       scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
   }
 
-  .wheel-Tooltip-Popup[data-starting-style],
   .wheel-Tooltip-Popup[data-ending-style] {
     opacity: 0;
     scale: 0.97;

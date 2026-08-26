@@ -240,7 +240,7 @@ describe('<Toolbar.Button />', () => {
         const onValueChange = vi.fn();
         const { getByTestId } = render(() => (
           <Toolbar.Root>
-            <ToggleGroup defaultValue={['one']} onValueChange={onValueChange}>
+            <ToggleGroup defaultValue="one" onValueChange={onValueChange}>
               <Toggle value="one" data-testid="one" />
               <Toggle value="two" data-testid="two" />
               <Toggle value="three" data-testid="three" />
@@ -267,7 +267,7 @@ describe('<Toolbar.Button />', () => {
         await user.keyboard('[Enter]');
         expect(onValueChange).toHaveBeenCalledTimes(1);
         // exclusive selection replaces the previous value
-        expect(onValueChange.mock.calls[0][0]).toEqual(['three']);
+        expect(onValueChange.mock.calls[0][0]).toBe('three');
         expect(one).toHaveAttribute('aria-pressed', 'false');
         expect(three).toHaveAttribute('aria-pressed', 'true');
       });
@@ -303,7 +303,7 @@ describe('<Toolbar.Button />', () => {
         const onValueChange = vi.fn();
         const { getByTestId } = render(() => (
           <Toolbar.Root>
-            <ToggleGroup multiple defaultValue={['one']} onValueChange={onValueChange}>
+            <ToggleGroup type="multiple" defaultValue={['one']} onValueChange={onValueChange}>
               <Toggle value="one" data-testid="one" />
               <Toggle value="two" data-testid="two" />
             </ToggleGroup>
@@ -327,7 +327,7 @@ describe('<Toolbar.Button />', () => {
 
       it('supports a controlled ToggleGroup value', async () => {
         function App() {
-          const [value, setValue] = createSignal<string[]>([]);
+          const [value, setValue] = createSignal<string | null>(null);
           return (
             <Toolbar.Root>
               <ToggleGroup value={value()} onValueChange={setValue}>
@@ -351,14 +351,6 @@ describe('<Toolbar.Button />', () => {
         expect(one).toHaveAttribute('aria-pressed', 'true');
       });
 
-      // Upstream also covers "disables direct ToggleGroup children when Toolbar.Group is
-      // disabled": React's `ToggleGroup` reads `useToolbarRootContext`/`useToolbarGroupContext`
-      // (both optional) to fold the ancestor Toolbar's disabled state into its own. The Solid
-      // port of `toggle-group/ToggleGroup.tsx` doesn't do this yet — it only reads its own
-      // `disabled` prop — so nesting a disabled `Toolbar.Group` around a `ToggleGroup` currently
-      // has no effect on the group's children. Fixing this means editing
-      // `packages/solid/src/toggle-group/ToggleGroup.tsx`, which is outside this port's scope
-      // (`packages/solid/src/toolbar/`); reported as a cross-package gap instead.
     });
   });
 });

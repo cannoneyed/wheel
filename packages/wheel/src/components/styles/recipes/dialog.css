@@ -2,8 +2,8 @@
  * RECIPE: Dialog — backdrop (fade) + centered popup (scale/fade)
  *
  * Pattern notes:
- *  - Backdrop fades in/out via data-starting-style/data-ending-style; it has
- *    no elevation of its own (it's a scrim, not a surface).
+ *  - Backdrop and popup render immediately, then use data-ending-style for exit.
+ *    The backdrop has no elevation of its own because it is a scrim.
  *  - Popup is centered with a fixed-position + translate transform (no
  *    --transform-origin here: dialogs aren't anchored to a trigger, unlike
  *    the floating popups in popover.css).
@@ -16,10 +16,11 @@
     position: fixed;
     inset: 0;
     background: var(--wheel-component-backdrop-bg);
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
-  .wheel-Dialog-Backdrop[data-starting-style],
   .wheel-Dialog-Backdrop[data-ending-style] {
     opacity: 0;
   }
@@ -56,12 +57,11 @@
     translate: -50% calc(-50% + var(--wheel-component-dialog-nested-offset) * var(--nested-dialogs, 0));
     scale: calc(1 - var(--wheel-component-dialog-nested-scale-step) * var(--nested-dialogs, 0));
     transition:
-      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out),
       translate var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
       scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
   }
 
-  .wheel-Dialog-Popup[data-starting-style],
   .wheel-Dialog-Popup[data-ending-style] {
     opacity: 0;
     translate: -50%
@@ -79,7 +79,9 @@
     background: var(--wheel-component-overlay-muted-bg);
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
   .wheel-Dialog-Popup[data-nested-dialog-open]::after {

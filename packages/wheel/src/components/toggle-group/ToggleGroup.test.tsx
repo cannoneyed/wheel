@@ -13,6 +13,30 @@ function flushMicrotasks() {
 }
 
 describe('<ToggleGroup />', () => {
+  it('exposes typed layout, size, variant, and selection mode state', () => {
+    const { getByRole } = render(() => (
+      <ToggleGroup
+        aria-label="Format"
+        type="multiple"
+        orientation="vertical"
+        layout="fill"
+        size="lg"
+        variant="destructive"
+      >
+        <Toggle value="bold" label="Bold" />
+      </ToggleGroup>
+    ));
+    const group = getByRole('group', { name: 'Format' });
+
+    expect(group).toHaveClass('wheel-ToggleGroup');
+    expect(group).toHaveAttribute('data-slot', 'toggle-group');
+    expect(group).toHaveAttribute('data-type', 'multiple');
+    expect(group).toHaveAttribute('data-orientation', 'vertical');
+    expect(group).toHaveAttribute('data-layout', 'fill');
+    expect(group).toHaveAttribute('data-size', 'lg');
+    expect(group).toHaveAttribute('data-variant', 'destructive');
+  });
+
   it('renders a `group`', () => {
     const { getByRole } = render(() => <ToggleGroup aria-label="My Toggle Group" />);
     expect(getByRole('group', { name: 'My Toggle Group' })).not.toBe(null);
@@ -48,7 +72,7 @@ describe('<ToggleGroup />', () => {
     it('prop: defaultValue', async () => {
       const user = userEvent.setup();
       const { getAllByRole } = render(() => (
-        <ToggleGroup defaultValue={['two']}>
+        <ToggleGroup defaultValue="two">
           <Toggle value="one" />
           <Toggle value="two" />
         </ToggleGroup>
@@ -69,7 +93,7 @@ describe('<ToggleGroup />', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       render(() => (
-        <ToggleGroup defaultValue={['one']}>
+        <ToggleGroup defaultValue="one">
           <Toggle />
           <Toggle />
         </ToggleGroup>
@@ -82,7 +106,7 @@ describe('<ToggleGroup />', () => {
 
   describe('controlled', () => {
     it('follows the value prop', () => {
-      const [value, setValue] = createSignal(['two']);
+      const [value, setValue] = createSignal<string | null>('two');
       const { getAllByRole } = render(() => (
         <ToggleGroup value={value()}>
           <Toggle value="one" />
@@ -95,7 +119,7 @@ describe('<ToggleGroup />', () => {
       expect(button1).toHaveAttribute('aria-pressed', 'false');
       expect(button2).toHaveAttribute('aria-pressed', 'true');
 
-      setValue(['one']);
+      setValue('one');
 
       expect(button1).toHaveAttribute('aria-pressed', 'true');
       expect(button2).toHaveAttribute('aria-pressed', 'false');
@@ -104,7 +128,7 @@ describe('<ToggleGroup />', () => {
     it('does not change state on click without external update', async () => {
       const user = userEvent.setup();
       const { getAllByRole } = render(() => (
-        <ToggleGroup value={['two']}>
+        <ToggleGroup value="two">
           <Toggle value="one" />
           <Toggle value="two" />
         </ToggleGroup>
@@ -173,11 +197,11 @@ describe('<ToggleGroup />', () => {
     });
   });
 
-  describe('prop: multiple', () => {
-    it('multiple items can be pressed when true', async () => {
+  describe('prop: type', () => {
+    it('multiple items can be pressed in multiple mode', async () => {
       const user = userEvent.setup();
       const { getAllByRole } = render(() => (
-        <ToggleGroup multiple defaultValue={['one']}>
+        <ToggleGroup type="multiple" defaultValue={['one']}>
           <Toggle value="one" />
           <Toggle value="two" />
         </ToggleGroup>
@@ -197,7 +221,7 @@ describe('<ToggleGroup />', () => {
     it('only one item can be pressed when false', async () => {
       const user = userEvent.setup();
       const { getAllByRole } = render(() => (
-        <ToggleGroup defaultValue={['one']}>
+        <ToggleGroup defaultValue="one">
           <Toggle value="one" />
           <Toggle value="two" />
         </ToggleGroup>
@@ -209,6 +233,35 @@ describe('<ToggleGroup />', () => {
 
       expect(button1).toHaveAttribute('aria-pressed', 'false');
       expect(button2).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('deselects the active item to null in single mode', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      const { getByRole } = render(() => (
+        <ToggleGroup defaultValue="one" onValueChange={onValueChange}>
+          <Toggle value="one" label="One" />
+        </ToggleGroup>
+      ));
+      const button = getByRole('button', { name: 'One' });
+
+      await user.click(button);
+      expect(onValueChange).toHaveBeenCalledWith(null, expect.any(Object));
+      expect(button).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('reports arrays in multiple mode', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      const { getAllByRole } = render(() => (
+        <ToggleGroup type="multiple" defaultValue={['one']} onValueChange={onValueChange}>
+          <Toggle value="one" />
+          <Toggle value="two" />
+        </ToggleGroup>
+      ));
+
+      await user.click(getAllByRole('button')[1]);
+      expect(onValueChange.mock.calls[0][0]).toEqual(['one', 'two']);
     });
   });
 
@@ -299,12 +352,12 @@ describe('<ToggleGroup />', () => {
 
       await user.click(button1);
       expect(onValueChange).toHaveBeenCalledTimes(1);
-      expect(onValueChange.mock.calls[0][0]).toEqual(['one']);
+      expect(onValueChange.mock.calls[0][0]).toBe('one');
       expect(onValueChange.mock.calls[0][1].reason).toBe('none');
 
       await user.click(button2);
       expect(onValueChange).toHaveBeenCalledTimes(2);
-      expect(onValueChange.mock.calls[1][0]).toEqual(['two']);
+      expect(onValueChange.mock.calls[1][0]).toBe('two');
     });
 
     it('does not change the value when the event is canceled', async () => {

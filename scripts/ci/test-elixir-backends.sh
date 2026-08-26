@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+
+trap 'wheel_ci_status=$?; echo "Elixir backend CI failed at line $LINENO with status $wheel_ci_status" >&2' ERR
 
 if [[ -n "${SOLO_PROCESS_ID:-}" || "${TERM_PROGRAM:-}" == "solo" ]]; then
   echo "Use the Solo postgres and Elixir server processes for local tests."
@@ -22,12 +24,31 @@ trap cleanup EXIT
 
 mkdir -p .cache/mix .cache/hex
 
-docker run --rm --detach \
-  --name "$postgres_container" \
-  --env POSTGRES_PASSWORD=postgres \
-  --env POSTGRES_DB=wheel_sync \
-  --publish 55432:5432 \
-  postgres:17-alpine >/dev/null
+start_postgres() {
+  docker rm -f "$postgres_container" >/dev/null 2>&1 || true
+  docker run --rm --detach \
+    --name "$postgres_container" \
+    --env POSTGRES_PASSWORD=postgres \
+    --env POSTGRES_DB=wheel_sync \
+    --publish 55432:5432 \
+    postgres:17-alpine >/dev/null
+}
+
+echo "Starting PostgreSQL for Elixir backend tests"
+wheel_postgres_status=0
+for wheel_postgres_attempt in 1 2 3; do
+  if start_postgres; then
+    wheel_postgres_status=0
+    break
+  else
+    wheel_postgres_status=$?
+  fi
+  echo "PostgreSQL start attempt $wheel_postgres_attempt failed with status $wheel_postgres_status" >&2
+  sleep "$wheel_postgres_attempt"
+done
+if (( wheel_postgres_status != 0 )); then
+  exit "$wheel_postgres_status"
+fi
 
 for _attempt in $(seq 1 60); do
   if docker exec "$postgres_container" pg_isready -U postgres -d wheel_sync >/dev/null 2>&1; then

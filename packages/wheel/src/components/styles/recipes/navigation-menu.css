@@ -9,16 +9,16 @@
  *    --positioner-width/-height / --popup-width/-height as the active item
  *    changes — the "morphing" effect is pure CSS transition on those vars,
  *    the library does all the measuring.
- *  - Content's [data-activation-direction] drives the slide-in/out direction
- *    when switching between sibling triggers; it only applies during
- *    starting/ending presence states, never to the settled panel.
+ *  - Content's [data-activation-direction] drives exit direction when
+ *    switching between sibling triggers; it only applies during ending
+ *    presence state, never to the settled panel.
  *  - Backdrop matches dialog.css's established scrim value (no semantic
  *    "overlay" token exists yet — see that file's identical treatment).
  * ==================================================================== */
 
 @layer wheel.components.recipes {
   .wheel-NavigationMenu-Root {
-    --wheel-component-navigation-menu-duration: 0.35s;
+    --wheel-component-navigation-menu-duration: var(--wheel-component-duration-navigation);
     --wheel-component-navigation-menu-ease: var(--wheel-component-ease-out-cubic);
 
     box-sizing: border-box;
@@ -107,15 +107,14 @@
     transition-timing-function: var(--wheel-component-navigation-menu-ease);
   }
 
-  .wheel-NavigationMenu-Popup[data-starting-style],
   .wheel-NavigationMenu-Popup[data-ending-style] {
     opacity: 0;
     scale: 0.94;
   }
 
   .wheel-NavigationMenu-Popup[data-ending-style] {
-    transition-duration: var(--wheel-component-duration);
-    transition-timing-function: var(--wheel-component-ease-out-quad);
+    transition-duration: var(--wheel-component-duration-fade-out);
+    transition-timing-function: var(--wheel-component-ease-fade-out);
   }
 
   .wheel-NavigationMenu-Viewport {
@@ -129,21 +128,12 @@
     box-sizing: border-box;
     padding: calc(var(--wheel-component-space) * 3);
     transition:
-      opacity calc(var(--wheel-component-navigation-menu-duration) * 0.5) var(--wheel-component-ease-out-quad),
+      opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out),
       transform var(--wheel-component-navigation-menu-duration) var(--wheel-component-navigation-menu-ease);
   }
 
-  .wheel-NavigationMenu-Content[data-starting-style],
   .wheel-NavigationMenu-Content[data-ending-style] {
     opacity: 0;
-  }
-
-  .wheel-NavigationMenu-Content[data-starting-style][data-activation-direction='left'] {
-    transform: translateX(calc(-1 * var(--wheel-component-space) * 8));
-  }
-
-  .wheel-NavigationMenu-Content[data-starting-style][data-activation-direction='right'] {
-    transform: translateX(calc(var(--wheel-component-space) * 8));
   }
 
   .wheel-NavigationMenu-Content[data-ending-style][data-activation-direction='left'] {
@@ -196,10 +186,11 @@
     position: fixed;
     inset: 0;
     background: var(--wheel-component-backdrop-bg);
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
-  .wheel-NavigationMenu-Backdrop[data-starting-style],
   .wheel-NavigationMenu-Backdrop[data-ending-style] {
     opacity: 0;
   }

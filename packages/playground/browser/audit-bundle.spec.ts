@@ -7,9 +7,9 @@ test('runs the frozen component audit bundle', async ({ page }) => {
 
   await expect(page.getByTestId('component-audit')).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Button');
-  await expect(page.locator('[data-family]')).toHaveCount(38);
+  await expect(page.locator('[data-family]')).toHaveCount(156);
 
-  await page.locator('[data-family="Dialog"]').click();
+  await page.locator('[data-component-family="Dialog"]').click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dialog');
-  await expect(page.getByText('wheel/components/dialog', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Dialog usage')).toContainText('wheel/components');
 });

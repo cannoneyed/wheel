@@ -10,10 +10,25 @@
 
 @layer wheel.components.recipes {
   .wheel-CheckboxGroup {
+    --wheel-component-checkbox-group-gap: var(--wheel-component-space);
+
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: calc(var(--wheel-component-space) * 2);
+    gap: var(--wheel-component-checkbox-group-gap);
+  }
+
+  .wheel-CheckboxGroup[data-density='balanced'] {
+    --wheel-component-checkbox-group-gap: calc(var(--wheel-component-space) * 2);
+  }
+
+  .wheel-CheckboxGroup[data-density='spacious'] {
+    --wheel-component-checkbox-group-gap: calc(var(--wheel-component-space) * 3);
+  }
+
+  .wheel-CheckboxGroup[data-orientation='horizontal'] {
+    flex-flow: row wrap;
+    align-items: center;
   }
 
   .wheel-CheckboxGroup[data-disabled] {

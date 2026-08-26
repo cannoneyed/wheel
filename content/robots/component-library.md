@@ -16,11 +16,29 @@ The aggregate and deep entries resolve to the same family objects. Deep entries 
 
 | Group | Families |
 | --- | --- |
-| Controls | `Button`, `Checkbox`, `Radio`, `Switch`, `Toggle`, `ToggleGroup` |
+| Controls | `Button`, `ButtonGroup`, `IconButton`, `Checkbox`, `Radio`, `Switch`, `Toggle`, `ToggleGroup` |
 | Inputs | `Autocomplete`, `CheckboxGroup`, `Combobox`, `Field`, `Fieldset`, `Form`, `Input`, `NumberField`, `OTPField`, `RadioGroup`, `Select`, `Slider` |
 | Disclosure and navigation | `Accordion`, `Collapsible`, `ContextMenu`, `Menu`, `Menubar`, `NavigationMenu`, `Tabs`, `Toolbar` |
 | Overlays | `AlertDialog`, `Dialog`, `Drawer`, `Popover`, `PreviewCard`, `Toast`, `Tooltip` |
 | Display | `Avatar`, `Meter`, `Progress`, `ScrollArea`, `Separator` |
+
+## Button family
+
+`Button`, `ButtonGroup`, `IconButton`, `Toggle`, and `ToggleGroup` share `sm`, `md`, and `lg` sizes. They support `primary`, `secondary`, `ghost`, and `destructive` variants.
+
+- `Button` owns actions, links, loading, and async work.
+- `ButtonGroup` connects actions and provides roving focus without selection.
+- `IconButton` requires an accessible label and stays square.
+- `Toggle` owns one pressed state.
+- `ToggleGroup` owns typed single-select or multi-select values, roving focus, orientation, and hug or fill layout.
+
+Behavior contracts:
+
+- [Button](../../packages/wheel/src/components/button/button.spec.md)
+- [Button Group](../../packages/wheel/src/components/button-group/button-group.spec.md)
+- [Icon Button](../../packages/wheel/src/components/icon-button/icon-button.spec.md)
+- [Toggle](../../packages/wheel/src/components/toggle/toggle.spec.md)
+- [Toggle Group](../../packages/wheel/src/components/toggle-group/toggle-group.spec.md)
 
 ## Multi-part composition
 

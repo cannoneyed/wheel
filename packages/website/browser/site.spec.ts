@@ -128,22 +128,34 @@ test.describe('/components', () => {
   test('serves all component families with stable deep links', async ({ page }) => {
     await page.goto('/components/#/dialog');
     await expect(page.getByTestId('component-audit')).toBeVisible();
-    await expect(page.locator('.component-audit__index [data-family]')).toHaveCount(38);
+    await expect(page.locator('.component-audit__index [data-family]')).toHaveCount(156);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dialog');
     await expect(page.locator('[data-family="Dialog"]')).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByText("wheel/components/dialog", { exact: false })).toBeVisible();
+    await expect(page.getByLabel('Dialog usage')).toContainText("import { Dialog } from 'wheel/components'");
 
     await page.getByTestId('audit-search').fill('drawer');
-    await expect(page.getByTestId('audit-filter-count')).toHaveText('1 of 38 families');
+    await expect(page.getByTestId('audit-filter-count')).toHaveText('2 of 156 components');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     await page.locator('[data-family="Drawer"]').click();
     await expect(page).toHaveURL(/\/components\/#\/drawer$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Drawer');
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   });
 
   test('operates previews and keeps the site navigation', async ({ page }) => {
     await page.goto('/components/');
     const preview = page.getByTestId('audit-preview');
     await expect(preview.getByTestId('focus-button')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Usage', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Props', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Examples', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Stage', exact: true })).toHaveCount(0);
+    await preview.getByTestId('focus-button').click();
+    await expect(page.getByTestId('demo-snackbar')).toHaveText('primary triggered.');
+    const urlBeforeLink = page.url();
+    await preview.getByTestId('button-link').click();
+    await expect(page).toHaveURL(urlBeforeLink);
     await page.getByTestId('audit-theme-dark').click();
     await expect(preview).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('.site-topnav').getByRole('link', { name: 'Components' })).toHaveClass(
@@ -153,6 +165,62 @@ test.describe('/components', () => {
       'href',
       '/docs/'
     );
+  });
+
+  test('opens a component family at its first child', async ({ page }) => {
+    await page.goto('/components/#/dialog');
+    const buttonFamily = page.locator('[data-component-family="Button"]');
+    await expect(buttonFamily).toHaveAttribute('aria-expanded', 'false');
+
+    await buttonFamily.click();
+
+    await expect(page).toHaveURL(/\/components\/#\/button$/);
+    await expect(page.locator('[data-family="ButtonGroup"]')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Button');
+
+    await page.locator('[data-family="ButtonGroup"]').click();
+    await page.getByRole('link', { name: 'Next component' }).click();
+    await expect(page).toHaveURL(/\/components\/#\/icon-button$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('IconButton');
+    await expect(page.getByRole('heading', { name: 'Props', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Examples', exact: true })).toBeVisible();
+  });
+
+  test('opens the Checkbox family and keeps each entry on its own page', async ({ page }) => {
+    await page.goto('/components/#/dialog');
+    const family = page.locator('[data-component-family="Checkbox"]');
+    await family.click();
+    await expect(page).toHaveURL(/\/components\/#\/checkbox$/);
+    await expect(page.locator('[data-family="CheckboxList"]')).toBeVisible();
+
+    await page.locator('[data-family="CheckboxGroup"]').click();
+    await page.getByRole('link', { name: 'Next component' }).click();
+    await expect(page).toHaveURL(/\/components\/#\/checkbox-list$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('CheckboxList');
+    await expect(page.getByLabel('CheckboxList usage')).toBeVisible();
+  });
+
+  test('reports Checkbox labels and resulting state', async ({ page }) => {
+    await page.goto('/components/#/checkbox');
+    const checkbox = page.getByTestId('audit-preview').getByRole('checkbox', {
+      name: 'Unchecked',
+    });
+
+    await checkbox.click();
+    await expect(checkbox).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('demo-snackbar')).toHaveText('Unchecked — checked: true');
+  });
+
+  test('renders component Markdown specs', async ({ page }) => {
+    await page.goto('/components/#/checkbox');
+    await page.getByTestId('component-spec-tab').click();
+
+    await expect(page.getByRole('heading', { name: 'Checkbox specification' })).toBeVisible();
+    await expect(page.getByText('packages/wheel/src/components/checkbox/checkbox.spec.md')).toBeVisible();
+    await expect(page.getByText('Every checkmark and mixed mark', { exact: false })).toBeVisible();
+    expect(
+      await page.locator('.component-spec__markdown .wheel-Code-token').count(),
+    ).toBeGreaterThan(5);
   });
 });
 

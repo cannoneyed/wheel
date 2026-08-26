@@ -176,6 +176,49 @@ describe('<CheckboxGroup />', () => {
     });
   });
 
+  describe('family layout and inherited state', () => {
+    it('exposes orientation and density and passes size and status to children', () => {
+      const { getByRole, getByTestId } = render(() => (
+        <CheckboxGroup
+          aria-label="Options"
+          density="spacious"
+          orientation="horizontal"
+          size="sm"
+          status="warning"
+        >
+          <Checkbox.Root value="one" data-testid="one" />
+        </CheckboxGroup>
+      ));
+
+      const group = getByRole('group');
+      expect(group).toHaveAttribute('data-density', 'spacious');
+      expect(group).toHaveAttribute('data-orientation', 'horizontal');
+      expect(getByTestId('one')).toHaveAttribute('data-size', 'sm');
+      expect(getByTestId('one')).toHaveAttribute('data-status', 'warning');
+    });
+
+    it('blocks child changes while read-only and exposes aria state', async () => {
+      const user = userEvent.setup();
+      const { getByRole, getByTestId } = render(() => (
+        <CheckboxGroup aria-label="Options" readOnly>
+          <Checkbox.Root value="one" data-testid="one" />
+        </CheckboxGroup>
+      ));
+
+      expect(getByRole('group')).toHaveAttribute('aria-readonly', 'true');
+      expect(getByTestId('one')).toHaveAttribute('aria-readonly', 'true');
+      await user.click(getByTestId('one'));
+      expect(getByTestId('one')).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('marks an error-status group invalid', () => {
+      const { getByRole } = render(() => (
+        <CheckboxGroup aria-label="Options" status="error" />
+      ));
+      expect(getByRole('group')).toHaveAttribute('aria-invalid', 'true');
+    });
+  });
+
   describe('parent checkbox (tri-state)', () => {
     const allValues = ['a', 'b', 'c'];
 

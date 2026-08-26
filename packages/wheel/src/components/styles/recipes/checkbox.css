@@ -5,8 +5,8 @@
  * Pattern notes:
  *  - Root is a small square control (span, role="checkbox"); Indicator is
  *    the checkmark glyph shown while checked/indeterminate — it only
- *    mounts while checked (unless `keepMounted`), so its enter/exit binds
- *    to the presence attributes like the Popover exemplar.
+ *    mounts immediately while checked unless `keepMounted`, then binds its
+ *    exit to the ending presence attribute.
  *  - Field validity (`data-invalid`) tints the border danger; disabled
  *    dims both parts.
  * ==================================================================== */
@@ -14,6 +14,11 @@
 @layer wheel.components.recipes {
   .wheel-Checkbox-Root {
     --wheel-component-checkbox-size: 1rem;
+    --wheel-component-checkbox-tone: light-dark(
+      var(--wheel-component-accent),
+      color-mix(in oklch, var(--wheel-component-accent) 52%, black)
+    );
+    --wheel-component-checkbox-tone-fg: var(--wheel-component-control-selected-fg);
 
     box-sizing: border-box;
     display: inline-flex;
@@ -25,16 +30,52 @@
     border-radius: var(--wheel-component-radius-xs);
     border: var(--wheel-component-hairline) solid var(--wheel-component-border-strong);
     background: var(--wheel-component-bg-elevated);
-    color: var(--wheel-component-accent-fg);
+    color: var(--wheel-component-checkbox-tone-fg);
     transition:
-      background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
-      border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+      background-color var(--wheel-component-duration-fade-out)
+        var(--wheel-component-ease-fade-out),
+      border-color var(--wheel-component-duration-fade-out)
+        var(--wheel-component-ease-fade-out);
+  }
+
+  .wheel-Checkbox-Root[data-size='sm'] {
+    --wheel-component-checkbox-size: 0.875rem;
+  }
+
+  .wheel-Checkbox-Root[data-status='success'] {
+    --wheel-component-checkbox-tone: light-dark(
+      var(--wheel-component-success),
+      color-mix(in oklch, var(--wheel-component-success) 72%, black)
+    );
+  }
+
+  .wheel-Checkbox-Root[data-status='warning'] {
+    --wheel-component-checkbox-tone: light-dark(
+      color-mix(in oklch, var(--wheel-component-warning) 82%, black),
+      color-mix(in oklch, var(--wheel-component-warning) 68%, black)
+    );
+  }
+
+  .wheel-Checkbox-Root[data-status='error'],
+  .wheel-Checkbox-Root[data-invalid] {
+    --wheel-component-checkbox-tone: light-dark(
+      var(--wheel-component-danger),
+      color-mix(in oklch, var(--wheel-component-danger) 75%, black)
+    );
+  }
+
+  .wheel-Checkbox-Root[data-status='success']:not([data-checked], [data-indeterminate]),
+  .wheel-Checkbox-Root[data-status='warning']:not([data-checked], [data-indeterminate]),
+  .wheel-Checkbox-Root[data-status='error']:not([data-checked], [data-indeterminate]),
+  .wheel-Checkbox-Root[data-invalid]:not([data-checked], [data-indeterminate]) {
+    border-color: var(--wheel-component-checkbox-tone);
   }
 
   .wheel-Checkbox-Root[data-checked],
   .wheel-Checkbox-Root[data-indeterminate] {
-    background: var(--wheel-component-accent);
+    background: var(--wheel-component-checkbox-tone);
     border-color: transparent;
+    transition-duration: var(--wheel-component-duration-instant);
   }
 
   .wheel-Checkbox-Root[data-invalid] {
@@ -47,24 +88,40 @@
     cursor: not-allowed;
   }
 
+  .wheel-Checkbox-Root[data-readonly] {
+    cursor: default;
+  }
+
   .wheel-Checkbox-Indicator {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    color: var(--wheel-component-checkbox-tone-fg);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
   .wheel-Checkbox-Indicator svg {
-    width: 0.75rem;
-    height: 0.75rem;
+    width: calc(var(--wheel-component-checkbox-size) - 0.25rem);
+    height: calc(var(--wheel-component-checkbox-size) - 0.25rem);
   }
 
-  .wheel-Checkbox-Indicator[data-starting-style],
   .wheel-Checkbox-Indicator[data-ending-style] {
     opacity: 0;
   }
 
   .wheel-Checkbox-Indicator[data-disabled] {
     color: var(--wheel-component-fg-subtle);
+  }
+
+  @media (forced-colors: active) {
+    .wheel-Checkbox-Root[data-checked],
+    .wheel-Checkbox-Root[data-indeterminate] {
+      border-color: Highlight;
+      color: HighlightText;
+      background: Highlight;
+      forced-color-adjust: none;
+    }
   }
 }

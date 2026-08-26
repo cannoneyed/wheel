@@ -5,7 +5,7 @@ import { createControllableSignal } from '../base-utils/createControllableSignal
 import { EMPTY_ARRAY } from '../base-utils/empty';
 import { renderElement } from '../internals/renderElement';
 import { createBaseUiId } from '../internals/createBaseUiId';
-import type { BaseUIComponentProps } from '../internals/types';
+import type { BaseUIComponentProps, Orientation } from '../internals/types';
 import { areArraysEqual } from '../internals/areArraysEqual';
 import {
   useFieldRootContext,
@@ -23,6 +23,8 @@ import { stateAttributesMapping } from './stateAttributesMapping';
 import { PARENT_CHECKBOX } from '../checkbox/root/CheckboxRoot';
 import type { BaseUIChangeEventDetails } from '../internals/createBaseUIEventDetails';
 import { REASONS } from '../internals/reasons';
+import type { CheckboxSize, CheckboxStatus } from '../checkbox/types';
+import type { CheckboxGroupDensity } from './types';
 
 const EMPTY = EMPTY_ARRAY as readonly string[];
 
@@ -41,6 +43,11 @@ export function CheckboxGroup(componentProps: CheckboxGroup.Props) {
     'children',
     'defaultValue',
     'disabled',
+    'readOnly',
+    'orientation',
+    'density',
+    'size',
+    'status',
     'id',
     'onValueChange',
     'value',
@@ -51,6 +58,11 @@ export function CheckboxGroup(componentProps: CheckboxGroup.Props) {
   const { labelId } = useLabelableContext();
 
   const disabled = () => (fieldContext.disabled() || componentProps.disabled) ?? false;
+  const readOnly = () => componentProps.readOnly ?? false;
+  const orientation = (): Orientation => componentProps.orientation ?? 'vertical';
+  const density = (): CheckboxGroupDensity => componentProps.density ?? 'compact';
+  const size = (): CheckboxSize => componentProps.size ?? 'md';
+  const status = (): CheckboxStatus => componentProps.status ?? 'default';
 
   // Captured once at setup, mirroring upstream: a controlled group has no
   // meaningful `defaultValue` (there's nothing to derive grouped checkboxes'
@@ -129,6 +141,21 @@ export function CheckboxGroup(componentProps: CheckboxGroup.Props) {
     get disabled() {
       return disabled();
     },
+    get readOnly() {
+      return readOnly();
+    },
+    get orientation() {
+      return orientation();
+    },
+    get density() {
+      return density();
+    },
+    get size() {
+      return size();
+    },
+    get status() {
+      return status();
+    },
     get touched() {
       return fieldContext.state.touched;
     },
@@ -153,6 +180,11 @@ export function CheckboxGroup(componentProps: CheckboxGroup.Props) {
     allValues,
     parent,
     disabled,
+    readOnly,
+    orientation,
+    density,
+    size,
+    status,
     validation: fieldContext.validation,
     registerControlRef,
   };
@@ -167,6 +199,8 @@ export function CheckboxGroup(componentProps: CheckboxGroup.Props) {
           () => ({
             id: id(),
             role: 'group',
+            'aria-invalid': status() === 'error' || undefined,
+            'aria-readonly': readOnly() || undefined,
             'aria-labelledby': labelId(),
           }),
           elementProps as Record<string, any>,
@@ -182,6 +216,16 @@ export interface CheckboxGroupState extends FieldRootState {
    * Whether the component should ignore user interaction.
    */
   disabled: boolean;
+  /** Whether every member blocks changes without disabled styling. */
+  readOnly: boolean;
+  /** Layout direction for direct members. */
+  orientation: Orientation;
+  /** Spacing between direct members. */
+  density: CheckboxGroupDensity;
+  /** Default Checkbox size inherited by members. */
+  size: CheckboxSize;
+  /** Default validation tone inherited by members. */
+  status: CheckboxStatus;
 }
 
 export interface CheckboxGroupProps extends BaseUIComponentProps<'div', CheckboxGroupState> {
@@ -213,6 +257,16 @@ export interface CheckboxGroupProps extends BaseUIComponentProps<'div', Checkbox
    * @default false
    */
   disabled?: boolean | undefined;
+  /** Whether every member blocks changes without disabled styling. @default false */
+  readOnly?: boolean | undefined;
+  /** Layout direction for direct members. @default 'vertical' */
+  orientation?: Orientation | undefined;
+  /** Spacing between direct members. @default 'compact' */
+  density?: CheckboxGroupDensity | undefined;
+  /** Default Checkbox size inherited by members. @default 'md' */
+  size?: CheckboxSize | undefined;
+  /** Default validation tone inherited by members. @default 'default' */
+  status?: CheckboxStatus | undefined;
 }
 
 export type CheckboxGroupChangeEventReason = typeof REASONS.none;

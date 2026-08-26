@@ -70,6 +70,9 @@ export function SelectTrigger(componentProps: SelectTrigger.Props): JSX.Element 
     valuesRef,
     alignItemWithTriggerActiveRef,
     disabled: selectDisabled,
+    size,
+    status,
+    variant,
   } = useSelectRootContext();
 
   const disabled = () => (fieldDisabled() || selectDisabled() || (local.disabled ?? false)) ?? false;
@@ -247,6 +250,15 @@ export function SelectTrigger(componentProps: SelectTrigger.Props): JSX.Element 
     get placeholder() {
       return !hasSelectedValue();
     },
+    get size() {
+      return size();
+    },
+    get status() {
+      return status();
+    },
+    get variant() {
+      return variant();
+    },
   };
 
   return renderElement('button', componentProps, {
@@ -265,6 +277,9 @@ export function SelectTrigger(componentProps: SelectTrigger.Props): JSX.Element 
       // the lint rule doesn't special-case that custom API and flags the call itself.
       () => validation.getValidationProps(disabled(), mergedProps()),
       () => ({
+        'data-size': size(),
+        'data-status': status(),
+        'data-variant': variant(),
         role: 'combobox',
         // Commit the highlighted item on Enter while the popup is open and
         // focus is still on the trigger. The focus hop into the highlighted
@@ -320,6 +335,12 @@ export interface SelectTriggerState extends FieldRootState {
    * Whether the select doesn't have a value.
    */
   placeholder: boolean;
+  /** Current control size. */
+  size: import('../types').SelectSize;
+  /** Current validation tone. */
+  status: import('../types').SelectStatus | undefined;
+  /** Current surface treatment. */
+  variant: import('../types').SelectVariant;
 }
 
 export interface SelectTriggerProps

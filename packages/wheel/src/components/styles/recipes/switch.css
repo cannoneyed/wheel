@@ -31,6 +31,35 @@
     border-color: transparent;
   }
 
+  .wheel-Switch-Root[data-size='sm'] {
+    --wheel-component-switch-width: 1.875rem;
+    --wheel-component-switch-height: 1.125rem;
+  }
+
+  .wheel-Switch-Root[data-status='success'] {
+    border-color: var(--wheel-component-success);
+  }
+
+  .wheel-Switch-Root[data-status='warning'] {
+    border-color: var(--wheel-component-warning);
+  }
+
+  .wheel-Switch-Root[data-status='error'] {
+    border-color: var(--wheel-component-danger);
+  }
+
+  .wheel-Switch-Root[data-status='success'][data-checked] {
+    background: var(--wheel-component-success);
+  }
+
+  .wheel-Switch-Root[data-status='warning'][data-checked] {
+    background: var(--wheel-component-warning);
+  }
+
+  .wheel-Switch-Root[data-status='error'][data-checked] {
+    background: var(--wheel-component-danger);
+  }
+
   .wheel-Switch-Root[data-disabled] {
     background: var(--wheel-component-bg-hover);
     cursor: not-allowed;
@@ -60,5 +89,19 @@
   .wheel-Switch-Thumb[data-disabled] {
     background: var(--wheel-component-fg-subtle);
     box-shadow: none;
+  }
+
+  @media (forced-colors: active) {
+    .wheel-Switch-Root {
+      border-color: ButtonText;
+    }
+
+    .wheel-Switch-Root[data-checked] {
+      background: Highlight;
+    }
+
+    .wheel-Switch-Thumb[data-checked] {
+      background: HighlightText;
+    }
   }
 }

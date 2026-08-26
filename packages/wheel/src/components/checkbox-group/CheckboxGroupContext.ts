@@ -3,6 +3,9 @@ import { createContext, useContext, type Accessor } from 'solid-js';
 import type { BaseUIChangeEventDetails } from '../internals/createBaseUIEventDetails';
 import type { BaseUIEventReasons } from '../internals/reasons';
 import type { FieldValidation } from '../internals/field-root-context/FieldRootContext';
+import type { Orientation } from '../internals/types';
+import type { CheckboxSize, CheckboxStatus } from '../checkbox/types';
+import type { CheckboxGroupDensity } from './types';
 
 // Mirrors upstream's `CheckboxGroupContext` shape (accessor-based, following
 // `ToggleGroupContext`'s pattern). Provided by `CheckboxGroup` (see
@@ -30,6 +33,11 @@ export interface CheckboxGroupContext {
   allValues: Accessor<readonly string[] | undefined>;
   parent: CheckboxGroupParent;
   disabled: Accessor<boolean>;
+  readOnly: Accessor<boolean>;
+  orientation: Accessor<Orientation>;
+  density: Accessor<CheckboxGroupDensity>;
+  size: Accessor<CheckboxSize>;
+  status: Accessor<CheckboxStatus>;
   validation: FieldValidation;
   registerControlRef: (element: HTMLElement | null) => void;
 }

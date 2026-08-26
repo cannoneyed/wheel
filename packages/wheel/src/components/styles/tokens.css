@@ -4,6 +4,9 @@
     color-scheme: light dark;
 
     --wheel-component-font-sans: 'Inter Variable', wheel-sans-serif, system-ui, sans-serif;
+    --wheel-component-font-mono:
+      'SFMono-Regular', 'SF Mono', menlo, monaco, consolas, 'Liberation Mono', 'Courier New',
+      monospace;
 
     --wheel-component-text-xs: 0.75rem;
     --wheel-component-text-xs--lh: 1rem;
@@ -25,12 +28,21 @@
     --wheel-component-radius-xl: calc(0.45rem + 4px);
     --wheel-component-hairline: 1px;
 
+    --wheel-component-duration-instant: 0ms;
+    --wheel-component-duration-fade-out: 100ms;
     --wheel-component-duration-fast: 100ms;
     --wheel-component-duration: 150ms;
     --wheel-component-duration-slow: 250ms;
+    --wheel-component-duration-navigation: 350ms;
+    --wheel-component-duration-swipe-settle: 400ms;
+    --wheel-component-duration-spinner-loop: 650ms;
+    --wheel-component-duration-progress-loop: 1400ms;
+    --wheel-component-duration-reduced: 0.01ms;
+    --wheel-component-ease-fade-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
     --wheel-component-ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);
     --wheel-component-ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
     --wheel-component-ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
+    --wheel-component-ease-linear: linear;
 
     --wheel-component-bg: light-dark(oklch(1 0 0), oklch(0.141 0.005 285.823));
     --wheel-component-bg-elevated: light-dark(oklch(1 0 0), oklch(0.21 0.006 285.885));
@@ -64,10 +76,29 @@
       oklch(0.985 0 0),
       oklch(0.21 0.006 285.885)
     );
+    --wheel-component-control-selected-fg: oklch(1 0 0);
     --wheel-component-danger: light-dark(
       oklch(0.577 0.245 27.325),
       oklch(0.704 0.191 22.216)
     );
+    --wheel-component-danger-fg: oklch(0.985 0 0);
+    --wheel-component-success: light-dark(
+      oklch(0.527 0.154 150.069),
+      oklch(0.723 0.191 149.579)
+    );
+    --wheel-component-success-fg: oklch(0.985 0 0);
+    --wheel-component-warning: light-dark(
+      oklch(0.681 0.162 75.834),
+      oklch(0.795 0.184 86.047)
+    );
+    --wheel-component-warning-fg: oklch(0.21 0.006 285.885);
+    --wheel-component-code-comment: light-dark(oklch(0.48 0.02 265), oklch(0.7 0.02 265));
+    --wheel-component-code-keyword: light-dark(oklch(0.48 0.2 304), oklch(0.78 0.15 304));
+    --wheel-component-code-string: light-dark(oklch(0.43 0.14 150), oklch(0.78 0.16 150));
+    --wheel-component-code-number: light-dark(oklch(0.53 0.18 55), oklch(0.78 0.16 65));
+    --wheel-component-code-title: light-dark(oklch(0.46 0.18 255), oklch(0.77 0.14 250));
+    --wheel-component-code-variable: light-dark(oklch(0.48 0.18 20), oklch(0.78 0.14 25));
+    --wheel-component-code-meta: var(--wheel-component-fg-muted);
     --wheel-component-scrollbar: var(--wheel-component-border-strong);
     --wheel-component-selection-bg: var(--wheel-component-accent);
     --wheel-component-selection-fg: var(--wheel-component-accent-fg);

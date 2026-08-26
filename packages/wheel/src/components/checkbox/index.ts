@@ -6,3 +6,4 @@ export type {
   CheckboxRootChangeEventReason,
 } from './root/CheckboxRoot';
 export type { CheckboxIndicatorProps, CheckboxIndicatorState } from './indicator/CheckboxIndicator';
+export type { CheckboxSize, CheckboxStatus } from './types';

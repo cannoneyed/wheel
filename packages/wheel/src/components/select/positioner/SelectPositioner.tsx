@@ -79,7 +79,7 @@ export function SelectPositioner(componentProps: SelectPositioner.Props): JSX.El
   const scrollUpArrowRef: { current: HTMLDivElement | null } = { current: null };
   const scrollDownArrowRef: { current: HTMLDivElement | null } = { current: null };
 
-  const alignItemWithTrigger = () => local.alignItemWithTrigger ?? true;
+  const alignItemWithTrigger = () => local.alignItemWithTrigger ?? false;
   const [controlledAlignItemWithTrigger, setControlledAlignItemWithTrigger] = createSignal(
     alignItemWithTrigger(),
   );
@@ -283,7 +283,7 @@ export interface SelectPositionerProps
    * Whether the positioner overlaps the trigger so the selected item's text is aligned with the
    * trigger's value text. This only applies to mouse input and is automatically disabled if there
    * is not enough space.
-   * @default true
+   * @default false
    */
   alignItemWithTrigger?: boolean | undefined;
 }

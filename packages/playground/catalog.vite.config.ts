@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import solid from 'vite-plugin-solid';
 
+import { componentSpecSource } from './component-spec-plugin';
+
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 function singleFileAudit(): Plugin {
@@ -51,6 +53,10 @@ export default defineConfig({
         find: /^wheel\/components\/styles$/,
         replacement: here('../wheel/src/components/styles/index.css'),
       },
+      {
+        find: /^wheel\/components\/(.+)$/,
+        replacement: `${here('../wheel/src/components')}/$1/index.ts`,
+      },
       // Resolved from SOURCE, like every alias above it. Without this the
       // import falls through to the package export, which points into
       // packages/wheel/dist — present on a machine that has built wheel, absent
@@ -59,7 +65,7 @@ export default defineConfig({
       { find: /^wheel\/styles$/, replacement: here('../wheel/src/styles/tokens.css') },
     ],
   },
-  plugins: [solid(), singleFileAudit()],
+  plugins: [componentSpecSource(), solid(), singleFileAudit()],
   build: {
     assetsInlineLimit: Number.POSITIVE_INFINITY,
     cssCodeSplit: false,

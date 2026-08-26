@@ -73,6 +73,20 @@ describe('<Avatar.Root />', () => {
     const { getByTestId } = render(() => <Avatar.Root data-testid="root" />);
     expect(getByTestId('root').tagName).toBe('SPAN');
   });
+
+  it('shares size, shape, and status with every rendered part', () => {
+    const { getByTestId } = render(() => (
+      <Avatar.Root size="xl" shape="rounded" status="online" data-testid="root">
+        <Avatar.Fallback data-testid="fallback">AC</Avatar.Fallback>
+      </Avatar.Root>
+    ));
+
+    for (const testId of ['root', 'fallback']) {
+      expect(getByTestId(testId)).toHaveAttribute('data-size', 'xl');
+      expect(getByTestId(testId)).toHaveAttribute('data-shape', 'rounded');
+      expect(getByTestId(testId)).toHaveAttribute('data-status', 'online');
+    }
+  });
 });
 
 describe('<Avatar.Image />', () => {

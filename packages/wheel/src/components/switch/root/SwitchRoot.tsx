@@ -27,6 +27,9 @@ import {
 } from '../../internals/createBaseUIEventDetails';
 import { REASONS } from '../../internals/reasons';
 
+export type SwitchSize = 'sm' | 'md';
+export type SwitchStatus = 'success' | 'warning' | 'error';
+
 /**
  * Represents the switch itself.
  * Renders a `<span>` element and a hidden `<input>` beside.
@@ -52,6 +55,8 @@ export function SwitchRoot(componentProps: SwitchRoot.Props) {
     'readOnly',
     'required',
     'disabled',
+    'size',
+    'status',
     'uncheckedValue',
     'value',
   ]);
@@ -59,6 +64,8 @@ export function SwitchRoot(componentProps: SwitchRoot.Props) {
   const nativeButton = () => componentProps.nativeButton ?? false;
   const readOnly = () => componentProps.readOnly ?? false;
   const required = () => componentProps.required ?? false;
+  const size = (): SwitchSize => componentProps.size ?? 'md';
+  const status = () => componentProps.status;
 
   const { clearErrors } = useFormContext();
   const fieldContext = useFieldRootContext();
@@ -226,6 +233,12 @@ export function SwitchRoot(componentProps: SwitchRoot.Props) {
     get required() {
       return required();
     },
+    get size() {
+      return size();
+    },
+    get status() {
+      return status();
+    },
     get touched() {
       return fieldState.touched;
     },
@@ -257,6 +270,7 @@ export function SwitchRoot(componentProps: SwitchRoot.Props) {
         ],
         props: [
           rootProps,
+          () => ({ 'data-size': size(), 'data-status': status() }),
           elementProps as Record<string, any>,
           getButtonProps,
           (props: Record<string, any>) => validation.getValidationProps(disabled(), props),
@@ -309,6 +323,10 @@ export interface SwitchRootState extends FieldRootState {
    * Whether the user must activate the switch before submitting a form.
    */
   required: boolean;
+  /** Resolved control size. */
+  size: SwitchSize;
+  /** Resolved visual validation tone. */
+  status: SwitchStatus | undefined;
 }
 
 export interface SwitchRootProps
@@ -335,6 +353,10 @@ export interface SwitchRootProps
    * @default false
    */
   disabled?: boolean | undefined;
+  /** Dense control size. @default 'md' */
+  size?: SwitchSize | undefined;
+  /** Visual validation tone. */
+  status?: SwitchStatus | undefined;
   /**
    * The `form` attribute of the hidden `<input>`.
    */

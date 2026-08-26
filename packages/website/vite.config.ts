@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
 
 import { docsContentAliases, docsExamplePlugin, docsMdxPlugin } from '../docs/vite.mdx';
+import { componentSpecSource } from '../playground/component-spec-plugin';
 // Relative import on purpose: vite configs resolve through node, not the
 // wheel-from-source aliases below (same stance as the demos config).
 import { wheelDevTools } from '../wheel/src/vite/index';
@@ -55,6 +56,12 @@ export default defineConfig({
         find: /^wheel\/components\/styles$/,
         replacement: here('../wheel/src/components/styles/index.css')
       },
+      // Component demos use public deep entries. Keep those imports on source
+      // so the website never depends on a prior Wheel package build.
+      {
+        find: /^wheel\/components\/(.+)$/,
+        replacement: `${here('../wheel/src/components')}/$1/index.ts`
+      },
       { find: /^wheel\/styles$/, replacement: here('../wheel/src/styles/tokens.css') },
     ]
   },
@@ -64,7 +71,7 @@ export default defineConfig({
   // wheelDevTools: service identity IS the class name; without its keepNames
   // the production build minifies services to `class So` and the debug panel
   // in embedded live demos goes illegible.
-  plugins: [docsExamplePlugin(), docsMdxPlugin(), solid({ extensions: ['.mdx'] }), demosEmbed(), robotDocs(), wheelDevTools()],
+  plugins: [componentSpecSource(), docsExamplePlugin(), docsMdxPlugin(), solid({ extensions: ['.mdx'] }), demosEmbed(), robotDocs(), wheelDevTools()],
   // The live figure's sync worker uses module imports (wheel engine + sqlite chunks).
   worker: { format: 'es' },
   // sqlite-wasm locates its .wasm next to its own JS via import.meta.url;

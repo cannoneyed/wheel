@@ -1,14 +1,27 @@
 // wheel-view-root: catalog cards are proof harnesses, not application views.
 import { For, type JSX } from 'solid-js';
 import { viewRoot } from 'wheel/core';
-import { Popover } from 'wheel/components';
+import { Button, Popover } from 'wheel/components';
 
 import { COMPONENT_FIXTURES } from './component-fixtures';
 
-const entries = COMPONENT_FIXTURES.filter((entry) => entry.name !== 'RadioGroup');
+const entries = COMPONENT_FIXTURES;
 
 const customEntries = entries.filter((entry) =>
-  ['Button', 'Input', 'Switch'].includes(entry.name),
+  [
+    'Button',
+    'ButtonGroup',
+    'Checkbox',
+    'CheckboxGroup',
+    'CheckboxList',
+    'CheckboxListItem',
+    'CodeBlock',
+    'IconButton',
+    'Input',
+    'Switch',
+    'Toggle',
+    'ToggleGroup',
+  ].includes(entry.name),
 );
 
 /** Shows every component family with only the default Wheel recipe classes. */
@@ -23,18 +36,15 @@ export function ComponentCatalog(): JSX.Element {
                 <p>Wheel components</p>
                 <h2>{theme} theme</h2>
               </div>
-              <span>{COMPONENT_FIXTURES.length} families</span>
+              <span>{COMPONENT_FIXTURES.length} component pages</span>
             </header>
             <div class="component-grid">
               <For each={entries}>
                 {(entry) => {
                   const Demo = entry.component;
                   return (
-                    <article
-                      data-family={entry.name === 'Radio' ? 'Radio + RadioGroup' : entry.name}
-                      data-includes={entry.name === 'Radio' ? 'RadioGroup' : undefined}
-                    >
-                      <h3>{entry.name === 'Radio' ? 'Radio + RadioGroup' : entry.name}</h3>
+                    <article data-family={entry.name}>
+                      <h3>{entry.name}</h3>
                       <div class="component-demo">
                         <Demo />
                       </div>
@@ -83,9 +93,9 @@ export function ComponentCatalog(): JSX.Element {
 function BrowserFixtures(): JSX.Element {
   return (
     <section class="browser-fixtures" aria-label="Browser interaction fixtures">
-      <button type="button" class="wheel-Button" data-testid="outside-target">
+      <Button data-testid="outside-target">
         Outside target
-      </button>
+      </Button>
       <Popover.Root defaultOpen>
         <Popover.Trigger data-testid="parent-trigger">Parent popover</Popover.Trigger>
         <Popover.Portal>

@@ -1,9 +1,9 @@
 /* ========================================================================
  * RECIPE: Accordion — collapsing panels
- * (--accordion-panel-height geometry, data-panel-open, data-starting/ending-style)
+ * (--accordion-panel-height geometry, data-panel-open, data-ending-style)
  *
  * Pattern notes:
- *  - Panel height animation binds to the library-measured
+ *  - Panel exit height binds to the library-measured
  *    --accordion-panel-height variable, exactly like Tabs' indicator binds
  *    to --active-tab-*: the library measures, this recipe only draws.
  *  - Trigger emits [data-panel-open] (AccordionTriggerDataAttributes), not
@@ -88,7 +88,6 @@
     transition: height var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
   }
 
-  .wheel-Accordion-Panel[data-starting-style],
   .wheel-Accordion-Panel[data-ending-style] {
     height: 0;
   }

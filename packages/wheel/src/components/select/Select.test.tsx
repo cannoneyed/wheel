@@ -188,6 +188,20 @@ describe('<Select.Trigger />', () => {
     fireEvent.click(screen.getByTestId('trigger'));
     expect(screen.queryByTestId('popup')).toBe(null);
   });
+
+  it('exposes root size, status, and variant on every styled part', () => {
+    render(() => (
+      <TestSelect rootProps={{ defaultOpen: true, size: 'lg', status: 'warning', variant: 'ghost' }} />
+    ));
+
+    expect(screen.getByTestId('trigger')).toHaveAttribute('data-size', 'lg');
+    expect(screen.getByTestId('trigger')).toHaveAttribute('data-status', 'warning');
+    expect(screen.getByTestId('trigger')).toHaveAttribute('data-variant', 'ghost');
+    expect(screen.getByTestId('popup')).toHaveAttribute('data-size', 'lg');
+    expect(screen.getByTestId('popup')).toHaveAttribute('data-status', 'warning');
+    expect(screen.getByTestId('item-a')).toHaveAttribute('data-size', 'lg');
+    expect(screen.getByTestId('item-a')).toHaveAttribute('data-status', 'warning');
+  });
 });
 
 describe('item selection', () => {
@@ -213,6 +227,22 @@ describe('item selection', () => {
     // No `items` prop is wired to `Select.Root` in this test helper, so `Select.Value` falls
     // back to the raw (stringified) value rather than a resolved item label.
     expect(screen.getByTestId('value').textContent).toBe('b');
+  });
+
+  it('reopens after a pointer selection and commits another value', async () => {
+    render(() => <TestSelect />);
+    const trigger = screen.getByTestId('trigger');
+
+    fireEvent.click(trigger);
+    clickItem(screen.getByTestId('item-a'));
+    await waitFor(() => expect(screen.queryByTestId('popup')).toBe(null));
+
+    fireEvent.click(trigger);
+    expect(screen.getByTestId('popup')).not.toBe(null);
+    clickItem(screen.getByTestId('item-c'));
+
+    await waitFor(() => expect(screen.queryByTestId('popup')).toBe(null));
+    expect(screen.getByTestId('value').textContent).toBe('c');
   });
 
   it('reflects data-selected on the selected option', () => {
