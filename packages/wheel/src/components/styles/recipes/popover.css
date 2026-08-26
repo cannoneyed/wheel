@@ -1,13 +1,11 @@
 /* ========================================================================
  * RECIPE: Popover — exemplar for floating surfaces
- * (data-open / data-starting-style / data-ending-style contract)
+ * (data-open / data-ending-style contract)
  *
  * Pattern notes:
  *  - Floating surfaces use --wheel-component-shadow-elevated, whose final 0.5px ring IS
  *    the border. Never add `border` on top of it.
- *  - Enter/exit animation binds to the library's presence attributes:
- *    [data-starting-style] = first frame after mount,
- *    [data-ending-style]   = held while unmounting.
+ *  - Entry is immediate. Exit animation binds to [data-ending-style] while unmounting.
  *  - `--transform-origin` is set by the Positioner to point at the anchor.
  *  - This same shape applies to Menu.Popup, Select.Popup, Tooltip.Popup —
  *    copy this file and rename the component segment.
@@ -31,11 +29,10 @@
     line-height: var(--wheel-component-text-base--lh);
     transform-origin: var(--transform-origin, center);
     transition:
-      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out),
       scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
   }
 
-  .wheel-Popover-Popup[data-starting-style],
   .wheel-Popover-Popup[data-ending-style] {
     opacity: 0;
     scale: 0.97;

@@ -4,5 +4,7 @@ export type {
   SwitchRootState,
   SwitchRootChangeEventDetails,
   SwitchRootChangeEventReason,
+  SwitchSize,
+  SwitchStatus,
 } from './root/SwitchRoot';
 export type { SwitchThumbProps, SwitchThumbState } from './thumb/SwitchThumb';

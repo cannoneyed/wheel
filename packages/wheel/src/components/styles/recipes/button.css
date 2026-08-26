@@ -1,13 +1,192 @@
-/* ========================================================================
- * RECIPE: Button — exemplar for single-part components
- *
- * Single-part components use `wheel-<Component>` (no part segment). Action
- * and trigger parts use the same compact Mira button without extra classes.
- * ==================================================================== */
-
+/* Button and IconButton share one typed size and variant recipe. */
 @layer wheel.components.recipes {
+  :is(.wheel-Button, .wheel-IconButton) {
+    --wheel-button-height: 1.75rem;
+    --wheel-button-padding: calc(var(--wheel-component-space) * 2.5);
+    --wheel-button-gap: var(--wheel-component-space);
+    --wheel-button-icon-size: 1rem;
+
+    appearance: none;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--wheel-button-height);
+    height: var(--wheel-button-height);
+    padding: 0 var(--wheel-button-padding);
+    border: var(--wheel-component-hairline) solid transparent;
+    border-radius: var(--wheel-component-radius-md);
+    color: var(--wheel-component-fg);
+    font-family: var(--wheel-component-font-sans);
+    font-size: var(--wheel-component-text-xs);
+    line-height: var(--wheel-component-text-xs--lh);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+    transition-property: background-color, border-color, color, box-shadow, opacity;
+    transition-duration: var(--wheel-component-duration-fast);
+    transition-timing-function: var(--wheel-component-ease-out-quad);
+  }
+
+  :is(.wheel-Button, .wheel-IconButton)[data-size='sm'] {
+    --wheel-button-height: 1.5rem;
+    --wheel-button-padding: calc(var(--wheel-component-space) * 2);
+    --wheel-button-icon-size: 0.875rem;
+  }
+
+  :is(.wheel-Button, .wheel-IconButton)[data-size='lg'] {
+    --wheel-button-height: 2rem;
+    --wheel-button-padding: calc(var(--wheel-component-space) * 3);
+    --wheel-button-gap: calc(var(--wheel-component-space) * 1.5);
+    --wheel-button-icon-size: 1.125rem;
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+  }
+
+  .wheel-IconButton {
+    width: var(--wheel-button-height);
+    padding-inline: 0;
+  }
+
+  :is(.wheel-Button, .wheel-IconButton)[data-variant='primary'] {
+    background: var(--wheel-component-accent);
+    color: var(--wheel-component-accent-fg);
+  }
+
+  :is(.wheel-Button, .wheel-IconButton)[data-variant='secondary'] {
+    border-color: var(--wheel-component-border-strong);
+    background: var(--wheel-component-bg-elevated);
+    color: var(--wheel-component-fg);
+    box-shadow: var(--wheel-component-shadow-rest);
+  }
+
+  :is(.wheel-Button, .wheel-IconButton)[data-variant='ghost'] {
+    background: transparent;
+    color: var(--wheel-component-fg);
+  }
+
+  :is(.wheel-Button, .wheel-IconButton)[data-variant='destructive'] {
+    background: var(--wheel-component-danger);
+    color: var(--wheel-component-danger-fg);
+  }
+
+  @media (hover: hover) {
+    :is(.wheel-Button, .wheel-IconButton)[data-variant='primary']:hover:not([data-disabled]) {
+      background: color-mix(
+        in oklab,
+        var(--wheel-component-accent) 88%,
+        var(--wheel-component-accent-fg)
+      );
+    }
+
+    :is(.wheel-Button, .wheel-IconButton)[data-variant='secondary']:hover:not([data-disabled]) {
+      background: var(--wheel-component-bg-hover);
+      border-color: var(--wheel-component-fg-muted);
+    }
+
+    :is(.wheel-Button, .wheel-IconButton)[data-variant='ghost']:hover:not([data-disabled]) {
+      background: var(--wheel-component-bg-hover);
+    }
+
+    :is(.wheel-Button, .wheel-IconButton)[data-variant='destructive']:hover:not([data-disabled]) {
+      background: color-mix(
+        in oklab,
+        var(--wheel-component-danger) 88%,
+        var(--wheel-component-danger-fg)
+      );
+    }
+  }
+
+  :is(.wheel-Button, .wheel-IconButton):is(:hover, :active):not([data-disabled]) {
+    transition-duration: var(--wheel-component-duration-instant);
+  }
+
+  :is(.wheel-Button, .wheel-IconButton):active:not([data-disabled]) {
+    box-shadow: none;
+    opacity: 0.82;
+  }
+
+  :is(.wheel-Button, .wheel-IconButton):is(:disabled, [data-disabled]) {
+    opacity: 0.48;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  :is(.wheel-Button, .wheel-IconButton)[data-loading] {
+    cursor: progress;
+  }
+
+  :is(.wheel-Button, .wheel-IconButton)[data-loading] .wheel-Button-content {
+    opacity: 0;
+  }
+
+  .wheel-Button-content,
+  .wheel-Button-icon,
+  .wheel-Button-label,
+  .wheel-Button-endContent {
+    color: inherit;
+  }
+
+  .wheel-Button-content,
+  .wheel-Button-icon,
+  .wheel-Button-endContent {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .wheel-Button-content {
+    min-width: 0;
+    gap: var(--wheel-button-gap);
+  }
+
+  .wheel-Button-icon,
+  .wheel-Button-endContent {
+    flex: none;
+    width: var(--wheel-button-icon-size);
+    height: var(--wheel-button-icon-size);
+  }
+
+  .wheel-Button-icon > :is(svg, img),
+  .wheel-Button-endContent > :is(svg, img) {
+    width: 100%;
+    height: 100%;
+  }
+
+  .wheel-Button-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wheel-Button-spinner {
+    position: absolute;
+    color: inherit;
+    width: var(--wheel-button-icon-size);
+    height: var(--wheel-button-icon-size);
+    border: 2px solid currentcolor;
+    border-inline-end-color: transparent;
+    border-radius: 9999px;
+    animation:
+      wheel-button-spin var(--wheel-component-duration-spinner-loop)
+      var(--wheel-component-ease-linear) infinite;
+  }
+
+  .wheel-Button-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   :is(
-    .wheel-Button,
     .wheel-Dialog-Trigger,
     .wheel-Dialog-Close,
     .wheel-Drawer-Trigger,
@@ -24,25 +203,24 @@
     gap: calc(var(--wheel-component-space) * 1.5);
     min-height: 1.75rem;
     padding: 0 calc(var(--wheel-component-space) * 2.5);
-    border-radius: var(--wheel-component-radius-md);
     border: var(--wheel-component-hairline) solid transparent;
+    border-radius: var(--wheel-component-radius-md);
     background: var(--wheel-component-accent);
     color: var(--wheel-component-accent-fg);
     box-shadow: var(--wheel-component-shadow-rest);
-    font-family: var(--wheel-component-font-sans);
     font-size: var(--wheel-component-text-xs);
     line-height: var(--wheel-component-text-xs--lh);
     font-weight: 500;
     white-space: nowrap;
     user-select: none;
+    cursor: pointer;
     transition:
-      background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad),
-      border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
   @media (hover: hover) {
     :is(
-      .wheel-Button,
       .wheel-Dialog-Trigger,
       .wheel-Dialog-Close,
       .wheel-Drawer-Trigger,
@@ -51,13 +229,13 @@
       .wheel-Popover-Trigger,
       .wheel-Popover-Close,
       .wheel-Tooltip-Trigger
-    ):hover {
+    ):hover:not(:disabled, [data-disabled]) {
       opacity: 0.9;
+      transition-duration: var(--wheel-component-duration-instant);
     }
   }
 
   :is(
-    .wheel-Button,
     .wheel-Dialog-Trigger,
     .wheel-Dialog-Close,
     .wheel-Drawer-Trigger,
@@ -66,12 +244,12 @@
     .wheel-Popover-Trigger,
     .wheel-Popover-Close,
     .wheel-Tooltip-Trigger
-  ):is(:active, [data-pressed], [data-popup-open]) {
-    opacity: 0.85;
+  ):is(:active, [data-pressed], [data-popup-open]):not(:disabled, [data-disabled]) {
+    opacity: 0.82;
+    transition-duration: var(--wheel-component-duration-instant);
   }
 
   :is(
-    .wheel-Button,
     .wheel-Dialog-Trigger,
     .wheel-Dialog-Close,
     .wheel-Drawer-Trigger,
@@ -81,8 +259,32 @@
     .wheel-Popover-Close,
     .wheel-Tooltip-Trigger
   ):is(:disabled, [data-disabled]) {
-    opacity: 0.5;
+    opacity: 0.48;
     box-shadow: none;
     cursor: not-allowed;
+  }
+
+  @media (forced-colors: active) {
+    :is(.wheel-Button, .wheel-IconButton) {
+      border-color: ButtonText;
+    }
+
+    :is(.wheel-Button, .wheel-IconButton):is(:focus-visible, [data-loading]) {
+      outline: 2px solid Highlight;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wheel-Button-spinner {
+      border-inline-end-color: currentcolor;
+      opacity: 0.7;
+      animation: none;
+    }
+  }
+
+  @keyframes wheel-button-spin {
+    to {
+      transform: rotate(1turn);
+    }
   }
 }

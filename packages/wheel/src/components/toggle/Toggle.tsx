@@ -1,28 +1,36 @@
-/* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, splitProps } from 'solid-js';
+/* eslint-disable wheel/require-export-jsdoc -- Public guidance lives on the component and its stateful props; repeated alias comments hide that contract. */
+/* eslint-disable wheel/require-effect-reason -- The effect reports a group value mismatch at the point where it becomes observable. */
+/* eslint-disable wheel/require-view-root -- Toggle is a library primitive; the consuming application owns the view boundary. */
+import { createEffect, Show, splitProps, type JSX } from 'solid-js';
+import type { ButtonSize, ButtonVariant } from '../button/Button';
 import { createControllableSignal } from '../base-utils/createControllableSignal';
 import { error } from '../base-utils/error';
 import { createBaseUiId } from '../internals/createBaseUiId';
-import { renderElement } from '../internals/renderElement';
-import type { BaseUIComponentProps, NativeButtonProps } from '../internals/types';
-import { useToggleGroupContext } from '../toggle-group/ToggleGroupContext';
-import { createButton } from '../internals/use-button/createButton';
-import { CompositeItem } from '../internals/composite/item/CompositeItem';
 import {
   type BaseUIChangeEventDetails,
   createChangeEventDetails,
 } from '../internals/createBaseUIEventDetails';
+import { CompositeItem } from '../internals/composite/item/CompositeItem';
+import type { StateAttributesMapping } from '../internals/getStateAttributesProps';
 import { REASONS } from '../internals/reasons';
+import { renderElement } from '../internals/renderElement';
+import type { BaseUIComponentProps, HTMLProps, NativeButtonProps } from '../internals/types';
+import { createButton } from '../internals/use-button/createButton';
+import { useToggleGroupContext } from '../toggle-group/ToggleGroupContext';
+
+const stateAttributesMapping: StateAttributesMapping<ToggleState> = {
+  iconOnly(value) {
+    return value ? { 'data-icon-only': '' } : null;
+  },
+};
 
 /**
- * A two-state button that can be on or off.
- * Renders a `<button>` element.
+ * A two-state button for pressed tools and temporary choices.
  *
- * Documentation: [Base UI Toggle](https://base-ui.com/react/components/toggle)
+ * Behavior contract: `packages/wheel/src/components/toggle/toggle.spec.md`.
  */
-export function Toggle<Value extends string>(componentProps: Toggle.Props<Value>) {
-  const [, elementProps] = splitProps(componentProps, [
+export function Toggle<Value extends string>(componentProps: Toggle.Props<Value>): JSX.Element {
+  const [local, elementProps] = splitProps(componentProps, [
     'class',
     'style',
     'as',
@@ -30,29 +38,34 @@ export function Toggle<Value extends string>(componentProps: Toggle.Props<Value>
     'children',
     'defaultPressed',
     'disabled',
-    'form', // never participates in form validation
+    'form',
     'onPressedChange',
     'pressed',
-    'type', // cannot change button type
+    'type',
     'value',
     'nativeButton',
+    'label',
+    'icon',
+    'pressedIcon',
+    'variant',
+    'size',
   ]);
 
-  // `|| undefined` handles cases where value is falsy (i.e. "")
-  const value = createBaseUiId(() => componentProps.value || undefined);
-  const groupContext = useToggleGroupContext<string>();
-  const groupValue = () => groupContext?.value() ?? [];
-
-  const disabled = () =>
-    (componentProps.disabled || groupContext?.disabled()) ?? false;
+  const value = createBaseUiId(() => local.value || undefined);
+  const group = useToggleGroupContext<string>();
+  const groupValue = () => group?.value() ?? [];
+  const disabled = () => (local.disabled || group?.disabled()) ?? false;
+  const variant = (): ButtonVariant => local.variant ?? group?.variant() ?? 'ghost';
+  const size = (): ButtonSize => local.size ?? group?.size() ?? 'md';
+  const iconOnly = () =>
+    local.icon !== undefined && local.children === undefined && local.label !== undefined;
 
   if (process.env.NODE_ENV !== 'production') {
     createEffect(() => {
-      if (groupContext && componentProps.value === undefined && groupContext.isValueInitialized()) {
+      if (group && local.value === undefined && group.isValueInitialized()) {
         error(
-          'A `<Toggle>` component rendered in a `<ToggleGroup>` has no explicit `value` prop.',
-          'This will cause issues between the Toggle Group and Toggle values.',
-          'Provide the `<Toggle>` with a `value` prop matching the `<ToggleGroup>` values prop type.',
+          'A <Toggle> rendered in <ToggleGroup> has no explicit value.',
+          'Provide a unique value matching the ToggleGroup value type.',
         );
       }
     });
@@ -60,20 +73,20 @@ export function Toggle<Value extends string>(componentProps: Toggle.Props<Value>
 
   const [pressed, setPressedState] = createControllableSignal({
     controlled: () => {
-      if (groupContext) {
-        const v = value();
-        return v !== undefined && groupValue().indexOf(v) > -1;
+      if (group) {
+        const itemValue = value();
+        return itemValue !== undefined && groupValue().indexOf(itemValue) > -1;
       }
-      return componentProps.pressed;
+      return local.pressed;
     },
-    default: (groupContext ? undefined : (componentProps.defaultPressed ?? false)) as boolean,
+    default: (group ? undefined : (local.defaultPressed ?? false)) as boolean,
     name: 'Toggle',
     state: 'pressed',
   });
 
   const { getButtonProps, buttonRef } = createButton({
     disabled,
-    native: () => componentProps.nativeButton ?? true,
+    native: () => local.nativeButton ?? true,
   });
 
   const state: Toggle.State = {
@@ -83,40 +96,64 @@ export function Toggle<Value extends string>(componentProps: Toggle.Props<Value>
     get pressed() {
       return pressed();
     },
+    get variant() {
+      return variant();
+    },
+    get size() {
+      return size();
+    },
+    get iconOnly() {
+      return iconOnly();
+    },
   };
 
   const defaultProps = () => ({
+    'aria-label': iconOnly() ? local.label : undefined,
     'aria-pressed': pressed(),
     onClick(event: MouseEvent) {
       const nextPressed = !pressed();
       const details = createChangeEventDetails(REASONS.none, event);
-
-      // `onPressedChange` runs before the group commits so that canceling here
-      // can also veto the group value change, which shares this `details` object.
-      componentProps.onPressedChange?.(nextPressed, details);
+      local.onPressedChange?.(nextPressed, details);
 
       if (details.isCanceled) {
         return;
       }
 
-      const v = value();
-      if (v) {
-        groupContext?.setGroupValue?.(v, nextPressed, details);
+      const itemValue = value();
+      if (itemValue) {
+        group?.setGroupValue?.(itemValue, nextPressed, details);
       }
 
-      if (details.isCanceled) {
-        return;
+      if (!details.isCanceled) {
+        setPressedState(nextPressed);
       }
-
-      setPressedState(nextPressed);
     },
   });
 
-  const props = [defaultProps, elementProps as Record<string, any>, getButtonProps];
+  const props = [defaultProps, elementProps as HTMLProps, getButtonProps];
+  const renderedChildren = () => {
+    if (local.asChild) {
+      return local.children as JSX.Element;
+    }
+    const resolvedIcon = pressed() && local.pressedIcon !== undefined
+      ? local.pressedIcon
+      : local.icon;
+    const visibleLabel = local.children ?? local.label;
 
-  // A disabled toggle is natively disabled and cannot hold roving focus.
-  // (Kept for parity with upstream; there is no Toolbar port yet to consume
-  // this metadata, but a future one can without touching this component.)
+    return (
+      <>
+        <Show when={resolvedIcon !== undefined}>
+          <span class="wheel-Toggle-icon" aria-hidden="true">
+            {resolvedIcon}
+          </span>
+        </Show>
+        <Show when={!iconOnly() && visibleLabel !== undefined}>
+          <span class="wheel-Toggle-label">{visibleLabel as JSX.Element}</span>
+        </Show>
+      </>
+    );
+  };
+
   const itemMetadata = {
     get disabled() {
       return disabled();
@@ -124,23 +161,23 @@ export function Toggle<Value extends string>(componentProps: Toggle.Props<Value>
     focusableWhenDisabled: false,
   };
 
-  // Group membership is fixed at setup time (the context can't appear later),
-  // so a plain `if` here is a stable choice between two render paths, not a
-  // reactive conditional — matching upstream's structure.
-  if (groupContext) {
+  if (group) {
     return (
       <CompositeItem
         tag="button"
-        as={componentProps.as}
-        asChild={componentProps.asChild}
-        class={componentProps.class}
-        style={componentProps.style}
+        as={local.as}
+        asChild={local.asChild}
+        class={local.class}
+        style={local.style}
         metadata={itemMetadata}
         state={state}
         refs={[buttonRef]}
         props={props}
+        defaultClass="wheel-Toggle"
+        slot="toggle"
+        stateAttributesMapping={stateAttributesMapping}
       >
-        {componentProps.children}
+        {renderedChildren()}
       </CompositeItem>
     );
   }
@@ -151,54 +188,52 @@ export function Toggle<Value extends string>(componentProps: Toggle.Props<Value>
     state,
     ref: buttonRef,
     props,
+    children: local.asChild ? undefined : renderedChildren,
+    stateAttributesMapping,
   });
 }
 
 export interface ToggleState {
-  /**
-   * Whether the toggle is currently pressed.
-   */
+  /** Whether the Toggle is pressed. */
   pressed: boolean;
-  /**
-   * Whether the toggle should ignore user interaction.
-   */
+  /** Whether the Toggle ignores user interaction. */
   disabled: boolean;
+  /** The resolved selected treatment. */
+  variant: ButtonVariant;
+  /** The resolved control size. */
+  size: ButtonSize;
+  /** Whether the Toggle contains only an icon. */
+  iconOnly: boolean;
 }
 
 export interface ToggleProps<Value extends string>
   extends NativeButtonProps,
     BaseUIComponentProps<'button', ToggleState> {
-  /**
-   * Whether the toggle button is currently pressed.
-   * This is the controlled counterpart of `defaultPressed`.
-   */
+  /** Controlled pressed state. */
   pressed?: boolean | undefined;
-  /**
-   * Whether the toggle button is currently pressed.
-   * This is the uncontrolled counterpart of `pressed`.
-   * @default false
-   */
+  /** Initial uncontrolled pressed state. @default false */
   defaultPressed?: boolean | undefined;
-  /**
-   * Whether the component should ignore user interaction.
-   * @default false
-   */
+  /** Whether the Toggle ignores user interaction. @default false */
   disabled?: boolean | undefined;
-  /**
-   * Callback fired when the pressed state is changed.
-   */
+  /** Requests a pressed state change. */
   onPressedChange?:
     | ((pressed: boolean, eventDetails: Toggle.ChangeEventDetails) => void)
     | undefined;
-  /**
-   * A unique string that identifies the toggle when used
-   * inside a toggle group.
-   */
+  /** Unique value when used inside ToggleGroup. */
   value?: Value | undefined;
+  /** Visible label, or the accessible name for an icon-only Toggle. */
+  label?: string | undefined;
+  /** Icon rendered before the visible label. */
+  icon?: JSX.Element;
+  /** Icon rendered instead of `icon` while pressed. */
+  pressedIcon?: JSX.Element;
+  /** Selected visual treatment. @default 'ghost' */
+  variant?: ButtonVariant | undefined;
+  /** Dense control size. @default 'md' */
+  size?: ButtonSize | undefined;
 }
 
 export type ToggleChangeEventReason = typeof REASONS.none;
-
 export type ToggleChangeEventDetails = BaseUIChangeEventDetails<Toggle.ChangeEventReason>;
 
 export namespace Toggle {

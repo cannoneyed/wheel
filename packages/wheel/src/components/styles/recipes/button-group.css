@@ -1,0 +1,67 @@
+/* ButtonGroup connects direct Button and IconButton members. */
+@layer wheel.components.recipes {
+  .wheel-ButtonGroup {
+    display: inline-flex;
+    align-items: stretch;
+    width: max-content;
+    max-width: 100%;
+    isolation: isolate;
+  }
+
+  .wheel-ButtonGroup[data-orientation='vertical'] {
+    flex-direction: column;
+  }
+
+  .wheel-ButtonGroup > :is(.wheel-Button, .wheel-IconButton) {
+    z-index: 0;
+    border-radius: 0;
+  }
+
+  .wheel-ButtonGroup > :is(.wheel-Button, .wheel-IconButton):is(:hover, :focus-visible, :active) {
+    z-index: 1;
+  }
+
+  .wheel-ButtonGroup[data-orientation='horizontal']
+    > :is(.wheel-Button, .wheel-IconButton):not(:first-child) {
+    margin-inline-start: calc(-1 * var(--wheel-component-hairline));
+  }
+
+  .wheel-ButtonGroup[data-orientation='horizontal']
+    > :is(.wheel-Button, .wheel-IconButton):first-child {
+    border-start-start-radius: var(--wheel-component-radius-md);
+    border-end-start-radius: var(--wheel-component-radius-md);
+  }
+
+  .wheel-ButtonGroup[data-orientation='horizontal']
+    > :is(.wheel-Button, .wheel-IconButton):last-child {
+    border-start-end-radius: var(--wheel-component-radius-md);
+    border-end-end-radius: var(--wheel-component-radius-md);
+  }
+
+  .wheel-ButtonGroup[data-orientation='vertical']
+    > :is(.wheel-Button, .wheel-IconButton):not(:first-child) {
+    margin-block-start: calc(-1 * var(--wheel-component-hairline));
+  }
+
+  .wheel-ButtonGroup[data-orientation='vertical']
+    > :is(.wheel-Button, .wheel-IconButton):first-child {
+    border-start-start-radius: var(--wheel-component-radius-md);
+    border-start-end-radius: var(--wheel-component-radius-md);
+  }
+
+  .wheel-ButtonGroup[data-orientation='vertical']
+    > :is(.wheel-Button, .wheel-IconButton):last-child {
+    border-end-start-radius: var(--wheel-component-radius-md);
+    border-end-end-radius: var(--wheel-component-radius-md);
+  }
+
+  .wheel-ButtonGroup[data-disabled] {
+    cursor: not-allowed;
+  }
+
+  @media (forced-colors: active) {
+    .wheel-ButtonGroup > :is(.wheel-Button, .wheel-IconButton) {
+      border-color: ButtonText;
+    }
+  }
+}

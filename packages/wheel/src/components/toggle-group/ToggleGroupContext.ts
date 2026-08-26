@@ -1,7 +1,8 @@
-/* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
+/* eslint-disable wheel/require-export-jsdoc -- This internal context mirrors the public group contract without repeating it. */
 import { createContext, useContext, type Accessor } from 'solid-js';
-import type { Orientation } from '../internals/types';
+import type { ButtonSize, ButtonVariant } from '../button/Button';
 import type { BaseUIChangeEventDetails } from '../internals/createBaseUIEventDetails';
+import type { Orientation } from '../internals/types';
 import type { BaseUIEventReasons } from '../internals/reasons';
 
 export interface ToggleGroupContext<Value> {
@@ -13,11 +14,8 @@ export interface ToggleGroupContext<Value> {
   ) => void;
   disabled: Accessor<boolean>;
   orientation: Accessor<Orientation>;
-  /**
-   * Indicates whether the value has been initialized via `value` or
-   * `defaultValue` props. Used to determine if Toggle should warn users about
-   * data inconsistency problems.
-   */
+  size: Accessor<ButtonSize>;
+  variant: Accessor<ButtonVariant>;
   isValueInitialized: Accessor<boolean>;
 }
 
@@ -26,10 +24,7 @@ export const ToggleGroupContext = createContext<ToggleGroupContext<any> | undefi
 export function useToggleGroupContext<Value>(optional = true) {
   const context = useContext(ToggleGroupContext) as ToggleGroupContext<Value> | undefined;
   if (context === undefined && !optional) {
-    throw new Error(
-      'Base UI Solid: ToggleGroupContext is missing. ToggleGroup parts must be placed within <ToggleGroup>.',
-    );
+    throw new Error('ToggleGroup context is missing. Place Toggle children inside ToggleGroup.');
   }
-
   return context;
 }

@@ -1,7 +1,6 @@
 /* ========================================================================
  * RECIPE: Preview Card — Popover archetype, triggered by an inline link
- * (data-open / starting-ending-style; --popup-width/-height from the
- * library's own-size measurement)
+ * (data-open / data-ending-style; --popup-width/-height from own-size measurement)
  *
  * Pattern notes:
  *  - Trigger is a plain inline text link (renders an <a>), so it's styled
@@ -49,11 +48,10 @@
     line-height: var(--wheel-component-text-base--lh);
     transform-origin: var(--transform-origin, center);
     transition:
-      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out),
       scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
   }
 
-  .wheel-PreviewCard-Popup[data-starting-style],
   .wheel-PreviewCard-Popup[data-ending-style] {
     opacity: 0;
     scale: 0.97;

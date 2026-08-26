@@ -57,6 +57,8 @@ export function SelectItem(componentProps: SelectItem.Props): JSX.Element {
     selectedItemTextRef,
     disabled: selectDisabled,
     readOnly,
+    size,
+    status,
   } = useSelectRootContext();
 
   const index = listItem.index;
@@ -258,7 +260,13 @@ export function SelectItem(componentProps: SelectItem.Props): JSX.Element {
           },
           listItem.ref,
         ],
-        props: [itemProps, defaultProps, elementProps, getButtonProps],
+        props: [
+          itemProps,
+          defaultProps,
+          () => ({ 'data-size': size(), 'data-status': status() }),
+          elementProps,
+          getButtonProps,
+        ],
       })}
     </SelectItemContext.Provider>
   );

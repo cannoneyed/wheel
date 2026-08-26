@@ -27,7 +27,7 @@ export function AvatarFallback(componentProps: AvatarFallback.Props) {
 
   const delay = () => componentProps.delay ?? 0;
 
-  const { imageLoadingStatus } = useAvatarRootContext();
+  const { imageLoadingStatus, size, shape, status } = useAvatarRootContext();
   const [delayPassed, setDelayPassed] = createSignal(delay() === 0);
   const timeout = createTimeout();
 
@@ -47,6 +47,15 @@ export function AvatarFallback(componentProps: AvatarFallback.Props) {
     get imageLoadingStatus() {
       return imageLoadingStatus();
     },
+    get size() {
+      return size();
+    },
+    get shape() {
+      return shape();
+    },
+    get status() {
+      return status();
+    },
   };
 
   const enabled = () => imageLoadingStatus() !== 'loaded' && (delay() === 0 || delayPassed());
@@ -55,7 +64,10 @@ export function AvatarFallback(componentProps: AvatarFallback.Props) {
     defaultClass: 'wheel-Avatar-Fallback',
     slot: 'avatar-fallback',
     state,
-    props: [elementProps as Record<string, any>],
+    props: [
+      () => ({ 'data-size': size(), 'data-shape': shape(), 'data-status': status() }),
+      elementProps as Record<string, any>,
+    ],
     stateAttributesMapping: avatarStateAttributesMapping,
     enabled,
   });

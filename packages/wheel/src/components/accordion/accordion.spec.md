@@ -1,0 +1,21 @@
+# Accordion behavior specification
+
+- Accordion groups related disclosure items and lets each trigger reveal its own panel.
+- Root owns single or multiple expansion state without adding a DOM wrapper.
+- Single mode permits one open item. Collapsible single mode also permits no open item.
+- Multiple mode permits any set of enabled items to remain open.
+- `value`, `defaultValue`, and `onValueChange` support controlled and uncontrolled use.
+- Each item has a stable value. Duplicate values are invalid.
+- Trigger renders a button inside Header and names its Panel through `aria-controls`.
+- Panel exposes its Trigger through `aria-labelledby` and stays adjacent to its owning Header.
+- `Enter` and `Space` toggle the focused item.
+- Arrow keys move focus between enabled triggers. `Home` and `End` move to the first and last enabled triggers.
+- Keyboard navigation follows orientation and text direction. Looping is explicit.
+- Disabled roots and items remain readable but cannot receive focus or change expansion.
+- Nested accordions keep state and keyboard movement inside their own roots.
+- Compact, balanced, and spacious density change trigger and panel spacing together.
+- Divided treatment separates rows. Bare treatment removes the outer surface without removing focus feedback.
+- Panels appear immediately when opened. They never fade, slide, or scale in.
+- Closing panels may use the shared 100 ms exit-only motion without delaying state or focus.
+- Reduced motion removes panel exit motion. Forced colors preserve trigger focus and row boundaries.
+- Browser proof covers pointer toggling, every keyboard key, controlled state, nested roots, and repeated open-close cycles.

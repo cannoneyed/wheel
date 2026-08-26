@@ -257,6 +257,7 @@ body {
 .component-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
   gap: 12px;
 }
 
@@ -275,10 +276,6 @@ body {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.component-demo {
-  min-width: 0;
 }
 
 @media (max-width: 1000px) {

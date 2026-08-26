@@ -29,6 +29,7 @@ import {
   type BaseUIChangeEventDetails,
 } from '../../internals/createBaseUIEventDetails';
 import { REASONS } from '../../internals/reasons';
+import type { CheckboxSize, CheckboxStatus } from '../types';
 
 export const PARENT_CHECKBOX = 'data-parent';
 
@@ -59,12 +60,13 @@ export function CheckboxRoot(componentProps: CheckboxRoot.Props) {
     'parent',
     'readOnly',
     'required',
+    'size',
+    'status',
     'uncheckedValue',
     'value',
   ]);
 
   const nativeButton = () => componentProps.nativeButton ?? false;
-  const readOnly = () => componentProps.readOnly ?? false;
   const required = () => componentProps.required ?? false;
   const isParent = () => componentProps.parent ?? false;
 
@@ -94,6 +96,10 @@ export function CheckboxRoot(componentProps: CheckboxRoot.Props) {
     groupContext !== undefined && groupContext.allValues() !== undefined;
 
   const validation = () => groupContext?.validation ?? localValidation;
+  const readOnly = () => componentProps.readOnly ?? groupContext?.readOnly() ?? false;
+  const size = (): CheckboxSize => componentProps.size ?? groupContext?.size() ?? 'md';
+  const status = (): CheckboxStatus =>
+    componentProps.status ?? groupContext?.status() ?? 'default';
 
   const fieldItemContext = useFieldItemContext();
 
@@ -411,6 +417,12 @@ export function CheckboxRoot(componentProps: CheckboxRoot.Props) {
     get indeterminate() {
       return computedIndeterminate();
     },
+    get size() {
+      return size();
+    },
+    get status() {
+      return status();
+    },
     get touched() {
       return fieldState.touched;
     },
@@ -514,6 +526,10 @@ export interface CheckboxRootState extends FieldRootState {
    * Whether the checkbox is in a mixed state: neither ticked, nor unticked.
    */
   indeterminate: boolean;
+  /** The resolved dense control size. */
+  size: CheckboxSize;
+  /** The resolved validation tone. */
+  status: CheckboxStatus;
 }
 
 export interface CheckboxRootProps
@@ -573,6 +589,10 @@ export interface CheckboxRootProps
    * @default false
    */
   indeterminate?: boolean | undefined;
+  /** Dense control size. @default 'md' */
+  size?: CheckboxSize | undefined;
+  /** Validation tone. @default 'default' */
+  status?: CheckboxStatus | undefined;
   /**
    * A ref to access the hidden `<input>` element.
    */

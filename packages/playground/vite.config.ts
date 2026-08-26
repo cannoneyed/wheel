@@ -25,6 +25,12 @@ export default defineConfig({
         find: /^wheel\/components\/styles$/,
         replacement: here('../wheel/src/components/styles/index.css')
       },
+      // Public deep component imports must resolve from source too. Falling
+      // through to the workspace package requires a prior Wheel build.
+      {
+        find: /^wheel\/components\/(.+)$/,
+        replacement: `${here('../wheel/src/components')}/$1/index.ts`
+      },
       { find: /^wheel\/styles$/, replacement: here('../wheel/src/styles/tokens.css') },
       // Resolve wheel from source — no build step between editing the library
       // and seeing the sandboxes update.

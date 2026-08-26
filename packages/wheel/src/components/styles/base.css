@@ -43,8 +43,8 @@
         [class*=' wheel-']::before,
         [class*=' wheel-']::after
       ) {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
+      animation-duration: var(--wheel-component-duration-reduced) !important;
+      transition-duration: var(--wheel-component-duration-reduced) !important;
     }
   }
 }

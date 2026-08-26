@@ -17,6 +17,19 @@ describe('<Switch.Root />', () => {
     expect(input).toHaveAttribute('tabindex', '-1');
   });
 
+  it('shares size and status state with Root and Thumb', () => {
+    const { getByRole, getByTestId } = render(() => (
+      <Switch.Root size="sm" status="success">
+        <Switch.Thumb data-testid="thumb" />
+      </Switch.Root>
+    ));
+
+    expect(getByRole('switch')).toHaveAttribute('data-size', 'sm');
+    expect(getByRole('switch')).toHaveAttribute('data-status', 'success');
+    expect(getByTestId('thumb')).toHaveAttribute('data-size', 'sm');
+    expect(getByTestId('thumb')).toHaveAttribute('data-status', 'success');
+  });
+
   describe('interaction', () => {
     it('toggles on click (uncontrolled)', async () => {
       const user = userEvent.setup();

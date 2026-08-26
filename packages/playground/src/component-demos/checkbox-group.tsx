@@ -1,61 +1,76 @@
-/* eslint-disable wheel/require-view-root -- Isolated catalog fixtures render library parts and icons; the catalog owns their inspection boundary. */
-import { createUniqueId, type JSX } from 'solid-js';
-import { Checkbox, CheckboxGroup } from 'wheel/components';
+/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+import { CheckboxGroup } from 'wheel/components';
+import { CheckboxControl } from './checkbox-parts';
+import { DemoGroup } from './demo-group';
 
-// Wheel supplies the component recipe classes.
 export default function ExampleCheckboxGroup() {
-  const id = createUniqueId();
   return (
-    <CheckboxGroup aria-labelledby={id} defaultValue={['fuji-apple']}>
-      <div
-        id={id}
-        style={{ 'font-size': 'var(--wheel-component-text-base)', 'font-weight': 500 }}
-      >
-        Apples
-      </div>
+    <div class="checkbox-family-fixture checkbox-family-fixture--documented">
+      <DemoGroup title="Density">
+        <div class="checkbox-family-columns">
+          <LabeledGroup label="Compact" density="compact" />
+          <LabeledGroup label="Balanced" density="balanced" />
+          <LabeledGroup label="Spacious" density="spacious" />
+        </div>
+      </DemoGroup>
 
-      <label style={{ display: 'flex', 'align-items': 'center', gap: '0.5rem' }}>
-        <Checkbox.Root name="apple" value="fuji-apple">
-          <Checkbox.Indicator>
-            <CheckIcon />
-          </Checkbox.Indicator>
-        </Checkbox.Root>
-        Fuji
-      </label>
+      <DemoGroup title="Horizontal layout">
+        <CheckboxGroup
+          aria-label="Export fields"
+          defaultValue={['title']}
+          orientation="horizontal"
+        >
+          <CheckboxControl label="Title" value="title" />
+          <CheckboxControl label="Owner" value="owner" />
+          <CheckboxControl label="Updated" value="updated" />
+        </CheckboxGroup>
+      </DemoGroup>
 
-      <label style={{ display: 'flex', 'align-items': 'center', gap: '0.5rem' }}>
-        <Checkbox.Root name="apple" value="gala-apple">
-          <Checkbox.Indicator>
-            <CheckIcon />
-          </Checkbox.Indicator>
-        </Checkbox.Root>
-        Gala
-      </label>
+      <DemoGroup title="Parent selection" description="The parent reports mixed state while some children are selected.">
+        <CheckboxGroup
+          aria-label="Notifications"
+          allValues={['email', 'push', 'sms']}
+          defaultValue={['email']}
+          data-testid="checkbox-group-parent"
+        >
+          <CheckboxControl label="All notifications" parent data-testid="checkbox-parent" />
+          <CheckboxControl label="Email" value="email" />
+          <CheckboxControl label="Push" value="push" />
+          <CheckboxControl label="SMS" value="sms" disabled />
+        </CheckboxGroup>
+      </DemoGroup>
 
-      <label style={{ display: 'flex', 'align-items': 'center', gap: '0.5rem' }}>
-        <Checkbox.Root name="apple" value="granny-smith-apple">
-          <Checkbox.Indicator>
-            <CheckIcon />
-          </Checkbox.Indicator>
-        </Checkbox.Root>
-        Granny Smith
-      </label>
-    </CheckboxGroup>
+      <DemoGroup title="Group constraints">
+        <div class="checkbox-family-columns">
+          <CheckboxGroup aria-label="Disabled options" disabled defaultValue={['one']}>
+            <CheckboxControl label="Disabled selected" value="one" />
+            <CheckboxControl label="Disabled clear" value="two" />
+          </CheckboxGroup>
+          <CheckboxGroup aria-label="Read-only options" readOnly defaultValue={['one']}>
+            <CheckboxControl label="Read-only selected" value="one" />
+            <CheckboxControl label="Read-only clear" value="two" />
+          </CheckboxGroup>
+        </div>
+      </DemoGroup>
+    </div>
   );
 }
 
-function CheckIcon(props: JSX.IntrinsicElements['svg']) {
+function LabeledGroup(props: {
+  readonly label: string;
+  readonly density: 'compact' | 'balanced' | 'spacious';
+}) {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      {...props}
-      style={{ display: 'block' }}
-    >
-      <path d="m2.5 8.5 4 4 7-9" />
-    </svg>
+    <div class="checkbox-family-sample">
+      <strong>{props.label}</strong>
+      <CheckboxGroup
+        aria-label={`${props.label} options`}
+        density={props.density}
+        defaultValue={['one']}
+      >
+        <CheckboxControl label="First" value="one" />
+        <CheckboxControl label="Second" value="two" />
+      </CheckboxGroup>
+    </div>
   );
 }

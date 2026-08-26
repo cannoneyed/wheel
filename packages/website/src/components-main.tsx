@@ -4,6 +4,7 @@ import { viewRoot } from 'wheel/core';
 import '../../docs/src/theme.css';
 import 'wheel/components/styles';
 import '../../docs/src/site/site-chrome.css';
+import '../../playground/src/component-demos.css';
 import '../../playground/src/component-audit.css';
 import './components-chrome.css';
 import { SiteHeader } from '../../docs/src/site/SiteHeader';

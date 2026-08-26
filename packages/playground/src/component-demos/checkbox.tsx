@@ -1,33 +1,32 @@
-/* eslint-disable wheel/require-view-root -- Isolated catalog fixtures render library parts and icons; the catalog owns their inspection boundary. */
-import type { JSX } from 'solid-js';
-import { Checkbox } from 'wheel/components';
+/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+import { CheckboxControl } from './checkbox-parts';
+import { DemoGroup } from './demo-group';
 
-// Wheel supplies the component recipe classes.
 export default function ExampleCheckbox() {
   return (
-    <label style={{ display: 'flex', 'align-items': 'center', gap: '0.5rem' }}>
-      <Checkbox.Root defaultChecked>
-        <Checkbox.Indicator>
-          <CheckIcon />
-        </Checkbox.Indicator>
-      </Checkbox.Root>
-      Enable notifications
-    </label>
-  );
-}
+    <div class="checkbox-family-fixture checkbox-family-fixture--documented">
+      <DemoGroup title="Values" description="Boolean and mixed values use one stable control size.">
+        <CheckboxControl label="Unchecked" />
+        <CheckboxControl label="Checked" defaultChecked data-testid="focus-checkbox" />
+        <CheckboxControl label="Indeterminate" indeterminate />
+      </DemoGroup>
 
-function CheckIcon(props: JSX.IntrinsicElements['svg']) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      {...props}
-      style={{ display: 'block' }}
-    >
-      <path d="m2.5 8.5 4 4 7-9" />
-    </svg>
+      <DemoGroup title="Sizes" description="Small and medium fit dense application rows.">
+        <CheckboxControl label="Small" size="sm" />
+        <CheckboxControl label="Medium" size="md" defaultChecked />
+      </DemoGroup>
+
+      <DemoGroup title="Validation status">
+        <CheckboxControl label="Success" status="success" defaultChecked />
+        <CheckboxControl label="Warning" status="warning" defaultChecked />
+        <CheckboxControl label="Error" status="error" defaultChecked />
+      </DemoGroup>
+
+      <DemoGroup title="Constraints">
+        <CheckboxControl label="Disabled" disabled />
+        <CheckboxControl label="Read only" readOnly defaultChecked />
+        <CheckboxControl label="Required" required />
+      </DemoGroup>
+    </div>
   );
 }

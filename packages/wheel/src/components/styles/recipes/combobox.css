@@ -8,7 +8,7 @@
  *    Clear, and Trigger sit transparently inside it, same language as
  *    NumberField.Group.
  *  - Popup/Positioner follow the popover floating-surface archetype:
- *    --wheel-component-shadow-elevated with no border, data-starting/ending-style fade.
+ *    --wheel-component-shadow-elevated with no border and exit-only fade.
  *  - Item highlighted/selected states use flat top-level selectors; the
  *    ItemIndicator is hidden until [data-selected] via the item's own state.
  * ==================================================================== */
@@ -118,11 +118,10 @@
     box-shadow: var(--wheel-component-shadow-elevated);
     transform-origin: var(--transform-origin, center);
     transition:
-      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
+      opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out),
       scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
   }
 
-  .wheel-Combobox-Popup[data-starting-style],
   .wheel-Combobox-Popup[data-ending-style] {
     opacity: 0;
     scale: 0.97;

@@ -60,7 +60,9 @@
     inset-block: 0;
     inset-inline-start: 0;
     width: 40%;
-    animation: wheel-progress-indeterminate 1.4s var(--wheel-component-ease-in-out-cubic) infinite;
+    animation:
+      wheel-progress-indeterminate var(--wheel-component-duration-progress-loop)
+      var(--wheel-component-ease-in-out-cubic) infinite;
   }
 
   @keyframes wheel-progress-indeterminate {

@@ -5,3 +5,4 @@ export type {
   CheckboxGroupChangeEventDetails,
   CheckboxGroupChangeEventReason,
 } from './CheckboxGroup';
+export type { CheckboxGroupDensity } from './types';

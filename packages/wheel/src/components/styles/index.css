@@ -11,6 +11,8 @@
 @import './tokens.css';
 @import './base.css';
 @import './recipes/button.css';
+@import './recipes/button-group.css';
+@import './recipes/code-block.css';
 @import './recipes/switch.css';
 @import './recipes/popover.css';
 @import './recipes/tabs.css';
@@ -18,6 +20,7 @@
 @import './recipes/toggle-group.css';
 @import './recipes/checkbox.css';
 @import './recipes/checkbox-group.css';
+@import './recipes/checkbox-list.css';
 @import './recipes/radio.css';
 @import './recipes/input.css';
 @import './recipes/field.css';
@@ -29,6 +32,7 @@
 @import './recipes/separator.css';
 @import './recipes/slider.css';
 @import './recipes/accordion.css';
+@import './recipes/astryx.css';
 @import './recipes/collapsible.css';
 @import './recipes/scroll-area.css';
 @import './recipes/toolbar.css';

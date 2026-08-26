@@ -36,6 +36,7 @@ import { FOCUSABLE_POPUP_PROPS } from '../../utils/popups';
 import { mergeProps } from '../../merge-props/mergeProps';
 import { isElementDisabled } from '../../internals/composite/composite';
 import type { HTMLProps } from '../../internals/types';
+import type { SelectSize, SelectStatus, SelectVariant } from '../types';
 
 /**
  * Groups all parts of the select.
@@ -61,6 +62,9 @@ export function SelectRoot<Value, Multiple extends boolean | undefined = false>(
     'required',
     'readOnly',
     'disabled',
+    'size',
+    'status',
+    'variant',
     'multiple',
     'highlightItemOnHover',
     'defaultOpen',
@@ -83,6 +87,9 @@ export function SelectRoot<Value, Multiple extends boolean | undefined = false>(
   const required = () => componentProps.required ?? false;
   const readOnly = () => componentProps.readOnly ?? false;
   const disabledProp = () => componentProps.disabled ?? false;
+  const size = () => componentProps.size ?? 'md';
+  const status = () => componentProps.status;
+  const variant = () => componentProps.variant ?? 'input';
   const highlightItemOnHover = () => componentProps.highlightItemOnHover ?? true;
   const isItemEqualToValue = () => componentProps.isItemEqualToValue ?? defaultItemEquality;
 
@@ -459,6 +466,9 @@ export function SelectRoot<Value, Multiple extends boolean | undefined = false>(
     name,
     required,
     disabled,
+    size,
+    status,
+    variant,
     readOnly,
     multiple,
     highlightItemOnHover,
@@ -619,6 +629,12 @@ export interface SelectRootProps<Value, Multiple extends boolean | undefined = f
    * @default false
    */
   disabled?: boolean | undefined;
+  /** Sets the trigger and option density. @default 'md' */
+  size?: SelectSize | undefined;
+  /** Applies a validation tone without changing validation semantics. */
+  status?: SelectStatus | undefined;
+  /** Sets the trigger surface treatment. @default 'input' */
+  variant?: SelectVariant | undefined;
   /**
    * Whether multiple items can be selected.
    * @default false

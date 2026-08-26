@@ -10,8 +10,8 @@
  *    and its expanded transform from --toast-offset-y (measured by the
  *    library from real DOM heights + gap).
  *  - [data-swiping] disables the transition so the toast tracks the pointer
- *    1:1; the swipe-movement vars keep applying through starting/ending
- *    states so a dismissed-by-swipe toast continues in the swipe direction
+ *    1:1; the swipe-movement vars keep applying through ending state so a
+ *    dismissed-by-swipe toast continues in the swipe direction
  *    instead of snapping back to center.
  *  - Content's [data-behind] hides toasts stacked under the frontmost one
  *    until the stack is expanded (hover/focus) — pure opacity, no layout.
@@ -58,7 +58,7 @@
       scale(var(--wheel-component-toast-scale));
     transition:
       transform var(--wheel-component-duration-slow) var(--wheel-component-ease-out-cubic),
-      opacity var(--wheel-component-duration-slow) var(--wheel-component-ease-out-quad),
+      opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out),
       height var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
   }
 
@@ -71,7 +71,6 @@
     transition: none;
   }
 
-  .wheel-Toast-Root[data-starting-style],
   .wheel-Toast-Root[data-ending-style] {
     opacity: 0;
     transform: translateY(150%);
@@ -108,7 +107,9 @@
     gap: calc(var(--wheel-component-space) * 4);
     height: 100%;
     overflow: hidden;
-    transition: opacity var(--wheel-component-duration-slow) var(--wheel-component-ease-out-cubic);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
   .wheel-Toast-Content[data-behind] {

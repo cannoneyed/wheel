@@ -4,9 +4,9 @@ title: Component library
 
 # Component library
 
-`wheel/components` provides 38 accessible Solid component families. The default stylesheet applies the Mira zinc theme and remains opt-in.
+`wheel/components` provides 40 accessible Solid component families. The default stylesheet applies the Mira zinc theme and remains opt-in.
 
-[Browse all 38 live components](https://wheel.dev/components/). Each family page includes an interactive preview, theme controls, and its deep import path.
+[Browse all 40 live components](https://wheel.dev/components/). Each family page includes an interactive preview, theme controls, and its deep import path.
 
 ## Setup
 
@@ -32,11 +32,47 @@ The aggregate and deep entries expose the same component objects and public type
 
 | Group | Families |
 | --- | --- |
-| Controls | `Button`, `Checkbox`, `Radio`, `Switch`, `Toggle`, `ToggleGroup` |
-| Inputs | `Autocomplete`, `CheckboxGroup`, `Combobox`, `Field`, `Fieldset`, `Form`, `Input`, `NumberField`, `OTPField`, `RadioGroup`, `Select`, `Slider` |
+| Controls | `Button`, `ButtonGroup`, `IconButton`, `Checkbox`, `Radio`, `Switch`, `Toggle`, `ToggleGroup` |
+| Inputs | `Autocomplete`, `CheckboxGroup`, `CheckboxList`, `CheckboxListItem`, `Combobox`, `Field`, `Fieldset`, `Form`, `Input`, `NumberField`, `OTPField`, `RadioGroup`, `Select`, `Slider` |
 | Disclosure and navigation | `Accordion`, `Collapsible`, `ContextMenu`, `Menu`, `Menubar`, `NavigationMenu`, `Tabs`, `Toolbar` |
 | Overlays | `AlertDialog`, `Dialog`, `Drawer`, `Popover`, `PreviewCard`, `Toast`, `Tooltip` |
 | Display | `Avatar`, `Meter`, `Progress`, `ScrollArea`, `Separator` |
+
+## Button family
+
+The Button family shares four variants and three dense sizes. `ButtonGroup` connects actions, while `ToggleGroup` owns selection.
+
+| Component | Default | Use |
+| --- | --- | --- |
+| `Button` | `secondary`, `md` | Text actions, form actions, styled links, and async actions |
+| `ButtonGroup` | `secondary`, `md`, horizontal | A compact set of connected actions with roving focus |
+| `IconButton` | `secondary`, `md` | Compact actions with a required accessible label |
+| `Toggle` | `ghost`, `md` | One pressed or unpressed tool |
+| `ToggleGroup` | `single`, `secondary`, `md`, horizontal, `hug` | Single-select or multi-select pressed choices |
+
+```tsx
+// Intentionally unchecked: Fragment showing both Button family group forms.
+import { Button, ButtonGroup, IconButton, Toggle, ToggleGroup } from 'wheel/components';
+
+<ButtonGroup aria-label="Message actions" variant="primary" size="sm">
+  <Button>Reply</Button>
+  <IconButton label="More reply options" icon={<span aria-hidden="true">•••</span>} />
+</ButtonGroup>
+
+<ToggleGroup aria-label="Text alignment" defaultValue="left" layout="fill">
+  <Toggle value="left" label="Left" />
+  <Toggle value="center" label="Center" />
+  <Toggle value="right" label="Right" />
+</ToggleGroup>
+```
+
+Behavior contracts live beside the source:
+
+- [Button](../../packages/wheel/src/components/button/button.spec.md)
+- [Button Group](../../packages/wheel/src/components/button-group/button-group.spec.md)
+- [Icon Button](../../packages/wheel/src/components/icon-button/icon-button.spec.md)
+- [Toggle](../../packages/wheel/src/components/toggle/toggle.spec.md)
+- [Toggle Group](../../packages/wheel/src/components/toggle-group/toggle-group.spec.md)
 
 Multi-part families use a namespace:
 
@@ -76,7 +112,21 @@ Your `class` prop is added to the default class:
 
 ## Theme tokens
 
-The stylesheet defines semantic `--wheel-component-*` custom properties. Override tokens on `:root`, a theme container, or one component instance after the default import:
+[`packages/wheel/src/components/styles/tokens.css`](../../packages/wheel/src/components/styles/tokens.css) is the single source for Wheel component design constants.
+
+`packages/wheel/src/styles/tokens.css` is a separate app-shell palette exported as `wheel/styles`. Component recipes do not read spacing, shape, color, or motion values from that file.
+
+| Token group | Defines |
+| --- | --- |
+| Type | Font family, sizes, line heights, and tracking |
+| Space and shape | Base spacing unit, radii, and hairline width |
+| Motion | Instant, fade-out, state, layout, navigation, gesture, and continuous-loop durations; easing curves |
+| Surfaces | Background, foreground, border, accent, validation, selection, backdrop, and shadow colors |
+| Focus | Ring color, width, offset, and opacity |
+
+Component recipes may define local geometry such as popup width. They read shared design values from `tokens.css` and do not declare private timing values.
+
+Override semantic `--wheel-component-*` tokens on `:root`, a theme container, or one component instance after the default import:
 
 ```css
 .brand-theme {

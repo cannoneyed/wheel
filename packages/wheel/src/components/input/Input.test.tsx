@@ -18,6 +18,24 @@ describe('<Input />', () => {
     expect(getByPlaceholderText('name')).not.toBe(null);
   });
 
+  it('resolves size, variant, and status into state and data attributes', () => {
+    const classState = vi.fn(() => 'custom-input');
+    const { getByRole } = render(() => (
+      <Input size="lg" variant="ghost" status="warning" class={classState} />
+    ));
+    const input = getByRole('textbox');
+
+    expect(input).toHaveAttribute('data-size', 'lg');
+    expect(input).toHaveAttribute('data-variant', 'ghost');
+    expect(input).toHaveAttribute('data-status', 'warning');
+    expect(input).toHaveClass('custom-input');
+    expect(classState.mock.calls.at(-1)?.[0]).toMatchObject({
+      size: 'lg',
+      variant: 'ghost',
+      status: 'warning',
+    });
+  });
+
   describe('uncontrolled', () => {
     it('renders the defaultValue', () => {
       const { getByRole } = render(() => <Input defaultValue="hello" />);

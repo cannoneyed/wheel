@@ -1,15 +1,15 @@
 /* ========================================================================
  * RECIPE: Select — Menu-shaped popup (list) driving a field-like trigger
- * (data-open/starting-ending-style on Popup; data-highlighted/-selected on
- * Item; data-placeholder on Value; --anchor-width/--available-height)
+ * (data-open/data-ending-style on Popup; data-highlighted/-selected on Item;
+ * data-placeholder on Value; --anchor-width/--available-height)
  *
  * Pattern notes:
  *  - Trigger reads like a text field (min-width, space-between layout for
  *    the value + caret), not the generic wheel-Button pill.
  *  - Popup's min-width locks to --anchor-width (matches trigger width);
  *    [data-side='none'] is Select's "aligned directly over the trigger"
- *    positioning mode — it forgoes the enter animation and offsets by a
- *    hairline instead, matching upstream's native-select-like feel.
+ *    positioning mode and offsets by a hairline, matching upstream's
+ *    native-select-like feel.
  *  - Item reserves a fixed indicator column via CSS grid (see the Menu
  *    CheckboxItem/RadioItem exemplar) so labels align whether or not the
  *    current item is selected.
@@ -62,6 +62,42 @@
       border-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
   }
 
+  .wheel-Select-Trigger[data-size='sm'] {
+    min-width: 9rem;
+    height: 1.75rem;
+    gap: calc(var(--wheel-component-space) * 2);
+    padding-inline: calc(var(--wheel-component-space) * 2.5) calc(var(--wheel-component-space) * 1.5);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+  }
+
+  .wheel-Select-Trigger[data-size='lg'] {
+    min-width: 12rem;
+    height: 2.25rem;
+    gap: calc(var(--wheel-component-space) * 3.5);
+    padding-inline: calc(var(--wheel-component-space) * 3.5) calc(var(--wheel-component-space) * 2.5);
+    font-size: var(--wheel-component-text-lg);
+    line-height: var(--wheel-component-text-lg--lh);
+  }
+
+  .wheel-Select-Trigger[data-variant='ghost'] {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .wheel-Select-Trigger[data-status='success'] {
+    border-color: var(--wheel-component-success);
+  }
+
+  .wheel-Select-Trigger[data-status='warning'] {
+    border-color: var(--wheel-component-warning);
+  }
+
+  .wheel-Select-Trigger[data-status='error'] {
+    border-color: var(--wheel-component-danger);
+  }
+
   @media (hover: hover) {
     .wheel-Select-Trigger:hover:not([data-disabled]) {
       background: var(--wheel-component-bg-hover);
@@ -98,23 +134,26 @@
     font-size: var(--wheel-component-text-base);
     line-height: var(--wheel-component-text-base--lh);
     transform-origin: var(--transform-origin, center);
-    transition:
-      opacity var(--wheel-component-duration) var(--wheel-component-ease-out-cubic),
-      scale var(--wheel-component-duration) var(--wheel-component-ease-out-cubic);
+    transition: opacity var(--wheel-component-duration-fade-out) var(--wheel-component-ease-fade-out);
   }
 
-  .wheel-Select-Popup[data-starting-style],
   .wheel-Select-Popup[data-ending-style] {
     opacity: 0;
-    scale: 0.97;
   }
 
   .wheel-Select-Popup[data-side='none'] {
-    transition: none;
     translate: 0 var(--wheel-component-hairline);
-    scale: 1;
-    opacity: 1;
     min-width: calc(var(--anchor-width) + calc(var(--wheel-component-space) * 7));
+  }
+
+  .wheel-Select-Popup[data-size='sm'] {
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+  }
+
+  .wheel-Select-Popup[data-size='lg'] {
+    font-size: var(--wheel-component-text-lg);
+    line-height: var(--wheel-component-text-lg--lh);
   }
 
   .wheel-Select-Arrow {
@@ -159,6 +198,20 @@
     cursor: default;
     user-select: none;
     transition: background-color var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+  }
+
+  .wheel-Select-Item[data-size='sm'] {
+    gap: calc(var(--wheel-component-space) * 1.5);
+    padding: calc(var(--wheel-component-space) * 1.5) calc(var(--wheel-component-space) * 2.5);
+    font-size: var(--wheel-component-text-sm);
+    line-height: var(--wheel-component-text-sm--lh);
+  }
+
+  .wheel-Select-Item[data-size='lg'] {
+    gap: calc(var(--wheel-component-space) * 2.5);
+    padding: calc(var(--wheel-component-space) * 2.5) calc(var(--wheel-component-space) * 3.5);
+    font-size: var(--wheel-component-text-lg);
+    line-height: var(--wheel-component-text-lg--lh);
   }
 
   .wheel-Select-Item[data-highlighted] {
@@ -207,5 +260,21 @@
 
   .wheel-Select-ScrollDownArrow {
     bottom: 0;
+  }
+
+  @media (forced-colors: active) {
+    .wheel-Select-Trigger {
+      border-color: ButtonText;
+    }
+
+    .wheel-Select-Trigger[data-disabled] {
+      color: GrayText;
+    }
+
+    .wheel-Select-Item[data-highlighted] {
+      outline: var(--wheel-component-hairline) solid Highlight;
+      background: Highlight;
+      color: HighlightText;
+    }
   }
 }

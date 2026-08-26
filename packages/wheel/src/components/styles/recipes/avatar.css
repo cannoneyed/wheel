@@ -1,12 +1,11 @@
 /* ========================================================================
- * RECIPE: Avatar — circular image/fallback with a fade transition
- * (data-starting-style / data-ending-style contract on Image)
+ * RECIPE: Avatar — circular image/fallback with an exit transition
  *
  * Pattern notes:
  *  - Root has no interaction state of its own (imageLoadingStatus never maps
  *    to a data attribute — see stateAttributesMapping.ts); it's pure layout.
- *  - Image fades in/out using the library's presence attributes, exactly
- *    like Popover.Popup's enter/exit contract.
+ *  - Image renders immediately and fades out using the library's ending
+ *    presence attribute.
  * ==================================================================== */
 
 @layer wheel.components.recipes {
@@ -30,16 +29,65 @@
     user-select: none;
   }
 
+  .wheel-Avatar-Root[data-size='xs'] {
+    --wheel-component-avatar-size: 1.25rem;
+
+    font-size: var(--wheel-component-text-xs);
+  }
+
+  .wheel-Avatar-Root[data-size='sm'] {
+    --wheel-component-avatar-size: 1.75rem;
+
+    font-size: var(--wheel-component-text-xs);
+  }
+
+  .wheel-Avatar-Root[data-size='lg'] {
+    --wheel-component-avatar-size: 3rem;
+
+    font-size: var(--wheel-component-text-base);
+  }
+
+  .wheel-Avatar-Root[data-size='xl'] {
+    --wheel-component-avatar-size: 4rem;
+
+    font-size: var(--wheel-component-text-lg);
+  }
+
+  .wheel-Avatar-Root[data-shape='rounded'] {
+    border-radius: var(--wheel-component-radius-lg);
+  }
+
+  .wheel-Avatar-Root[data-shape='square'] {
+    border-radius: var(--wheel-component-radius-sm);
+  }
+
+  .wheel-Avatar-Root[data-status='online'] {
+    border-color: var(--wheel-component-success);
+  }
+
+  .wheel-Avatar-Root[data-status='busy'] {
+    border-color: var(--wheel-component-danger);
+  }
+
+  .wheel-Avatar-Root[data-status='away'] {
+    border-color: var(--wheel-component-warning);
+  }
+
+  .wheel-Avatar-Root[data-status='offline'] {
+    border-color: var(--wheel-component-fg-subtle);
+  }
+
   .wheel-Avatar-Image {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
     opacity: 1;
-    transition: opacity var(--wheel-component-duration) var(--wheel-component-ease-out-quad);
+    transition:
+      opacity var(--wheel-component-duration-fade-out)
+      var(--wheel-component-ease-fade-out);
   }
 
-  .wheel-Avatar-Image[data-starting-style],
   .wheel-Avatar-Image[data-ending-style] {
     opacity: 0;
   }
@@ -53,5 +101,11 @@
     color: var(--wheel-component-fg-muted);
     font-weight: 500;
     text-transform: uppercase;
+  }
+
+  @media (forced-colors: active) {
+    .wheel-Avatar-Root {
+      border-color: CanvasText;
+    }
   }
 }
