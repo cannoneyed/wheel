@@ -55,8 +55,8 @@ test.beforeEach(async ({ page }) => {
 
 test.afterAll(() => {
   // The notes this suite writes are test output, not somebody's work. Set
-  // WHEEL_KEEP_NOTES=1 to read what it actually produced.
-  if (process.env.WHEEL_KEEP_NOTES) return;
+  // WHEEL_KEEP_NOTES_TESTONLY=1 to read what it actually produced.
+  if (process.env.WHEEL_KEEP_NOTES_TESTONLY) return;
   rmSync(notesDir, { recursive: true, force: true });
 });
 

@@ -39,7 +39,7 @@ async function savedNote(before: string[]): Promise<{ markdown: string; payload:
 }
 
 test.afterAll(() => {
-  if (process.env.WHEEL_KEEP_NOTES) return;
+  if (process.env.WHEEL_KEEP_NOTES_TESTONLY) return;
   rmSync(notesDir, { recursive: true, force: true });
 });
 
