@@ -12,11 +12,18 @@
  * a `fetch`, and be read back a week later.
  */
 
-/** A viewport-space rectangle in CSS pixels, as measured at capture time. */
+/**
+ * A rectangle in CSS pixels, in DOCUMENT coordinates.
+ *
+ * Document rather than viewport, because a note is pinned to a place in the
+ * page and must stay there while the page scrolls. A viewport rectangle
+ * describes where something was on screen at one instant, which stops being
+ * true the moment anyone scrolls.
+ */
 export interface NoteRect {
-  /** Distance from the viewport's left edge. */
+  /** Distance from the document's left edge, scroll included. */
   readonly x: number;
-  /** Distance from the viewport's top edge. */
+  /** Distance from the document's top edge, scroll included. */
   readonly y: number;
   /** Width in CSS pixels. */
   readonly width: number;

@@ -34,9 +34,33 @@ const DOM_PATH_DEPTH = 6;
 /** How much of a target's text an element anchor quotes to find it again. */
 const QUOTE_LENGTH = 120;
 
-/** A DOMRect as the note stores it. */
+/** How far the page is scrolled, or zero where there is no window. */
+function scrollOffset(): { readonly x: number; readonly y: number } {
+  return { x: globalThis.scrollX ?? 0, y: globalThis.scrollY ?? 0 };
+}
+
+/**
+ * A measured rectangle as the note stores it: DOCUMENT coordinates.
+ *
+ * `getBoundingClientRect` is viewport-relative, so scroll has to be added back
+ * in. Without that, a pin drawn from a stored rect sits where the target was
+ * on screen when the note was written rather than where the target is.
+ */
 function toRect(rect: DOMRect | NoteRect): NoteRect {
-  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  const scroll = scrollOffset();
+  return { x: rect.x + scroll.x, y: rect.y + scroll.y, width: rect.width, height: rect.height };
+}
+
+/** A viewport rectangle — what a pointer gives you — in document coordinates. */
+export function toDocumentRect(rect: NoteRect): NoteRect {
+  const scroll = scrollOffset();
+  return { x: rect.x + scroll.x, y: rect.y + scroll.y, width: rect.width, height: rect.height };
+}
+
+/** A stored document rectangle back in viewport coordinates, for drawing or hit-testing. */
+export function toViewportRect(rect: NoteRect): NoteRect {
+  const scroll = scrollOffset();
+  return { x: rect.x - scroll.x, y: rect.y - scroll.y, width: rect.width, height: rect.height };
 }
 
 /** True when two viewport rectangles overlap at all (the Figma marquee convention). */
@@ -131,10 +155,12 @@ export function targetOf(registry: DebugRegistry, record: InstanceRecord): NoteT
  * a note over a region lists exactly what the ◰ tool would have listed.
  */
 export function targetsUnder(registry: DebugRegistry, rect: NoteRect, limit = 24): NoteTarget[] {
+  // Stored rectangles are document-space; element rectangles are viewport-space.
+  const viewport = toViewportRect(rect);
   const hits: Array<{ record: InstanceRecord; element: Element }> = [];
   for (const record of registry.instances()) {
     for (const element of record.elements) {
-      if (element.isConnected && rectsIntersect(rect, element.getBoundingClientRect())) {
+      if (element.isConnected && rectsIntersect(viewport, element.getBoundingClientRect())) {
         hits.push({ record, element });
         break;
       }
@@ -170,13 +196,12 @@ export function anchorToInstance(registry: DebugRegistry, record: InstanceRecord
  * survives an edit somewhere else on the page.
  */
 export function anchorToElement(element: Element): NoteAnchor {
-  const rect = element.getBoundingClientRect();
   return {
     kind: 'element',
     instanceId: null,
     name: null,
     ancestors: [],
-    rect: toRect(rect),
+    rect: toRect(element.getBoundingClientRect()),
     domPath: domPathOf(element),
     element: describeElement(element),
     text: quoteOf(element)

@@ -193,6 +193,72 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
+  it('anchors a dragged rectangle in document space, so it scrolls with the page', () => {
+    stubFetch();
+    const context = mountApp();
+    const service = annotator(context);
+    // The page is scrolled; a pointer still reports viewport coordinates.
+    Object.defineProperty(globalThis, 'scrollY', { configurable: true, value: 400 });
+    Object.defineProperty(globalThis, 'scrollX', { configurable: true, value: 0 });
+
+    service.arm();
+    service.pickRegion({ x: 10, y: 30, width: 200, height: 80 });
+
+    // Stored 400px lower than it was seen, which is where it lives in the page.
+    expect(service.draft.get()?.anchor.rect).toEqual({ x: 10, y: 430, width: 200, height: 80 });
+    service.disarm();
+  });
+
+  it('never opens a capture prompt as a side effect of picking', async () => {
+    stubFetch();
+    let prompted = 0;
+    const context = mountApp();
+    const service = context.services.get(AnnotateService);
+    service.attach(null, {
+      region: () => {
+        prompted += 1;
+        return Promise.resolve('data:image/png;base64,AAA');
+      },
+      stream: () => Promise.reject(new Error('no display capture in tests'))
+    });
+
+    service.arm();
+    service.pickRegion({ x: 0, y: 0, width: 50, height: 50 });
+    service.setText('no prompt for this');
+    expect(prompted).toBe(0);
+
+    // Only pressing the button reaches the capture seam.
+    service.captureShot();
+    await vi.waitFor(() => expect(prompted).toBe(1));
+    service.disarm();
+  });
+
+  it('records a clip without asking for video until video is asked for', () => {
+    stubFetch();
+    let streams = 0;
+    const context = mountApp();
+    const service = context.services.get(AnnotateService);
+    service.attach(null, {
+      region: () => Promise.resolve('data:image/png;base64,AAA'),
+      stream: () => {
+        streams += 1;
+        return Promise.reject(new Error('no display capture in tests'));
+      }
+    });
+
+    service.arm();
+    service.startClip();
+    expect(service.recording.get()).toBe(true);
+    // Pressing record must not cost a screen-capture modal.
+    expect(streams).toBe(0);
+    expect(service.filming.get()).toBe(false);
+
+    service.recordVideo();
+    expect(streams).toBe(1);
+    service.stopClip();
+    service.disarm();
+  });
+
   it('records the actions and state changes that happen during a clip', () => {
     stubFetch();
     const context = mountApp();
@@ -255,6 +321,10 @@ describe('AnnotateService', () => {
     const service = annotator(context);
     service.arm();
     service.pickInstance('BoardCell:3-7');
+    // Screen capture is never a side effect of opening the composer — it opens
+    // a permission prompt, so it happens only when someone presses the button.
+    expect(service.draft.get()?.shot).toBeNull();
+    service.captureShot();
     await vi.waitFor(() => expect(service.draft.get()?.shot).toBeTruthy());
     service.setText('look at this');
     service.save();

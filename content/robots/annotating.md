@@ -18,13 +18,16 @@ Service identity is declared, not preserved: every Service subclass carries `sta
 
 ## Flow
 
-`AnnotateService` holds the whole flow in `mode`: `off`, `armed`, `region`, `composing`.
+`AnnotateService` holds the whole flow in `mode`: `off`, `armed` (the marquee is up), `composing`. There is no separate region mode — drawing the rectangle is the interaction.
 
 - `arm()` / `disarm()`: toggle annotation mode. Arming installs the recorder in development mode.
-- `pickInstance(id)`, `pickRegion(rect)`, `pickPage()`: choose a target and open the composer.
+- `pickRegion(rect)`: the primary door — a dragged rectangle, given in VIEWPORT coordinates and stored in DOCUMENT coordinates so the note stays pinned to the page across scrolling.
+- `pickInstance(id)`, `pickElement(el)`, `pickPage()`: a click without a drag, and the whole-screen case.
+- `captureShot()`: take the screenshot. Never automatic — it opens a permission prompt.
+- `recordVideo()`: add screen video to a running clip. Also never automatic.
 - `setText()`, `setLabel()`, `setTranscript()`: edit the draft.
 - `listen()` / `stopListening()`: speech capture.
-- `startClip()` / `stopClip()`: record an interval.
+- `startClip()` / `stopClip()`: record an interval. `startClip` records the timeline only; video is `recordVideo()`.
 - `saveRetro()`: turn the rolling buffer into a clip after the fact.
 - `save()` / `discard()`: write the note, or drop it.
 
@@ -61,7 +64,9 @@ Cost with no tap installed: one null check per action call and per atom write.
 
 An anchor stores the instance id, the component name, the ancestor chain, the rectangle, a DOM path, an element description, and a text quote. `resolveAnchor()` returns `exact`, `renamed`, or `orphaned`. An orphaned note keeps its rectangle, screenshot, and captured state; it is never deleted or silently re-pointed.
 
-Anchor kinds: `instance` (a component), `element` (plain DOM), `region` (a dragged rectangle), `page`.
+Anchor kinds: `region` (a dragged rectangle, the default), `instance` (a component, from a click), `element` (plain DOM, from a click), `page`.
+
+All stored rectangles are DOCUMENT coordinates. `toDocumentRect()` and `toViewportRect()` convert; pins and the target outline render `position: absolute` so they scroll with the content.
 
 `element` anchors serve pages wheel does not own — docs, landing scrolls — where nothing is in the component registry. They resolve by DOM path first, then by the text quote when the path no longer matches or its content changed. A path whose content changed is a miss, not a match. Such a page needs a `ServiceProvider` (clientless, zero services) for `WheelAnnotate` to mount at all.
 

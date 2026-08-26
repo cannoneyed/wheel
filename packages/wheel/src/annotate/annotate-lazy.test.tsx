@@ -86,6 +86,8 @@ describe('<WheelAnnotate/>', () => {
     chip()!.click();
 
     await vi.waitFor(() => expect(document.querySelector('[data-testid="wheel-annotate-toolbar"]')).toBeTruthy());
+    // Arming goes straight to the marquee — drawing a rectangle IS the
+    // interaction, so there is no mode to select first.
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy();
   });
 

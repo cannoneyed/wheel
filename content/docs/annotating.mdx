@@ -105,12 +105,21 @@ redaction story yet: the state stays on the machine that captured it until a hum
 
 | | how | what you get |
 | --- | --- | --- |
-| **note** | arm, then click a component | that component's live state, props, actions, its place in the tree, and a screenshot of it |
-| **clip** | arm, ● record, do the thing, ■ stop | all of the above plus the merged timeline, a `clip.webm`, and the state tree as it was when recording started |
+| **note** | arm, then **drag a rectangle** around the area | every component under the rectangle, with its live state, props and actions — and the rectangle itself, pinned to the page |
+| **clip** | arm, ● record, do the thing, ■ stop | all of the above plus the merged timeline and the state tree as it was when recording started |
 | **last minute** | arm, ⏮ last minute | the same as a clip, for the thing that already happened — in dev the recorder keeps a rolling 60-second buffer, so you do not have to predict a bug to record it |
 
-The toolbar also offers **◰ region** (drag a rectangle; every component under it is captured) and
-**▭ page note** (a remark about the whole screen).
+Drawing the rectangle IS the interaction; there is no mode to pick first. A **click without a
+drag** takes whatever single component or element is under the cursor, because "this button"
+should not require drawing a box around it. **▭ page note** in the toolbar covers a remark about
+the whole screen.
+
+<Aside kind="note">
+  <strong>Nothing opens a permission prompt on its own.</strong> Picking an area costs no modal.
+  A screenshot happens when you press <strong>📷 screenshot</strong>, and screen video when you
+  press <strong>🎥 add video</strong> during a clip — a note is worth saving without either, so
+  neither is a toll you pay to write one.
+</Aside>
 
 ### Pages wheel does not own
 
@@ -140,6 +149,9 @@ render(() => (
   </ServiceProvider>
 ), root);
 ```
+
+The rectangle is stored in **document coordinates**, so the note is pinned to that place in the
+page: its outline and its pin scroll with the content rather than hanging in the viewport.
 
 Type your note, or press **🎤 talk**. Speech recognition writes a transcript you can edit before
 saving, and the audio is saved next to it as the receipt — an agent cannot listen to a recording,

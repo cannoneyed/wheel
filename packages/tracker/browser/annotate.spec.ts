@@ -60,18 +60,22 @@ test.afterAll(() => {
   rmSync(notesDir, { recursive: true, force: true });
 });
 
-test('a note on a picked component lands on disk with that component state', async ({ page }) => {
+test('a dragged rectangle lands on disk with the components under it', async ({ page }) => {
   const before = noteIds();
 
   await page.getByTestId('wheel-annotate-chip').click();
   const shield = page.getByTestId('wheel-annotate-shield');
   await expect(shield).toBeVisible();
 
-  // A real click at a real position — the shield is over the app on purpose,
-  // so the picker resolves what is underneath by hit-testing.
+  // Drag a rectangle around the row. This is the primary interaction: the
+  // shield is over the app on purpose, so the marquee owns the pointer and
+  // resolves what is underneath by hit-testing.
   const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
   expect(target).not.toBeNull();
-  await page.mouse.click(target!.x + target!.width / 2, target!.y + target!.height / 2);
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
 
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
   await page.getByTestId('wheel-annotate-text').fill('this row renders the wrong assignee');
@@ -84,8 +88,8 @@ test('a note on a picked component lands on disk with that component state', asy
     kind: string;
     label: string;
     text: string;
-    anchor: { instanceId: string | null; kind: string };
-    target: { instanceId: string; state: Record<string, unknown> } | null;
+    anchor: { instanceId: string | null; kind: string; rect: { y: number } | null };
+    nearby: Array<{ instanceId: string; state: Record<string, unknown> }>;
     environment: { url: string };
   };
 
@@ -94,17 +98,19 @@ test('a note on a picked component lands on disk with that component state', asy
   expect(payload.text).toBe('this row renders the wrong assignee');
   expect(payload.environment.url).toContain(`/teams/${team.id}/issues`);
 
-  // The point of the whole feature: the note carries the component and what it
-  // held, not just a rectangle.
+  // The point of the whole feature: the note carries the components under the
+  // rectangle and what they held, not just the rectangle.
+  expect(payload.anchor.kind).toBe('region');
+  expect(payload.anchor.rect).not.toBeNull();
   expect(payload.anchor.instanceId).toBeTruthy();
-  expect(payload.target).not.toBeNull();
-  expect(Object.keys(payload.target!.state).length).toBeGreaterThan(0);
+  expect(payload.nearby.length).toBeGreaterThan(0);
+  expect(Object.keys(payload.nearby[0]!.state).length).toBeGreaterThan(0);
 
   // And note.md is readable on its own, which is what an agent is handed.
   expect(note.markdown).toContain('# this row renders the wrong assignee');
   expect(note.markdown).toContain('## What it is attached to');
-  expect(note.markdown).toContain(payload.anchor.instanceId!);
-  expect(note.markdown).toContain('## State at capture');
+  expect(note.markdown).toContain('## Also under the selection');
+  expect(note.markdown).toContain(payload.nearby[0]!.instanceId);
 });
 
 test('a clip records the real actions and state changes behind an interaction', async ({ page }) => {

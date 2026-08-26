@@ -29,6 +29,8 @@ import type { SyncClient } from '../sync/client/client';
 import { activeErrorLog } from '../debug/error-capture';
 
 import {
+  toDocumentRect,
+  toViewportRect,
   anchorToElement,
   anchorToInstance,
   anchorToPage,
@@ -59,8 +61,15 @@ const PROVENANCE_HARVEST = 500;
 /** Projection depth for a synced row's value in the timeline. */
 const WRITE_DEPTH = 4;
 
-/** Where the flow currently is. */
-export type AnnotateMode = 'off' | 'armed' | 'region' | 'composing';
+/**
+ * Where the flow currently is.
+ *
+ * `armed` is the marquee: drag a rectangle around what you want to talk about,
+ * or click a single point to take whatever component or element is under it.
+ * There is no separate region mode, because drawing the rectangle IS the
+ * interaction.
+ */
+export type AnnotateMode = 'off' | 'armed' | 'composing';
 
 /** A note being written: everything captured so far, none of it saved yet. */
 export interface NoteDraft {
@@ -127,6 +136,8 @@ export class AnnotateService extends Service {
   readonly draft = this.atom<NoteDraft | null>(null, 'draft');
   /** True while a clip is recording. */
   readonly recording = this.atom(false, 'recording');
+  /** True while screen video is being captured alongside the clip. */
+  readonly filming = this.atom(false, 'filming');
   /** The component the picker is hovering. */
   readonly hovered = this.atom<string | null>(null, 'hovered');
   /** Notes already on disk, for pins. */
@@ -215,6 +226,7 @@ export class AnnotateService extends Service {
     this.cancelVoice();
     this.video.get()?.cancel();
     this.video.set(null);
+    this.filming.set(false);
     this.recorder.endClip();
     this.recording.set(false);
     this.draft.set(null);
@@ -242,13 +254,15 @@ export class AnnotateService extends Service {
     this.openComposer(anchorToInstance(this.context.registry, record), record);
   }, 'pickInstance');
 
-  /** Raise the marquee: the next drag becomes a region note. */
-  readonly startRegion = this.action(() => {
-    this.mode.set('region');
-  }, 'startRegion');
-
-  /** Attach a note to a dragged rectangle and open the composer. */
-  readonly pickRegion = this.action((rect: NoteRect) => {
+  /**
+   * Attach a note to a dragged rectangle and open the composer.
+   *
+   * The rectangle arrives in VIEWPORT coordinates, because that is what a
+   * pointer reports. It is stored in document coordinates so the note stays
+   * pinned to the page rather than to a scroll position.
+   */
+  readonly pickRegion = this.action((viewportRect: NoteRect) => {
+    const rect = toDocumentRect(viewportRect);
     this.openComposer(anchorToRegion(this.context.registry, rect), null, rect);
   }, 'pickRegion');
 
@@ -324,13 +338,27 @@ export class AnnotateService extends Service {
     this.recorder.startClip(this.now());
     this.errorCursor.set(activeErrorLog()?.entries().length ?? 0);
     this.recording.set(true);
-    const capture = this.capture.get();
-    if (capture) {
-      void startVideo(() => capture.stream())
-        .then((session) => this.video.set(session))
-        .catch(() => this.notice.set('no video — the timeline is recording all the same'));
-    }
   }, 'startClip');
+
+  /**
+   * Add screen video to the clip that is running.
+   *
+   * Separate from `startClip` on purpose: starting video opens a capture
+   * prompt, and pressing record should not cost a modal. The timeline is the
+   * recording; video is an illustration someone can opt into.
+   */
+  readonly recordVideo = this.action(() => {
+    const capture = this.capture.get();
+    if (!capture || this.video.get()) return;
+    this.notice.set('asking for screen capture…');
+    void startVideo(() => capture.stream())
+      .then((session) => {
+        this.video.set(session);
+        this.filming.set(true);
+        this.notice.set(null);
+      })
+      .catch(() => this.notice.set('no video — the timeline is recording all the same'));
+  }, 'recordVideo');
 
   /** Stop the clip and open the composer with the whole recording attached. */
   readonly stopClip = this.action(() => {
@@ -348,6 +376,7 @@ export class AnnotateService extends Service {
     });
     const session = this.video.get();
     this.video.set(null);
+    this.filming.set(false);
     if (session) {
       void session
         .stop()
@@ -445,8 +474,9 @@ export class AnnotateService extends Service {
       : resolved.element;
     if (live?.isConnected) {
       const rect = live.getBoundingClientRect();
+      // Measured against the viewport, stored and drawn against the document.
       return {
-        rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        rect: toDocumentRect({ x: rect.x, y: rect.y, width: rect.width, height: rect.height }),
         match: resolved.match
       };
     }
@@ -497,18 +527,29 @@ export class AnnotateService extends Service {
     this.mode.set('composing');
     this.hovered.set(null);
     this.notice.set(null);
-    if (region) this.captureRegion(region);
   }
 
-  /** Grab the pixels for a draft's rectangle; a failure just means no image. */
-  private captureRegion(rect: NoteRect): void {
+  /**
+   * Grab the pixels for the draft's rectangle. Only ever called because
+   * someone pressed the button.
+   *
+   * Screen capture opens a browser permission prompt, so doing it because the
+   * composer opened made every note cost a modal nobody asked for. A note is
+   * useful without pixels; the prompt is a choice.
+   */
+  readonly captureShot = this.action(() => {
+    const draft = this.draft.get();
     const capture = this.capture.get();
-    if (!capture) return;
+    if (!draft?.anchor.rect || !capture) return;
+    this.notice.set('capturing…');
     void capture
-      .region(rect)
-      .then((shot) => this.patchDraft({ shot }))
+      .region(toViewportRect(draft.anchor.rect))
+      .then((shot) => {
+        this.patchDraft({ shot });
+        this.notice.set(null);
+      })
       .catch(() => this.notice.set('no screenshot — this browser or tab refused screen capture'));
-  }
+  }, 'captureShot');
 
   /** Merge fields into the open draft; a no-op once the draft is gone. */
   private patchDraft(patch: Partial<NoteDraft>): void {
