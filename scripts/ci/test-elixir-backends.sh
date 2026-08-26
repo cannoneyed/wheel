@@ -6,44 +6,72 @@ if [[ -n "${SOLO_PROCESS_ID:-}" || "${TERM_PROGRAM:-}" == "solo" ]]; then
   exit 1
 fi
 
-container_name="wheel-elixir-${BUILDKITE_JOB_ID:-local}"
-wire_pid=""
+run_id="${BUILDKITE_JOB_ID:-local}"
+postgres_container="wheel-elixir-postgres-$run_id"
+wire_container="wheel-elixir-wire-$run_id"
+tracker_container="wheel-elixir-tracker-$run_id"
+elixir_image="hexpm/elixir:1.18.4-erlang-27.3.4.7-debian-bookworm-20260610-slim"
+repo_dir="$PWD"
 
 cleanup() {
-  if [[ -n "$wire_pid" ]]; then
-    kill "$wire_pid" 2>/dev/null || true
-    wait "$wire_pid" 2>/dev/null || true
-  fi
-  docker rm -f "$container_name" >/dev/null 2>&1 || true
+  docker rm -f "$tracker_container" >/dev/null 2>&1 || true
+  docker rm -f "$wire_container" >/dev/null 2>&1 || true
+  docker rm -f "$postgres_container" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
+mkdir -p .cache/mix .cache/hex
+
 docker run --rm --detach \
-  --name "$container_name" \
+  --name "$postgres_container" \
   --env POSTGRES_PASSWORD=postgres \
   --env POSTGRES_DB=wheel_sync \
   --publish 55432:5432 \
   postgres:17-alpine >/dev/null
 
 for _attempt in $(seq 1 60); do
-  if docker exec "$container_name" pg_isready -U postgres -d wheel_sync >/dev/null 2>&1; then
+  if docker exec "$postgres_container" pg_isready -U postgres -d wheel_sync >/dev/null 2>&1; then
     break
   fi
   sleep 0.5
 done
 
-docker exec "$container_name" pg_isready -U postgres -d wheel_sync >/dev/null
+docker exec "$postgres_container" pg_isready -U postgres -d wheel_sync >/dev/null
 export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:55432/wheel_sync"
 
-(cd elixir/wheel_sync && mix deps.get)
-(cd elixir/tracker && mix deps.get)
-(cd elixir/wheel_sync && mix test --warnings-as-errors)
+docker run --rm \
+  --network host \
+  --user "$(id -u):$(id -g)" \
+  --volume "$repo_dir:/workspace" \
+  --workdir /workspace \
+  --env DATABASE_URL \
+  --env MIX_HOME=/workspace/.cache/mix \
+  --env HEX_HOME=/workspace/.cache/hex \
+  "$elixir_image" \
+  bash -lc '
+    mix local.hex --force
+    mix local.rebar --force
+    cd elixir/wheel_sync
+    MIX_ENV=test mix deps.get
+    MIX_ENV=test mix test --warnings-as-errors --only postgres
+    cd ../tracker
+    mix deps.get
+    mix compile --warnings-as-errors
+  '
 
-(
-  cd elixir/wheel_sync
-  MIX_ENV=test PORT=4801 mix run test/support/wire_server.exs
-) &
-wire_pid="$!"
+docker run --rm --detach \
+  --name "$wire_container" \
+  --network host \
+  --user "$(id -u):$(id -g)" \
+  --volume "$repo_dir:/workspace" \
+  --workdir /workspace/elixir/wheel_sync \
+  --env DATABASE_URL \
+  --env MIX_ENV=test \
+  --env PORT=4801 \
+  --env MIX_HOME=/workspace/.cache/mix \
+  --env HEX_HOME=/workspace/.cache/hex \
+  "$elixir_image" \
+  mix run test/support/wire_server.exs >/dev/null
 
 for _attempt in $(seq 1 60); do
   if curl --fail --silent http://127.0.0.1:4801/readyz >/dev/null 2>&1; then
@@ -52,11 +80,41 @@ for _attempt in $(seq 1 60); do
   sleep 0.5
 done
 
-curl --fail --silent http://127.0.0.1:4801/readyz >/dev/null
+if ! curl --fail --silent http://127.0.0.1:4801/readyz >/dev/null; then
+  docker logs "$wire_container"
+  exit 1
+fi
+
 WHEEL_WIRE_URL=http://127.0.0.1:4801 WHEEL_WIRE_LABEL="Elixir Postgres" bun run test:wire
 
-kill "$wire_pid"
-wait "$wire_pid" 2>/dev/null || true
-wire_pid=""
+docker rm -f "$wire_container" >/dev/null
 
-bun run test:browser:tracker:all
+bun run test:browser:tracker:sqlite
+
+docker run --rm --detach \
+  --name "$tracker_container" \
+  --network host \
+  --user "$(id -u):$(id -g)" \
+  --volume "$repo_dir:/workspace" \
+  --workdir /workspace/elixir/tracker \
+  --env DATABASE_URL \
+  --env TRACKER_PORT=4799 \
+  --env TRACKER_RESET_DATABASE=1 \
+  --env MIX_HOME=/workspace/.cache/mix \
+  --env HEX_HOME=/workspace/.cache/hex \
+  "$elixir_image" \
+  mix run --no-halt >/dev/null
+
+for _attempt in $(seq 1 60); do
+  if curl --fail --silent http://127.0.0.1:4799/readyz >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done
+
+if ! curl --fail --silent http://127.0.0.1:4799/readyz >/dev/null; then
+  docker logs "$tracker_container"
+  exit 1
+fi
+
+TRACKER_BROWSER_SYNC_ORIGIN=http://127.0.0.1:4799 bun run test:browser:tracker:postgres

@@ -26,9 +26,11 @@ steps:
     key: "check-unit"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
+    env:
+      WHEEL_ELIXIR_DOCKER: "1"
     plugins:
       - mise#v1.1.5:
-          install_args: node bun erlang elixir
+          install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
       - "bun run check:unit"
@@ -41,7 +43,7 @@ steps:
     timeout_in_minutes: 30
     plugins:
       - mise#v1.1.5:
-          install_args: node bun erlang elixir
+          install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
       - "bun run docs:build"

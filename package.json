@@ -20,7 +20,7 @@
     "schema:tracker:check": "bun scripts/generate-schema-spec.ts packages/tracker/server/modules.ts TRACKER_SCHEMA_SPEC_INPUT packages/tracker/server/schema-spec.json --check",
     "seed:tracker": "bun scripts/generate-tracker-seed.ts",
     "seed:tracker:check": "bun scripts/generate-tracker-seed.ts --check",
-    "test:elixir": "sh -c 'cd elixir/wheel_sync && mix deps.get && mix format --check-formatted && mix test --warnings-as-errors && cd ../tracker && mix deps.get && mix format --check-formatted && mix compile --warnings-as-errors'",
+    "test:elixir": "bash scripts/test-elixir.sh",
     "test:cloudflare": "node node_modules/vitest/vitest.mjs run --config cloudflare/vitest.config.ts",
     "test:package": "node --test scripts/package-validation.test.mjs && node scripts/check-package.mjs",
     "package:wheel": "node scripts/check-package.mjs --output-dir .artifacts/npm",
