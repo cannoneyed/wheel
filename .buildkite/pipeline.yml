@@ -31,9 +31,15 @@ steps:
           install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
-      - "bun run check:unit:js"
-      - "bun run check:cloudflare"
-      - "bun run website:build"
+      - |
+        status=0
+        bun run check:unit:js & unit_pid=$!
+        bun run check:cloudflare & cloudflare_pid=$!
+        bun run website:build & website_pid=$!
+        wait "$unit_pid" || status=$?
+        wait "$cloudflare_pid" || status=$?
+        wait "$website_pid" || status=$?
+        exit "$status"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.jsonc"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.production.jsonc"
     artifact_paths:
@@ -49,9 +55,15 @@ steps:
           install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
-      - "bun run docs:build"
-      - "bun run test:browser:tracker:sqlite"
-      - "bun run test:browser:website"
+      - |
+        status=0
+        bun run docs:build & docs_pid=$!
+        bun run test:browser:tracker:sqlite & tracker_pid=$!
+        bun run test:browser:website & website_pid=$!
+        wait "$docs_pid" || status=$?
+        wait "$tracker_pid" || status=$?
+        wait "$website_pid" || status=$?
+        exit "$status"
       - "bun run build"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.tracker.jsonc"
     artifact_paths:
@@ -60,7 +72,7 @@ steps:
       - "packages/tracker/dist/**/*"
       - "packages/wheel/dist/**/*"
 
-  - label: ":elixir: Browser apps (Elixir/Postgres)"
+  - label: ":elixir: Browser apps (Elixir/Postgres) and behaviors"
     key: "check-browser-apps-postgres"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
@@ -69,12 +81,18 @@ steps:
           install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
-      - "bash scripts/ci/test-elixir-backends.sh"
+      - |
+        status=0
+        bash scripts/ci/test-elixir-backends.sh & elixir_pid=$!
+        bun run test:behaviors:smoke & behaviors_pid=$!
+        wait "$elixir_pid" || status=$?
+        wait "$behaviors_pid" || status=$?
+        exit "$status"
     artifact_paths:
       - "test-results/**/*"
       - "playwright-report/**/*"
 
-  - label: ":chromium: Browser components and behaviors"
+  - label: ":chromium: Browser components"
     key: "check-browser-components"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
@@ -97,7 +115,7 @@ steps:
           install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
-      - "bun run test:browser:demos-and-behaviors"
+      - "bun run test:browser:demos"
     artifact_paths:
       - "test-results/**/*"
       - "playwright-report/**/*"

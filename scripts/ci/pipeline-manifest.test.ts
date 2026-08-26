@@ -29,6 +29,10 @@ function commandCount(command: string): number {
     .length;
 }
 
+function textCount(value: string): number {
+  return pipeline.split(value).length - 1;
+}
+
 function step(key: string): string {
   const match = pipeline
     .split("\n  - label:")
@@ -40,9 +44,9 @@ function step(key: string): string {
 describe("Buildkite pipeline manifest", () => {
   test("runs every local check lane once", () => {
     for (const lane of ["static", "cloudflare"]) {
-      expect(commandCount(`bun run check:${lane}`)).toBe(1);
+      expect(textCount(`bun run check:${lane}`)).toBe(1);
     }
-    expect(commandCount("bun run check:unit:js")).toBe(1);
+    expect(textCount("bun run check:unit:js")).toBe(1);
     expect(commandCount("bun run check:unit")).toBe(0);
   });
 
@@ -78,9 +82,10 @@ describe("Buildkite pipeline manifest", () => {
       "bun run test:browser:tracker:sqlite",
       "bun run test:browser:website",
       "bun run test:browser:components",
-      "bun run test:browser:demos-and-behaviors",
+      "bun run test:behaviors:smoke",
+      "bun run test:browser:demos",
     ]) {
-      expect(commandCount(command)).toBe(1);
+      expect(textCount(command)).toBe(1);
     }
     expect(elixirBackends).toContain('WHEEL_WIRE_URL="$wire_url"');
     expect(elixirBackends).not.toContain("bun run test:browser:tracker:sqlite");
@@ -192,6 +197,10 @@ describe("Buildkite pipeline manifest", () => {
     expect(sqlite).toContain("bun run build");
     expect(sqlite).toContain('"packages/tracker/dist/**/*"');
     expect(sqlite).toContain('"packages/wheel/dist/**/*"');
+
+    expect(step("check-browser-apps-postgres")).toContain(
+      "bun run test:behaviors:smoke",
+    );
 
     const deploy = step("deploy-branch");
     for (const dependency of [
