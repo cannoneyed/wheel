@@ -65,6 +65,9 @@ test('runs Button actions, preserves link semantics, and accepts interrupting ac
   const link = family.getByTestId('button-link');
   const asyncButton = family.getByTestId('button-async');
   const interruptible = family.getByTestId('button-interruptible');
+  // The fixture's actions stay pending until this is pressed, so the busy
+  // state can be asserted in full instead of raced against a timer.
+  const release = family.getByTestId('button-release');
 
   await expect(link).toHaveRole('link');
   await expect(link).toHaveAttribute('href', '#button-link-target');
@@ -73,14 +76,19 @@ test('runs Button actions, preserves link semantics, and accepts interrupting ac
   await page.keyboard.press('Enter');
   await expect(asyncButton).toHaveAttribute('aria-busy', 'true');
   await expect(asyncButton).toBeDisabled();
+  await release.click();
   await expect(asyncButton).toHaveAttribute('data-runs', '1');
   await expect(asyncButton).not.toHaveAttribute('aria-busy', 'true');
+  await expect(asyncButton).toBeEnabled();
 
+  // Interruptible: a pending action accepts another activation, so two clicks
+  // land while the first is still in flight and the button never disables.
   await interruptible.click();
   await interruptible.click();
   await expect(interruptible).toHaveAttribute('aria-busy', 'true');
   await expect(interruptible).toBeEnabled();
   await expect(interruptible).toHaveAttribute('data-interrupts', '2');
+  await release.click();
   await expect(interruptible).not.toHaveAttribute('aria-busy', 'true');
 });
 
