@@ -70,6 +70,18 @@ Estimates in this repo's planning docs and reports are written in human-team uni
 
 When writing estimates: state relative size (S/M/L against a named reference task), not durations. When reading estimates from any doc dated before this section existed, divide by ~50 for agent execution. Wall-clock time is dominated by test suites, deliberate verification loops, and waits on human input — not by implementation.
 
+## Git commits and pull requests
+
+Write commit subjects as imperative sentences that name the concrete outcome. Keep the subject to 72 characters or less. Add a body only when the reason, behavior change, or migration detail does not fit in the subject.
+
+Good: `Add Checkbox family specs and catalog pages`
+
+Poor: `Update components`
+
+Pull request descriptions use valid Markdown with real line breaks. Pass multiline text through `--body-file` or standard input. Never encode new lines as literal `\n` text.
+
+A pull request description states what changed, why it matters, and what the reviewer should inspect. Do not add boilerplate sections that repeat CI status or test commands. After creating or editing the description, read it back and inspect the rendered text before requesting review or merging.
+
 ## Solo process management
 
 When `SOLO_PROCESS_ID` is set or `TERM_PROGRAM=solo`, use Solo for every long-running local process. This includes dev servers, watchers, workers, queues, and databases. Do not run these processes in an agent-owned PTY, with `&`, or with `nohup`.
