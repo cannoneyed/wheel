@@ -106,11 +106,15 @@ test('the landing page is annotatable too', async ({ page }) => {
     anchor: { kind: string; instanceId: string | null; domPath: string | null; text: string | null };
   };
 
-  // The landing sections carry `use:viewRoot`, so in a dev build they register
-  // and the picker gets the STRONGER anchor — a component instance. A
-  // production build does not register view components, and the same click
-  // falls to an element anchor. Either is fine; what must hold is that the
-  // note carries something that can find the target again.
-  expect(['instance', 'element']).toContain(payload.anchor.kind);
-  expect(payload.anchor.instanceId ?? payload.anchor.domPath).toBeTruthy();
+  // The suite serves the site with `bun run website` — a dev server, so
+  // `use:viewRoot` registers and the landing sections are real components.
+  // The picker therefore gets the STRONGER anchor here, and this asserts that
+  // rather than accepting either kind: a landing page that silently stopped
+  // registering its sections would be a regression worth failing on.
+  //
+  // (A production build does not register view components, and the same click
+  // falls to an element anchor. That path is covered by the docs case above,
+  // where MDX prose has no component to claim it either way.)
+  expect(payload.anchor.kind).toBe('instance');
+  expect(payload.anchor.instanceId).toBeTruthy();
 });
