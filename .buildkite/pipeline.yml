@@ -39,7 +39,9 @@ steps:
         wait "$$unit_pid" || status=$$?
         wait "$$cloudflare_pid" || status=$$?
         wait "$$website_pid" || status=$$?
-        exit "$$status"
+        if [ "$$status" -ne 0 ]; then
+          exit "$$status"
+        fi
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.jsonc"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.website.production.jsonc"
     artifact_paths:
@@ -60,17 +62,21 @@ steps:
         bun run docs:build & docs_pid=$$!
         bun run test:browser:tracker:sqlite & tracker_pid=$$!
         bun run test:browser:website & website_pid=$$!
+        bun run build & wheel_pid=$$!
         wait "$$docs_pid" || status=$$?
         wait "$$tracker_pid" || status=$$?
         wait "$$website_pid" || status=$$?
-        exit "$$status"
-      - "bun run build"
+        wait "$$wheel_pid" || status=$$?
+        if [ "$$status" -ne 0 ]; then
+          exit "$$status"
+        fi
+      - "mkdir -p .artifacts && tar -czf .artifacts/wheel-dist.tgz -C packages/wheel dist"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.tracker.jsonc"
     artifact_paths:
       - "test-results/**/*"
       - "playwright-report/**/*"
       - "packages/tracker/dist/**/*"
-      - "packages/wheel/dist/**/*"
+      - ".artifacts/wheel-dist.tgz"
 
   - label: ":elixir: Browser apps (Elixir/Postgres) and behaviors"
     key: "check-browser-apps-postgres"
@@ -192,8 +198,8 @@ steps:
       - "buildkite-agent artifact download 'packages/website/dist/**/*' . --step check-unit"
       - "buildkite-agent artifact download 'packages/tracker/dist/*' . --step check-browser-apps-sqlite"
       - "buildkite-agent artifact download 'packages/tracker/dist/**/*' . --step check-browser-apps-sqlite"
-      - "buildkite-agent artifact download 'packages/wheel/dist/*' . --step check-browser-apps-sqlite"
-      - "buildkite-agent artifact download 'packages/wheel/dist/**/*' . --step check-browser-apps-sqlite"
+      - "buildkite-agent artifact download '.artifacts/wheel-dist.tgz' . --step check-browser-apps-sqlite"
+      - "tar -xzf .artifacts/wheel-dist.tgz -C packages/wheel"
       - "bun install --frozen-lockfile --ignore-scripts"
       - "node node_modules/wrangler/bin/wrangler.js whoami"
       - "bun scripts/ci/deploy-branch.ts"
