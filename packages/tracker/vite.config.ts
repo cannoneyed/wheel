@@ -34,7 +34,9 @@ const wheelFromSource = [
  * port (`portless wheel-tracker-sync bun run tracker:server`); the literal
  * is the fallback for a plain `bun run tracker:server`.
  */
-const SYNC_ORIGIN = portlessOriginOr('wheel-tracker-sync', 'http://localhost:4797');
+const SYNC_ORIGIN =
+  process.env.TRACKER_SYNC_ORIGIN ??
+  portlessOriginOr('wheel-tracker-sync', 'http://localhost:4797');
 
 export default defineConfig({
   root: here('.'),
@@ -48,11 +50,11 @@ export default defineConfig({
     // cannot reach (portless 502s). Bind IPv4 explicitly.
     host: process.env.HOST || '127.0.0.1',
     // The engine serves /sync/* (renamed from /live/* in 011 phase 2).
-    proxy: { '/sync': { target: SYNC_ORIGIN, changeOrigin: false, ws: true } }
+    proxy: { '/sync/': { target: SYNC_ORIGIN, changeOrigin: false, ws: true } }
   },
   preview: {
     port: Number(process.env.PORT) || 4798,
     host: process.env.HOST || '127.0.0.1',
-    proxy: { '/sync': { target: SYNC_ORIGIN, changeOrigin: false, ws: true } }
+    proxy: { '/sync/': { target: SYNC_ORIGIN, changeOrigin: false, ws: true } }
   }
 });

@@ -1,7 +1,7 @@
-import { fileURLToPath } from 'node:url';
-import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from "node:url";
+import { defineConfig, devices } from "@playwright/test";
 
-import { portlessRoute } from '../../scripts/portless';
+import { portlessRoute } from "../../scripts/portless";
 
 /**
  * Playwright resolves `webServer.cwd` against the CONFIG file, not the repo
@@ -9,7 +9,17 @@ import { portlessRoute } from '../../scripts/portless';
  * sync server silently never starts, the app boots offline, and every test
  * fails on the sync badge instead of on anything it meant to check.
  */
-const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+const trackerMixRoot = fileURLToPath(
+  new URL("../../elixir/tracker", import.meta.url),
+);
+const backend = process.env.TRACKER_BROWSER_BACKEND ?? "sqlite";
+if (backend !== "sqlite" && backend !== "postgres") {
+  throw new Error("TRACKER_BROWSER_BACKEND must be sqlite or postgres.");
+}
+const syncPort = backend === "postgres" ? "4799" : "4797";
+const externalSyncOrigin = process.env.TRACKER_BROWSER_SYNC_ORIGIN;
+const syncOrigin = externalSyncOrigin ?? `http://127.0.0.1:${syncPort}`;
 
 /**
  * Where the app under test lives, in precedence order:
@@ -24,24 +34,26 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
  */
 // `-preview`, not `wheel-tracker`: this suite serves the production
 // build, so a running dev server must not be substituted for it.
-const portlessApp = portlessRoute('wheel-tracker-preview');
+const portlessApp = portlessRoute("wheel-tracker-preview");
 const baseURL =
-  process.env.TRACKER_BROWSER_BASE_URL ?? portlessApp?.url ?? 'http://127.0.0.1:4798';
+  process.env.TRACKER_BROWSER_BASE_URL ??
+  portlessApp?.url ??
+  "http://127.0.0.1:4798";
 const managesServers =
   process.env.TRACKER_BROWSER_BASE_URL === undefined && portlessApp === null;
 
 export default defineConfig({
-  testDir: './browser',
+  testDir: "./browser",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'line',
+  reporter: process.env.CI ? "github" : "line",
   use: {
-    ...devices['Desktop Chrome'],
+    ...devices["Desktop Chrome"],
     baseURL,
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    ignoreHTTPSErrors: true
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    ignoreHTTPSErrors: true,
   },
   /**
    * Every server here treats `PORT` as "my supervisor assigned me this port".
@@ -56,23 +68,40 @@ export default defineConfig({
    */
   webServer: managesServers
     ? [
+        ...(externalSyncOrigin
+          ? []
+          : [
+              {
+                command:
+                  backend === "postgres"
+                    ? "mix run --no-halt"
+                    : "bun run tracker:server",
+                cwd: backend === "postgres" ? trackerMixRoot : repoRoot,
+                env:
+                  backend === "postgres"
+                    ? {
+                        TRACKER_PORT: syncPort,
+                        TRACKER_RESET_DATABASE: "1",
+                        DATABASE_URL: process.env.DATABASE_URL ?? "",
+                      }
+                    : { TRACKER_PORT: syncPort },
+                url: `http://127.0.0.1:${syncPort}/readyz`,
+                reuseExistingServer: !process.env.CI,
+                timeout: 30_000,
+              },
+            ]),
         {
-          command: 'bun run tracker:server',
+          command: "bunx vite preview --config packages/tracker/vite.config.ts",
           cwd: repoRoot,
-          env: { TRACKER_PORT: '4797' },
-          url: 'http://127.0.0.1:4797/readyz',
-          reuseExistingServer: !process.env.CI,
-          timeout: 30_000
-        },
-        {
-          command: 'bunx vite preview --config packages/tracker/vite.config.ts',
-          cwd: repoRoot,
-          env: { PORT: new URL(baseURL).port },
+          env: {
+            PORT: new URL(baseURL).port,
+            TRACKER_SYNC_ORIGIN: syncOrigin,
+          },
           url: baseURL,
           reuseExistingServer: !process.env.CI,
-          timeout: 30_000
-        }
+          timeout: 30_000,
+        },
       ]
     : undefined,
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }]
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });

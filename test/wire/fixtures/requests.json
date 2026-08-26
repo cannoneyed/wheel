@@ -1,0 +1,93 @@
+{
+  "subscribe": {
+    "protocol": 1,
+    "type": "subscribe",
+    "requestId": "subscribe",
+    "query": "widgets.all",
+    "params": {}
+  },
+  "createAlpha": {
+    "protocol": 1,
+    "type": "mutate",
+    "requestId": "create-alpha",
+    "mutation": {
+      "clientId": "untrusted-client-id",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000001",
+      "name": "widgets.create",
+      "args": {
+        "title": "Alpha λ",
+        "position": 1.25,
+        "active": true,
+        "note": null
+      },
+      "ids": ["widget_0190b62e-0000-7000-8000-000000000001"]
+    }
+  },
+  "createBeta": {
+    "protocol": 1,
+    "type": "mutate",
+    "requestId": "create-beta",
+    "mutation": {
+      "clientId": "untrusted-client-id",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000002",
+      "name": "widgets.create",
+      "args": {
+        "title": "Béta",
+        "position": 2.5,
+        "active": false,
+        "note": ""
+      },
+      "ids": ["widget_0190b62e-0000-7000-8000-000000000002"]
+    }
+  },
+  "moveBetaFirst": {
+    "protocol": 1,
+    "type": "mutate",
+    "requestId": "move-beta",
+    "mutation": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000003",
+      "name": "widgets.move",
+      "args": {
+        "widgetId": "widget_0190b62e-0000-7000-8000-000000000002",
+        "position": 0.5
+      },
+      "ids": []
+    }
+  },
+  "deleteAlpha": {
+    "protocol": 1,
+    "type": "mutate",
+    "requestId": "delete-alpha",
+    "mutation": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000004",
+      "name": "widgets.delete",
+      "args": {
+        "widgetId": "widget_0190b62e-0000-7000-8000-000000000001"
+      },
+      "ids": []
+    }
+  },
+  "pair": {
+    "protocol": 1,
+    "type": "mutate",
+    "requestId": "pair",
+    "mutation": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000005",
+      "name": "widgets.pair",
+      "args": { "first": "First", "second": "Second" },
+      "ids": [
+        "widget_0190b62e-0000-7000-8000-000000000005",
+        "widget_0190b62e-0000-7000-8000-000000000006"
+      ]
+    }
+  },
+  "presence": {
+    "protocol": 1,
+    "type": "presence",
+    "requestId": "presence",
+    "state": { "route": "/widgets", "cursor": null }
+  }
+}

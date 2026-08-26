@@ -39,6 +39,7 @@ export const cycleStats = table({
   name: 'cycle_stats',
   type: CycleStatsRow,
   key: (row) => row.cycleId,
+  keySpec: { fields: ['cycleId'] },
   virtual: true
 });
 

@@ -36,6 +36,7 @@ const driftedQuery = query({
   name: 'todos.drifted', params: t.object({}), into: todos });
 const duplicateTodos = query({
   name: 'todos.duplicates', params: t.object({}), into: todos });
+let addHandlerRuns = 0;
 
 const syncModule = {
   todos,
@@ -79,6 +80,7 @@ const servers = {
   addTodoServer: serveMutation({
   mutation: addTodo,
   handler: async (tx, args, ctx) => {
+    addHandlerRuns += 1;
     await tx.sql`insert into todos (id, list_id, text, done) values (${ctx.newId('todo')}, ${args.listId}, ${args.text}, false)`;
   }
 }),
@@ -133,6 +135,7 @@ async function mutate(name: string, args: unknown, generated: string[] = []) {
 }
 
 beforeEach(async () => {
+  addHandlerRuns = 0;
   driver = betterSqlite3Driver(':memory:');
   db = {
     query: (text, params) => Promise.resolve(driver.all(text, params))
@@ -177,6 +180,9 @@ describe('subscribe + snapshot', () => {
     const connection = connect();
     await expect(connection.subscribe('nope.nope', {})).rejects.toThrow(/No query named/);
     await expect(connection.subscribe('todos.byList', { wrong: true })).rejects.toThrow(/invalid/i);
+    await expect(
+      connection.subscribe('todos.byList', { listId: 'l_1', extra: true })
+    ).rejects.toThrow(/outside its JSON Schema contract/);
   });
 
   test('a hibernated connection restores subscription ids, baselines, and presence', async () => {
@@ -297,6 +303,29 @@ describe('mutation → sync log → delta', () => {
     }
     expect(seqs).toEqual([1, 2, 3, 4, 5]);
     expect(server.seq()).toBe(5);
+  });
+
+  test('a duplicate mutation returns its original seq without entering the handler again', async () => {
+    const request = {
+      clientId: 'test_client',
+      mutationId: ids.newId('m'),
+      name: 'todos.add',
+      args: { listId: 'l_1', text: 'once' },
+      ids: [ids.newId('todo')]
+    };
+    const first = await server.mutate(request, principal);
+    const second = await server.mutate(request, principal);
+    expect(first).toEqual(second);
+    expect(addHandlerRuns).toBe(1);
+  });
+
+  test('mutation args reject fields outside the generated JSON Schema contract', async () => {
+    const result = await mutate('todos.add', { listId: 'l_1', text: 'x', extra: true }, [ids.newId('todo')]);
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'invalid_args' }
+    });
+    expect(addHandlerRuns).toBe(0);
   });
 });
 

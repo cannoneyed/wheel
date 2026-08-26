@@ -1,0 +1,193 @@
+{
+  "schemaSpecVersion": 1,
+  "protocolVersion": 1,
+  "tables": [
+    {
+      "name": "widgets",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "position",
+          "active",
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "name": "widgets.all",
+      "into": "widgets",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "widgets"
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "name": "widgets.create",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "position",
+          "active",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "widgets.delete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "widgetId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "widgetId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "widgets.fail",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "widgetId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "widgetId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "widgets.move",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "widgetId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "widgetId",
+          "position"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "widgets.pair",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "first": {
+            "type": "string"
+          },
+          "second": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "first",
+          "second"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "widgets.reject",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "widgetId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "widgetId"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "presence": null
+}

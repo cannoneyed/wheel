@@ -1,0 +1,37 @@
+{
+  "emptySnapshot": {
+    "protocol": 1,
+    "type": "response",
+    "requestId": "subscribe",
+    "ok": true,
+    "value": {
+      "subscriptionId": "{{subscriptionId}}",
+      "query": "widgets.all",
+      "seq": 0,
+      "rows": []
+    }
+  },
+  "alphaDelta": {
+    "protocol": 1,
+    "type": "event",
+    "event": {
+      "type": "delta",
+      "delta": {
+        "subscriptionId": "{{subscriptionId}}",
+        "query": "widgets.all",
+        "seq": 1,
+        "puts": [
+          {
+            "id": "widget_0190b62e-0000-7000-8000-000000000001",
+            "title": "Alpha λ",
+            "position": 1.25,
+            "active": true,
+            "note": null
+          }
+        ],
+        "deletes": [],
+        "order": ["widget_0190b62e-0000-7000-8000-000000000001"]
+      }
+    }
+  }
+}

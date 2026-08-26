@@ -6,7 +6,7 @@ Import only from `wheel/sync`. The linked declarations are the source of truth f
 
 ## `CacheReader`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:131](../../../packages/wheel/src/sync/declarations.ts#L131).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:176](../../../packages/wheel/src/sync/declarations.ts#L176).
 
 Read-only view of the effective client state — what invert() captures old values from.
 
@@ -78,13 +78,13 @@ IndexedDB-backed store for browsers. One database per storeName.
 
 ## `Infer`
 
-Kind: type. Source: [packages/wheel/src/sync/schema.ts:13](../../../packages/wheel/src/sync/schema.ts#L13).
+Kind: type. Source: [packages/wheel/src/sync/schema.ts:14](../../../packages/wheel/src/sync/schema.ts#L14).
 
 Extract the TypeScript type a schema validates to - Infer<typeof TodoRow>.
 
 ## `InverseSpec`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:141](../../../packages/wheel/src/sync/declarations.ts#L141).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:186](../../../packages/wheel/src/sync/declarations.ts#L186).
 
 The inverse of a mutation, captured at record time: applying it as a NEW mutation restores the prior state. Undo/redo is built from these — the engine never learns undo exists (it's just another mutation).
 
@@ -100,9 +100,15 @@ Kind: function. Source: [packages/wheel/src/sync/ids.ts:24](../../../packages/wh
 
 Validate a prefixed-UUIDv7 id (optionally pinning the prefix) - the server refuses malformed client-generated ids with this.
 
+## `jsonParseIsIdentity`
+
+Kind: function. Source: [packages/wheel/src/sync/schema.ts:178](../../../packages/wheel/src/sync/schema.ts#L178).
+
+True when parsing did not strip, add, coerce, or transform any JSON data.
+
 ## `JsonValueError`
 
-Kind: class. Source: [packages/wheel/src/sync/schema.ts:25](../../../packages/wheel/src/sync/schema.ts#L25).
+Kind: class. Source: [packages/wheel/src/sync/schema.ts:58](../../../packages/wheel/src/sync/schema.ts#L58).
 
 Thrown when a sync value is valid JavaScript but cannot round-trip through JSON.
 
@@ -144,19 +150,19 @@ A mutation's typed outcome. THE DOCTRINE: anything the engine COMPUTES — succe
 
 ## `mutation`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:224](../../../packages/wheel/src/sync/declarations.ts#L224).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:269](../../../packages/wheel/src/sync/declarations.ts#L269).
 
 Declare a mutation (sync-side). The server handler binds to it by name in *.server.ts.
 
 ## `MutationCtx`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:151](../../../packages/wheel/src/sync/declarations.ts#L151).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:196](../../../packages/wheel/src/sync/declarations.ts#L196).
 
 Deterministic context available to optimistic handlers (and replayed on the server).
 
 ## `MutationDecl`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:213](../../../packages/wheel/src/sync/declarations.ts#L213).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:258](../../../packages/wheel/src/sync/declarations.ts#L258).
 
 A declared write: named + typed args and the optimistic handler that previews it client-side.
 
@@ -180,7 +186,7 @@ The audit record of one mutation attempt, including its rejection/error if any.
 
 ## `MutationRejection`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:308](../../../packages/wheel/src/sync/declarations.ts#L308).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:353](../../../packages/wheel/src/sync/declarations.ts#L353).
 
 Typed rejection — a value that crosses the wire, not an exception class.
 
@@ -192,25 +198,25 @@ The lifecycle of a mutation: pending -> confirmed | rejected | failed | orphaned
 
 ## `OptimisticCache`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:122](../../../packages/wheel/src/sync/declarations.ts#L122).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:167](../../../packages/wheel/src/sync/declarations.ts#L167).
 
 The optimistic handlers' entire write vocabulary: rows are frozen values; `update` takes a patch and the cache owns the copy, which is the exit path to persistent structures if benchmarks ever demand it. Produce new rows, never mutate: rows returned by `get`/`list` are frozen (in production too). To change a row, pass a fresh object to `put` or a patch to `update` — writing to a returned row in place throws in strict mode and would otherwise silently corrupt the shared base state.
 
 ## `orphan`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:363](../../../packages/wheel/src/sync/declarations.ts#L363).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:408](../../../packages/wheel/src/sync/declarations.ts#L408).
 
 Throw this from an optimistic handler when a row it reads is missing on replay — `if (!cache.get(issues, id)) throw orphan('issue ' + id + ' is gone')`. Signals a legitimate row-is-gone, not a bug: the client settles the mutation `orphaned` and rolls it back cleanly, instead of `failed`. Reserve it for genuine row-gone guards; let real invariant violations throw normally so they surface as `failed` with the original error.
 
 ## `OrphanedError`
 
-Kind: class. Source: [packages/wheel/src/sync/declarations.ts:346](../../../packages/wheel/src/sync/declarations.ts#L346).
+Kind: class. Source: [packages/wheel/src/sync/declarations.ts:391](../../../packages/wheel/src/sync/declarations.ts#L391).
 
 The typed signal an optimistic handler throws when the row it depends on is gone — deleted by a peer's confirmed delta before this pending mutation replayed. It means "there is nothing left for me to edit," NOT "I have a bug." The client treats it as the ONE legitimate reason to abandon a replaying optimistic mutation: the entry settles `orphaned` (terminal, cleanly rolled back), never `failed`. Why a dedicated class instead of a bare `Error`: rebase() must tell "the row vanished" apart from "the handler crashed (typo, null deref)". A bare throw used to be swallowed as `orphaned`, so a real bug silently rolled the mutation back with no error to paste. Now only an `OrphanedError` takes the orphaned path; every other throw settles the mutation `failed` and logs.
 
 ## `patchMutation`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:267](../../../packages/wheel/src/sync/declarations.ts#L267).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:312](../../../packages/wheel/src/sync/declarations.ts#L312).
 
 The guard → patch → capture-prior → self-inverse skeleton that patch-by-id mutations copy verbatim. It read-guards the row (orphans if a peer deleted it first), applies the caller's partial patch, and makes the mutation ITS OWN inverse by replaying the prior values of exactly the fields the patch touched: export const projectUpdate = patchMutation({ name: 'projects.update', args: t.object({ projectId: t.string(), patch: ProjectPatch }), table: projects, id: (args) => args.projectId, description: 'edit project' }); `stamp` contributes server-mirroring fields the patch does not carry and the inverse must NOT restore — they are re-derived on every apply (undo included): stamp: (ctx) => ({ updatedAt: ctx.now() }) // issues.update stamp: (_ctx, _args, row) => ({ version: row.version + 1 }) Reserved for the `{ id, patch }` shape only. The odd cases — flat args (`{ commentId, body }`), multi-row writes, creates/deletes, mutations that skip rather than orphan on a missing row — stay hand-written.
 
@@ -246,13 +252,13 @@ Midpoint sort key between two neighbors (undefined = list edge) - a reorder writ
 
 ## `presence`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:97](../../../packages/wheel/src/sync/declarations.ts#L97).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:142](../../../packages/wheel/src/sync/declarations.ts#L142).
 
 Declare the app's presence-state shape (sync-side; single options object).
 
 ## `PresenceDecl`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:89](../../../packages/wheel/src/sync/declarations.ts#L89).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:134](../../../packages/wheel/src/sync/declarations.ts#L134).
 
 A typed contract for the presence channel — ephemeral state (cursor, focus, live-typing preview) relayed client → server → peers with no database, no history, no undo. The declaration is TYPING ONLY: the wire and the server relay stay untyped and unchanged; validation happens at the client's edges. A client has ONE presence state — the decl names and shapes it, it does not add channels.
 
@@ -270,13 +276,13 @@ The capped ring buffer of writes that explain() answers from - bounded retention
 
 ## `query`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:187](../../../packages/wheel/src/sync/declarations.ts#L187).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:232](../../../packages/wheel/src/sync/declarations.ts#L232).
 
 Declare a live query (sync-side). The optional projection decides where optimistic rows appear before the server confirms.
 
 ## `QueryDecl`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:174](../../../packages/wheel/src/sync/declarations.ts#L174).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:219](../../../packages/wheel/src/sync/declarations.ts#L219).
 
 A declared live query: named + typed params, target table, and optional client projection. SQL lives in the *.server.ts binding.
 
@@ -288,7 +294,7 @@ A live subscription handle: current rows (server order + optimistic projection) 
 
 ## `QueryProjection`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:168](../../../packages/wheel/src/sync/declarations.ts#L168).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:213](../../../packages/wheel/src/sync/declarations.ts#L213).
 
 The client-side approximation of a query's SQL, declared next to it in the sync-module side: which rows belong to this query's result (`filter`, mirroring the where clause) and how they order (`sort`, mirroring order by). The server SQL is always the truth — this only decides where *optimistic* rows show up before the server confirms. Optional: a query without it shows optimistic rows only after server confirmation.
 
@@ -306,13 +312,13 @@ Injected randomness source backing id generation — seeded in tests, crypto in 
 
 ## `rejection`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:328](../../../packages/wheel/src/sync/declarations.ts#L328).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:373](../../../packages/wheel/src/sync/declarations.ts#L373).
 
 `throw rejection('forbidden', ...)` in a server handler → typed rejection to the client. A NOUN on purpose: it BUILDS a value, it does not act. Written without `throw` — `rejection('forbidden', 'no')` on its own line — it reads as plainly inert, which is exactly the mistake the old verb form `reject(...)` hid ("reject" looks like it did something; forgetting `throw` guarded nothing).
 
 ## `RejectionError`
 
-Kind: class. Source: [packages/wheel/src/sync/declarations.ts:315](../../../packages/wheel/src/sync/declarations.ts#L315).
+Kind: class. Source: [packages/wheel/src/sync/declarations.ts:360](../../../packages/wheel/src/sync/declarations.ts#L360).
 
 The throwable carrier for a typed MutationRejection - thrown server-side by rejection(), never crosses the wire as an exception.
 
@@ -324,19 +330,19 @@ The wire unit of change: whole-row puts + id deletes + the full ordered id list 
 
 ## `RowSchema`
 
-Kind: type. Source: [packages/wheel/src/sync/schema.ts:16](../../../packages/wheel/src/sync/schema.ts#L16).
+Kind: type. Source: [packages/wheel/src/sync/schema.ts:17](../../../packages/wheel/src/sync/schema.ts#L17).
 
 A row schema must produce a plain JSON object.
 
 ## `RowValidationError`
 
-Kind: class. Source: [packages/wheel/src/sync/schema.ts:86](../../../packages/wheel/src/sync/schema.ts#L86).
+Kind: class. Source: [packages/wheel/src/sync/schema.ts:119](../../../packages/wheel/src/sync/schema.ts#L119).
 
 Thrown when a row fails schema validation at the server boundary - names the query and columns so SQL-schema drift is caught the moment it happens.
 
 ## `RowValidationIssue`
 
-Kind: interface. Source: [packages/wheel/src/sync/schema.ts:19](../../../packages/wheel/src/sync/schema.ts#L19).
+Kind: interface. Source: [packages/wheel/src/sync/schema.ts:52](../../../packages/wheel/src/sync/schema.ts#L52).
 
 One offending column in a row that failed boundary validation.
 
@@ -468,25 +474,31 @@ Public export. Read the linked declaration for its complete contract.
 
 ## `table`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:57](../../../packages/wheel/src/sync/declarations.ts#L57).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:81](../../../packages/wheel/src/sync/declarations.ts#L81).
 
 Declare a synced table of immutable rows (sync-side; single options object).
 
 ## `TableDecl`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:24](../../../packages/wheel/src/sync/declarations.ts#L24).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:32](../../../packages/wheel/src/sync/declarations.ts#L32).
 
 A declared synced table: name, row schema, and key extractor - the unit the client cache pools rows by.
 
+## `TableKeySpec`
+
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:24](../../../packages/wheel/src/sync/declarations.ts#L24).
+
+Language-neutral description of how a table row becomes its wire/cache identity.
+
 ## `validateJsonValue`
 
-Kind: function. Source: [packages/wheel/src/sync/schema.ts:78](../../../packages/wheel/src/sync/schema.ts#L78).
+Kind: function. Source: [packages/wheel/src/sync/schema.ts:111](../../../packages/wheel/src/sync/schema.ts#L111).
 
 Assert that a value round-trips through JSON without coercion or data loss.
 
 ## `validateRow`
 
-Kind: function. Source: [packages/wheel/src/sync/schema.ts:105](../../../packages/wheel/src/sync/schema.ts#L105).
+Kind: function. Source: [packages/wheel/src/sync/schema.ts:138](../../../packages/wheel/src/sync/schema.ts#L138).
 
 Validate one row against a schema, throwing an error that names the source declaration and the offending columns. Used at the server boundary before any row is emitted, so no invalid row ever reaches a client.
 

@@ -38,7 +38,8 @@ export const ReactionRow = t.object({
 export const reactions = table({
   name: 'reactions',
   type: ReactionRow,
-  key: (row) => `${row.commentId}:${row.userId}:${row.emoji}`
+  key: (row) => `${row.commentId}:${row.userId}:${row.emoji}`,
+  keySpec: { fields: ['commentId', 'userId', 'emoji'], separator: ':' }
 });
 
 /** One issue's comments, oldest first. */

@@ -20,12 +20,22 @@ const TABLE_NAME = /^[a-z][a-z0-9_]*$/;
 // whatever the table is actually named (already plural/snake_case).
 const OPERATION_NAME = /^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$/;
 
+/** Language-neutral description of how a table row becomes its wire/cache identity. */
+export interface TableKeySpec {
+  /** Top-level row fields read in order. One field is a simple key; several are joined. */
+  readonly fields: readonly string[];
+  /** Separator used only when `fields` contains more than one entry. */
+  readonly separator: string;
+}
+
 /** A declared synced table: name, row schema, and key extractor - the unit the client cache pools rows by. */
 export interface TableDecl<Row extends Record<string, unknown> = Record<string, unknown>> {
   readonly kind: 'table';
   readonly name: string;
   readonly schema: RowSchema<Row>;
   readonly key: (row: Row) => string;
+  /** Serializable equivalent of `key`, consumed by non-TypeScript sync engines. */
+  readonly keySpec: TableKeySpec;
   /** True for derived tables: no physical table, no touch trigger; queries into it re-run via their watch lists. */
   readonly virtual: boolean;
   readonly declSite: string;
@@ -50,6 +60,20 @@ export function validateTableKey<Row extends Record<string, unknown>>(
       `${source}: key extractor for table "${table.name}" must return a non-empty string; received ${JSON.stringify(key)}.`
     );
   }
+  const keyParts = table.keySpec.fields.map((field) => row[field]);
+  if (!keyParts.every((part) => typeof part === 'string')) {
+    throw new Error(
+      `${source}: key spec for table "${table.name}" requires string fields ` +
+        `${table.keySpec.fields.map((field) => JSON.stringify(field)).join(', ')}.`
+    );
+  }
+  const declaredKey = (keyParts as string[]).join(table.keySpec.separator);
+  if (key !== declaredKey) {
+    throw new Error(
+      `${source}: key extractor for table "${table.name}" returned ${JSON.stringify(key)}, ` +
+        `but its key spec produced ${JSON.stringify(declaredKey)}.`
+    );
+  }
   return key;
 }
 
@@ -58,6 +82,11 @@ export function table<Schema extends t.ZodType<Record<string, unknown>>>(options
   name: string;
   type: Schema;
   key: (row: Infer<Schema>) => string;
+  /** Serializable row identity. Defaults to the top-level `id` field. */
+  keySpec?: {
+    fields: readonly string[];
+    separator?: string;
+  };
   /**
    * Derived table: the name maps to no physical table (a second row contract
    * over an existing one, or a join). The engine installs no touch trigger;
@@ -68,11 +97,27 @@ export function table<Schema extends t.ZodType<Record<string, unknown>>>(options
   if (!TABLE_NAME.test(options.name)) {
     throw new Error(`Invalid table name ${JSON.stringify(options.name)}: must match ${TABLE_NAME}.`);
   }
+  const fields = options.keySpec?.fields ?? ['id'];
+  if (
+    fields.length === 0 ||
+    fields.some((field) => typeof field !== 'string' || field.trim() === '' || field.includes('.'))
+  ) {
+    throw new Error(
+      `Invalid key spec for table ${JSON.stringify(options.name)}: fields must be non-empty top-level property names.`
+    );
+  }
+  const separator = options.keySpec?.separator ?? ':';
+  if (typeof separator !== 'string' || (fields.length > 1 && separator === '')) {
+    throw new Error(
+      `Invalid key spec for table ${JSON.stringify(options.name)}: composite keys require a non-empty separator.`
+    );
+  }
   return {
     kind: 'table',
     name: options.name,
     schema: options.type as unknown as RowSchema<Infer<Schema>>,
     key: options.key,
+    keySpec: Object.freeze({ fields: Object.freeze([...fields]), separator }),
     virtual: options.virtual ?? false,
     declSite: captureDeclSite()
   };

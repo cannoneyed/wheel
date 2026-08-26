@@ -26,6 +26,8 @@ steps:
     key: "check-unit"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
+    env:
+      WHEEL_ELIXIR_DOCKER: "1"
     plugins:
       - mise#v1.1.5:
           install_args: node bun
@@ -45,7 +47,7 @@ steps:
     commands:
       - "bun install --frozen-lockfile"
       - "bun run docs:build"
-      - "bun run test:browser"
+      - "bash scripts/ci/test-elixir-backends.sh"
       - "bun run test:browser:website"
     artifact_paths:
       - "test-results/**/*"

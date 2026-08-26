@@ -22,7 +22,7 @@ import { validateTableKey } from '../declarations';
 import type { Clock, IdGen } from '../ids';
 import { createIdGen, isValidId } from '../ids';
 import { buildRegistry, type Registry } from './registry';
-import { JsonValueError, validateJsonValue, validateRow } from '../schema';
+import { JsonValueError, jsonParseIsIdentity, validateJsonValue, validateRow } from '../schema';
 import type { RowSchema } from '../schema';
 import type { RandomBytes } from '../ids';
 import { monotonicNowMs, systemClock, systemRandomBytes } from '../../core/runtime-defaults';
@@ -390,6 +390,14 @@ export class SyncServer {
     if (!binding || !decl) {
       throw new SyncServerError('unknown_query', `No query named "${queryName}" is registered.`);
     }
+    try {
+      validateJsonValue(`Params for query "${queryName}"`, rawParams);
+    } catch (error) {
+      if (error instanceof JsonValueError) {
+        throw new SyncServerError('invalid_params', error.message);
+      }
+      throw error;
+    }
     const parsed = decl.params.safeParse(rawParams);
     if (!parsed.success) {
       throw new SyncServerError(
@@ -398,13 +406,11 @@ export class SyncServer {
       );
     }
     const params = parsed.data;
-    try {
-      validateJsonValue(`Params for query "${queryName}"`, params);
-    } catch (error) {
-      if (error instanceof JsonValueError) {
-        throw new SyncServerError('invalid_params', error.message);
-      }
-      throw error;
+    if (!jsonParseIsIdentity(rawParams, params)) {
+      throw new SyncServerError(
+        'invalid_params',
+        `Params for query "${queryName}" contain fields or parse-time normalization outside its JSON Schema contract.`
+      );
     }
     return this.enqueue(async () => {
       const subscription: Subscription = {
@@ -567,6 +573,14 @@ export class SyncServer {
         return fail('invalid_id', `Pre-generated id ${JSON.stringify(id)} is not a valid prefixed UUIDv7.`);
       }
     }
+    try {
+      validateJsonValue(`Args for mutation "${request.name}"`, request.args);
+    } catch (error) {
+      if (error instanceof JsonValueError) {
+        return fail('invalid_args', error.message);
+      }
+      throw error;
+    }
     const parsed = decl.args.safeParse(request.args);
     if (!parsed.success) {
       return fail(
@@ -575,19 +589,24 @@ export class SyncServer {
       );
     }
     const args = parsed.data;
-    try {
-      validateJsonValue(`Args for mutation "${request.name}"`, args);
-    } catch (error) {
-      if (error instanceof JsonValueError) {
-        return fail('invalid_args', error.message);
-      }
-      throw error;
+    if (!jsonParseIsIdentity(request.args, args)) {
+      return fail(
+        'invalid_args',
+        `Args for mutation "${request.name}" contain fields or parse-time normalization outside its JSON Schema contract.`
+      );
     }
 
     const timing = liveTimingEnabled();
     const queuedAt = timing ? monotonicNow() : 0;
     return this.enqueue(async () => {
       const startedAt = timing ? monotonicNow() : 0;
+      // A normal outbox replay never enters the handler. The catch-path below
+      // remains for the commit/ack race and for a second process that committed
+      // between this lookup and the unique log insert.
+      const alreadyCommitted = await this.backend.findCommitted(request.mutationId);
+      if (alreadyCommitted) {
+        return { ok: true as const, seq: alreadyCommitted.seq };
+      }
       // The deterministic id stream: the handler consumes ctx.newId in call
       // order; a prefix mismatch/exhaustion fails loudly (conformance rule 4).
       // Built HERE (backend-agnostic) and handed to the backend to run.

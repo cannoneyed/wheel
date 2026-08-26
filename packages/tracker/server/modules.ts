@@ -45,3 +45,9 @@ export const TRACKER_SERVERS = [
   viewsServer,
   favoritesServer
 ] as const;
+
+/** Input shared by the checked-in JSON contract generator and both server runtimes. */
+export const TRACKER_SCHEMA_SPEC_INPUT = {
+  syncModules: [...TRACKER_SYNC_MODULES],
+  servers: [...TRACKER_SERVERS]
+};

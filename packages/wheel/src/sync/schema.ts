@@ -6,6 +6,7 @@
  * Call style is Zod's: `t.string()`, not `t.string`.
  */
 import { z } from 'zod';
+import { canonicalParams } from '../core/params';
 
 export { z as t };
 
@@ -14,6 +15,38 @@ export type Infer<T extends z.ZodType> = z.infer<T>;
 
 /** A row schema must produce a plain JSON object. */
 export type RowSchema<Row extends Record<string, unknown> = Record<string, unknown>> = z.ZodType<Row>;
+
+/** JSON Schema value emitted by Zod's language-neutral contract exporter. */
+export type JsonSchema = z.core.JSONSchema.BaseSchema;
+
+function withoutClosedObjects(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutClosedObjects);
+  if (typeof value !== 'object' || value === null) return value;
+  const result: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'additionalProperties' && child === false) continue;
+    result[key] = withoutClosedObjects(child);
+  }
+  return result;
+}
+
+/**
+ * Export one Zod schema as the strict JSON Schema contract shared with other
+ * runtimes. Generation fails when Zod accepts a different input shape than it
+ * produces, because defaults/transforms/coercions cannot be reproduced by a
+ * plain JSON Schema validator without a second normalization protocol.
+ */
+export function toContractJsonSchema(source: string, schema: z.ZodType): JsonSchema {
+  const input = z.toJSONSchema(schema, { io: 'input' });
+  const output = z.toJSONSchema(schema, { io: 'output' });
+  if (JSON.stringify(input) !== JSON.stringify(withoutClosedObjects(output))) {
+    throw new Error(
+      `${source} cannot be exported as Wheel JSON Schema: its Zod input and output shapes differ. ` +
+        'Remove defaults, transforms, coercions, or other parse-time normalization from sync schemas.'
+    );
+  }
+  return output;
+}
 
 /** One offending column in a row that failed boundary validation. */
 export interface RowValidationIssue {
@@ -107,6 +140,14 @@ export function validateRow<Row extends Record<string, unknown>>(
   schema: RowSchema<Row>,
   row: unknown
 ): Row {
+  try {
+    validateJsonValue(source, row);
+  } catch (error) {
+    if (error instanceof JsonValueError) {
+      throw new RowValidationError(source, [{ path: error.path, message: error.reason }]);
+    }
+    throw error;
+  }
   const result = schema.safeParse(row);
   if (!result.success) {
     throw new RowValidationError(
@@ -117,6 +158,11 @@ export function validateRow<Row extends Record<string, unknown>>(
       }))
     );
   }
+  if (canonicalParams(row) !== canonicalParams(result.data)) {
+    throw new RowValidationError(source, [
+      { path: '', message: 'row contains fields or parse-time normalization outside its JSON Schema contract' }
+    ]);
+  }
   try {
     validateJsonValue(source, result.data);
   } catch (error) {
@@ -126,4 +172,9 @@ export function validateRow<Row extends Record<string, unknown>>(
     throw error;
   }
   return result.data;
+}
+
+/** True when parsing did not strip, add, coerce, or transform any JSON data. */
+export function jsonParseIsIdentity(input: unknown, output: unknown): boolean {
+  return canonicalParams(input) === canonicalParams(output);
 }

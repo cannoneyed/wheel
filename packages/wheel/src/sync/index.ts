@@ -16,6 +16,7 @@ export {
   orphan,
   OrphanedError,
   type PresenceDecl,
+  type TableKeySpec,
   type TableDecl,
   type QueryDecl,
   type MutationDecl,
@@ -29,6 +30,7 @@ export {
 export {
   t,
   validateJsonValue,
+  jsonParseIsIdentity,
   validateRow,
   JsonValueError,
   RowValidationError,

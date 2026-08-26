@@ -1,0 +1,2206 @@
+{
+  "schemaSpecVersion": 1,
+  "protocolVersion": 1,
+  "tables": [
+    {
+      "name": "activity",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "issueId",
+          "kind",
+          "actorId",
+          "detail",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "comments",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "editedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "issueId",
+          "authorId",
+          "body",
+          "editedAt",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "cycle_stats",
+      "virtual": true,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cycleId": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "number"
+          },
+          "started": {
+            "type": "number"
+          },
+          "completed": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cycleId",
+          "scope",
+          "started",
+          "completed"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "cycleId"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "cycles",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "number": {
+            "type": "number"
+          },
+          "startsAt": {
+            "type": "number"
+          },
+          "endsAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "number",
+          "startsAt",
+          "endsAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "favorites",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "issue",
+              "project",
+              "team",
+              "view"
+            ]
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "kind",
+          "targetId",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "issue_labels",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "labelId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId",
+          "labelId",
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "issueId",
+          "labelId"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "issue_relations",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "relatedId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "blocks",
+              "relates",
+              "duplicate"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "issueId",
+          "relatedId",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "issues",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "number": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "stateId": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "number"
+          },
+          "assigneeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creatorId": {
+            "type": "string"
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projectId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cycleId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "boardOrder": {
+            "type": "number"
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "number",
+          "title",
+          "description",
+          "stateId",
+          "priority",
+          "assigneeId",
+          "creatorId",
+          "estimate",
+          "dueDate",
+          "parentId",
+          "projectId",
+          "cycleId",
+          "sortOrder",
+          "boardOrder",
+          "archivedAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "labels",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "teamId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "name",
+          "color"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "notifications",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "readAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "issueId",
+          "kind",
+          "actorId",
+          "detail",
+          "readAt",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "project_counts",
+      "virtual": true,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "total": {
+            "type": "number"
+          },
+          "completed": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "projectId",
+          "total",
+          "completed"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "projectId"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "projects",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "statusKind": {
+            "type": "string",
+            "enum": [
+              "backlog",
+              "planned",
+              "started",
+              "paused",
+              "completed",
+              "canceled"
+            ]
+          },
+          "leadId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "statusKind",
+          "leadId",
+          "targetDate",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "reactions",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "commentId",
+          "issueId",
+          "userId",
+          "emoji"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "commentId",
+          "userId",
+          "emoji"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "search_results",
+      "virtual": true,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "issue",
+              "comment"
+            ]
+          },
+          "rank": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "title",
+          "source",
+          "rank"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "teams",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "cycleLengthWeeks": {
+            "type": "number"
+          },
+          "estimatesEnabled": {
+            "type": "boolean"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "key",
+          "color",
+          "icon",
+          "cycleLengthWeeks",
+          "estimatesEnabled",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "users",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "initials": {
+            "type": "string"
+          },
+          "avatarColor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "initials",
+          "avatarColor"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "views",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "creatorId": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "string"
+          },
+          "display": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "name",
+          "creatorId",
+          "filters",
+          "display",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "workflow_states",
+      "virtual": false,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "backlog",
+              "unstarted",
+              "started",
+              "completed",
+              "canceled"
+            ]
+          },
+          "color": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "name",
+          "type",
+          "color",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "name": "activity.byIssue",
+      "into": "activity",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "activity"
+      ]
+    },
+    {
+      "name": "comments.byIssue",
+      "into": "comments",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "comments"
+      ]
+    },
+    {
+      "name": "cycle_stats.byTeam",
+      "into": "cycle_stats",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "cycles",
+        "issues",
+        "workflow_states"
+      ]
+    },
+    {
+      "name": "cycles.byTeam",
+      "into": "cycles",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "cycles"
+      ]
+    },
+    {
+      "name": "favorites.mine",
+      "into": "favorites",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "favorites"
+      ]
+    },
+    {
+      "name": "issue_labels.byTeam",
+      "into": "issue_labels",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "issue_labels"
+      ]
+    },
+    {
+      "name": "issue_relations.byTeam",
+      "into": "issue_relations",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "issue_relations"
+      ]
+    },
+    {
+      "name": "issues.byProject",
+      "into": "issues",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "issues"
+      ]
+    },
+    {
+      "name": "issues.byTeam",
+      "into": "issues",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "issues"
+      ]
+    },
+    {
+      "name": "labels.forTeam",
+      "into": "labels",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "labels"
+      ]
+    },
+    {
+      "name": "notifications.inbox",
+      "into": "notifications",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "notifications"
+      ]
+    },
+    {
+      "name": "project_counts.all",
+      "into": "project_counts",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "issues",
+        "workflow_states"
+      ]
+    },
+    {
+      "name": "projects.all",
+      "into": "projects",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "projects"
+      ]
+    },
+    {
+      "name": "reactions.byIssue",
+      "into": "reactions",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "reactions"
+      ]
+    },
+    {
+      "name": "search_results.results",
+      "into": "search_results",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "comments",
+        "issues"
+      ]
+    },
+    {
+      "name": "teams.all",
+      "into": "teams",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "teams"
+      ]
+    },
+    {
+      "name": "users.all",
+      "into": "users",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "users"
+      ]
+    },
+    {
+      "name": "views.byTeam",
+      "into": "views",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "views"
+      ]
+    },
+    {
+      "name": "workflow_states.byTeam",
+      "into": "workflow_states",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
+      "rerunOn": [
+        "workflow_states"
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "name": "comments.create",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "commentId",
+          "issueId",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "comments.delete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "commentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "comments.edit",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "commentId",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "favorites.add",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "favoriteId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "issue",
+              "project",
+              "team",
+              "view"
+            ]
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "favoriteId",
+          "kind",
+          "targetId",
+          "position"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "favorites.remove",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "favoriteId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "favoriteId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "favorites.reorder",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "favoriteId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "favoriteId",
+          "position"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issue_relations.add",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "relationId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "relatedId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "blocks",
+              "relates",
+              "duplicate"
+            ]
+          }
+        },
+        "required": [
+          "relationId",
+          "teamId",
+          "issueId",
+          "relatedId",
+          "kind"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issue_relations.remove",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "relationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "relationId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.addLabel",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "labelId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId",
+          "labelId",
+          "teamId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.archive",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "issueIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.bulkUpdate",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "issueId": {
+                  "type": "string"
+                },
+                "patch": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "stateId": {
+                      "type": "string"
+                    },
+                    "priority": {
+                      "type": "number"
+                    },
+                    "assigneeId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "estimate": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "dueDate": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "projectId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "cycleId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "issueId",
+                "patch"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "updates"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.create",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "stateId": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "number"
+          },
+          "assigneeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "boardOrder": {
+            "type": "number"
+          },
+          "labelIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "issueId",
+          "teamId",
+          "title",
+          "description",
+          "stateId",
+          "priority",
+          "assigneeId",
+          "estimate",
+          "dueDate",
+          "parentId",
+          "sortOrder",
+          "boardOrder",
+          "labelIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.delete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "issueIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.move",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "stateId": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "boardOrder": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "issueId",
+          "stateId",
+          "sortOrder",
+          "boardOrder"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.removeLabel",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "labelId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId",
+          "labelId",
+          "teamId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.reorder",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "boardOrder": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "issueId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.setParent",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "issueId",
+          "parentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.unarchive",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "issueIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "issues.update",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "stateId": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "number"
+              },
+              "assigneeId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "estimate": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dueDate": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "projectId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cycleId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "issueId",
+          "patch"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "notifications.setRead",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "notificationId": {
+                  "type": "string"
+                },
+                "readAt": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "notificationId",
+                "readAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "updates"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "projects.create",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "leadId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "projectId",
+          "name",
+          "description",
+          "leadId",
+          "targetDate",
+          "position"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "projects.delete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "projects.update",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "statusKind": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "planned",
+                  "started",
+                  "paused",
+                  "completed",
+                  "canceled"
+                ]
+              },
+              "leadId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "targetDate": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "projectId",
+          "patch"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "reactions.add",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "commentId",
+          "issueId",
+          "emoji"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "reactions.remove",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "commentId",
+          "issueId",
+          "emoji"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "teams.update",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "color": {
+                "type": "string"
+              },
+              "cycleLengthWeeks": {
+                "type": "number"
+              },
+              "estimatesEnabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "teamId",
+          "patch"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "views.create",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "viewId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "string"
+          },
+          "display": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "viewId",
+          "teamId",
+          "name",
+          "filters",
+          "display"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "views.delete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "viewId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "viewId"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "presence": null
+}
