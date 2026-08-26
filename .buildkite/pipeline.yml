@@ -62,11 +62,17 @@ steps:
           install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
-      - "bun run test:browser:components"
+      - |-
+        browser_status=0
+        bun run test:browser:components || browser_status=$?
+        if (( browser_status != 0 )); then
+          mkdir -p .artifacts
+          tar -czf .artifacts/playground-browser-results.tar.gz packages/playground/test-results
+        fi
+        exit "$browser_status"
       - "bun run test:behaviors:smoke"
     artifact_paths:
-      - "test-results/**/*"
-      - "playwright-report/**/*"
+      - ".artifacts/playground-browser-results.tar.gz"
 
   - label: ":chromium: Browser demos"
     key: "check-browser-demos"
