@@ -191,6 +191,7 @@ describe("Buildkite pipeline manifest", () => {
     const unit = step("check-unit");
     expect(unit).toContain("bun run check:cloudflare");
     expect(unit).toContain("bun run website:build");
+    expect(unit).toContain("unit_pid=$$!");
     expect(unit).toContain('"packages/website/dist/**/*"');
 
     const sqlite = step("check-browser-apps-sqlite");
