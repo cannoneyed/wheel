@@ -4,8 +4,21 @@ database_url =
 
 port = System.get_env("PORT", "4001") |> String.to_integer()
 
-{:ok, _supervisor} =
-  WheelSync.Supervisor.start_link(WheelSync.Test.WireApp.options(database_url, port))
+ip =
+  System.get_env("WHEEL_SYNC_IP", "127.0.0.1")
+  |> String.to_charlist()
+  |> :inet.parse_address()
+  |> case do
+    {:ok, address} -> address
+    {:error, :einval} -> raise "WHEEL_SYNC_IP must be an IPv4 or IPv6 address"
+  end
 
-IO.puts("wheel_sync wire server listening on http://127.0.0.1:#{port}")
+{:ok, _supervisor} =
+  WheelSync.Supervisor.start_link(
+    database_url
+    |> WheelSync.Test.WireApp.options(port)
+    |> Keyword.put(:ip, ip)
+  )
+
+IO.puts("wheel_sync wire server listening on port #{port}")
 Process.sleep(:infinity)

@@ -78,11 +78,11 @@ describe("Buildkite pipeline manifest", () => {
     ]) {
       expect(commandCount(command)).toBe(1);
     }
-    expect(elixirBackends).toContain("WHEEL_WIRE_URL=http://127.0.0.1:4801");
+    expect(elixirBackends).toContain('WHEEL_WIRE_URL="$wire_url"');
     expect(elixirBackends).not.toContain("bun run test:browser:tracker:sqlite");
     expect(elixirBackends).toContain("bun run test:browser:tracker:postgres");
     expect(elixirBackends).toContain(
-      "TRACKER_BROWSER_SYNC_ORIGIN=http://127.0.0.1:4799",
+      'TRACKER_BROWSER_SYNC_ORIGIN="$tracker_url"',
     );
   });
 
@@ -139,6 +139,16 @@ describe("Buildkite pipeline manifest", () => {
     expect(elixirUnit).toContain(image);
     expect(elixirBackends).toContain(image);
     expect(pipeline).toContain('WHEEL_ELIXIR_DOCKER: "1"');
+  });
+
+  test("isolates PostgreSQL and Elixir in a job-local Docker network", () => {
+    expect(elixirBackends).toContain('docker network create "$docker_network"');
+    expect(elixirBackends).toContain('--network "$docker_network"');
+    expect(elixirBackends).toContain('--network-alias postgres');
+    expect(elixirBackends).toContain('--publish 127.0.0.1::4801');
+    expect(elixirBackends).toContain('--publish 127.0.0.1::4799');
+    expect(elixirBackends).not.toContain("--network host");
+    expect(elixirBackends).not.toContain("--publish 55432:5432");
   });
 
   test("injects Cloudflare secrets only into deploy and cleanup", () => {
