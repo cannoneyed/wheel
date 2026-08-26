@@ -29,11 +29,21 @@ function commandCount(command: string): number {
     .length;
 }
 
+function step(key: string): string {
+  const match = pipeline
+    .split("\n  - label:")
+    .find((candidate) => candidate.includes(`\n    key: "${key}"\n`));
+  expect(match, `missing Buildkite step ${key}`).toBeDefined();
+  return match!;
+}
+
 describe("Buildkite pipeline manifest", () => {
   test("runs every local check lane once", () => {
-    for (const lane of ["static", "unit", "cloudflare"]) {
+    for (const lane of ["static", "cloudflare"]) {
       expect(commandCount(`bun run check:${lane}`)).toBe(1);
     }
+    expect(commandCount("bun run check:unit:js")).toBe(1);
+    expect(commandCount("bun run check:unit")).toBe(0);
   });
 
   // Build 37 deployed a site missing three files. `buildkite-agent artifact`
@@ -95,7 +105,7 @@ describe("Buildkite pipeline manifest", () => {
       "check-browser-apps-sqlite",
       "check-browser-apps-postgres",
     ]) {
-      expect(pipeline.match(new RegExp(`- "${key}"`, "g"))).toHaveLength(3);
+      expect(pipeline.match(new RegExp(`- "${key}"`, "g"))).toHaveLength(2);
     }
   });
 
@@ -138,7 +148,16 @@ describe("Buildkite pipeline manifest", () => {
       "hexpm/elixir:1.18.4-erlang-27.3.4.7-debian-bookworm-20260610-slim";
     expect(elixirUnit).toContain(image);
     expect(elixirBackends).toContain(image);
-    expect(pipeline).toContain('WHEEL_ELIXIR_DOCKER: "1"');
+    expect(pipeline).not.toContain("WHEEL_ELIXIR_DOCKER");
+  });
+
+  test("runs Elixir checks once in the Postgres lane", () => {
+    expect(elixirBackends.match(/mix format --check-formatted/g)).toHaveLength(
+      2,
+    );
+    expect(elixirBackends).toContain("MIX_ENV=test mix test --warnings-as-errors");
+    expect(elixirBackends).not.toContain("--only postgres");
+    expect(elixirBackends).toContain("mix compile --warnings-as-errors");
   });
 
   test("isolates PostgreSQL and Elixir in a job-local Docker network", () => {
@@ -162,6 +181,26 @@ describe("Buildkite pipeline manifest", () => {
     expect(pipeline).toContain("mise#v1.1.5");
     expect(pipeline).toContain("install_args: node bun");
     expect(pipeline).toContain("bun scripts/ci/deploy-branch.ts");
+  });
+
+  test("builds artifacts alongside checks and gates deploy on both", () => {
+    expect(step("build-website")).not.toContain("depends_on:");
+    expect(step("build-tracker")).not.toContain("depends_on:");
+
+    const deploy = step("deploy-branch");
+    for (const dependency of [
+      "check-static",
+      "check-unit",
+      "check-browser-apps-sqlite",
+      "check-browser-apps-postgres",
+      "check-browser-components",
+      "check-browser-demos",
+      "check-cloudflare",
+      "build-website",
+      "build-tracker",
+    ]) {
+      expect(deploy).toContain(`- "${dependency}"`);
+    }
   });
 
   test("keeps wheel.dev on the main-only website configuration", () => {

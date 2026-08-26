@@ -26,14 +26,12 @@ steps:
     key: "check-unit"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
-    env:
-      WHEEL_ELIXIR_DOCKER: "1"
     plugins:
       - mise#v1.1.5:
           install_args: node bun
     commands:
       - "bun install --frozen-lockfile"
-      - "bun run check:unit"
+      - "bun run check:unit:js"
     artifact_paths:
       - "test-results/**/*"
 
@@ -147,14 +145,6 @@ steps:
   - label: ":globe_with_meridians: Build website"
     key: "build-website"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
-    depends_on:
-      - "check-static"
-      - "check-unit"
-      - "check-browser-apps-sqlite"
-      - "check-browser-apps-postgres"
-      - "check-browser-components"
-      - "check-browser-demos"
-      - "check-cloudflare"
     timeout_in_minutes: 15
     plugins:
       - mise#v1.1.5:
@@ -170,14 +160,6 @@ steps:
   - label: ":card_file_box: Build tracker"
     key: "build-tracker"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
-    depends_on:
-      - "check-static"
-      - "check-unit"
-      - "check-browser-apps-sqlite"
-      - "check-browser-apps-postgres"
-      - "check-browser-components"
-      - "check-browser-demos"
-      - "check-cloudflare"
     timeout_in_minutes: 15
     plugins:
       - mise#v1.1.5:
@@ -199,6 +181,13 @@ steps:
       build.pull_request.id == null &&
       build.tag == null
     depends_on:
+      - "check-static"
+      - "check-unit"
+      - "check-browser-apps-sqlite"
+      - "check-browser-apps-postgres"
+      - "check-browser-components"
+      - "check-browser-demos"
+      - "check-cloudflare"
       - "build-website"
       - "build-tracker"
     timeout_in_minutes: 15

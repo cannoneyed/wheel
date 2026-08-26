@@ -62,9 +62,11 @@ docker run --rm \
     mix local.rebar --force
     cd elixir/wheel_sync
     MIX_ENV=test mix deps.get
-    MIX_ENV=test mix test --warnings-as-errors --only postgres
+    mix format --check-formatted
+    MIX_ENV=test mix test --warnings-as-errors
     cd ../tracker
     mix deps.get
+    mix format --check-formatted
     mix compile --warnings-as-errors
   '
 
