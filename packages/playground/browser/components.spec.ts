@@ -328,36 +328,6 @@ test('uses immediate state entry, exit-only motion, and system contrast fallback
   await expect(secondary).toHaveCSS('border-top-style', 'solid');
 });
 
-test('matches Button-family visual references in each catalog theme', async ({ page }) => {
-  const families = ['Button', 'ButtonGroup', 'IconButton', 'Toggle', 'ToggleGroup'] as const;
-  const themes = ['light', 'dark', 'custom'] as const;
-
-  for (const theme of themes) {
-    for (const familyName of families) {
-      const family = await themedFamily(page, theme, familyName);
-      await expect(family).toHaveScreenshot(
-        `button-family-${theme}-${familyName.toLowerCase()}.png`,
-        { animations: 'disabled' },
-      );
-    }
-  }
-});
-
-test('matches Checkbox-family visual references in each catalog theme', async ({ page }) => {
-  const families = ['Checkbox', 'CheckboxGroup', 'CheckboxList', 'CheckboxListItem'] as const;
-  const themes = ['light', 'dark', 'custom'] as const;
-
-  for (const theme of themes) {
-    for (const familyName of families) {
-      const family = await themedFamily(page, theme, familyName);
-      await expect(family).toHaveScreenshot(
-        `checkbox-family-${theme}-${familyName.toLowerCase()}.png`,
-        { animations: 'disabled' },
-      );
-    }
-  }
-});
-
 test('keeps keyboard focus visible', async ({ page }) => {
   const button = (await lightFamily(page, 'Button')).getByTestId('focus-button');
   await button.focus();

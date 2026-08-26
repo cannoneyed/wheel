@@ -6,8 +6,8 @@ const baseURL = process.env.COMPONENT_BROWSER_BASE_URL ?? 'http://127.0.0.1:4796
 
 export default defineConfig({
   testDir: './browser',
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: process.env.CI ? 4 : 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'line',
   use: {

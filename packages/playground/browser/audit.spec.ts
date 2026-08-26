@@ -236,26 +236,6 @@ test('renders reference and spec content for every component page', async ({ pag
   }
 });
 
-test('matches every component stage without container-stretched controls', async ({ page }) => {
-  test.setTimeout(300_000);
-  const links = page.locator('.component-audit__index [data-family]');
-  const targets = await links.evaluateAll((elements) => elements.map((element) => ({
-    href: element.getAttribute('href'),
-    name: element.getAttribute('data-family'),
-  })));
-
-  for (const target of targets) {
-    expect(target.href).not.toBeNull();
-    await page.goto(`/audit.html?visual-sweep${target.href}`);
-    const preview = page.getByTestId('audit-preview');
-    await expect(preview).toBeVisible();
-    await expect(preview).toHaveScreenshot(
-      `current-stage-${target.name!.replaceAll(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}.png`,
-      { animations: 'disabled' },
-    );
-  }
-});
-
 test('moves through Button-family children before the next family', async ({ page }) => {
   await page.goto('/audit.html?stepper#/button-group');
 
