@@ -118,3 +118,23 @@ test('the landing page is annotatable too', async ({ page }) => {
   expect(payload.anchor.kind).toBe('instance');
   expect(payload.anchor.instanceId).toBeTruthy();
 });
+
+test('a saved note comes back as a pin on the docs page', async ({ page }) => {
+  await page.goto('/docs/');
+  const paragraph = page.locator('main.content > p').first();
+  await expect(paragraph).toBeVisible();
+
+  await page.getByTestId('wheel-annotate-chip').click();
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
+  const box = await paragraph.boundingBox();
+  await page.mouse.move(box!.x - 6, box!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width + 6, box!.y + box!.height + 6, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await page.getByTestId('wheel-annotate-text').fill('pin me on the docs');
+  await page.getByTestId('wheel-annotate-save').click();
+
+  await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1, { timeout: 10_000 });
+});

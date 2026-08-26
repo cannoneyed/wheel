@@ -417,6 +417,11 @@ export class AnnotateService extends Service {
     const draft = this.draft.get();
     if (!draft) return;
     const payload = this.buildPayload(draft);
+    // Pin it NOW, from what is in hand. Waiting for the server listing meant a
+    // note only appeared if it round-tripped — so a note saved on a deployed
+    // app, where the delivery is a download, was never pinned at all. What you
+    // just wrote should be on the page whatever happens to it next.
+    this.notes.set([...this.notes.get(), { id: payload.id, payload }]);
     const body = {
       id: payload.id,
       payload,
@@ -442,6 +447,7 @@ export class AnnotateService extends Service {
         this.savedTo.set(result.dir ?? null);
         this.lastCommand.set(result.command ?? null);
         if (result.command) void copyToClipboard(result.command);
+        this.notice.set('saved — pinned to the page');
         this.loadNotes();
       })
       .catch(() => this.deliverAsDownload(payload, draft.shot));
@@ -453,7 +459,12 @@ export class AnnotateService extends Service {
       .then(async (response) => {
         if (!response.ok) return;
         const result = (await response.json()) as { ok: boolean; notes?: SavedNote[] };
-        if (result.ok && result.notes) this.notes.set(result.notes);
+        if (!result.ok || !result.notes) return;
+        // Keep anything the server has not got — a downloaded note lives only
+        // here, and the listing must not quietly erase it.
+        const onDisk = new Set(result.notes.map((note) => note.id));
+        const localOnly = this.notes.get().filter((note) => !onDisk.has(note.id));
+        this.notes.set([...result.notes, ...localOnly]);
       })
       .catch(() => {
         // No dev server (a production page, a static preview): pins simply do
@@ -655,6 +666,7 @@ export class AnnotateService extends Service {
     const command = `read ~/Downloads/${filename}`;
     this.savedTo.set(`${filename} (downloaded)`);
     this.lastCommand.set(command);
+    this.notice.set('no dev server here — downloaded, and pinned to the page');
     void copyToClipboard(command);
   }
 

@@ -201,3 +201,48 @@ test('falls back to one downloaded file when the app has no dev server', async (
   expect(payload.text).toBe('no server here');
   expect(payload.anchor.instanceId).toBeTruthy();
 });
+
+test('a saved note comes back as a pin on the thing it was left on', async ({ page }) => {
+  await page.getByTestId('wheel-annotate-chip').click();
+  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await page.getByTestId('wheel-annotate-text').fill('pin me');
+  await page.getByTestId('wheel-annotate-save').click();
+
+  // Saving returns to the armed state, and the note it just wrote should be
+  // on screen — that is the whole point of pinning it to the page.
+  await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1, { timeout: 10_000 });
+
+  // The server listing arrives moments later and must not duplicate it, nor
+  // drop it.
+  await page.waitForTimeout(1_000);
+  await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1);
+});
+
+test('a note pins even when there is no dev server to save it to', async ({ page }) => {
+  // A deployed app: the note downloads instead of being written. It still has
+  // to appear on the page — otherwise saving looks like it did nothing.
+  await page.route('**/__wheel/note', (route) => route.abort());
+
+  await page.getByTestId('wheel-annotate-chip').click();
+  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await page.getByTestId('wheel-annotate-text').fill('pinned without a server');
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('wheel-annotate-save').click()
+  ]);
+  expect(download.suggestedFilename()).toContain('pinned-without-a-server');
+  await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1, { timeout: 10_000 });
+});
