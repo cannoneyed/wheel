@@ -54,14 +54,13 @@ describe("Buildkite pipeline manifest", () => {
   // uses different glob implementations for upload and download: `dist/**/*`
   // collects top-level files on the way up but not on the way down, so
   // dist/index.html, dist/llms.txt and dist/install.md uploaded and never came
-  // back, and 404'd in production. Every downloaded directory therefore needs
-  // BOTH patterns, and nothing about the failure was visible in a green build —
-  // which is why it is asserted here rather than left to review.
-  test("downloads the top level of every artifact directory, not just nested files", () => {
+  // back, and 404'd in production. Website and Tracker therefore need BOTH
+  // patterns. Wheel's dist has only nested files, so asking for its empty top
+  // level fails the download command.
+  test("downloads top-level artifacts only from directories that have them", () => {
     for (const [directory, sourceStep] of [
       ["packages/website/dist", "check-unit"],
       ["packages/tracker/dist", "check-browser-apps-sqlite"],
-      ["packages/wheel/dist", "check-browser-apps-sqlite"],
     ]) {
       expect(
         pipeline,
@@ -73,6 +72,13 @@ describe("Buildkite pipeline manifest", () => {
         `buildkite-agent artifact download '${directory}/**/*' . --step ${sourceStep}`,
       );
     }
+
+    expect(pipeline).toContain(
+      "buildkite-agent artifact download 'packages/wheel/dist/**/*' . --step check-browser-apps-sqlite",
+    );
+    expect(pipeline).not.toContain(
+      "buildkite-agent artifact download 'packages/wheel/dist/*' . --step check-browser-apps-sqlite",
+    );
   });
 
   test("runs every browser suite once", () => {

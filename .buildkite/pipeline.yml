@@ -192,7 +192,6 @@ steps:
       - "buildkite-agent artifact download 'packages/website/dist/**/*' . --step check-unit"
       - "buildkite-agent artifact download 'packages/tracker/dist/*' . --step check-browser-apps-sqlite"
       - "buildkite-agent artifact download 'packages/tracker/dist/**/*' . --step check-browser-apps-sqlite"
-      - "buildkite-agent artifact download 'packages/wheel/dist/*' . --step check-browser-apps-sqlite"
       - "buildkite-agent artifact download 'packages/wheel/dist/**/*' . --step check-browser-apps-sqlite"
       - "bun install --frozen-lockfile --ignore-scripts"
       - "node node_modules/wrangler/bin/wrangler.js whoami"
