@@ -54,24 +54,19 @@ describe("Buildkite pipeline manifest", () => {
   // BOTH patterns, and nothing about the failure was visible in a green build —
   // which is why it is asserted here rather than left to review.
   test("downloads the top level of every artifact directory, not just nested files", () => {
-    for (const directory of [
-      "packages/website/dist",
-      "packages/tracker/dist",
-      "packages/wheel/dist",
+    for (const [directory, sourceStep] of [
+      ["packages/website/dist", "check-unit"],
+      ["packages/tracker/dist", "check-browser-apps-sqlite"],
+      ["packages/wheel/dist", "check-browser-apps-sqlite"],
     ]) {
-      const step = pipeline.includes(
-        `'${directory}/**/*' . --step build-website`,
-      )
-        ? "build-website"
-        : "build-tracker";
       expect(
         pipeline,
         `${directory} downloads nested files but not its top level`,
       ).toContain(
-        `buildkite-agent artifact download '${directory}/*' . --step ${step}`,
+        `buildkite-agent artifact download '${directory}/*' . --step ${sourceStep}`,
       );
       expect(pipeline).toContain(
-        `buildkite-agent artifact download '${directory}/**/*' . --step ${step}`,
+        `buildkite-agent artifact download '${directory}/**/*' . --step ${sourceStep}`,
       );
     }
   });
@@ -83,8 +78,7 @@ describe("Buildkite pipeline manifest", () => {
       "bun run test:browser:tracker:sqlite",
       "bun run test:browser:website",
       "bun run test:browser:components",
-      "bun run test:behaviors:smoke",
-      "bun run test:browser:demos",
+      "bun run test:browser:demos-and-behaviors",
     ]) {
       expect(commandCount(command)).toBe(1);
     }
@@ -177,16 +171,27 @@ describe("Buildkite pipeline manifest", () => {
   });
 
   test("deploys the named build artifacts", () => {
-    expect(pipeline).toContain("--step build-website");
-    expect(pipeline).toContain("--step build-tracker");
+    expect(pipeline).toContain("--step check-unit");
+    expect(pipeline).toContain("--step check-browser-apps-sqlite");
     expect(pipeline).toContain("mise#v1.1.5");
     expect(pipeline).toContain("install_args: node bun");
     expect(pipeline).toContain("bun scripts/ci/deploy-branch.ts");
   });
 
-  test("builds artifacts alongside checks and gates deploy on both", () => {
-    expect(step("build-website")).not.toContain("depends_on:");
-    expect(step("build-tracker")).not.toContain("depends_on:");
+  test("keeps the standard pipeline to six balanced jobs", () => {
+    expect(pipeline).not.toContain('key: "check-cloudflare"');
+    expect(pipeline).not.toContain('key: "build-website"');
+    expect(pipeline).not.toContain('key: "build-tracker"');
+
+    const unit = step("check-unit");
+    expect(unit).toContain("bun run check:cloudflare");
+    expect(unit).toContain("bun run website:build");
+    expect(unit).toContain('"packages/website/dist/**/*"');
+
+    const sqlite = step("check-browser-apps-sqlite");
+    expect(sqlite).toContain("bun run build");
+    expect(sqlite).toContain('"packages/tracker/dist/**/*"');
+    expect(sqlite).toContain('"packages/wheel/dist/**/*"');
 
     const deploy = step("deploy-branch");
     for (const dependency of [
@@ -196,9 +201,6 @@ describe("Buildkite pipeline manifest", () => {
       "check-browser-apps-postgres",
       "check-browser-components",
       "check-browser-demos",
-      "check-cloudflare",
-      "build-website",
-      "build-tracker",
     ]) {
       expect(deploy).toContain(`- "${dependency}"`);
     }

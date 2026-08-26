@@ -37,7 +37,7 @@
     "check:static": "bun run lint && bun run schema:wire:check && bun run schema:tracker:check && bun run seed:tracker:check && bun run docs:robots:check && bun run typecheck && bun run check:tracker-services && bun run check:wrangler-types && bun run test:package",
     "check:unit:js": "bun run test && bun run test:docs && bun run test:backends && bun run test:wire",
     "check:unit": "bun run check:unit:js && bun run test:elixir",
-    "check:browser": "bun run docs:build && bun run test:browser && bun run test:browser:components && bun run test:browser:demos && bun run test:behaviors:smoke && bun run test:browser:website",
+    "check:browser": "bun run docs:build && bun run test:browser && bun run test:browser:components && bun run test:browser:demos-and-behaviors && bun run test:browser:website",
     "check:cloudflare": "bun run test:cloudflare",
     "check": "bun run check:static && bun run check:unit && bun run check:browser && bun run check:cloudflare",
     "test:browser": "bun run test:browser:tracker:sqlite",
@@ -65,6 +65,7 @@
     "dev:tracker:server": "portless wheel-tracker-sync bun run tracker:server",
     "dev:tracker:preview": "bun run --cwd packages/tracker build && portless wheel-tracker-preview bun run --cwd packages/tracker preview",
     "test:browser:demos": "bun run --cwd packages/demos build && playwright test --config packages/demos/playwright.config.ts --grep-invert '@(standalone|embedded)'",
+    "test:browser:demos-and-behaviors": "bun run --cwd packages/demos build && playwright test --config packages/demos/playwright.config.ts --grep-invert '@(standalone|embedded)' && playwright test --config packages/demos/playwright.config.ts --grep '@smoke'",
     "test:behaviors:smoke": "bun run --cwd packages/demos build && playwright test --config packages/demos/playwright.config.ts --grep '@smoke'",
     "check:behaviors": "bun run --cwd packages/demos build && playwright test --config packages/demos/playwright.config.ts --grep '@(standalone|embedded)'"
   },
