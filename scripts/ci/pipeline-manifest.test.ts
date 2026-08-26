@@ -70,6 +70,7 @@ describe("Buildkite pipeline manifest", () => {
     for (const command of [
       "bun run docs:build",
       "bash scripts/ci/test-elixir-backends.sh",
+      "bun run test:browser:tracker:sqlite",
       "bun run test:browser:website",
       "bun run test:browser:components",
       "bun run test:behaviors:smoke",
@@ -78,11 +79,24 @@ describe("Buildkite pipeline manifest", () => {
       expect(commandCount(command)).toBe(1);
     }
     expect(elixirBackends).toContain("WHEEL_WIRE_URL=http://127.0.0.1:4801");
-    expect(elixirBackends).toContain("bun run test:browser:tracker:sqlite");
+    expect(elixirBackends).not.toContain("bun run test:browser:tracker:sqlite");
     expect(elixirBackends).toContain("bun run test:browser:tracker:postgres");
     expect(elixirBackends).toContain(
       "TRACKER_BROWSER_SYNC_ORIGIN=http://127.0.0.1:4799",
     );
+  });
+
+  test("runs SQLite and Elixir/Postgres browser apps in parallel jobs", () => {
+    expect(pipeline).toContain('key: "check-browser-apps-sqlite"');
+    expect(pipeline).toContain('key: "check-browser-apps-postgres"');
+    expect(pipeline).not.toContain('key: "check-browser-apps"');
+
+    for (const key of [
+      "check-browser-apps-sqlite",
+      "check-browser-apps-postgres",
+    ]) {
+      expect(pipeline.match(new RegExp(`- "${key}"`, "g"))).toHaveLength(3);
+    }
   });
 
   test("keeps all CI modes in Buildkite", () => {

@@ -37,8 +37,8 @@ steps:
     artifact_paths:
       - "test-results/**/*"
 
-  - label: ":chromium: Browser apps"
-    key: "check-browser-apps"
+  - label: ":chromium: Browser apps (SQLite)"
+    key: "check-browser-apps-sqlite"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
     timeout_in_minutes: 30
     plugins:
@@ -47,8 +47,22 @@ steps:
     commands:
       - "bun install --frozen-lockfile"
       - "bun run docs:build"
-      - "bash scripts/ci/test-elixir-backends.sh"
+      - "bun run test:browser:tracker:sqlite"
       - "bun run test:browser:website"
+    artifact_paths:
+      - "test-results/**/*"
+      - "playwright-report/**/*"
+
+  - label: ":elixir: Browser apps (Elixir/Postgres)"
+    key: "check-browser-apps-postgres"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bash scripts/ci/test-elixir-backends.sh"
     artifact_paths:
       - "test-results/**/*"
       - "playwright-report/**/*"
@@ -99,7 +113,8 @@ steps:
     depends_on:
       - "check-static"
       - "check-unit"
-      - "check-browser-apps"
+      - "check-browser-apps-sqlite"
+      - "check-browser-apps-postgres"
       - "check-browser-components"
       - "check-browser-demos"
       - "check-cloudflare"
@@ -135,7 +150,8 @@ steps:
     depends_on:
       - "check-static"
       - "check-unit"
-      - "check-browser-apps"
+      - "check-browser-apps-sqlite"
+      - "check-browser-apps-postgres"
       - "check-browser-components"
       - "check-browser-demos"
       - "check-cloudflare"
@@ -157,7 +173,8 @@ steps:
     depends_on:
       - "check-static"
       - "check-unit"
-      - "check-browser-apps"
+      - "check-browser-apps-sqlite"
+      - "check-browser-apps-postgres"
       - "check-browser-components"
       - "check-browser-demos"
       - "check-cloudflare"

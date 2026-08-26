@@ -110,8 +110,6 @@ WHEEL_WIRE_URL=http://127.0.0.1:4801 WHEEL_WIRE_LABEL="Elixir Postgres" bun run 
 
 docker rm -f "$wire_container" >/dev/null
 
-bun run test:browser:tracker:sqlite
-
 docker run --rm --detach \
   --name "$tracker_container" \
   --network host \
