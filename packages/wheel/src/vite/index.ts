@@ -15,6 +15,9 @@
  *   snapshot" and the agent READS THE FILES; no pasting anything anywhere.
  * - `GET /__wheel/snapshot` — capability probe; the panel enables its save
  *   button only when this answers.
+ * - `GET /__wheel/identity` — which checkout is serving this. A browser suite
+ *   asks before it runs a single test, so pointing it at the wrong dev server
+ *   fails loudly instead of passing against code nobody changed.
  *
  * Its config hook also enables Wheel dev mode during `vite serve`, preserves
  * service names, and rejects stale output from direct `file:` dependencies.
@@ -94,6 +97,15 @@ export function wheelDevTools(options: WheelDevToolsOptions = {}): WheelVitePlug
     const root = server.config?.root ?? process.cwd();
     const dirOption = options.snapshotDir ?? '.wheel/snapshots';
     const baseDir = isAbsolute(dirOption) ? dirOption : resolve(root, dirOption);
+
+    server.middlewares.use('/__wheel/identity', (req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.statusCode = 200;
+      // The vite root plus the process's working directory identify a checkout
+      // well enough to catch the failure this exists for: a suite in one
+      // worktree talking to a dev server from another.
+      res.end(JSON.stringify({ ok: true, root, cwd: process.cwd() }));
+    });
 
     server.middlewares.use('/__wheel/snapshot', (req, res) => {
       res.setHeader('content-type', 'application/json');

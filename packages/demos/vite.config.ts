@@ -23,7 +23,12 @@ const ENGINES = ['/sync'];
  * fallback for a plain `bun run demos:server`. Resolved at config load, so
  * restarting the sync server on a new port means restarting vite too.
  */
-const SYNC_ORIGIN = portlessOriginOr('wheel-demos-sync', 'http://localhost:4795');
+const SYNC_ORIGIN =
+  // A machine says which backend it means. This server is started BY the
+  // browser suite as well as by a human, and only a human should resolve a
+  // portless route (AGENTS.md, "portless is for humans, not for machines") —
+  // otherwise a test's preview proxies its requests to a dev backend.
+  process.env.DEMOS_SYNC_ORIGIN ?? portlessOriginOr('wheel-demos-sync', 'http://localhost:4795');
 
 /**
  * wheel from source — edit the library, watch the demos hot-reload. Without

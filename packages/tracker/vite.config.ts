@@ -35,6 +35,10 @@ const wheelFromSource = [
  * is the fallback for a plain `bun run tracker:server`.
  */
 const SYNC_ORIGIN =
+  // A machine says which backend it means. This server is started BY the
+  // browser suite as well as by a human, and only a human should resolve a
+  // portless route (AGENTS.md, "portless is for humans, not for machines") —
+  // otherwise a test's preview proxies its requests to a dev backend.
   process.env.TRACKER_SYNC_ORIGIN ??
   portlessOriginOr('wheel-tracker-sync', 'http://localhost:4797');
 
