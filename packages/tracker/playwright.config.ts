@@ -10,6 +10,12 @@ import { portlessRoute } from '../../scripts/portless';
  * fails on the sync badge instead of on anything it meant to check.
  */
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
+const trackerMixRoot = fileURLToPath(new URL('../../elixir/tracker', import.meta.url));
+const backend = process.env.TRACKER_BROWSER_BACKEND ?? 'sqlite';
+if (backend !== 'sqlite' && backend !== 'postgres') {
+  throw new Error('TRACKER_BROWSER_BACKEND must be sqlite or postgres.');
+}
+const syncPort = backend === 'postgres' ? '4799' : '4797';
 
 /**
  * Where the app under test lives, in precedence order:
@@ -57,17 +63,27 @@ export default defineConfig({
   webServer: managesServers
     ? [
         {
-          command: 'bun run tracker:server',
-          cwd: repoRoot,
-          env: { TRACKER_PORT: '4797' },
-          url: 'http://127.0.0.1:4797/readyz',
+          command: backend === 'postgres' ? 'mix run --no-halt' : 'bun run tracker:server',
+          cwd: backend === 'postgres' ? trackerMixRoot : repoRoot,
+          env:
+            backend === 'postgres'
+              ? {
+                  TRACKER_PORT: syncPort,
+                  TRACKER_RESET_DATABASE: '1',
+                  DATABASE_URL: process.env.DATABASE_URL ?? ''
+                }
+              : { TRACKER_PORT: syncPort },
+          url: `http://127.0.0.1:${syncPort}/readyz`,
           reuseExistingServer: !process.env.CI,
           timeout: 30_000
         },
         {
           command: 'bunx vite preview --config packages/tracker/vite.config.ts',
           cwd: repoRoot,
-          env: { PORT: new URL(baseURL).port },
+          env: {
+            PORT: new URL(baseURL).port,
+            TRACKER_SYNC_ORIGIN: `http://127.0.0.1:${syncPort}`
+          },
           url: baseURL,
           reuseExistingServer: !process.env.CI,
           timeout: 30_000

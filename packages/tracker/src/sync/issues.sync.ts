@@ -91,7 +91,8 @@ export const IssueLabelRow = t.object({
 export const issueLabels = table({
   name: 'issue_labels',
   type: IssueLabelRow,
-  key: (row) => `${row.issueId}:${row.labelId}`
+  key: (row) => `${row.issueId}:${row.labelId}`,
+  keySpec: { fields: ['issueId', 'labelId'], separator: ':' }
 });
 
 /** Every issue of one team, archived included (clients filter archivedAt). */

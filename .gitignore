@@ -42,6 +42,11 @@ recordings/
 *.sqlite3
 *.sqlite3-*
 
+# Elixir build artifacts
+/elixir/*/_build/
+/elixir/*/deps/
+/elixir/*/erl_crash.dump
+
 # Local tools
 *.log
 /.idea/

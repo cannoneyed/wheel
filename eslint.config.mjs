@@ -44,6 +44,7 @@ export default [
     files: [
       'packages/*/*.ts',
       'packages/*/{test,seed,jobs,server,browser}/**/*.{ts,tsx}',
+      'test/**/*.{ts,tsx}',
       'cloudflare/**/*.{ts,tsx}',
       'scripts/**/*.ts'
     ],

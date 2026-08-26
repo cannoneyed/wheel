@@ -34,6 +34,7 @@ export const projectCounts = table({
   name: 'project_counts',
   type: ProjectCountsRow,
   key: (row) => row.projectId,
+  keySpec: { fields: ['projectId'] },
   virtual: true
 });
 

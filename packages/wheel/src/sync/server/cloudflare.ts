@@ -71,3 +71,14 @@ export {
   type Registry,
   type ServerBindingLike
 } from './registry';
+export {
+  WHEEL_SCHEMA_SPEC_VERSION,
+  createSchemaSpec,
+  stringifySchemaSpec,
+  type SchemaSpecKey,
+  type SchemaSpecMutation,
+  type SchemaSpecPresence,
+  type SchemaSpecQuery,
+  type SchemaSpecTable,
+  type WheelSchemaSpec
+} from './schema-spec';

@@ -28,7 +28,7 @@ steps:
     timeout_in_minutes: 30
     plugins:
       - mise#v1.1.5:
-          install_args: node bun
+          install_args: node bun erlang elixir
     commands:
       - "bun install --frozen-lockfile"
       - "bun run check:unit"
@@ -41,11 +41,11 @@ steps:
     timeout_in_minutes: 30
     plugins:
       - mise#v1.1.5:
-          install_args: node bun
+          install_args: node bun erlang elixir
     commands:
       - "bun install --frozen-lockfile"
       - "bun run docs:build"
-      - "bun run test:browser"
+      - "bash scripts/ci/test-elixir-backends.sh"
       - "bun run test:browser:website"
     artifact_paths:
       - "test-results/**/*"

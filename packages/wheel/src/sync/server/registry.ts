@@ -5,7 +5,7 @@
  * without implementations, orphan implementations, rerun hints on undeclared
  * tables.
  */
-import type { MutationDecl, QueryDecl, TableDecl } from '../declarations';
+import type { MutationDecl, PresenceDecl, QueryDecl, TableDecl } from '../declarations';
 
 /** Boot-time failure listing every registry problem at once (duplicates, unimplemented declarations, orphan bindings, bad rerun hints) with declaration sites. */
 export class RegistryError extends Error {
@@ -23,12 +23,16 @@ function isQuery(value: unknown): value is QueryDecl {
 function isMutation(value: unknown): value is MutationDecl {
   return typeof value === 'object' && value !== null && (value as MutationDecl).kind === 'mutation';
 }
+function isPresence(value: unknown): value is PresenceDecl {
+  return typeof value === 'object' && value !== null && (value as PresenceDecl).kind === 'presence';
+}
 
 /** The collected declarations of all sync modules (*.sync.ts), keyed by name. */
 export interface SyncDeclarations {
   tables: Map<string, TableDecl>;
   queries: Map<string, QueryDecl>;
   mutations: Map<string, MutationDecl>;
+  presence: PresenceDecl | null;
 }
 
 /**
@@ -40,6 +44,7 @@ export function collectDeclarations(syncModules: object[]): SyncDeclarations {
   const tables = new Map<string, TableDecl>();
   const queries = new Map<string, QueryDecl>();
   const mutations = new Map<string, MutationDecl>();
+  const presences = new Map<string, PresenceDecl>();
 
   const add = <Decl extends { name: string; declSite: string }>(
     map: Map<string, Decl>,
@@ -64,8 +69,16 @@ export function collectDeclarations(syncModules: object[]): SyncDeclarations {
         add(queries, value, 'query');
       } else if (isMutation(value)) {
         add(mutations, value, 'mutation');
+      } else if (isPresence(value)) {
+        add(presences, value, 'presence');
       }
     }
+  }
+
+  if (presences.size > 1) {
+    problems.push(
+      `An application may declare one presence shape; found ${[...presences.keys()].map((name) => JSON.stringify(name)).join(', ')}.`
+    );
   }
 
   // Queries can only target declared tables.
@@ -80,7 +93,7 @@ export function collectDeclarations(syncModules: object[]): SyncDeclarations {
   if (problems.length > 0) {
     throw new RegistryError(problems);
   }
-  return { tables, queries, mutations };
+  return { tables, queries, mutations, presence: presences.values().next().value ?? null };
 }
 
 /** Minimal shape of a server binding, as produced by serveQuery/serveMutation. */

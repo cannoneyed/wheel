@@ -55,3 +55,38 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  docker:
+    command: open --wait-apps -a Docker
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  postgres:
+    command: docker run --rm --name wheel-elixir-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=wheel_sync -p 55433:5432 postgres:17-alpine
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  wire:elixir:
+    command: mix run test/support/wire_server.exs
+    working_dir: elixir/wheel_sync
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      MIX_ENV: test
+      PORT: "4801"
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:55433/wheel_sync
+      PATH: /Users/andycoenen/.local/share/mise/installs/elixir/1.18.4-otp-27/bin:/Users/andycoenen/.local/share/mise/installs/erlang/27.3.4.7/bin:/usr/local/bin:/usr/bin:/bin
+  tracker:elixir-server:
+    command: portless wheel-tracker-sync mix run --no-halt
+    working_dir: elixir/tracker
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      TRACKER_RESET_DATABASE: "1"
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:55433/wheel_sync
+      PATH: /Users/andycoenen/.local/share/mise/installs/elixir/1.18.4-otp-27/bin:/Users/andycoenen/.local/share/mise/installs/erlang/27.3.4.7/bin:/Users/andycoenen/.local/share/mise/installs/bun/1.3.14/bin:/Users/andycoenen/.local/share/mise/installs/node/24.19.0/bin:/usr/local/bin:/usr/bin:/bin

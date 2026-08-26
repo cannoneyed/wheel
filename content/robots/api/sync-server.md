@@ -36,7 +36,7 @@ The Node / vitest test and Node-dev driver, backed by `better-sqlite3` (an optio
 
 ## `buildRegistry`
 
-Kind: function. Source: [packages/wheel/src/sync/server/registry.ts:107](../../../packages/wheel/src/sync/server/registry.ts#L107).
+Kind: function. Source: [packages/wheel/src/sync/server/registry.ts:120](../../../packages/wheel/src/sync/server/registry.ts#L120).
 
 Boot-time cross-check of syncModules against server bindings. Every query and mutation must have exactly one implementation; no implementation may exist without a declaration; rerun hints must name declared tables.
 
@@ -66,7 +66,7 @@ Normalize one raw driver value to the canonical JS type both drivers must agree 
 
 ## `collectDeclarations`
 
-Kind: function. Source: [packages/wheel/src/sync/server/registry.ts:38](../../../packages/wheel/src/sync/server/registry.ts#L38).
+Kind: function. Source: [packages/wheel/src/sync/server/registry.ts:42](../../../packages/wheel/src/sync/server/registry.ts#L42).
 
 Scan sync module exports for declarations. Modules are plain `import *` namespaces (or any object of exports).
 
@@ -81,6 +81,12 @@ The compiled form of a sql`` template: driver-ready text plus positional params.
 Kind: function. Source: [packages/wheel/src/sync/sql.ts:57](../../../packages/wheel/src/sync/sql.ts#L57).
 
 Compile a fragment for SQLite. This is the only writer of placeholder syntax in the framework.
+
+## `createSchemaSpec`
+
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:80](../../../packages/wheel/src/sync/server/schema-spec.ts#L80).
+
+Build a stable schema document from the same declarations and bindings the TypeScript engine boots.
 
 ## `createSqliteSyncBackend`
 
@@ -156,7 +162,7 @@ A query source: a raw sql`` fragment (the compiled { text, params } payload).
 
 ## `Registry`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:97](../../../packages/wheel/src/sync/server/registry.ts#L97).
+Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:110](../../../packages/wheel/src/sync/server/registry.ts#L110).
 
 The cross-checked pairing of syncModule declarations with their server bindings - what the engine executes against.
 
@@ -171,6 +177,36 @@ Boot-time failure listing every registry problem at once (duplicates, unimplemen
 Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:22](../../../packages/wheel/src/sync/protocol.ts#L22).
 
 The wire unit of change: whole-row puts + id deletes + the full ordered id list (idempotent by construction).
+
+## `SchemaSpecKey`
+
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:10](../../../packages/wheel/src/sync/server/schema-spec.ts#L10).
+
+Serializable row-key rule shared by sync engines in every language.
+
+## `SchemaSpecMutation`
+
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:32](../../../packages/wheel/src/sync/server/schema-spec.ts#L32).
+
+One mutation's language-neutral argument shape.
+
+## `SchemaSpecPresence`
+
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:38](../../../packages/wheel/src/sync/server/schema-spec.ts#L38).
+
+Optional application presence shape used to check server registration.
+
+## `SchemaSpecQuery`
+
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:24](../../../packages/wheel/src/sync/server/schema-spec.ts#L24).
+
+One query's input shape, output table, and invalidation hints.
+
+## `SchemaSpecTable`
+
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:16](../../../packages/wheel/src/sync/server/schema-spec.ts#L16).
+
+One table's wire row shape, identity rule, and storage kind.
 
 ## `serveMutation`
 
@@ -198,7 +234,7 @@ A query declaration bound to its backend handler - the server half of the split-
 
 ## `ServerBindingLike`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:87](../../../packages/wheel/src/sync/server/registry.ts#L87).
+Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:100](../../../packages/wheel/src/sync/server/registry.ts#L100).
 
 Minimal shape of a server binding, as produced by serveQuery/serveMutation.
 
@@ -262,6 +298,12 @@ Kind: function. Source: [packages/wheel/src/sync/server/query-handler.ts:106](..
 
 The standard SQLite handler: a sql`` fragment plus table-level re-run hints. serveQuery({ query: cardList, handler: SqlQueryHandler({ sql: () => sql`select ... from cards order by position`, rerunOn: ['cards'] })}) The `serveQuery({ query, sql, rerunOn })` sugar desugars to exactly this.
 
+## `stringifySchemaSpec`
+
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:136](../../../packages/wheel/src/sync/server/schema-spec.ts#L136).
+
+Canonical checked-in artifact form.
+
 ## `SubscriptionDebugInfo`
 
 Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:69](../../../packages/wheel/src/sync/server/engine.ts#L69).
@@ -294,7 +336,7 @@ The connection state Cloudflare stores with a hibernatable WebSocket.
 
 ## `SyncDeclarations`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:28](../../../packages/wheel/src/sync/server/registry.ts#L28).
+Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:31](../../../packages/wheel/src/sync/server/registry.ts#L31).
 
 The collected declarations of all sync modules (*.sync.ts), keyed by name.
 
@@ -351,3 +393,15 @@ Version policy, limits, engine, and observability for one WebSocket server.
 Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:119](../../../packages/wheel/src/sync/server/engine.ts#L119).
 
 One live-query descriptor that can rebuild its in-memory comparison baseline after hibernation.
+
+## `WHEEL_SCHEMA_SPEC_VERSION`
+
+Kind: value. Source: [packages/wheel/src/sync/server/schema-spec.ts:7](../../../packages/wheel/src/sync/server/schema-spec.ts#L7).
+
+Version of the generated document shape. Independent from the wire version.
+
+## `WheelSchemaSpec`
+
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:44](../../../packages/wheel/src/sync/server/schema-spec.ts#L44).
+
+Complete language-neutral application contract consumed by external sync engines.

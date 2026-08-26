@@ -2,6 +2,10 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 
 const pipeline = readFileSync(new URL('../../.buildkite/pipeline.yml', import.meta.url), 'utf8');
+const elixirBackends = readFileSync(
+  new URL('./test-elixir-backends.sh', import.meta.url),
+  'utf8'
+);
 const mise = readFileSync(new URL('../../.mise.toml', import.meta.url), 'utf8');
 const previewWebsite = readFileSync(new URL('../../wrangler.website.jsonc', import.meta.url), 'utf8');
 const productionWebsite = readFileSync(
@@ -50,7 +54,7 @@ describe('Buildkite pipeline manifest', () => {
   test('runs every browser suite once', () => {
     for (const command of [
       'bun run docs:build',
-      'bun run test:browser',
+      'bash scripts/ci/test-elixir-backends.sh',
       'bun run test:browser:website',
       'bun run test:browser:components',
       'bun run test:behaviors:smoke',
@@ -58,6 +62,8 @@ describe('Buildkite pipeline manifest', () => {
     ]) {
       expect(commandCount(command)).toBe(1);
     }
+    expect(elixirBackends).toContain('WHEEL_WIRE_URL=http://127.0.0.1:4801');
+    expect(elixirBackends).toContain('bun run test:browser:tracker:all');
   });
 
   test('keeps all CI modes in Buildkite', () => {
