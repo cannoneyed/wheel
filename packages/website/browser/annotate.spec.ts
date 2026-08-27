@@ -126,6 +126,13 @@ test('a saved note comes back as a pin on the docs page', async ({ page }) => {
 
   await page.getByTestId('wheel-annotate-chip').click();
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
+
+  // Notes from the earlier tests in this file are on disk and pin too, so
+  // count what is already there once the listing has settled.
+  const pins = page.getByTestId('wheel-annotate-pin');
+  await page.waitForTimeout(1_000);
+  const existing = await pins.count();
+
   const box = await paragraph.boundingBox();
   await page.mouse.move(box!.x - 6, box!.y - 6);
   await page.mouse.down();
@@ -136,5 +143,5 @@ test('a saved note comes back as a pin on the docs page', async ({ page }) => {
   await page.getByTestId('wheel-annotate-text').fill('pin me on the docs');
   await page.getByTestId('wheel-annotate-save').click();
 
-  await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1, { timeout: 10_000 });
+  await expect(pins).toHaveCount(existing + 1, { timeout: 10_000 });
 });

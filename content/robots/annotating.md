@@ -74,11 +74,17 @@ All stored rectangles are DOCUMENT coordinates. `toDocumentRect()` and `toViewpo
 
 Saving tries the dev server first and falls back to a download, so the delivery never depends on the capability probe having returned.
 
-With a dev server, `wheelDevTools({ noteDir })` serves three endpoints:
+Notes go to a SINK, configured with `<WheelAnnotate sink={{ url, headers }}/>` and defaulting to `/__wheel/note`. The contract is two methods on one URL:
 
-- `GET /__wheel/note`: capability probe.
+- `POST <url>` — save one note. Body `{ id, payload, markdown, png?, video?, audio? }`; media are `data:` URLs. Answer `{ ok: true, command?, location? }`. `command` is pasteable text, `location` a URL; whichever is returned is copied to the clipboard. A non-ok answer, or an unreachable sink, falls back to downloading the note as one file.
+- `GET <url>` — `{ ok: true, notes: [{ id, payload }] }`, newest first, for pins. Answering at all sets `canSave`; there is no separate probe.
+
+Any service implementing those two methods can replace the dev server — a Durable Object, an issue tracker, a bucket.
+
+With a dev server, `wheelDevTools({ noteDir })` serves that contract:
+
+- `GET /__wheel/note`: list saved notes, newest first (and thereby the capability probe).
 - `POST /__wheel/note`: write one note.
-- `GET /__wheel/notes`: list saved notes, newest first, for pins.
 
 Each note is one directory:
 

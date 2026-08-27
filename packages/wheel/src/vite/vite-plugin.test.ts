@@ -163,11 +163,15 @@ describe('wheelDevTools', () => {
 });
 
 describe('wheelDevTools notes', () => {
-  it('GET probes with the resolved note dir', async () => {
+  it('GET lists the notes, which is also what proves saving is possible', async () => {
     const { server, dispatch } = makeServer(root);
     wheelDevTools().configureServer(server as never);
     const res = await dispatch('/__wheel/note', 'GET');
-    expect(JSON.parse(res.body)).toEqual({ ok: true, dir: join(root, '.wheel/notes') });
+    expect(JSON.parse(res.body)).toEqual({
+      ok: true,
+      dir: join(root, '.wheel/notes'),
+      notes: []
+    });
   });
 
   it('writes note.md, note.json and every attachment, and returns a pasteable command', async () => {
@@ -223,16 +227,16 @@ describe('wheelDevTools notes', () => {
 
     const { server, dispatch } = makeServer(root);
     wheelDevTools().configureServer(server as never);
-    const res = await dispatch('/__wheel/notes', 'GET');
+    const res = await dispatch('/__wheel/note', 'GET');
     const { notes } = JSON.parse(res.body) as { notes: Array<{ id: string }> };
     expect(notes.map((note) => note.id)).toEqual(['2000-second', '1000-first']);
   });
 
   it('answers an empty list before any note exists', async () => {
     const { server, dispatch } = makeServer(root);
-    wheelDevTools().configureServer(server as never);
-    const res = await dispatch('/__wheel/notes', 'GET');
-    expect(JSON.parse(res.body)).toEqual({ ok: true, notes: [] });
+    wheelDevTools({ noteDir: 'nowhere-yet' }).configureServer(server as never);
+    const res = await dispatch('/__wheel/note', 'GET');
+    expect(JSON.parse(res.body)).toMatchObject({ ok: true, notes: [] });
   });
 });
 

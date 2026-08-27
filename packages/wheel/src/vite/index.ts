@@ -20,9 +20,14 @@
  *   attachments — `shot.png`, `clip.webm`, `audio.webm` — into a per-note
  *   directory under `noteDir`. The response carries a ready-to-paste
  *   `read <path>/note.md` command, which the page copies to the clipboard.
- * - `GET /__wheel/note` — capability probe, same contract as the snapshot one.
- * - `GET /__wheel/notes` — the saved notes, newest first, so the page can put
- *   a pin back on the component each note was left on.
+ * - `GET /__wheel/note` — the saved notes, newest first, so the page can pin
+ *   each one back where it was left. Answering at all is also what tells the
+ *   page saving is possible here.
+ *
+ * That pair IS the annotator's wire contract, and it is deliberately small:
+ * an app can point `<WheelAnnotate sink={{ url }}/>` at anything that speaks
+ * it — a Durable Object, an issue tracker, a bucket — and this plugin becomes
+ * just the local implementation of it.
  * - `GET /__wheel/identity` — which checkout is serving this. A browser suite
  *   asks before it runs a single test, so pointing it at the wrong dev server
  *   fails loudly instead of passing against code nobody changed.
@@ -107,7 +112,7 @@ export interface WheelDevToolsOptions {
   readonly keepNames?: boolean;
 }
 
-/** How many saved notes `GET /__wheel/notes` returns, newest first. */
+/** How many saved notes `GET /__wheel/note` returns, newest first. */
 const NOTE_LIST_LIMIT = 100;
 
 /** Largest accepted request body. A clip's video rides along as a data URL, so this is generous. */
@@ -263,22 +268,13 @@ export function wheelDevTools(options: WheelDevToolsOptions = {}): WheelVitePlug
     const noteOption = options.noteDir ?? '.wheel/notes';
     const noteBase = isAbsolute(noteOption) ? noteOption : resolve(root, noteOption);
 
-    server.middlewares.use('/__wheel/notes', (req, res) => {
-      res.setHeader('content-type', 'application/json');
-      if (req.method !== 'GET') {
-        res.statusCode = 405;
-        res.end(JSON.stringify({ ok: false, error: 'GET the saved notes' }));
-        return;
-      }
-      res.statusCode = 200;
-      res.end(JSON.stringify({ ok: true, notes: listNotes(noteBase) }));
-    });
-
     server.middlewares.use('/__wheel/note', (req, res) => {
       res.setHeader('content-type', 'application/json');
       if (req.method === 'GET') {
+        // Listing doubles as the capability probe: a sink that can answer this
+        // is a sink that can be saved to.
         res.statusCode = 200;
-        res.end(JSON.stringify({ ok: true, dir: noteBase }));
+        res.end(JSON.stringify({ ok: true, dir: noteBase, notes: listNotes(noteBase) }));
         return;
       }
       if (req.method !== 'POST') {

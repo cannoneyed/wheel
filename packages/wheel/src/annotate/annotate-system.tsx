@@ -38,7 +38,7 @@ import { AnnotateService, type SavedNote } from './annotate-service';
 import { describeElement } from './anchor';
 import { describeEvent } from './note-format';
 import { speechRecognitionAvailable } from './media';
-import type { NoteLabel, NoteRect } from './types';
+import type { AnnotateSink, NoteLabel, NoteRect } from './types';
 
 /** Above the app, below the debug panel's own chrome. */
 const LAYER = 10_400;
@@ -193,15 +193,19 @@ function rectStyle(rect: NoteRect): JSX.CSSProperties {
  * Mount the annotation chrome. The chip lives in the stub that loaded this
  * module, so everything here is the armed experience.
  */
-export function AnnotateChrome(): JSX.Element {
+export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Element {
   const context = useContext(WheelContext);
   if (!context) return null;
   const service = context.services.get(AnnotateService);
-  service.attach(context.client as SyncClient | null, {
-    region: (rect) =>
-      captureViewportRegion({ left: rect.x, top: rect.y, width: rect.width, height: rect.height }),
-    stream: () => tabCaptureStream()
-  });
+  service.attach(
+    context.client as SyncClient | null,
+    {
+      region: (rect) =>
+        captureViewportRegion({ left: rect.x, top: rect.y, width: rect.width, height: rect.height }),
+      stream: () => tabCaptureStream()
+    },
+    props.sink
+  );
 
   // listener boundary: the arming chord is a global shortcut, so it binds to
   // the document rather than to any element the annotator renders.

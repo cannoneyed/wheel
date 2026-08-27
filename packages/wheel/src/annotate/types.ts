@@ -214,6 +214,33 @@ export type RecordedEvent =
   | RecordedRoute
   | RecordedNetwork;
 
+/**
+ * Where notes are sent, and read back from.
+ *
+ * One URL, two methods, and that is the whole contract:
+ *
+ * - `POST <url>` — save one note. The body is
+ *   `{ id, payload, markdown, png?, video?, audio? }`, where `payload` is a
+ *   {@link NotePayload} and the media are `data:` URLs. Answer
+ *   `{ ok: true, command?, location? }` — `command` is something pasteable
+ *   (the dev server returns `read <path>/note.md`), `location` a URL where the
+ *   note now lives. A non-ok answer, or none, makes the page fall back to
+ *   downloading the note as one file.
+ * - `GET <url>` — the saved notes as `{ ok: true, notes: [{ id, payload }] }`,
+ *   newest first, so the page can pin each one back where it was left.
+ *   Answering at all is what tells the page saving is possible.
+ *
+ * The default is the dev server's `/__wheel/note`, which writes a directory
+ * per note. Point it somewhere else — a Durable Object, an issue tracker, a
+ * bucket — and nothing else about the annotator changes.
+ */
+export interface AnnotateSink {
+  /** Where notes are POSTed and listed. Same-origin path or absolute URL. */
+  readonly url: string;
+  /** Extra request headers, for a collector that needs an auth token. */
+  readonly headers?: Record<string, string>;
+}
+
 /** The small vocabulary a note can be tagged with — enough to sort by, short enough to pick fast. */
 export type NoteLabel = 'bug' | 'question' | 'idea' | 'todo' | 'looks-good';
 

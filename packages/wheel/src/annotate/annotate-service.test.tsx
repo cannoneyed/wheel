@@ -52,6 +52,7 @@ let teardown: (() => void) | null = null;
 const posted: Array<Record<string, unknown>> = [];
 const copied: string[] = [];
 const downloaded: Array<{ filename: string; text: string }> = [];
+const requested: string[] = [];
 
 /** A fetch stub that answers the annotator's three endpoints. */
 function stubFetch(): void {
@@ -59,9 +60,10 @@ function stubFetch(): void {
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.endsWith('/__wheel/notes')) {
+      if (init?.method !== 'POST') {
         return new Response(JSON.stringify({ ok: true, notes: [] }), { status: 200 });
       }
+      requested.push(url);
       if (init?.method === 'POST') {
         posted.push(JSON.parse(String(init.body)) as Record<string, unknown>);
         return new Response(
@@ -117,6 +119,7 @@ afterEach(() => {
   posted.length = 0;
   copied.length = 0;
   downloaded.length = 0;
+  requested.length = 0;
   setNoteDownload(null);
   document.body.innerHTML = '';
   vi.unstubAllGlobals();
@@ -162,6 +165,67 @@ describe('AnnotateService', () => {
     expect(payload.target?.state).toEqual({ selected: false });
     expect(payload.id).toContain('this-cell-never-turns-on');
     expect(String(body['markdown'])).toContain('# this cell never turns on');
+    service.disarm();
+  });
+
+  it('sends notes wherever the app points it', async () => {
+    stubFetch();
+    const context = mountApp();
+    const service = context.services.get(AnnotateService);
+    service.attach(
+      null,
+      {
+        region: () => Promise.resolve('data:image/png;base64,AAA'),
+        stream: () => Promise.reject(new Error('no display capture in tests'))
+      },
+      { url: 'https://notes.example.com/annotations', headers: { authorization: 'Bearer t' } }
+    );
+
+    service.arm();
+    service.pickPage();
+    service.setText('somewhere else entirely');
+    service.save();
+
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    expect(requested[0]).toBe('https://notes.example.com/annotations');
+    service.disarm();
+  });
+
+  it('copies back whatever the sink says the note is now called', async () => {
+    // A hosted collector has no path to `read`; it answers with a location.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === 'POST'
+          ? new Response(JSON.stringify({ ok: true, location: 'https://notes.example.com/n/7' }), {
+              status: 200
+            })
+          : new Response(JSON.stringify({ ok: true, notes: [] }), { status: 200 })
+      )
+    );
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (text: string) => (copied.push(text), Promise.resolve()) }
+    });
+
+    const context = mountApp();
+    const service = context.services.get(AnnotateService);
+    service.attach(
+      null,
+      {
+        region: () => Promise.resolve('data:image/png;base64,AAA'),
+        stream: () => Promise.reject(new Error('no display capture in tests'))
+      },
+      { url: 'https://notes.example.com/annotations' }
+    );
+
+    service.arm();
+    service.pickPage();
+    service.setText('hosted');
+    service.save();
+
+    await vi.waitFor(() => expect(copied).toEqual(['https://notes.example.com/n/7']));
+    expect(service.savedTo.get()).toBe('https://notes.example.com/n/7');
     service.disarm();
   });
 

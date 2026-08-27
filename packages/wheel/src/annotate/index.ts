@@ -56,6 +56,7 @@ export {
 } from './media';
 export type {
   AnchorMatch,
+  AnnotateSink,
   NoteAnchor,
   NoteEnvironment,
   NoteLabel,

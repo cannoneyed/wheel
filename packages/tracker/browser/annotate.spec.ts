@@ -204,6 +204,12 @@ test('falls back to one downloaded file when the app has no dev server', async (
 
 test('a saved note comes back as a pin on the thing it was left on', async ({ page }) => {
   await page.getByTestId('wheel-annotate-chip').click();
+  const pins = page.getByTestId('wheel-annotate-pin');
+  // Count what is already pinned once the listing has settled. Notes from the
+  // earlier tests in this file are on disk, and only the ones with a rectangle
+  // pin at all — a page note has nowhere to sit.
+  await page.waitForTimeout(1_000);
+  const existing = await pins.count();
   const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
   await page.mouse.move(target!.x - 6, target!.y - 6);
   await page.mouse.down();
@@ -214,14 +220,13 @@ test('a saved note comes back as a pin on the thing it was left on', async ({ pa
   await page.getByTestId('wheel-annotate-text').fill('pin me');
   await page.getByTestId('wheel-annotate-save').click();
 
-  // Saving returns to the armed state, and the note it just wrote should be
-  // on screen — that is the whole point of pinning it to the page.
-  await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1, { timeout: 10_000 });
+  // Exactly one more than was there.
+  const expected = existing + 1;
+  await expect(pins).toHaveCount(expected, { timeout: 10_000 });
 
-  // The server listing arrives moments later and must not duplicate it, nor
-  // drop it.
+  // The listing arrives moments later and must not duplicate it, nor drop it.
   await page.waitForTimeout(1_000);
-  await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1);
+  await expect(pins).toHaveCount(expected);
 });
 
 test('a note pins even when there is no dev server to save it to', async ({ page }) => {
@@ -244,5 +249,7 @@ test('a note pins even when there is no dev server to save it to', async ({ page
     page.getByTestId('wheel-annotate-save').click()
   ]);
   expect(download.suggestedFilename()).toContain('pinned-without-a-server');
+  // Exactly one: with the sink unreachable the listing never answers either,
+  // so the only pin on the page is the note just written.
   await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1, { timeout: 10_000 });
 });

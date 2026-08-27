@@ -87,6 +87,26 @@ rolling buffer is running — no deploy needed.
   `keepNames` costs — measured on Axle, which ships exactly that way.
 </Aside>
 
+### Where notes go
+
+By default a note is POSTed to the dev server's `/__wheel/note`, which writes the directory above.
+That endpoint is not special — it is one implementation of a two-method contract, and the app can
+point somewhere else:
+
+```tsx
+// Excerpt: an app entry that collects notes centrally.
+<WheelAnnotate sink={{ url: 'https://notes.example.com/annotations', headers: { authorization: token } }} />
+```
+
+| method | what it does |
+| --- | --- |
+| `POST <url>` | save one note. Body `{ id, payload, markdown, png?, video?, audio? }` — `payload` is the complete note, media are `data:` URLs. Answer `{ ok: true, command?, location? }`: `command` is something pasteable, `location` a URL where the note now lives. Whichever comes back is copied to the clipboard. |
+| `GET <url>` | the saved notes, `{ ok: true, notes: [{ id, payload }] }`, newest first, so the page can pin each one back. Answering at all is what tells the page saving is possible here. |
+
+That is the whole contract, so a Durable Object, an issue tracker or a bucket can stand in for the
+dev server without the annotator knowing the difference. A sink that cannot be reached costs
+nothing: saving falls back to the download below.
+
 ### Delivery without a dev server
 
 A deployed app has no `/__wheel/note` to POST to, so the save button becomes **download note** and

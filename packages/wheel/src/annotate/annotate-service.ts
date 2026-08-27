@@ -44,13 +44,18 @@ import { annotateRecorder, startAnnotateSession } from './session';
 import { downloadNote } from './download';
 import { noteId, renderNoteFile, renderNoteMarkdown } from './note-format';
 import { startVideo, startVoice, type VideoSession, type VoiceSession } from './media';
-import type { NoteAnchor, NoteLabel, NotePayload, NoteRect, NoteTarget, RecordedEvent } from './types';
+import type {
+  AnnotateSink,
+  NoteAnchor,
+  NoteLabel,
+  NotePayload,
+  NoteRect,
+  NoteTarget,
+  RecordedEvent
+} from './types';
 
-/** The dev-server endpoint the annotator posts to and probes. */
-const NOTE_ENDPOINT = '/__wheel/note';
-
-/** The dev-server endpoint that lists saved notes, so pins survive a reload. */
-const NOTES_ENDPOINT = '/__wheel/notes';
+/** Where notes go when the app does not say otherwise: the dev server's handler. */
+const DEFAULT_SINK: AnnotateSink = { url: '/__wheel/note' };
 
 /** How many components around the anchor a region note keeps. */
 const NEARBY_LIMIT = 12;
@@ -142,7 +147,7 @@ export class AnnotateService extends Service {
   readonly hovered = this.atom<string | null>(null, 'hovered');
   /** Notes already on disk, for pins. */
   readonly notes = this.atom<readonly SavedNote[]>([], 'notes');
-  /** True once the dev server answered the capability probe. */
+  /** True once the sink answered its listing — which is what proves it can be saved to. */
   readonly canSave = this.atom(false, 'canSave');
   /** Absolute directory of the last save. */
   readonly savedTo = this.atom<string | null>(null, 'savedTo');
@@ -178,6 +183,7 @@ export class AnnotateService extends Service {
     return annotateRecorder() ?? this.ownRecorder;
   }
   private readonly client = this.field<SyncClient | null>(null, 'client');
+  private readonly sink = this.field<AnnotateSink>(DEFAULT_SINK, 'sink');
   private readonly capture = this.field<AnnotateCapture | null>(null, 'capture');
   private readonly voice = this.field<VoiceSession | null>(null, 'voice');
   private readonly video = this.field<VideoSession | null>(null, 'video');
@@ -191,11 +197,18 @@ export class AnnotateService extends Service {
     return draft.text.trim().length > 0 || draft.transcript.trim().length > 0;
   }, 'hasContent');
 
-  /** Wire the sync client and the capture seams. Called once by `WheelAnnotate`. */
-  readonly attach = this.action((client: SyncClient | null, capture: AnnotateCapture) => {
-    this.client.set(client);
-    this.capture.set(capture);
-  }, 'attach');
+  /**
+   * Wire the sync client, the capture seams, and where notes are sent.
+   * Called once by `WheelAnnotate`.
+   */
+  readonly attach = this.action(
+    (client: SyncClient | null, capture: AnnotateCapture, sink?: AnnotateSink) => {
+      this.client.set(client);
+      this.capture.set(capture);
+      if (sink) this.sink.set(sink);
+    },
+    'attach'
+  );
 
   /**
    * Start the rolling retro buffer. `WheelAnnotate` calls this on MOUNT, not
@@ -212,7 +225,6 @@ export class AnnotateService extends Service {
   readonly arm = this.action(() => {
     if (this.mode.get() !== 'off') return;
     this.mode.set('armed');
-    this.probe();
     this.loadNotes();
   }, 'arm');
 
@@ -432,31 +444,48 @@ export class AnnotateService extends Service {
     };
     this.draft.set(null);
     this.mode.set('armed');
-    // Try the dev server; fall back to a download. Deciding from the probe
-    // instead would race it — arm, type fast, hit save, and a note would go to
-    // a file even though a server was right there.
-    void fetch(NOTE_ENDPOINT, {
+    // Try the sink; fall back to a download. Deciding from `canSave` instead
+    // would race the listing — arm, type fast, hit save, and a note would go
+    // to a file even though a sink was right there.
+    const sink = this.sink.get();
+    void fetch(sink.url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...sink.headers },
       body: JSON.stringify(body)
     })
       .then(async (response) => {
-        if (!response.ok) throw new Error(`note endpoint answered ${response.status}`);
-        const result = (await response.json()) as { ok: boolean; dir?: string; command?: string; error?: string };
-        if (!result.ok) throw new Error(result.error ?? 'note endpoint refused the note');
-        this.savedTo.set(result.dir ?? null);
-        this.lastCommand.set(result.command ?? null);
-        if (result.command) void copyToClipboard(result.command);
+        if (!response.ok) throw new Error(`the note sink answered ${response.status}`);
+        const result = (await response.json()) as {
+          ok: boolean;
+          dir?: string;
+          command?: string;
+          location?: string;
+          error?: string;
+        };
+        if (!result.ok) throw new Error(result.error ?? 'the note sink refused the note');
+        this.savedTo.set(result.dir ?? result.location ?? null);
+        // A local sink hands back something to paste; a hosted one hands back
+        // where the note now lives. Either is what the human wants next.
+        const handle = result.command ?? result.location ?? null;
+        this.lastCommand.set(handle);
+        if (handle) void copyToClipboard(handle);
         this.notice.set('saved — pinned to the page');
         this.loadNotes();
       })
       .catch(() => this.deliverAsDownload(payload, draft.shot));
   }, 'save');
 
-  /** Re-read the notes on disk (pins). */
+  /**
+   * Re-read the notes the sink holds (pins).
+   *
+   * A sink that answers this is a sink that can be saved to, so this doubles
+   * as the capability probe — one round trip rather than two.
+   */
   readonly loadNotes = this.action(() => {
-    void fetch(NOTES_ENDPOINT)
+    const sink = this.sink.get();
+    void fetch(sink.url, { headers: sink.headers })
       .then(async (response) => {
+        this.canSave.set(response.ok);
         if (!response.ok) return;
         const result = (await response.json()) as { ok: boolean; notes?: SavedNote[] };
         if (!result.ok || !result.notes) return;
@@ -467,8 +496,9 @@ export class AnnotateService extends Service {
         this.notes.set([...result.notes, ...localOnly]);
       })
       .catch(() => {
-        // No dev server (a production page, a static preview): pins simply do
-        // not exist there. Saving already reports its own failure.
+        // No sink reachable (a production page with none configured, a static
+        // preview): saving will fall back to a download, and says so.
+        this.canSave.set(false);
       });
   }, 'loadNotes');
 
@@ -666,15 +696,8 @@ export class AnnotateService extends Service {
     const command = `read ~/Downloads/${filename}`;
     this.savedTo.set(`${filename} (downloaded)`);
     this.lastCommand.set(command);
-    this.notice.set('no dev server here — downloaded, and pinned to the page');
+    this.notice.set('no sink reachable — downloaded, and pinned to the page');
     void copyToClipboard(command);
-  }
-
-  /** Ask the dev server whether saving is possible at all. */
-  private probe(): void {
-    void fetch(NOTE_ENDPOINT, { method: 'GET' })
-      .then((response) => this.canSave.set(response.ok))
-      .catch(() => this.canSave.set(false));
   }
 }
 

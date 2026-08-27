@@ -44,6 +44,7 @@ import { isWheelDevMode } from '../core/dev-mode';
 import { logger } from '../core/logger';
 
 import { startAnnotateSession, stopAnnotateSession } from './session';
+import type { AnnotateSink } from './types';
 
 /** Same layer the chrome uses, so the chip does not jump when the chrome loads. */
 const LAYER = 10_400;
@@ -68,6 +69,17 @@ const chipStyle = {
 /** Props for {@link WheelAnnotate}. */
 export interface WheelAnnotateProps {
   /**
+   * Where notes are sent and read back from. Defaults to the dev server's
+   * `/__wheel/note`, which writes a directory per note.
+   *
+   * Point it at anything that speaks the two-method contract in
+   * {@link AnnotateSink} — a Durable Object, an issue tracker, a bucket — and
+   * nothing else about the annotator changes. A sink that cannot be reached
+   * makes saving fall back to downloading the note as one file, so a
+   * misconfigured URL loses nothing.
+   */
+  readonly sink?: AnnotateSink;
+  /**
    * Whether annotation is available on this page. Defaults to dev mode.
    *
    * In production this is the app's call, because it decides whose state may
@@ -82,7 +94,9 @@ export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
   if (!context) return null;
   const enabled = (): boolean => props.enabled ?? isWheelDevMode();
 
-  const [chrome, setChrome] = createSignal<(() => JSX.Element) | null>(null);
+  const [chrome, setChrome] = createSignal<((props: { sink?: AnnotateSink }) => JSX.Element) | null>(
+    null
+  );
   let loading = false;
 
   /** Pull in the chrome. It arms itself on mount, so this IS "arm". */
@@ -136,7 +150,9 @@ export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
           </button>
         </Portal>
       </Show>
-      <Show when={chrome()}>{(loaded) => <Dynamic component={loaded()} />}</Show>
+      <Show when={chrome()}>
+        {(loaded) => <Dynamic component={loaded()} sink={props.sink} />}
+      </Show>
     </Show>
   );
 }
