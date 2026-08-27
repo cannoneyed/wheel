@@ -90,13 +90,13 @@ Global inspector state + hit-testing (see module doc).
 
 ## `InspectorSystem`
 
-Kind: function. Source: [packages/wheel/src/debug/inspector.tsx:328](../../../packages/wheel/src/debug/inspector.tsx#L328).
+Kind: function. Source: [packages/wheel/src/debug/inspector.tsx:337](../../../packages/wheel/src/debug/inspector.tsx#L337).
 
 The inspector chrome: drag overlay + results panel. Mount once, next to the other systems. Renders nothing while the inspector is off. `hideResults` suppresses the floating results panel for hosts that render the hits themselves (WheelApp's docked inspect section) — the drag overlay and Escape handling stay.
 
 ## `installWheelBridge`
 
-Kind: function. Source: [packages/wheel/src/debug/bridge.ts:312](../../../packages/wheel/src/debug/bridge.ts#L312).
+Kind: function. Source: [packages/wheel/src/debug/bridge.ts:317](../../../packages/wheel/src/debug/bridge.ts#L317).
 
 Install this app's bridge on `window.__wheel`. Dev-mode only (pass `force: true` to opt a production build in deliberately). Returns the uninstaller; mounting surfaces (WheelApp, the debug panel) call this and uninstall on cleanup. Installing twice for the same context is harmless — the second install is a no-op returning a no-op.
 

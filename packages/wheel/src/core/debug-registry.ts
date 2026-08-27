@@ -132,6 +132,17 @@ export interface InstanceRecord {
 
 /** One node of the mounted-component tree (parents from DOM containment). */
 export interface InstanceTreeNode {
+  /**
+   * The instance's DURABLE identity (`Avatar#2`), assigned at mount and never
+   * reassigned while it lives.
+   *
+   * Not the same as `instanceId`, which drops its number while a name is
+   * unique and takes one back the moment a second component shares it. That
+   * makes `instanceId` the right thing to SHOW and the wrong thing to key UI
+   * state on — a panel that remembered which rows were open by instanceId lost
+   * the lot every time a sibling mounted.
+   */
+  readonly key: string;
   readonly instanceId: string;
   readonly name: string;
   readonly kind: InstanceRecord['kind'];
@@ -518,6 +529,7 @@ export class DebugRegistry {
     const nodes = new Map<string, InstanceTreeNode>();
     for (const record of this.instanceRecords.values()) {
       nodes.set(record.instanceId, {
+        key: record.key,
         instanceId: record.instanceId,
         name: record.name,
         kind: record.kind,

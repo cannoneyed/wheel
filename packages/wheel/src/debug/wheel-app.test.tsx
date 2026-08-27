@@ -410,6 +410,26 @@ describe('WheelApp', () => {
     expect(node.style.background).not.toBe('');
   });
 
+  it('a tree row opens and closes when you click it', () => {
+    mountApp();
+    testid('wheel-debug-toggle')!.click();
+    const pane = testid('wheel-pane-components')!;
+    const rows = () => pane.querySelectorAll('[data-tree-row]').length;
+
+    const before = rows();
+    const first = pane.querySelector('[data-tree-row]') as HTMLElement;
+    expect(first).not.toBeNull();
+
+    // Clicking the row is the only way to walk the tree by hand. It broke
+    // once and nothing caught it, because every other test reaches its node
+    // through the ⌖ picker's `reveal`, which expands paths directly.
+    first.click();
+    expect(rows()).toBeLessThan(before);
+
+    first.click();
+    expect(rows()).toBe(before);
+  });
+
   it('docked mode squashes the whole page via the document margin; overlay and close restore it', () => {
     mountApp();
     testid('wheel-debug-toggle')!.click();

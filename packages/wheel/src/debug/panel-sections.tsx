@@ -182,6 +182,7 @@ export function Expandable(props: {
     <div>
       <div
         style={sectionStyles.summary}
+        data-tree-row=""
         onClick={() => props.ex.toggle(props.path)}
         onMouseEnter={props.onRowEnter}
         onMouseLeave={props.onRowLeave}

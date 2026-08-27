@@ -131,6 +131,16 @@ function TreeChildren(props: {
             summary={`(${child.members.length})`}
             accent={META_COLORS.list}
             ex={props.ex}
+            // A group stands for its members, so hovering it shows ALL of
+            // them. It used to show nothing, which read as a dead row — and
+            // since the component library joined the tree, a collapsed list is
+            // most of what a reader hovers.
+            onRowEnter={() =>
+              props.services
+                .get(InspectorService)
+                .highlight(child.members.map((member) => member.instanceId))
+            }
+            onRowLeave={() => props.services.get(InspectorService).highlight(null)}
           >
             <For each={child.members}>
               {(member) => (
@@ -182,7 +192,7 @@ function TreeNode(props: {
       style={props.selected() === props.node.instanceId ? { background: 'var(--wheel-stage-hover, rgba(99,102,241,0.18))', 'border-radius': '4px' } : undefined}
     >
       <Expandable
-        path={`tree:${props.node.instanceId}`}
+        path={`tree:${props.node.key}`}
         label={props.node.instanceId}
         summary={[summary(), invisibility() ? `⊘ ${invisibility()!}` : ''].filter(Boolean).join(' ')}
         accent={invisibility() ? 'var(--wheel-stage-ink-faint, #8b8b8b)' : undefined}
@@ -202,7 +212,7 @@ function TreeNode(props: {
                   what the component derived from services. */}
               <Show when={Object.keys(instanceRecord().props()).length > 0}>
                 <Expandable
-                  path={`tree:${props.node.instanceId}:props`}
+                  path={`tree:${props.node.key}:props`}
                   label="props"
                   summary={`{${Object.keys(instanceRecord().props()).length}}`}
                   accent={META_COLORS.props}
@@ -213,7 +223,7 @@ function TreeNode(props: {
                   <For each={Object.entries(instanceRecord().props())}>
                     {([key, value]) => (
                       <JsonTree
-                        path={`tree:${props.node.instanceId}:props.${key}`}
+                        path={`tree:${props.node.key}:props.${key}`}
                         label={key}
                         value={value}
                         ex={props.ex}
@@ -226,7 +236,7 @@ function TreeNode(props: {
                   connect shape: this state belongs to this instance alone. */}
               <Show when={instanceRecord().locals.length > 0}>
                 <Expandable
-                  path={`tree:${props.node.instanceId}:local`}
+                  path={`tree:${props.node.key}:local`}
                   label="local"
                   summary={`(${instanceRecord().locals.length})`}
                   accent={META_COLORS.local}
@@ -237,7 +247,7 @@ function TreeNode(props: {
                   <For each={instanceRecord().locals}>
                     {(local) => (
                       <JsonTree
-                        path={`tree:${props.node.instanceId}:local.${local.name}`}
+                        path={`tree:${props.node.key}:local.${local.name}`}
                         label={local.name}
                         value={local.read()}
                         ex={props.ex}
@@ -248,7 +258,7 @@ function TreeNode(props: {
               </Show>
               <Show when={Object.keys(instanceRecord().state()).length > 0}>
                 <Expandable
-                  path={`tree:${props.node.instanceId}:connected`}
+                  path={`tree:${props.node.key}:connected`}
                   label="connected"
                   summary={`{${Object.keys(instanceRecord().state()).length}}`}
                   accent={META_COLORS.connected}
@@ -259,7 +269,7 @@ function TreeNode(props: {
                   <For each={Object.entries(instanceRecord().state())}>
                     {([key, value]) => (
                       <JsonTree
-                        path={`tree:${props.node.instanceId}.${key}`}
+                        path={`tree:${props.node.key}.${key}`}
                         label={key}
                         value={value}
                         ex={props.ex}
@@ -270,7 +280,7 @@ function TreeNode(props: {
               </Show>
               <Show when={instanceRecord().actions.length > 0}>
                 <Expandable
-                  path={`tree:${props.node.instanceId}:actions`}
+                  path={`tree:${props.node.key}:actions`}
                   label="actions"
                   summary={`(${instanceRecord().actions.length})`}
                   accent={META_COLORS.actions}
@@ -291,7 +301,7 @@ function TreeNode(props: {
         </Show>
         <TreeChildren
           nodes={props.node.children}
-          parentPath={`tree:${props.node.instanceId}`}
+          parentPath={`tree:${props.node.key}`}
           services={props.services}
           ex={props.ex}
           selected={props.selected}
@@ -365,8 +375,12 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
     for (const id of chain) {
       const record = registry.instance(id);
       if (record) props.ex.expand(`${parentPath}:list:${record.name}`);
-      props.ex.expand(`tree:${id}`);
-      parentPath = `tree:${id}`;
+      // Paths are keyed on the DURABLE key, never the display id — see
+      // `InstanceTreeNode.key`. Expanding `tree:<instanceId>` here would open
+      // a path no row is ever rendered under the moment a name repeats.
+      const path = `tree:${record?.key ?? id}`;
+      props.ex.expand(path);
+      parentPath = path;
     }
     setSelected(instanceId);
     // Scroll after the expansion has rendered. `start` puts the node's TOP

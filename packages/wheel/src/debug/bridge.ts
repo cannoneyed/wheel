@@ -40,7 +40,7 @@
  */
 import type { SyncClient } from '../sync/client/client';
 import type { WheelContextValue } from '../core/context';
-import type { DebugRegistry, InstanceRecord } from '../core/debug-registry';
+import type { DebugRegistry, InstanceRecord, InstanceTreeNode } from '../core/debug-registry';
 import type {
   BridgeActResult,
   BridgeComponentSummary,
@@ -140,7 +140,12 @@ function makeAppBridge(appId: string, context: WheelContextValue): WheelBridgeAp
       }));
     },
     components() {
-      return registry.instanceTree();
+      // `key` is the registry's internal handle and stays there. An agent
+      // selects by `instanceId` — the same string `data-wheel-id` carries —
+      // and offering a second id would only invite picking the wrong one.
+      const strip = (nodes: readonly InstanceTreeNode[]): unknown[] =>
+        nodes.map(({ key: _key, children, ...node }) => ({ ...node, children: strip(children) }));
+      return strip(registry.instanceTree()) as InstanceTreeNode[];
     },
     component(instanceId) {
       const record = registry.instance(instanceId);
