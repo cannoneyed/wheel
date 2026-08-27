@@ -8,7 +8,7 @@ Leave a note on a running app and record what the app did. The recording is sema
 
 `WheelAnnotate` mounts inside any Wheel provider. `wheel/annotate` is a separate entry from `wheel/debug`, so a build can ship the annotator without the debug panel.
 
-It is split in two. Resident: the rolling recorder, the chip, the chord, the loader — 4.1 KB gzipped measured on the tracker. Deferred behind a dynamic `import()` of `annotate-system`: picker, composer, voice, note rendering — 8.4 KB, fetched on first arm.
+It is split in three, measured on the tracker. Resident: the rolling recorder, the chip, the chord, the loader — 4.1 KB gzipped. Deferred behind a dynamic `import()` of `annotate-system`: marquee, composer, voice, note rendering — 8.7 KB, fetched on first arm. Deferred again: `modern-screenshot`, 10.5 KB, fetched the first time a note is drawn. The main bundle is unchanged by all of it.
 
 `enabled` defaults to `isWheelDevMode()`. A production page records nothing and shows nothing unless the app passes `enabled`. The app owns that decision because it decides whose application state may be captured.
 
@@ -22,7 +22,9 @@ Service identity is declared, not preserved: every Service subclass carries `sta
 
 - `arm()` / `disarm()`: toggle annotation mode. Arming installs the recorder (idempotent; the page-wide session normally installed it at mount).
 - `pickRegion(rect)`: the only door. The rectangle is VIEWPORT coordinates and is stored unchanged — a note describes a moment on screen, not a place in the document.
-- `captureShot()`: take the screenshot. Never automatic — it opens a permission prompt.
+- `captureShot()`: RE-take the picture from the screen via `getDisplayMedia`. Never automatic — it opens a share prompt. The escape hatch for what DOM capture cannot see: canvas, video, cross-origin iframes.
+- pixels are otherwise automatic: `pickRegion` fires `rasterizeRegion()` (`rasterize.ts`), which serializes the DOM into an SVG `foreignObject` via `modern-screenshot` (dynamically imported, so it reaches the browser only when a note is written). No permission, no prompt. It returns null rather than throwing — a note without pixels is still a note.
+- video is NOT rasterized per frame: serializing a subtree costs tens to hundreds of ms on the main thread, so sampling it would stutter the app under observation. Motion comes from the compositor or not at all.
 - `toggleVideo()`: switch screen recording on or off for the open draft. Never automatic. Leaving it on is expected; `save()` stops it and attaches the result.
 - `setText()`, `setLabel()`, `setTranscript()`: edit the draft.
 - `listen()` / `stopListening()`: speech capture.
@@ -54,7 +56,9 @@ Bounds:
 - an action is placed after the input that ran it and before the writes it caused, because the kernel can only time it on return;
 - a merge that would erase the change is refused, so a value that leaves and returns inside the window stays two entries;
 - the buffer is a rolling 60-second window; the hard cap is 20000 events;
-- services in the `debug` group are excluded, so the recorder never records itself.
+- services in the `debug` group are excluded, so the recorder never records itself;
+- input inside the annotator's own chrome (`CHROME_ATTRIBUTE`) is dropped at the tap, so a timeline is never mostly the keystrokes that wrote the note;
+- a timeline with no `action` and no `state` event is discarded at save, along with `startState`. On a page with no services the buffer holds only raw input, which is noise dressed as evidence. This is decided on what was RECORDED, not on what services existed at mount — services are constructed lazily, so a mount-time check gets a real app wrong.
 
 Cost with no tap installed: one null check per action call and per atom write.
 
@@ -64,7 +68,9 @@ One shape, one constructor: `anchorToRegion(registry, rect)`. It stores the rect
 
 Rectangles are VIEWPORT coordinates, stored exactly as the pointer reported them. No scroll offset is added, nothing is pinned to the document, and the target outline renders `position: fixed`.
 
-The DOM half comes from a hit-test at the rectangle's centre. It SKIPS the annotator's own overlays via `CHROME_ATTRIBUTE` (`data-wheel-annotate-chrome`), which the chrome stamps on the shield and the hint — without that, the marquee's full-page shield is what every hit-test finds, and the note describes the annotator instead of the app.
+The DOM half comes from a hit-test at the rectangle's centre. It SKIPS the annotator's own overlays via `CHROME_ATTRIBUTE` (`data-wheel-annotate-chrome`), which the chrome stamps on every surface it draws — without that, the marquee's full-page shield is what every hit-test finds, and the note describes the annotator instead of the app.
+
+`CHROME_ATTRIBUTE` has three consumers, all of them "look past the annotator": the anchor hit-test, the recorder's input tap, and the screenshot's node filter.
 
 Pages wheel does not own — docs, landing scrolls — have no component to name, so the DOM half is all they carry. Such a page needs a `ServiceProvider` (clientless, zero services) for `WheelAnnotate` to mount at all.
 

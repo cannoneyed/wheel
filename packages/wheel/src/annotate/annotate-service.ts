@@ -29,6 +29,7 @@ import type { SyncClient } from '../sync/client/client';
 import { activeErrorLog } from '../debug/error-capture';
 
 import { anchorToRegion, targetOf, targetsUnder } from './anchor';
+import { rasterizeRegion } from './rasterize';
 import { Recorder, stateTreeSnapshot } from './recorder';
 import { annotateRecorder, startAnnotateSession } from './session';
 import { downloadNote } from './download';
@@ -204,8 +205,7 @@ export class AnnotateService extends Service {
     if (this.mode.get() !== 'off') return;
     // Idempotent, and normally already done by the page-wide session that
     // started at mount. It matters when there is no session — a service used
-    // directly, or a test — because a note with no timeline is the whole
-    // feature missing.
+    // directly, or a test.
     this.recorder.install();
     this.mode.set('armed');
     this.probeSink();
@@ -256,6 +256,12 @@ export class AnnotateService extends Service {
     });
     this.mode.set('composing');
     this.hold(null);
+    // Pixels, automatically. This costs no permission prompt because it comes
+    // from the DOM rather than the screen, which is the whole reason a note can
+    // have a picture without anyone pressing anything.
+    void rasterizeRegion(rect).then((shot) => {
+      if (shot) this.patchDraft({ shot });
+    });
   }, 'pickRegion');
 
   /** Typed note text. */
@@ -438,12 +444,12 @@ export class AnnotateService extends Service {
   }
 
   /**
-   * Grab the pixels for the draft's rectangle. Only ever called because
-   * someone pressed the button.
+   * Re-take the picture from the SCREEN rather than from the DOM.
    *
-   * Screen capture opens a browser permission prompt, so doing it because the
-   * composer opened made every note cost a modal nobody asked for. A note is
-   * useful without pixels; the prompt is a choice.
+   * The automatic shot is a DOM rasterization, which cannot see a `<canvas>`,
+   * a `<video>` or a cross-origin iframe. This is the escape hatch for those:
+   * true pixels, at the cost of the browser's share prompt. Only ever called
+   * because someone pressed the button.
    */
   readonly captureShot = this.action(() => {
     const draft = this.draft.get();
@@ -558,7 +564,16 @@ export class AnnotateService extends Service {
     // The window reaches back past the moment the box was drawn, because the
     // rolling buffer has been running since the annotator mounted. The thing
     // being complained about almost always happened BEFORE the complaint.
-    const timeline = this.harvest(this.recorder.timeline()[0]?.at ?? draft.openedAt, at);
+    //
+    // But only if the app DID anything. On a page with no services — a docs
+    // page, a landing scroll, a catalog of display fixtures — the buffer holds
+    // nothing but raw input, and eighteen recorded keystrokes explain nothing
+    // about anything. That is noise dressed as evidence, so it is dropped
+    // along with the empty state tree that goes with it.
+    const recorded = this.harvest(this.recorder.timeline()[0]?.at ?? draft.openedAt, at);
+    const explains = recorded.some((event) => event.kind === 'action' || event.kind === 'state');
+    const timeline = explains ? recorded : [];
+    const startState = explains ? draft.startState : {};
     return {
       id: noteId(at, draft.text || draft.transcript, draft.anchor.name),
       at,
@@ -574,7 +589,7 @@ export class AnnotateService extends Service {
       startedAt: timeline[0]?.at ?? draft.openedAt,
       endedAt: at,
       timeline,
-      startState: draft.startState,
+      startState,
       attachments
     };
   }

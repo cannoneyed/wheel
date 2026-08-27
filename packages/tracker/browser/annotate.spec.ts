@@ -91,6 +91,7 @@ test('a dragged rectangle lands on disk with the components under it', async ({ 
     anchor: { instanceId: string | null; rect: { width: number } };
     nearby: Array<{ instanceId: string; state: Record<string, unknown> }>;
     environment: { url: string };
+    attachments: string[];
   };
 
   expect(payload.label).toBe('bug');
@@ -103,6 +104,12 @@ test('a dragged rectangle lands on disk with the components under it', async ({ 
   expect(payload.anchor.instanceId).toBeTruthy();
   expect(payload.nearby.length).toBeGreaterThan(0);
   expect(Object.keys(payload.nearby[0]!.state).length).toBeGreaterThan(0);
+
+  // Pixels, with nobody pressing anything and no share prompt. This is the
+  // one attachment every note should have, so it must not depend on a
+  // permission a headless browser (or a hurried human) never grants.
+  expect(payload.attachments).toContain('shot.png');
+  expect(existsSync(join(notesDir, note.id, 'shot.png'))).toBe(true);
 
   // Saving says so. The composer is gone by now, so a confirmation drawn
   // inside it would have been invisible — this is the page telling you the

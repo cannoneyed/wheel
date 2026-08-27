@@ -373,6 +373,52 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
+  it('drops a timeline that explains nothing', async () => {
+    // A page with no services — a docs page, a component catalog of display
+    // fixtures. The buffer fills with raw input, which is noise dressed as
+    // evidence: eighteen recorded keystrokes say nothing about the note.
+    stubFetch();
+    const context = mountApp();
+    const service = annotator(context);
+
+    service.arm();
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    service.pickRegion(OVER_CELL);
+    service.setText('nothing here has state');
+    service.save();
+
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    const payload = posted[0]!['payload'] as NotePayload;
+    expect(payload.timeline).toEqual([]);
+    expect(payload.startState).toEqual({});
+    service.disarm();
+  });
+
+  it('does not record the writing of the note as something the app did', async () => {
+    stubFetch();
+    const context = mountApp(() => <AnnotateChrome />);
+    const service = context.services.get(AnnotateService);
+    const board = context.services.get(BoardService);
+    annotator(context);
+
+    service.arm();
+    board.toggleCell('3-7');
+    service.pickRegion(OVER_CELL);
+
+    // Typing into the composer is not application behaviour. Without this the
+    // timeline was mostly the keystrokes that wrote the note itself.
+    const textarea = document.querySelector('[data-testid="wheel-annotate-text"]')!;
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+    service.setText('typed into the composer');
+    service.save();
+
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    const payload = posted[0]!['payload'] as NotePayload;
+    expect(payload.timeline.some((event) => event.kind === 'input')).toBe(false);
+    expect(payload.timeline.some((event) => event.kind === 'action')).toBe(true);
+    service.disarm();
+  });
+
   it('finishes a running screen recording before it sends the note', async () => {
     stubFetch();
     let stopped = 0;

@@ -11,6 +11,12 @@
  * with their live state, the plain DOM, and the minute of app activity the
  * rolling recorder already had.
  *
+ * Every surface it draws carries `CHROME_ATTRIBUTE`, which is how the rest of
+ * the feature knows to look past the annotator: the anchor's hit-test skips it
+ * (or it would describe the shield), the recorder ignores input inside it (or a
+ * timeline would be mostly the keystrokes that wrote the note), and the
+ * screenshot filters it out (or every picture would have the composer in it).
+ *
  * The chrome is deliberately independent of the debug panel: a production
  * build can mount this alone, and nothing here assumes the panel exists.
  */
@@ -218,6 +224,7 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
       <button
         type="button"
         style={styles.chip}
+        {...{ [CHROME_ATTRIBUTE]: '' }}
         data-testid="wheel-annotate-chip"
         title="Annotate this page (⌘⇧A)"
         onClick={() => (service.mode.get() === 'off' ? service.arm() : service.disarm())}
@@ -304,7 +311,13 @@ function Marquee(props: { service: AnnotateService }): JSX.Element {
 function TargetOutline(props: { service: AnnotateService }): JSX.Element {
   return (
     <Show when={props.service.draft.get()?.anchor.rect}>
-      {(rect) => <div data-testid="wheel-annotate-target" style={{ ...styles.outline, ...rectStyle(rect()) }} />}
+      {(rect) => (
+        <div
+          data-testid="wheel-annotate-target"
+          {...{ [CHROME_ATTRIBUTE]: '' }}
+          style={{ ...styles.outline, ...rectStyle(rect()) }}
+        />
+      )}
     </Show>
   );
 }
@@ -314,7 +327,7 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
   return (
     <Show when={props.service.draft.get()}>
       {(draft) => (
-        <div style={styles.composer} data-testid="wheel-annotate-composer">
+        <div style={styles.composer} data-testid="wheel-annotate-composer" {...{ [CHROME_ATTRIBUTE]: '' }}>
           <div style={styles.dim} data-testid="wheel-annotate-subject">
             {draft().anchor.instanceId ?? draft().anchor.element ?? 'this area'}
           </div>
@@ -371,22 +384,19 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
             />
           </Show>
           <div style={styles.row}>
-            <Show
-              when={draft().shot}
-              fallback={
-                <button
-                  type="button"
-                  style={styles.button}
-                  data-testid="wheel-annotate-shot"
-                  title="Opens a screen-capture prompt the first time"
-                  onClick={() => props.service.captureShot()}
-                >
-                  📷 screenshot
-                </button>
-              }
+            {/* The picture is already taken — this re-takes it from the SCREEN
+                for the cases a DOM rasterization cannot see: canvas, video, a
+                cross-origin iframe. That one costs a share prompt, so it stays
+                a button. */}
+            <button
+              type="button"
+              style={styles.button}
+              data-testid="wheel-annotate-shot"
+              title="Re-take from the screen — opens a share prompt. Use it when the automatic picture is wrong."
+              onClick={() => props.service.captureShot()}
             >
-              <span style={styles.dim}>📷 captured</span>
-            </Show>
+              {draft().shot ? '📷 re-take from screen' : '📷 screenshot'}
+            </button>
             {/* A switch, not a mode: the note records what the app did either
                 way, and this adds the pictures. Leaving it on is fine — saving
                 stops the recording and attaches it. */}
@@ -468,6 +478,7 @@ function Snackbar(props: { service: AnnotateService }): JSX.Element {
       {(notice) => (
         <div
           style={styles.snackbar}
+          {...{ [CHROME_ATTRIBUTE]: '' }}
           data-testid="wheel-annotate-toast"
           role="status"
           onClick={() => props.service.dismissNotice()}

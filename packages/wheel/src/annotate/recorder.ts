@@ -36,7 +36,7 @@ import type { DebugRegistry } from '../core/debug-registry';
 import { setWheelTap, type TappedAction, type TappedState } from '../core/recorder-tap';
 import { serializeValue } from '../core/serialize';
 
-import { describeElement } from './anchor';
+import { CHROME_ATTRIBUTE, describeElement } from './anchor';
 import type { RecordedEvent, RecordedState } from './types';
 
 /** Writes to one atom closer together than this collapse into a single entry. */
@@ -398,6 +398,10 @@ export class Recorder {
       this.lastScrollAt = at;
     }
     const target = event.target instanceof Element ? event.target : null;
+    // Typing a note is not something the app did. Without this, every note's
+    // timeline was mostly the keystrokes that wrote the note itself — noise
+    // that buried whatever the note was actually about.
+    if (target?.closest(`[${CHROME_ATTRIBUTE}]`)) return;
     const record = target ? this.options.registry.instanceAt(target) : undefined;
     this.push({
       at,

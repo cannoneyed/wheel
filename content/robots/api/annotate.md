@@ -12,13 +12,13 @@ Anchor a note to the rectangle that was drawn, describing what was under it both
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:98](../../../packages/wheel/src/annotate/annotate-service.ts#L98).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:99](../../../packages/wheel/src/annotate/annotate-service.ts#L99).
 
 Injected capture seams, so the service runs headless in tests.
 
 ## `AnnotateMode`
 
-Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:67](../../../packages/wheel/src/annotate/annotate-service.ts#L67).
+Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:68](../../../packages/wheel/src/annotate/annotate-service.ts#L68).
 
 Where the flow currently is. `armed` is the marquee: drag a rectangle around what you want to talk about. There is no other way in, and no mode to pick first — drawing the rectangle IS the interaction.
 
@@ -30,7 +30,7 @@ The running recorder, or null when annotation is not enabled on this page.
 
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:109](../../../packages/wheel/src/annotate/annotate-service.ts#L109).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:110](../../../packages/wheel/src/annotate/annotate-service.ts#L110).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
 
@@ -78,7 +78,7 @@ What a note is about: the rectangle that was drawn, and what was under it. There
 
 ## `NoteDraft`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:70](../../../packages/wheel/src/annotate/annotate-service.ts#L70).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:71](../../../packages/wheel/src/annotate/annotate-service.ts#L71).
 
 A note being written: everything captured so far, none of it saved yet.
 
@@ -252,7 +252,7 @@ Start listening: transcript from speech recognition, audio from the microphone. 
 
 ## `stateTreeSnapshot`
 
-Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:497](../../../packages/wheel/src/annotate/recorder.ts#L497).
+Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:501](../../../packages/wheel/src/annotate/recorder.ts#L501).
 
 Every service's atoms and computed values right now, keyed by service name. A clip stores this as its START STATE — a timeline of actions is only re-runnable against a known starting point, which is what makes replay reachable later.
 

@@ -3,7 +3,7 @@
  * The production split: what a page pays before anyone annotates anything.
  *
  * Two promises are under test. The chrome must not load until someone asks
- * for it — that is the 8.4 KB that stays out of the main bundle. And the
+ * for it — that is the 8.7 KB that stays out of the main bundle. And the
  * rolling buffer must be running the whole time anyway, because the minute
  * worth keeping is always the one that already happened.
  */

@@ -63,7 +63,8 @@ someone arms. Measured on the tracker:
 | | gzipped |
 | --- | --- |
 | resident: recorder, chip, chord, loader | **4.1 KB** |
-| deferred: the whole armed experience | 8.4 KB, fetched on arm |
+| deferred: the whole armed experience | 8.7 KB, fetched on arm |
+| deferred: the DOM rasterizer | 10.5 KB, fetched when a note is first drawn |
 
 `enabled` defaults to dev mode, so a production build records nothing and shows nothing until the
 app says otherwise. That decision belongs to the app, because it decides whose application state
@@ -107,6 +108,16 @@ That is the whole contract, so a Durable Object, an issue tracker or a bucket ca
 dev server without the annotator knowing the difference. A sink that cannot be reached costs
 nothing: saving falls back to the download below.
 
+### Why video is not rasterized too
+
+The obvious next thought is to rasterize a frame at a time and call it a video. It does not work.
+Serializing a subtree costs tens to hundreds of milliseconds **on the main thread** — the same
+thread the app you are debugging runs on. Sampling it per frame would stutter the app and change
+the behaviour under observation, which is the one thing a debugging tool must not do.
+
+Screen video comes from the compositor (`getDisplayMedia`), which costs the browser prompt and
+nothing on the main thread. That is the whole reason 🎥 is still a switch you throw deliberately.
+
 ### Delivery without a dev server
 
 A deployed app has no `/__wheel/note` to POST to, so the save button becomes **download note** and
@@ -134,18 +145,28 @@ What you get is everything that was under it, whether or not you thought to ask:
 | the plain DOM under it | element, path, and a quote of its text — what a docs paragraph has instead of a component |
 | what the app just did | the merged timeline of actions, state changes, input, sync writes, errors, routes and network |
 | the state tree | every service's atoms as they were when you drew the box |
-| a screenshot | when you press 📷 |
+| a screenshot | automatically, on every note |
 | a screen recording | when you switch on 🎥 |
 
-The timeline is the part nobody presses a button for. The recorder has been running since the
-annotator mounted, so a note carries the **minute before the box was drawn** — which is the minute
-the bug happened in. You do not have to predict a bug in order to record it.
+Two of those cost nothing and nobody presses a button for them.
+
+**The picture** is rasterized out of the DOM, not grabbed from the screen, so it needs no
+permission and opens no share dialog. `getDisplayMedia` — what the debug panel's rich screenshots
+use — prompts once per tab session, and a screenshot that costs a modal is a screenshot nobody
+takes. The trade is that DOM capture cannot see a `<canvas>`, a `<video>`, or a cross-origin
+iframe; **📷 re-take from screen** is there for those, and costs the prompt.
+
+**The timeline** comes from a recorder that has been running since the annotator mounted, so a note
+carries the **minute before the box was drawn** — the minute the bug happened in. You do not have
+to predict a bug in order to record it.
 
 <Aside kind="note">
-  <strong>Nothing opens a permission prompt on its own.</strong> Drawing an area costs no modal.
-  A screenshot happens when you press <strong>📷 screenshot</strong>, and screen video when you
-  switch on <strong>🎥 record screen</strong> — a note is worth saving without either, so neither
-  is a toll you pay to write one. Leave the recording switched on and saving stops it for you.
+  <strong>A timeline that explains nothing is dropped.</strong> On a page with no services — a
+  docs page, a landing scroll, a catalog of display fixtures — the buffer holds nothing but raw
+  input, and eighteen recorded keystrokes say nothing about the note. That is noise dressed as
+  evidence, so a note keeps its timeline only when the app actually did something: an action ran,
+  or state moved. Input inside the annotator is never recorded at all, or a timeline would be
+  mostly the keystrokes that wrote the note.
 </Aside>
 
 ### Pages wheel does not own
