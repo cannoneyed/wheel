@@ -1,10 +1,10 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+import { viewRoot } from 'wheel/core';
 import { CheckboxListItem } from 'wheel/components';
 import { DemoGroup } from './demo-group';
 
 export default function ExampleCheckboxListItem() {
   return (
-    <div class="checkbox-family-fixture checkbox-family-fixture--documented">
+    <div use:viewRoot={'ExampleCheckboxListItem'} class="checkbox-family-fixture checkbox-family-fixture--documented">
       <DemoGroup title="Content">
         <div class="checkbox-list-item-stage">
           <CheckboxListItem label="Label only" />

@@ -1,4 +1,4 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture's inspection boundary. */
+import { viewRoot } from 'wheel/core';
 import { For } from 'solid-js';
 import { IconButton, type ButtonSize, type ButtonVariant } from 'wheel/components';
 import { MoreIcon, PlusIcon, TrashIcon } from './button-icons';
@@ -9,7 +9,7 @@ const sizes: readonly ButtonSize[] = ['sm', 'md', 'lg'];
 
 export default function ExampleIconButton() {
   return (
-    <div class="button-family-fixture button-family-fixture--documented">
+    <div use:viewRoot={'ExampleIconButton'} class="button-family-fixture button-family-fixture--documented">
       <DemoGroup title="Variants">
         <For each={variants}>
           {(variant) => (

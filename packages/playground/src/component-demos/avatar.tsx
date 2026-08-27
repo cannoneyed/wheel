@@ -1,4 +1,4 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+import { viewRoot } from 'wheel/core';
 import { Avatar, type AvatarShape, type AvatarSize } from 'wheel/components';
 
 import { DemoGroup } from './demo-group';
@@ -17,7 +17,7 @@ function InitialsAvatar(props: {
 
 export default function ExampleAvatar() {
   return (
-    <div class="avatar-family-fixture">
+    <div use:viewRoot={'ExampleAvatar'} class="avatar-family-fixture">
       <DemoGroup title="Sizes">
         <InitialsAvatar initials="XS" size="xs" />
         <InitialsAvatar initials="SM" size="sm" />

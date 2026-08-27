@@ -267,6 +267,12 @@ export function RadioRoot<Value = any>(componentProps: RadioRoot.Props<Value>) {
       {isRadioGroup ? (
         <CompositeItem
           tag="span"
+          // Inside a group this branch renders the part, so it has to carry the
+          // same identity the standalone branch below does. Without it a radio
+          // in a group had no `data-slot` at all: app CSS targeting
+          // `[data-slot="radio-root"]` missed it, and so did the component tree.
+          slot="radio-root"
+          defaultClass="wheel-Radio-Root"
           as={componentProps.as}
           asChild={componentProps.asChild}
           class={componentProps.class}

@@ -8,7 +8,7 @@ Human page: [Architecture](../docs/architecture.mdx). API map: [Import map](impo
 auth          -> no Wheel layer
 config        -> no Wheel layer
 core          -> no Wheel layer
-components    -> no Wheel layer
+components    -> core
 router        -> core
 sync          -> core
 kit           -> core, components
@@ -16,6 +16,8 @@ sync/server   -> auth, sync, core
 debug         -> core, sync
 testing       -> core, sync, sync/server
 ```
+
+`components -> core` is a down edge, not a cycle: core never imports components. The library was a leaf for a while, on the bet that `wheel/components` might ship standalone. It does not — the design is batteries-included — and the price of the bet was that library parts could not reach `viewRoot`, so the component tree had a hole exactly where the UI was. Every part now registers through `renderElement`, named from the `slot` it already declares (`radio-root` -> `RadioRoot`). Registration is dev-only and inert outside a provider, so a part used in plain Solid still costs nothing.
 
 Same-layer imports are valid. Tests can cross layers for integration setup. `wheel/vite` is a build adapter outside the application state-layer checker and imports the core runtime clock.
 

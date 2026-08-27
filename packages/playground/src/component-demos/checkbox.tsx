@@ -1,10 +1,10 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+import { viewRoot } from 'wheel/core';
 import { CheckboxControl } from './checkbox-parts';
 import { DemoGroup } from './demo-group';
 
 export default function ExampleCheckbox() {
   return (
-    <div class="checkbox-family-fixture checkbox-family-fixture--documented">
+    <div use:viewRoot={'ExampleCheckbox'} class="checkbox-family-fixture checkbox-family-fixture--documented">
       <DemoGroup title="Values" description="Boolean and mixed values use one stable control size.">
         <CheckboxControl label="Unchecked" />
         <CheckboxControl label="Checked" defaultChecked data-testid="focus-checkbox" />

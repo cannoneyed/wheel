@@ -13,8 +13,25 @@ import type { AsChildRenderFn, HTMLProps, MaybeAccessor } from './types';
 import { access } from './types';
 import { getStateAttributesProps, type StateAttributesMapping } from './getStateAttributesProps';
 import { mergeProps, mergePropsN, mergeClassNames, mergeStyles } from '../merge-props/mergeProps';
+import { viewRoot } from '../../core/connect';
 
 type IntrinsicTagName = keyof JSX.IntrinsicElements;
+
+/**
+ * `radio-root` → `RadioRoot`: the name this part answers to in the component
+ * tree, in `__wheel.component()`, and on a note's anchor.
+ *
+ * Derived from the `slot` every part already declares rather than added to 188
+ * call sites, because the slot IS the part's stable identity — it is the same
+ * string app CSS targets with `[data-slot]`.
+ */
+function partName(slot: string): string {
+  return slot
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+}
 
 /**
  * The subset of a component's own props that `renderElement` consumes.
@@ -164,6 +181,13 @@ export function renderElement<State extends Record<string, any>>(
   // External refs land on `componentProps.ref`; internal ones via params.
   const composedRef = (el: any) => {
     untrack(() => {
+      // Every library part registers in the component tree, from the one place
+      // they all render through. `viewRoot` is dev-only and inert outside a
+      // provider, so a part used in a plain Solid page costs nothing — but
+      // inside a wheel app the tree finally contains the library itself, which
+      // is what makes a Radio selectable by the inspector and the annotator.
+      const slot = params.slot === undefined ? undefined : access(params.slot);
+      if (slot) viewRoot(el, () => partName(slot));
       componentProps.ref?.(el);
       const paramRef = params.ref;
       if (Array.isArray(paramRef)) {

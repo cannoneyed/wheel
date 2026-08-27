@@ -1,11 +1,12 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture boundary. */
+/* eslint-disable wheel/require-view-root -- The default export marks the catalog entry; the helpers below it are scaffolding, and marking them would put catalog noise between the reader and the library part on show. */
+import { viewRoot } from 'wheel/core';
 import { Radio, RadioGroup } from 'wheel/components';
 
 import { DemoGroup } from './demo-group';
 
 export default function ExampleRadioGroup() {
   return (
-    <div class="radio-family-fixture">
+    <div use:viewRoot={'ExampleRadioGroup'} class="radio-family-fixture">
       <DemoGroup title="Vertical group">
         <RadioGroup class="radio-demo-group" aria-label="Best apple" defaultValue="fuji">
           <Option value="fuji">Fuji</Option>

@@ -1,4 +1,4 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture's inspection boundary. */
+import { viewRoot } from 'wheel/core';
 import { Toggle, ToggleGroup } from 'wheel/components';
 import { DirectionProvider } from 'wheel/components/direction-provider';
 import { AlignCenterIcon, AlignLeftIcon, AlignRightIcon } from './button-icons';
@@ -16,7 +16,7 @@ function AlignmentToggles() {
 
 export default function ExampleToggleGroup() {
   return (
-    <div class="button-family-fixture button-family-fixture--wide button-family-fixture--documented">
+    <div use:viewRoot={'ExampleToggleGroup'} class="button-family-fixture button-family-fixture--wide button-family-fixture--documented">
       <DemoGroup title="Selection modes">
         <ToggleGroup aria-label="Text alignment" defaultValue="left" data-testid="toggle-group-single">
           <AlignmentToggles />

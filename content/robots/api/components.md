@@ -1286,13 +1286,13 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `RadioRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/radio/root/RadioRoot.tsx:330](../../../packages/wheel/src/components/radio/root/RadioRoot.tsx#L330).
+Kind: interface. Source: [packages/wheel/src/components/radio/root/RadioRoot.tsx:336](../../../packages/wheel/src/components/radio/root/RadioRoot.tsx#L336).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `RadioRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/radio/root/RadioRoot.tsx:311](../../../packages/wheel/src/components/radio/root/RadioRoot.tsx#L311).
+Kind: interface. Source: [packages/wheel/src/components/radio/root/RadioRoot.tsx:317](../../../packages/wheel/src/components/radio/root/RadioRoot.tsx#L317).
 
 Public export. Read the linked declaration for its complete contract.
 

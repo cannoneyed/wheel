@@ -1,4 +1,4 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture's inspection boundary. */
+import { viewRoot } from 'wheel/core';
 import { Code, CodeBlock } from 'wheel/components';
 import { DemoGroup } from './demo-group';
 import { highlightSyntax } from '../syntax-highlight';
@@ -17,7 +17,7 @@ const inlineSource = "'primary' | 'secondary' | 'ghost'";
 
 export default function ExampleCodeBlock() {
   return (
-    <div class="code-block-demo">
+    <div use:viewRoot={'ExampleCodeBlock'} class="code-block-demo">
       <DemoGroup title="Block">
         <CodeBlock
           code={blockSource}

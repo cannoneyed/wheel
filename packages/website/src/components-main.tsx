@@ -1,5 +1,6 @@
 import { render } from 'solid-js/web';
-import { ServiceProvider, viewRoot } from 'wheel/core';
+import { viewRoot } from 'wheel/core';
+import { WheelApp } from 'wheel/debug';
 import { WheelAnnotate } from 'wheel/annotate';
 import { annotationEnabled } from './annotation';
 
@@ -23,18 +24,21 @@ function ComponentsApp() {
 }
 
 /**
- * The component gallery is plain Solid, not a wheel app — so the annotator needs a
- * provider to hang off. `ServiceProvider` is clientless and holds no services
- * here; it exists to give the annotator a registry and a clock. Notes on this
- * page anchor to ELEMENTS (a DOM path plus a quote of the text), which is what
- * prose has instead of components.
+ * The catalog is a wheel app like any other.
+ *
+ * It held a bare `ServiceProvider` for a while, on the theory that a gallery of
+ * components is "plain Solid" — which made the one page dedicated to wheel
+ * components the one page where wheel components could not be inspected. Every
+ * library part now registers itself (see `renderElement`), so `WheelApp` gives
+ * this page the same debug panel, the same component tree and the same
+ * inspector as the tracker. It is clientless: there is no data here to sync.
  */
 render(
   () => (
-    <ServiceProvider scopeId="componentsapp">
+    <WheelApp scopeId="componentsapp">
       <ComponentsApp />
       <WheelAnnotate enabled={annotationEnabled()} />
-    </ServiceProvider>
+    </WheelApp>
   ),
   document.getElementById('root')!
 );

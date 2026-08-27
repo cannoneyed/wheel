@@ -1,11 +1,12 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+/* eslint-disable wheel/require-view-root -- The default export marks the catalog entry; the helpers below it are scaffolding, and marking them would put catalog noise between the reader and the library part on show. */
+import { viewRoot } from 'wheel/core';
 import { CheckboxGroup } from 'wheel/components';
 import { CheckboxControl } from './checkbox-parts';
 import { DemoGroup } from './demo-group';
 
 export default function ExampleCheckboxGroup() {
   return (
-    <div class="checkbox-family-fixture checkbox-family-fixture--documented">
+    <div use:viewRoot={'ExampleCheckboxGroup'} class="checkbox-family-fixture checkbox-family-fixture--documented">
       <DemoGroup title="Density">
         <div class="checkbox-family-columns">
           <LabeledGroup label="Compact" density="compact" />

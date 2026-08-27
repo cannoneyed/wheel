@@ -1,4 +1,4 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+import { viewRoot } from 'wheel/core';
 import { Field, Switch, type SwitchSize, type SwitchStatus } from 'wheel/components';
 
 import { DemoGroup } from './demo-group';
@@ -29,7 +29,7 @@ function SwitchField(props: {
 
 export default function ExampleSwitch() {
   return (
-    <div class="switch-family-fixture">
+    <div use:viewRoot={'ExampleSwitch'} class="switch-family-fixture">
       <DemoGroup title="Values">
         <SwitchField label="Off" />
         <SwitchField label="On" defaultChecked />
