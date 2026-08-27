@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
- * The flow end to end: arm, pick a component, say something, save.
+ * The flow end to end: arm, draw a box, say something, save.
  *
  * What these tests actually protect is the PAYLOAD. A note is only worth
- * anything if what lands on disk carries the anchor, the component's live
- * state, and — for a clip — the named actions and state changes that happened
- * while it recorded. So the assertions are mostly "is the evidence in there".
+ * anything if what is sent carries the rectangle, the live state of what was
+ * under it, and the actions and state changes that led there. So the
+ * assertions are mostly "is the evidence in there".
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'solid-js/web';
@@ -39,10 +39,31 @@ const connectCell = connect('BoardCell:3-7', (c) => {
   );
 });
 
+/** Where the board cell sits, since jsdom lays nothing out. */
+const CELL = { x: 0, y: 0, width: 100, height: 50 };
+
+/** A rectangle drawn around the cell — the one way into the composer. */
+const OVER_CELL = { x: 0, y: 0, width: 120, height: 60 };
+
 function BoardCell() {
   const state = connectCell({});
   return (
-    <button use:componentRoot type="button" onClick={() => state.toggle()}>
+    <button
+      use:componentRoot
+      type="button"
+      ref={(element: HTMLButtonElement) => {
+        element.getBoundingClientRect = () =>
+          ({
+            ...CELL,
+            top: CELL.y,
+            left: CELL.x,
+            right: CELL.x + CELL.width,
+            bottom: CELL.y + CELL.height,
+            toJSON: () => ({})
+          }) as DOMRect;
+      }}
+      onClick={() => state.toggle()}
+    >
       {state.selected ? 'on' : 'off'}
     </button>
   );
@@ -128,7 +149,7 @@ afterEach(() => {
 });
 
 describe('AnnotateService', () => {
-  it('arms, picks a component, and holds its live state in the draft', () => {
+  it('arms, takes a drawn rectangle, and holds the live state under it', () => {
     stubFetch();
     const context = mountApp();
     const service = annotator(context);
@@ -136,9 +157,10 @@ describe('AnnotateService', () => {
     service.arm();
     expect(service.mode.get()).toBe('armed');
 
-    service.pickInstance('BoardCell:3-7');
+    service.pickRegion(OVER_CELL);
     const draft = service.draft.get()!;
     expect(service.mode.get()).toBe('composing');
+    expect(draft.anchor.rect).toEqual(OVER_CELL);
     expect(draft.anchor.instanceId).toBe('BoardCell:3-7');
     expect(draft.target?.state).toEqual({ selected: false });
     expect(draft.target?.actions).toEqual(['toggle']);
@@ -151,7 +173,7 @@ describe('AnnotateService', () => {
     const service = annotator(context);
 
     service.arm();
-    service.pickInstance('BoardCell:3-7');
+    service.pickRegion(OVER_CELL);
     service.setText('this cell never turns on');
     service.setLabel('bug');
     service.save();
@@ -182,7 +204,7 @@ describe('AnnotateService', () => {
     );
 
     service.arm();
-    service.pickPage();
+    service.pickRegion(OVER_CELL);
     service.setText('somewhere else entirely');
     service.save();
 
@@ -220,7 +242,7 @@ describe('AnnotateService', () => {
     );
 
     service.arm();
-    service.pickPage();
+    service.pickRegion(OVER_CELL);
     service.setText('hosted');
     service.save();
 
@@ -235,7 +257,7 @@ describe('AnnotateService', () => {
     const service = annotator(context);
 
     service.arm();
-    service.pickPage();
+    service.pickRegion(OVER_CELL);
     service.setText('the whole screen is wrong');
     service.save();
     await vi.waitFor(() => expect(copied).toEqual(['read .wheel/notes/x/note.md']));
@@ -248,7 +270,7 @@ describe('AnnotateService', () => {
     const context = mountApp();
     const service = annotator(context);
     service.arm();
-    service.pickPage();
+    service.pickRegion(OVER_CELL);
     expect(service.hasContent()).toBe(false);
     service.setText('  ');
     expect(service.hasContent()).toBe(false);
@@ -257,23 +279,24 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
-  it('anchors a dragged rectangle in document space, so it scrolls with the page', () => {
+  it('stores the rectangle where it was drawn, and does not chase the scroll', () => {
     stubFetch();
     const context = mountApp();
     const service = annotator(context);
-    // The page is scrolled; a pointer still reports viewport coordinates.
+    // The page is scrolled. A note describes what was on screen at a moment,
+    // so the scroll offset is not added back in and the rectangle is kept
+    // exactly as the pointer reported it.
     Object.defineProperty(globalThis, 'scrollY', { configurable: true, value: 400 });
     Object.defineProperty(globalThis, 'scrollX', { configurable: true, value: 0 });
 
     service.arm();
     service.pickRegion({ x: 10, y: 30, width: 200, height: 80 });
 
-    // Stored 400px lower than it was seen, which is where it lives in the page.
-    expect(service.draft.get()?.anchor.rect).toEqual({ x: 10, y: 430, width: 200, height: 80 });
+    expect(service.draft.get()?.anchor.rect).toEqual({ x: 10, y: 30, width: 200, height: 80 });
     service.disarm();
   });
 
-  it('never opens a capture prompt as a side effect of picking', async () => {
+  it('never opens a capture prompt as a side effect of drawing a box', async () => {
     stubFetch();
     let prompted = 0;
     const context = mountApp();
@@ -297,7 +320,7 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
-  it('records a clip without asking for video until video is asked for', () => {
+  it('never asks for the screen until the screen is asked for', () => {
     stubFetch();
     let streams = 0;
     const context = mountApp();
@@ -311,36 +334,71 @@ describe('AnnotateService', () => {
     });
 
     service.arm();
-    service.startClip();
-    expect(service.recording.get()).toBe(true);
-    // Pressing record must not cost a screen-capture modal.
+    service.pickRegion(OVER_CELL);
+    // Drawing a box must not cost a screen-capture modal. The note records
+    // what the app did either way; video is the thing you opt into.
     expect(streams).toBe(0);
     expect(service.filming.get()).toBe(false);
 
-    service.recordVideo();
+    service.toggleVideo();
     expect(streams).toBe(1);
-    service.stopClip();
     service.disarm();
   });
 
-  it('records the actions and state changes that happen during a clip', () => {
+  it('carries the actions and state changes that led to the note', async () => {
     stubFetch();
     const context = mountApp();
     const service = annotator(context);
     const board = context.services.get(BoardService);
 
     service.arm();
-    service.startClip();
-    expect(service.recording.get()).toBe(true);
+    // This happens BEFORE the box is drawn, which is the normal order: you
+    // notice something and then complain about it. The rolling buffer has been
+    // running since mount, so the note carries it anyway.
     board.toggleCell('3-7');
-    service.stopClip();
+    service.pickRegion(OVER_CELL);
+    service.setText('the cell does the wrong thing');
+    service.save();
 
-    const draft = service.draft.get()!;
-    expect(service.recording.get()).toBe(false);
-    expect(draft.startedAt).not.toBeNull();
-    expect(draft.timeline.map((event) => event.kind)).toEqual(['action', 'state']);
-    expect(draft.timeline[0]).toMatchObject({ service: 'BoardService', action: 'toggleCell', args: ['3-7'] });
-    expect(draft.startState?.['BoardService']).toMatchObject({ selection: ['3-7'] });
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    const payload = posted[0]!['payload'] as NotePayload;
+    expect(payload.timeline.map((event) => event.kind)).toEqual(['action', 'state']);
+    expect(payload.timeline[0]).toMatchObject({
+      service: 'BoardService',
+      action: 'toggleCell',
+      args: ['3-7']
+    });
+    expect(payload.startState['BoardService']).toMatchObject({ selection: ['3-7'] });
+    expect(payload.endedAt).toBeGreaterThanOrEqual(payload.startedAt);
+    service.disarm();
+  });
+
+  it('finishes a running screen recording before it sends the note', async () => {
+    stubFetch();
+    let stopped = 0;
+    setVideoCapture(() => ({
+      stop: () => {
+        stopped += 1;
+        return Promise.resolve('data:video/webm;base64,AAA');
+      },
+      cancel: () => undefined
+    }));
+    const context = mountApp();
+    const service = annotator(context);
+
+    service.arm();
+    service.pickRegion(OVER_CELL);
+    service.setText('watch what happens here');
+    service.toggleVideo();
+    await vi.waitFor(() => expect(service.filming.get()).toBe(true));
+
+    // Saving while still recording must not drop the video on the floor —
+    // leaving the switch on is the expected way to use it.
+    service.save();
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    expect(stopped).toBe(1);
+    expect(posted[0]!['video']).toBe('data:video/webm;base64,AAA');
+    expect((posted[0]!['payload'] as NotePayload).attachments).toContain('clip.webm');
     service.disarm();
   });
 
@@ -357,7 +415,7 @@ describe('AnnotateService', () => {
     const context = mountApp();
     const service = annotator(context);
     service.arm();
-    service.pickInstance('BoardCell:3-7');
+    service.pickRegion(OVER_CELL);
     service.setText('this cell never turns on');
     service.save();
 
@@ -384,7 +442,7 @@ describe('AnnotateService', () => {
     const context = mountApp();
     const service = annotator(context);
     service.arm();
-    service.pickInstance('BoardCell:3-7');
+    service.pickRegion(OVER_CELL);
     // Screen capture is never a side effect of opening the composer — it opens
     // a permission prompt, so it happens only when someone presses the button.
     expect(service.draft.get()?.shot).toBeNull();
@@ -413,7 +471,7 @@ describe('AnnotateService', () => {
     const service = annotator(context);
 
     service.arm();
-    service.pickPage();
+    service.pickRegion(OVER_CELL);
     service.listen();
     expect(service.draft.get()?.transcript).toBe('it drops the highlight');
     service.stopListening();
@@ -431,16 +489,29 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
-  it('stops recording and drops the draft when annotation mode is left', () => {
+  it('stops recording and drops the draft when annotation mode is left', async () => {
     stubFetch();
+    let cancelled = 0;
+    setVideoCapture(() => ({
+      stop: () => Promise.resolve('data:video/webm;base64,AAA'),
+      cancel: () => {
+        cancelled += 1;
+      }
+    }));
     const context = mountApp();
     const service = annotator(context);
     service.arm();
-    service.startClip();
+    service.pickRegion(OVER_CELL);
+    service.toggleVideo();
+    await vi.waitFor(() => expect(service.filming.get()).toBe(true));
+
     service.disarm();
     expect(service.mode.get()).toBe('off');
-    expect(service.recording.get()).toBe(false);
+    expect(service.filming.get()).toBe(false);
     expect(service.draft.get()).toBeNull();
+    // The draft it belonged to is gone, so the recording is dropped rather
+    // than kept for a note that will never exist.
+    expect(cancelled).toBe(1);
   });
 });
 
@@ -451,14 +522,13 @@ describe('<WheelAnnotate/>', () => {
     const service = context.services.get(AnnotateService);
 
     expect(service.mode.get()).toBe('armed');
-    expect(document.querySelector('[data-testid="wheel-annotate-toolbar"]')).toBeTruthy();
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy();
 
     document.querySelector<HTMLButtonElement>('[data-testid="wheel-annotate-chip"]')!.click();
     expect(service.mode.get()).toBe('off');
   });
 
-  it('steps the picker aside while a clip records, so the app stays usable', () => {
+  it('takes the shield away once a box is drawn, so the app stays usable', () => {
     stubFetch();
     const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
@@ -466,39 +536,38 @@ describe('<WheelAnnotate/>', () => {
     service.arm();
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy();
 
-    // A clip is made by USING the app. The shield swallows every press, so it
-    // has to go while recording — otherwise no clip could ever contain input.
-    service.startClip();
+    // The shield swallows every press. It has to go while the composer is
+    // open, or a screen recording could never contain anything to look at.
+    service.pickRegion(OVER_CELL);
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeNull();
-    expect(document.querySelector('[data-testid="wheel-annotate-stop"]')).toBeTruthy();
 
-    service.stopClip();
+    service.discard();
     service.disarm();
   });
 
-  it('buffers from mount, so the last minute covers what happened before arming', () => {
+  it('buffers from mount, so a note covers what happened before it was written', () => {
     stubFetch();
     const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
     const board = context.services.get(BoardService);
 
-    // The bug this locks down: with the buffer starting at arm time, the
-    // "save the last minute" door could only ever show an empty minute.
+    // The bug this locks down: with the buffer starting at arm time, a note
+    // could only ever describe what happened after someone complained.
     board.toggleCell('3-7');
     service.arm();
-    service.saveRetro();
 
-    const timeline = service.draft.get()!.timeline;
-    expect(timeline.some((event) => event.kind === 'action' && event.action === 'toggleCell')).toBe(true);
+    expect(
+      service.timeline().some((event) => event.kind === 'action' && event.action === 'toggleCell')
+    ).toBe(true);
     service.disarm();
   });
 
-  it('opens the composer when a component is picked', () => {
+  it('opens the composer naming what was under the box', () => {
     stubFetch();
     const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
     service.arm();
-    service.pickInstance('BoardCell:3-7');
+    service.pickRegion(OVER_CELL);
 
     const composer = document.querySelector('[data-testid="wheel-annotate-composer"]');
     expect(composer?.textContent).toContain('BoardCell:3-7');
@@ -515,7 +584,7 @@ describe('<WheelAnnotate/>', () => {
     annotator(context);
 
     service.arm();
-    service.pickInstance('BoardCell:3-7');
+    service.pickRegion(OVER_CELL);
     service.setText('the snackbar should say this landed');
     service.save();
     await vi.waitFor(() => expect(posted).toHaveLength(1));
@@ -543,7 +612,7 @@ describe('<WheelAnnotate/>', () => {
       annotator(context);
 
       service.arm();
-      service.pickInstance('BoardCell:3-7');
+      service.pickRegion(OVER_CELL);
       service.setText('this one dismisses itself');
       service.save();
       await vi.waitFor(() => expect(service.notice.get()).toContain('saved'));

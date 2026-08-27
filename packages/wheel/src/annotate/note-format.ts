@@ -129,23 +129,32 @@ function renderTarget(target: NoteTarget): string {
   ].join('\n');
 }
 
-/** What the note is attached to, in the terms that anchor actually has. */
+/**
+ * What the note is about, in whichever terms the page actually had.
+ *
+ * A wheel app gives a component id; a docs page gives an element, a path and a
+ * sentence. The anchor records both halves whenever they exist, so this says
+ * everything it has rather than picking one.
+ */
 function describeAnchor(anchor: NotePayload['anchor']): string {
-  if (anchor.kind === 'page') return 'The page as a whole.';
+  const parts: string[] = [];
   if (anchor.instanceId) {
     const inside = anchor.ancestors.length
       ? ` — inside ${anchor.ancestors.map((id) => `\`${id}\``).join(' › ')}`
       : '';
-    return `\`${anchor.instanceId}\`${inside}`;
+    parts.push(`\`${anchor.instanceId}\`${inside}`);
   }
-  if (anchor.kind === 'element') {
-    // No component owns it, so say what a human would say: which element, where
-    // in the document, and what it currently reads.
+  if (anchor.element) {
     const where = anchor.domPath ? ` at \`${anchor.domPath}\`` : '';
-    const quote = anchor.text ? `\n\n> ${anchor.text}` : '';
-    return `The \`${anchor.element ?? 'element'}\`${where}.${quote}`;
+    parts.push(`The \`${anchor.element}\`${where}.`);
   }
-  return `A region of the page${anchor.domPath ? ` (\`${anchor.domPath}\`)` : ''}.`;
+  if (parts.length === 0) parts.push('An area of the page.');
+  const rect = anchor.rect;
+  parts.push(
+    `Drawn at ${Math.round(rect.x)},${Math.round(rect.y)} — ${Math.round(rect.width)}×${Math.round(rect.height)} CSS px.`
+  );
+  if (anchor.text) parts.push(`\n> ${anchor.text}`);
+  return parts.join('\n\n');
 }
 
 /**
@@ -155,20 +164,17 @@ function describeAnchor(anchor: NotePayload['anchor']): string {
  */
 export function renderNoteMarkdown(payload: NotePayload): string {
   const anchor = payload.anchor;
-  const origin = payload.startedAt ?? payload.at;
+  const origin = payload.startedAt;
   const heading = payload.text.trim().split('\n')[0] || payload.voice?.transcript.split('\n')[0] || 'Annotation';
   const frontmatter = [
     '---',
     `id: ${yamlString(payload.id)}`,
-    `kind: ${payload.kind}`,
     `label: ${payload.label}`,
     `at: ${payload.at}`,
     `url: ${yamlString(payload.environment.url)}`,
-    `anchor: { kind: ${anchor.kind}, instanceId: ${yamlString(anchor.instanceId ?? '')}, name: ${yamlString(anchor.name ?? '')} }`,
+    `anchor: { instanceId: ${yamlString(anchor.instanceId ?? '')}, name: ${yamlString(anchor.name ?? '')}, element: ${yamlString(anchor.element ?? '')} }`,
     `viewport: { width: ${payload.environment.viewportWidth}, height: ${payload.environment.viewportHeight}, dpr: ${payload.environment.devicePixelRatio} }`,
-    ...(payload.startedAt !== null && payload.endedAt !== null
-      ? [`durationMs: ${payload.endedAt - payload.startedAt}`]
-      : []),
+    `recordedMs: ${payload.endedAt - payload.startedAt}`,
     `events: ${payload.timeline.length}`,
     `attachments: [${payload.attachments.join(', ')}]`,
     '---'

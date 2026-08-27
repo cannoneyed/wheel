@@ -3,7 +3,7 @@
  * The production split: what a page pays before anyone annotates anything.
  *
  * Two promises are under test. The chrome must not load until someone asks
- * for it — that is the 8.1 KB that stays out of the main bundle. And the
+ * for it — that is the 8.4 KB that stays out of the main bundle. And the
  * rolling buffer must be running the whole time anyway, because the minute
  * worth keeping is always the one that already happened.
  */
@@ -64,7 +64,7 @@ describe('<WheelAnnotate/>', () => {
     mountApp();
     expect(chip()).toBeTruthy();
     // The armed surfaces are the lazy half; none of them exist yet.
-    expect(document.querySelector('[data-testid="wheel-annotate-toolbar"]')).toBeNull();
+    expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeNull();
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeNull();
     expect(annotateRecorder()?.active()).toBe(true);
   });
@@ -85,7 +85,7 @@ describe('<WheelAnnotate/>', () => {
     mountApp();
     chip()!.click();
 
-    await vi.waitFor(() => expect(document.querySelector('[data-testid="wheel-annotate-toolbar"]')).toBeTruthy());
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy());
     // Arming goes straight to the marquee — drawing a rectangle IS the
     // interaction, so there is no mode to select first.
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy();

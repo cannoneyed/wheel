@@ -3,20 +3,13 @@
  *
  * This module is the lazy half. `WheelAnnotate` (annotate-lazy.tsx) imports it
  * dynamically the first time someone arms, so a production bundle carries the
- * recorder and a chip rather than the picker, the composer, voice capture and
- * note rendering. Measured on the tracker: 8.1 KB gzipped stays out of the
- * main bundle this way.
+ * recorder and a chip rather than the marquee, the composer and voice capture.
  *
- * Armed, it renders pins for existing notes, a picker that highlights the
- * component under the cursor, and a toolbar with the other capture modes.
- *
- * The picker's shield swallows every press, so it steps aside while a clip is
- * recording — a clip is made by USING the app.
- *
- * Click a component and the composer opens, already holding that component's
- * live state, its screenshot, and its place in the tree. Type or talk, press
- * save, and a directory lands under `.wheel/notes/` with the read-this-file
- * command on your clipboard.
+ * There is ONE interaction: drag a rectangle. Armed, the shield covers the page
+ * so a press reaches the marquee and never the UI beneath it, and releasing
+ * opens the composer holding everything that was under the box — the components
+ * with their live state, the plain DOM, and the minute of app activity the
+ * rolling recorder already had.
  *
  * The chrome is deliberately independent of the debug panel: a production
  * build can mount this alone, and nothing here assumes the panel exists.
@@ -34,8 +27,8 @@ import { WheelContext } from '../core/context';
 import type { SyncClient } from '../sync/client/client';
 import { captureViewportRegion, tabCaptureStream } from '../debug/snapshot';
 
-import { AnnotateService, type SavedNote } from './annotate-service';
-import { describeElement } from './anchor';
+import { AnnotateService } from './annotate-service';
+import { CHROME_ATTRIBUTE } from './anchor';
 import { describeEvent } from './note-format';
 import { speechRecognitionAvailable } from './media';
 import type { AnnotateSink, NoteLabel, NoteRect } from './types';
@@ -65,21 +58,6 @@ const styles = {
     color: 'var(--wheel-stage-ink, #d7d3cc)',
     font: '12px ui-monospace, monospace',
     cursor: 'pointer'
-  },
-  toolbar: {
-    position: 'fixed',
-    left: '12px',
-    bottom: '48px',
-    'z-index': LAYER + 2,
-    display: 'flex',
-    'flex-direction': 'column',
-    gap: '4px',
-    padding: '6px',
-    'border-radius': '10px',
-    border: '1px solid var(--wheel-stage-line-heavy, #3a3b3e)',
-    background: 'var(--wheel-stage-2, #101317)',
-    color: 'var(--wheel-stage-ink, #d7d3cc)',
-    font: '12px ui-monospace, monospace'
   },
   button: {
     padding: '3px 8px',
@@ -154,24 +132,6 @@ const styles = {
   },
   row: { display: 'flex', gap: '6px', 'flex-wrap': 'wrap', 'align-items': 'center' },
   dim: { color: 'var(--wheel-stage-ink-faint, #8b8b8b)', 'word-break': 'break-word' },
-  pin: {
-    // ABSOLUTE, not fixed: a pin belongs to a place in the document and has to
-    // scroll with it. Fixed would leave it hanging in the viewport, pointing
-    // at whatever happened to scroll underneath.
-    position: 'absolute',
-    'z-index': LAYER + 1,
-    width: '18px',
-    height: '18px',
-    'border-radius': '999px',
-    display: 'flex',
-    'align-items': 'center',
-    'justify-content': 'center',
-    border: '1px solid var(--wheel-stage-line-heavy, #3a3b3e)',
-    background: 'var(--wheel-amber-bright, #f59e0b)',
-    color: 'var(--wheel-stage-1, #0b0d10)',
-    font: '10px ui-monospace, monospace',
-    cursor: 'pointer'
-  },
   preview: {
     'max-width': '100%',
     'border-radius': '4px',
@@ -263,20 +223,12 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
         onClick={() => (service.mode.get() === 'off' ? service.arm() : service.disarm())}
       >
         <span>✎</span>
-        <Show when={service.recording.get()}>
+        <Show when={service.filming.get()}>
           <span>● rec</span>
         </Show>
       </button>
       <Show when={service.mode.get() === 'armed'}>
-        <Toolbar service={service} />
-        {/* No marquee while recording: a clip is made by USING the app, and the
-            marquee's shield deliberately swallows every press. */}
-        <Show when={!service.recording.get()}>
-          <Marquee service={service} />
-        </Show>
-      </Show>
-      <Show when={service.mode.get() !== 'off'}>
-        <Pins service={service} />
+        <Marquee service={service} />
       </Show>
       <Show when={service.mode.get() === 'composing'}>
         <TargetOutline service={service} />
@@ -287,86 +239,21 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
   );
 }
 
-/** The armed-mode toolbar: the capture modes that are not "click a component". */
-function Toolbar(props: { service: AnnotateService }): JSX.Element {
-  return (
-    <div style={styles.toolbar} data-testid="wheel-annotate-toolbar">
-      <button type="button" style={styles.button} onClick={() => props.service.pickPage()}>
-        ▭ page note
-      </button>
-      <Show
-        when={props.service.recording.get()}
-        fallback={
-          <button
-            type="button"
-            style={styles.button}
-            data-testid="wheel-annotate-record"
-            onClick={() => props.service.startClip()}
-          >
-            ● record
-          </button>
-        }
-      >
-        <button
-          type="button"
-          style={styles.button}
-          data-testid="wheel-annotate-stop"
-          onClick={() => props.service.stopClip()}
-        >
-          ■ stop
-        </button>
-      </Show>
-      <button type="button" style={styles.button} onClick={() => props.service.saveRetro()}>
-        ⏮ last minute
-      </button>
-      <Show when={props.service.recording.get()}>
-        <Show
-          when={props.service.filming.get()}
-          fallback={
-            <button
-              type="button"
-              style={styles.button}
-              data-testid="wheel-annotate-film"
-              onClick={() => props.service.recordVideo()}
-            >
-              🎥 add video
-            </button>
-          }
-        >
-          <span style={styles.dim}>🎥 filming</span>
-        </Show>
-        <span style={styles.dim}>use the app, then press stop</span>
-      </Show>
-    </div>
-  );
-}
-
 /**
  * The marquee: drag a rectangle around what you want to talk about.
  *
- * This is the whole interaction. A DRAG takes the region — the rectangle is
- * the note's anchor, and whatever components sit under it come along with
- * their state. A CLICK without a drag takes the single thing under the
- * cursor, because "this button" should not require drawing a box around it.
+ * This is the whole interaction — there is no mode to pick and nothing to
+ * click. The shield sits over the page so a press reaches the marquee and
+ * never the UI beneath it: dragging across a sheet cell selects the area
+ * rather than starting an edit.
  *
- * The shield sits over the page so a press reaches the marquee and never the
- * UI beneath it — clicking a sheet cell picks it rather than starting an edit.
+ * A press that never really moved is ignored on purpose. It used to take
+ * whatever single component was under the cursor, which meant a stray click
+ * opened a composer nobody asked for.
  */
 function Marquee(props: { service: AnnotateService }): JSX.Element {
   const [start, setStart] = createSignal<{ x: number; y: number } | null>(null);
   const [now, setNow] = createSignal<{ x: number; y: number } | null>(null);
-  const [hover, setHover] = createSignal<NoteRect | null>(null);
-  const [label, setLabel] = createSignal('');
-
-  /** What is under a viewport point, with the shield stepped out of the way. */
-  const under = (x: number, y: number): Element | null => {
-    const shield = document.querySelector('[data-testid="wheel-annotate-shield"]');
-    const previous = shield instanceof HTMLElement ? shield.style.pointerEvents : null;
-    if (shield instanceof HTMLElement) shield.style.pointerEvents = 'none';
-    const element = document.elementFromPoint(x, y);
-    if (shield instanceof HTMLElement && previous !== null) shield.style.pointerEvents = previous;
-    return element;
-  };
 
   /** The band being dragged, in viewport coordinates. */
   const band = (): NoteRect | null => {
@@ -381,44 +268,12 @@ function Marquee(props: { service: AnnotateService }): JSX.Element {
     };
   };
 
-  /** Highlight whatever a bare cursor is over, so a click has a visible target. */
-  const track = (event: PointerEvent): void => {
-    if (start()) {
-      setNow({ x: event.clientX, y: event.clientY });
-      return;
-    }
-    const element = under(event.clientX, event.clientY);
-    const record = element ? props.service.instanceAt(element) : null;
-    const box = record
-      ? [...record.elements].find((el) => el.isConnected)?.getBoundingClientRect()
-      : element?.getBoundingClientRect();
-    props.service.hover(record?.instanceId ?? null);
-    setLabel(record?.instanceId ?? (element ? describeElement(element) : ''));
-    setHover(box ? { x: box.x, y: box.y, width: box.width, height: box.height } : null);
-  };
-
-  /** A press that never really moved is a click on one thing. */
-  const pickPoint = (x: number, y: number): void => {
-    const element = under(x, y);
-    const record = element ? props.service.instanceAt(element) : null;
-    if (record) props.service.pickInstance(record.instanceId);
-    // No component claims it — a docs paragraph, a landing headline. Anchor to
-    // the element itself rather than shrugging at the page.
-    else if (element) props.service.pickElement(element);
-    else props.service.pickPage();
-  };
-
-  const finish = (event: PointerEvent): void => {
+  const finish = (): void => {
     const rect = band();
-    const from = start();
     setStart(null);
     setNow(null);
-    if (!from) return;
-    if (rect && rect.width >= DRAG_THRESHOLD && rect.height >= DRAG_THRESHOLD) {
-      props.service.pickRegion(rect);
-      return;
-    }
-    pickPoint(event.clientX, event.clientY);
+    if (!rect || rect.width < DRAG_THRESHOLD || rect.height < DRAG_THRESHOLD) return;
+    props.service.pickRegion(rect);
   };
 
   return (
@@ -426,44 +281,30 @@ function Marquee(props: { service: AnnotateService }): JSX.Element {
       <div
         style={styles.shield}
         data-testid="wheel-annotate-shield"
+        {...{ [CHROME_ATTRIBUTE]: '' }}
         onPointerDown={(event) => {
           setStart({ x: event.clientX, y: event.clientY });
           setNow({ x: event.clientX, y: event.clientY });
         }}
-        onPointerMove={track}
+        onPointerMove={(event) => {
+          if (start()) setNow({ x: event.clientX, y: event.clientY });
+        }}
         onPointerUp={finish}
       >
         <Show when={band()}>{(rect) => <div style={{ ...styles.band, ...rectStyle(rect()) }} />}</Show>
       </div>
-      <Show when={!start() && hover()}>
-        {(box) => <div style={{ ...styles.outline, ...rectStyle(box()) }} />}
-      </Show>
-      <div style={styles.hint}>
-        {start()
-          ? 'release to annotate this area'
-          : label()
-            ? `drag an area, or click to take ${label()}`
-            : 'drag an area to annotate it — Escape leaves'}
+      <div style={styles.hint} {...{ [CHROME_ATTRIBUTE]: '' }}>
+        {start() ? 'release to annotate this area' : 'drag an area to annotate it — Escape leaves'}
       </div>
     </>
   );
 }
 
-/**
- * The area the open draft is about, outlined while you write.
- *
- * Drawn in DOCUMENT space so it stays on the content when the page scrolls —
- * the note is pinned to the page, and the outline has to say so.
- */
+/** The area the open draft is about, outlined while you write. */
 function TargetOutline(props: { service: AnnotateService }): JSX.Element {
   return (
     <Show when={props.service.draft.get()?.anchor.rect}>
-      {(rect) => (
-        <div
-          data-testid="wheel-annotate-target"
-          style={{ ...styles.outline, position: 'absolute', ...rectStyle(rect()) }}
-        />
-      )}
+      {(rect) => <div data-testid="wheel-annotate-target" style={{ ...styles.outline, ...rectStyle(rect()) }} />}
     </Show>
   );
 }
@@ -474,9 +315,8 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
     <Show when={props.service.draft.get()}>
       {(draft) => (
         <div style={styles.composer} data-testid="wheel-annotate-composer">
-          <div style={styles.dim}>
-            {draft().anchor.instanceId ?? (draft().anchor.kind === 'page' ? 'this page' : 'a region')}
-            {draft().startedAt !== null ? ` · clip, ${draft().timeline.length} events` : ''}
+          <div style={styles.dim} data-testid="wheel-annotate-subject">
+            {draft().anchor.instanceId ?? draft().anchor.element ?? 'this area'}
           </div>
           <textarea
             style={styles.textarea}
@@ -521,9 +361,6 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
                 ■ stop talking
               </button>
             </Show>
-            <Show when={props.service.recording.get()}>
-              <span style={styles.dim}>recording…</span>
-            </Show>
           </div>
           <Show when={draft().transcript}>
             <textarea
@@ -541,12 +378,7 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
                   type="button"
                   style={styles.button}
                   data-testid="wheel-annotate-shot"
-                  disabled={!draft().anchor.rect}
-                  title={
-                    draft().anchor.rect
-                      ? 'Opens a screen-capture prompt the first time'
-                      : 'A page note has no rectangle to capture'
-                  }
+                  title="Opens a screen-capture prompt the first time"
                   onClick={() => props.service.captureShot()}
                 >
                   📷 screenshot
@@ -555,13 +387,38 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
             >
               <span style={styles.dim}>📷 captured</span>
             </Show>
+            {/* A switch, not a mode: the note records what the app did either
+                way, and this adds the pictures. Leaving it on is fine — saving
+                stops the recording and attaches it. */}
+            <button
+              type="button"
+              style={{
+                ...styles.button,
+                ...(props.service.filming.get()
+                  ? { 'border-color': 'var(--wheel-indigo-bright, #6366f1)' }
+                  : {})
+              }}
+              data-testid="wheel-annotate-film"
+              title="Records the screen until you save"
+              onClick={() => props.service.toggleVideo()}
+            >
+              {props.service.filming.get() ? '⏹ recording — click to stop' : '🎥 record screen'}
+            </button>
+            <Show when={draft().video}>
+              <span style={styles.dim}>🎥 attached</span>
+            </Show>
           </div>
           <Show when={draft().shot}>
             {(shot) => <img style={styles.preview} src={shot()} alt="annotated region" />}
           </Show>
-          <Show when={draft().timeline.length > 0}>
-            <div style={styles.dim}>
-              <For each={draft().timeline.slice(-6)}>
+          {/* What the note will carry: the rolling buffer, live. Nothing was
+              pressed to record this — it has been running since the annotator
+              mounted, which is why the minute before the box was drawn is in
+              it too. */}
+          <Show when={props.service.timeline().length > 0}>
+            <div style={styles.dim} data-testid="wheel-annotate-timeline">
+              <div>{`${props.service.timeline().length} events recorded`}</div>
+              <For each={props.service.timeline().slice(-4)}>
                 {(event) => <div>{`${event.kind} · ${describeEvent(event)}`}</div>}
               </For>
             </div>
@@ -619,40 +476,5 @@ function Snackbar(props: { service: AnnotateService }): JSX.Element {
         </div>
       )}
     </Show>
-  );
-}
-
-/** Saved notes, as pins on the components they were left on. */
-function Pins(props: { service: AnnotateService }): JSX.Element {
-  return (
-    <For each={props.service.notes.get()}>
-      {(note: SavedNote, index) => {
-        const pin = props.service.pinFor(note);
-        return (
-          <Show when={pin}>
-            {(placed) => (
-              <button
-                type="button"
-                data-testid="wheel-annotate-pin"
-                title={`${note.payload.label}: ${note.payload.text || note.payload.voice?.transcript || note.id}${
-                  placed().match === 'orphaned' ? ' (anchor lost)' : ''
-                }`}
-                style={{
-                  ...styles.pin,
-                  left: `${placed().rect.x + placed().rect.width - 9}px`,
-                  top: `${placed().rect.y - 9}px`,
-                  ...(placed().match === 'orphaned'
-                    ? { background: 'var(--wheel-stage-ink-faint, #8b8b8b)' }
-                    : {})
-                }}
-                onClick={() => props.service.copyCommand(note.id)}
-              >
-                {index() + 1}
-              </button>
-            )}
-          </Show>
-        );
-      }}
-    </For>
   );
 }

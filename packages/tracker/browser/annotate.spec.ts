@@ -4,9 +4,9 @@
  * Everything else about this feature is tested in isolation: the recorder with
  * a fake clock, the endpoints with a fake server, the chrome in jsdom. This is
  * the one test that runs the WHOLE path — a browser arms annotation mode, a
- * human-shaped click picks a component, a clip records real interactions, the
- * page POSTs to the real dev-server endpoint, and the assertions are made
- * against the FILES that land on disk.
+ * human-shaped drag draws a rectangle, the real recorder supplies the
+ * timeline, the page POSTs to the real dev-server endpoint, and the assertions
+ * are made against the FILES that land on disk.
  *
  * If this passes, "leave a note and hand it to an agent" works.
  */
@@ -88,20 +88,18 @@ test('a dragged rectangle lands on disk with the components under it', async ({ 
     kind: string;
     label: string;
     text: string;
-    anchor: { instanceId: string | null; kind: string; rect: { y: number } | null };
+    anchor: { instanceId: string | null; rect: { width: number } };
     nearby: Array<{ instanceId: string; state: Record<string, unknown> }>;
     environment: { url: string };
   };
 
-  expect(payload.kind).toBe('note');
   expect(payload.label).toBe('bug');
   expect(payload.text).toBe('this row renders the wrong assignee');
   expect(payload.environment.url).toContain(`/teams/${team.id}/issues`);
 
   // The point of the whole feature: the note carries the components under the
   // rectangle and what they held, not just the rectangle.
-  expect(payload.anchor.kind).toBe('region');
-  expect(payload.anchor.rect).not.toBeNull();
+  expect(payload.anchor.rect.width).toBeGreaterThan(0);
   expect(payload.anchor.instanceId).toBeTruthy();
   expect(payload.nearby.length).toBeGreaterThan(0);
   expect(Object.keys(payload.nearby[0]!.state).length).toBeGreaterThan(0);
@@ -118,18 +116,16 @@ test('a dragged rectangle lands on disk with the components under it', async ({ 
   expect(note.markdown).toContain(payload.nearby[0]!.instanceId);
 });
 
-test('a clip records the real actions and state changes behind an interaction', async ({ page }) => {
+test('a note carries the real actions and state changes behind what happened', async ({ page }) => {
   const before = noteIds();
 
-  await page.getByTestId('wheel-annotate-chip').click();
-  await page.getByTestId('wheel-annotate-record').click();
-
-  // The picker steps aside while recording, so the app is usable — that is how
-  // a clip gets any content at all.
-  await expect(page.getByTestId('wheel-annotate-shield')).toHaveCount(0);
-
+  // Nothing is pressed to start recording, and annotation mode is not even on
+  // yet. The rolling buffer has been running since the annotator mounted, so
+  // this is just USING the app — exactly what a person does before deciding to
+  // complain about it.
   const issueTitle = page.locator('[data-testid^="issue-title-"]').first();
   const original = (await issueTitle.textContent())?.trim() ?? '';
+
   await issueTitle.dblclick();
   const editInput = page.locator('[data-testid^="issue-title-input-"]').first();
   await expect(editInput).toBeFocused();
@@ -137,26 +133,32 @@ test('a clip records the real actions and state changes behind an interaction', 
   await editInput.press('Enter');
   await expect(page.getByText(`${original} [annotated]`, { exact: true })).toBeVisible();
 
-  await page.getByTestId('wheel-annotate-stop').click();
+  await page.getByTestId('wheel-annotate-chip').click();
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
+  const target = await issueTitle.boundingBox();
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
+
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
   await page.getByTestId('wheel-annotate-text').fill('renaming an issue felt slow');
   await page.getByTestId('wheel-annotate-save').click();
 
   const note = await savedNote(before);
   const payload = note.payload as {
-    kind: string;
     startedAt: number;
     endedAt: number;
     startState: Record<string, Record<string, unknown>>;
     timeline: Array<{ kind: string; at: number; service?: string; action?: string; type?: string }>;
   };
 
-  expect(payload.kind).toBe('clip');
   expect(payload.endedAt).toBeGreaterThan(payload.startedAt);
 
   const kinds = new Set(payload.timeline.map((event) => event.kind));
   // Real input, a NAMED action, and the state it moved — the three things a
-  // screenshot-and-selector tool cannot give an agent.
+  // screenshot-and-selector tool cannot give an agent. None of it was asked
+  // for; the note simply carries what already happened.
   expect(kinds).toContain('input');
   expect(kinds).toContain('action');
   expect(kinds).toContain('state');
@@ -180,8 +182,12 @@ test('falls back to one downloaded file when the app has no dev server', async (
   await page.route('**/__wheel/note', (route) => route.abort());
 
   await page.getByTestId('wheel-annotate-chip').click();
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
   const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
-  await page.mouse.click(target!.x + target!.width / 2, target!.y + target!.height / 2);
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
   await page.getByTestId('wheel-annotate-text').fill('no server here');
 
@@ -205,59 +211,30 @@ test('falls back to one downloaded file when the app has no dev server', async (
   };
   expect(payload.text).toBe('no server here');
   expect(payload.anchor.instanceId).toBeTruthy();
-});
 
-test('a saved note comes back as a pin on the thing it was left on', async ({ page }) => {
-  await page.getByTestId('wheel-annotate-chip').click();
-  const pins = page.getByTestId('wheel-annotate-pin');
-  // Count what is already pinned once the listing has settled. Notes from the
-  // earlier tests in this file are on disk, and only the ones with a rectangle
-  // pin at all — a page note has nowhere to sit.
-  await page.waitForTimeout(1_000);
-  const existing = await pins.count();
-  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
-  await page.mouse.move(target!.x - 6, target!.y - 6);
-  await page.mouse.down();
-  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
-  await page.mouse.up();
-
-  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
-  await page.getByTestId('wheel-annotate-text').fill('pin me');
-  await page.getByTestId('wheel-annotate-save').click();
-
-  // Exactly one more than was there.
-  const expected = existing + 1;
-  await expect(pins).toHaveCount(expected, { timeout: 10_000 });
-
-  // The listing arrives moments later and must not duplicate it, nor drop it.
-  await page.waitForTimeout(1_000);
-  await expect(pins).toHaveCount(expected);
-});
-
-test('a note pins even when there is no dev server to save it to', async ({ page }) => {
-  // A deployed app: the note downloads instead of being written. It still has
-  // to appear on the page — otherwise saving looks like it did nothing.
-  await page.route('**/__wheel/note', (route) => route.abort());
-
-  await page.getByTestId('wheel-annotate-chip').click();
-  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
-  await page.mouse.move(target!.x - 6, target!.y - 6);
-  await page.mouse.down();
-  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
-  await page.mouse.up();
-
-  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
-  await page.getByTestId('wheel-annotate-text').fill('pinned without a server');
-
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByTestId('wheel-annotate-save').click()
-  ]);
-  expect(download.suggestedFilename()).toContain('pinned-without-a-server');
-  // The fallback says which way the note went, so "downloaded" is never
-  // mistaken for "saved to the repo".
+  // The page says which way it went, so "downloaded" is never mistaken for
+  // "saved into the repo".
   await expect(page.getByTestId('wheel-annotate-toast')).toContainText('downloaded');
-  // Exactly one: with the sink unreachable the listing never answers either,
-  // so the only pin on the page is the note just written.
-  await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1, { timeout: 10_000 });
+});
+
+test('a stray click annotates nothing, and video is never a toll on drawing', async ({ page }) => {
+  await page.getByTestId('wheel-annotate-chip').click();
+  const shield = page.getByTestId('wheel-annotate-shield');
+  await expect(shield).toBeVisible();
+
+  // A press that never really moved used to take whatever component was under
+  // it, so a misclick opened a composer nobody asked for.
+  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
+  await page.mouse.click(target!.x + target!.width / 2, target!.y + target!.height / 2);
+  await expect(page.getByTestId('wheel-annotate-composer')).toHaveCount(0);
+
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
+
+  // Drawing the box opened no permission prompt: recording the screen is a
+  // switch inside the composer, offered rather than charged.
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await expect(page.getByTestId('wheel-annotate-film')).toContainText('record screen');
 });

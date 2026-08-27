@@ -4,41 +4,23 @@
 
 Import only from `wheel/annotate`. The linked declarations are the source of truth for signatures, members, defaults, and limits.
 
-## `AnchorMatch`
-
-Kind: type. Source: [packages/wheel/src/annotate/types.ts:77](../../../packages/wheel/src/annotate/types.ts#L77).
-
-How well an anchor still resolves against the live component tree.
-
-## `anchorToInstance`
-
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:176](../../../packages/wheel/src/annotate/anchor.ts#L176).
-
-Anchor a note to one picked component instance.
-
-## `anchorToPage`
-
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:228](../../../packages/wheel/src/annotate/anchor.ts#L228).
-
-Anchor a note to the screen as a whole.
-
 ## `anchorToRegion`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:212](../../../packages/wheel/src/annotate/anchor.ts#L212).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:180](../../../packages/wheel/src/annotate/anchor.ts#L180).
 
-Anchor a note to a dragged rectangle; the innermost component under it names the anchor.
+Anchor a note to the rectangle that was drawn, describing what was under it both ways: as a component, and as plain DOM.
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:123](../../../packages/wheel/src/annotate/annotate-service.ts#L123).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:98](../../../packages/wheel/src/annotate/annotate-service.ts#L98).
 
 Injected capture seams, so the service runs headless in tests.
 
 ## `AnnotateMode`
 
-Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:80](../../../packages/wheel/src/annotate/annotate-service.ts#L80).
+Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:67](../../../packages/wheel/src/annotate/annotate-service.ts#L67).
 
-Where the flow currently is. `armed` is the marquee: drag a rectangle around what you want to talk about, or click a single point to take whatever component or element is under it. There is no separate region mode, because drawing the rectangle IS the interaction.
+Where the flow currently is. `armed` is the marquee: drag a rectangle around what you want to talk about. There is no other way in, and no mode to pick first — drawing the rectangle IS the interaction.
 
 ## `annotateRecorder`
 
@@ -48,7 +30,7 @@ The running recorder, or null when annotation is not enabled on this page.
 
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:134](../../../packages/wheel/src/annotate/annotate-service.ts#L134).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:109](../../../packages/wheel/src/annotate/annotate-service.ts#L109).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
 
@@ -60,13 +42,13 @@ What the resident recorder needs to run.
 
 ## `AnnotateSink`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:237](../../../packages/wheel/src/annotate/types.ts#L237).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:224](../../../packages/wheel/src/annotate/types.ts#L224).
 
-Where notes are sent, and read back from. One URL, two methods, and that is the whole contract: - `POST <url>` — save one note. The body is `{ id, payload, markdown, png?, video?, audio? }`, where `payload` is a {@link NotePayload} and the media are `data:` URLs. Answer `{ ok: true, command?, location? }` — `command` is something pasteable (the dev server returns `read <path>/note.md`), `location` a URL where the note now lives. A non-ok answer, or none, makes the page fall back to downloading the note as one file. - `GET <url>` — the saved notes as `{ ok: true, notes: [{ id, payload }] }`, newest first, so the page can pin each one back where it was left. Answering at all is what tells the page saving is possible. The default is the dev server's `/__wheel/note`, which writes a directory per note. Point it somewhere else — a Durable Object, an issue tracker, a bucket — and nothing else about the annotator changes.
+Where notes are sent, and read back from. One URL, two methods, and that is the whole contract: - `POST <url>` — save one note. The body is `{ id, payload, markdown, png?, video?, audio? }`, where `payload` is a {@link NotePayload} and the media are `data:` URLs. Answer `{ ok: true, command?, location? }` — `command` is something pasteable (the dev server returns `read <path>/note.md`), `location` a URL where the note now lives. A non-ok answer, or none, makes the page fall back to downloading the note as one file. - `GET <url>` — the saved notes as `{ ok: true, notes: [{ id, payload }] }`, newest first. Nothing on the page needs the list; it is the capability probe, and answering at all is what tells the page saving is possible here rather than downloading. The default is the dev server's `/__wheel/note`, which writes a directory per note. Point it somewhere else — a Durable Object, an issue tracker, a bucket — and nothing else about the annotator changes.
 
 ## `describeElement`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:80](../../../packages/wheel/src/annotate/anchor.ts#L80).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:60](../../../packages/wheel/src/annotate/anchor.ts#L60).
 
 A short human description of an element: `button.primary`, `div#board`, `input`.
 
@@ -78,9 +60,9 @@ One timeline row's human column — what actually happened, in words.
 
 ## `domPathOf`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:94](../../../packages/wheel/src/annotate/anchor.ts#L94).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:69](../../../packages/wheel/src/annotate/anchor.ts#L69).
 
-A plain CSS path to an element, walking up to six levels. This is the last-resort anchor for the case no component claims the element at all. It is fragile by nature — that is why it is fourth in line, not first.
+A plain CSS path to an element, walking up to six levels.
 
 ## `downloadNote`
 
@@ -90,19 +72,19 @@ Save `text` as `filename` through the browser's download path. Blob URL plus a s
 
 ## `NoteAnchor`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:46](../../../packages/wheel/src/annotate/types.ts#L46).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:48](../../../packages/wheel/src/annotate/types.ts#L48).
 
-What a note is attached to. `instance` is the good case and the one to aim for: a component id that is stable across reloads and list reorders (`require-stable-instance-name` exists to keep it that way). `region` is a dragged rectangle that may cover several components. `page` is a note about the screen as a whole. Every anchor also records the weaker signals — ancestors, rect, DOM path — because that is what makes re-finding the target degrade gracefully instead of failing (see `resolveAnchor`).
+What a note is about: the rectangle that was drawn, and what was under it. There is one anchor shape because there is one interaction — drawing the box IS picking the target. What was underneath is described BOTH ways, because the page may be a wheel app or may be plain prose: - as a component (`instanceId`, `name`, `ancestors`), for an app; - as plain DOM (`domPath`, `element`, `text`), for a docs paragraph or a landing headline, where there is no component to name but there is very much something on the screen. Either half may be empty. Both are recorded whenever they exist, because the agent reading the note later takes whichever the page actually had.
 
 ## `NoteDraft`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:83](../../../packages/wheel/src/annotate/annotate-service.ts#L83).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:70](../../../packages/wheel/src/annotate/annotate-service.ts#L70).
 
 A note being written: everything captured so far, none of it saved yet.
 
 ## `NoteEnvironment`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:258](../../../packages/wheel/src/annotate/types.ts#L258).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:245](../../../packages/wheel/src/annotate/types.ts#L245).
 
 Page-level facts worth having when the note is read out of context, weeks later.
 
@@ -114,79 +96,79 @@ A note's id and directory name: `<epoch-ms>-<slug>`. Epoch first so a directory 
 
 ## `NoteLabel`
 
-Kind: type. Source: [packages/wheel/src/annotate/types.ts:245](../../../packages/wheel/src/annotate/types.ts#L245).
+Kind: type. Source: [packages/wheel/src/annotate/types.ts:232](../../../packages/wheel/src/annotate/types.ts#L232).
 
 The small vocabulary a note can be tagged with — enough to sort by, short enough to pick fast.
 
 ## `NotePayload`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:277](../../../packages/wheel/src/annotate/types.ts#L277).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:264](../../../packages/wheel/src/annotate/types.ts#L264).
 
 A complete annotation. This IS `note.json`, and `note.md` is rendered from it — nothing in the markdown is information the JSON lacks.
 
 ## `NoteRect`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:23](../../../packages/wheel/src/annotate/types.ts#L23).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:22](../../../packages/wheel/src/annotate/types.ts#L22).
 
-A rectangle in CSS pixels, in DOCUMENT coordinates. Document rather than viewport, because a note is pinned to a place in the page and must stay there while the page scrolls. A viewport rectangle describes where something was on screen at one instant, which stops being true the moment anyone scrolls.
+A rectangle in CSS pixels, in VIEWPORT coordinates. Viewport rather than document, because a note describes a MOMENT: this is what was on screen, here, when I wrote this. It is not a bookmark into the page, and nothing tries to make it survive scrolling.
 
 ## `NoteTarget`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:80](../../../packages/wheel/src/annotate/types.ts#L80).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:66](../../../packages/wheel/src/annotate/types.ts#L66).
 
 One component captured alongside a note: identity, geometry, and what it held.
 
 ## `NoteVoice`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:248](../../../packages/wheel/src/annotate/types.ts#L248).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:235](../../../packages/wheel/src/annotate/types.ts#L235).
 
 A voice note: the transcript is what the agent reads, the audio is the receipt.
 
 ## `RecordedAction`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:100](../../../packages/wheel/src/annotate/types.ts#L100).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:86](../../../packages/wheel/src/annotate/types.ts#L86).
 
 A named action ran. Arguments are projected, so this doubles as a replay instruction.
 
 ## `RecordedError`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:168](../../../packages/wheel/src/annotate/types.ts#L168).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:154](../../../packages/wheel/src/annotate/types.ts#L154).
 
 Something threw, warned, or rejected while the recording was running.
 
 ## `RecordedEvent`
 
-Kind: type. Source: [packages/wheel/src/annotate/types.ts:208](../../../packages/wheel/src/annotate/types.ts#L208).
+Kind: type. Source: [packages/wheel/src/annotate/types.ts:194](../../../packages/wheel/src/annotate/types.ts#L194).
 
 One entry in a recording's merged, time-ordered stream.
 
 ## `RecordedInput`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:136](../../../packages/wheel/src/annotate/types.ts#L136).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:122](../../../packages/wheel/src/annotate/types.ts#L122).
 
 A real user input, mapped to the component that owns the element it hit.
 
 ## `RecordedNetwork`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:192](../../../packages/wheel/src/annotate/types.ts#L192).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:178](../../../packages/wheel/src/annotate/types.ts#L178).
 
 A `fetch` went out and (usually) came back.
 
 ## `RecordedRoute`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:182](../../../packages/wheel/src/annotate/types.ts#L182).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:168](../../../packages/wheel/src/annotate/types.ts#L168).
 
 The app navigated.
 
 ## `RecordedState`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:116](../../../packages/wheel/src/annotate/types.ts#L116).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:102](../../../packages/wheel/src/annotate/types.ts#L102).
 
 An atom moved. Large values arrive as a changed-keys diff rather than two full copies.
 
 ## `RecordedWrite`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:152](../../../packages/wheel/src/annotate/types.ts#L152).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:138](../../../packages/wheel/src/annotate/types.ts#L138).
 
 A row changed in the sync client's cache, with the reason it changed.
 
@@ -210,33 +192,15 @@ Which optional streams a recording captures. Both default ON (the 021 ruling: ma
 
 ## `renderNoteFile`
 
-Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:227](../../../packages/wheel/src/annotate/note-format.ts#L227).
+Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:233](../../../packages/wheel/src/annotate/note-format.ts#L233).
 
 The whole note as ONE self-contained markdown file, for when there is no dev server to write a directory — a production page, a static preview. Everything that would have been separate files is folded in: the screenshot as an inline data URL, and the complete payload as a fenced JSON block so nothing is lost on the way. Audio and video are deliberately left out; they are megabytes of base64 that no reader of a markdown file wants, and the transcript — the part an agent can actually use — is already in the prose.
 
 ## `renderNoteMarkdown`
 
-Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:156](../../../packages/wheel/src/annotate/note-format.ts#L156).
+Kind: function. Source: [packages/wheel/src/annotate/note-format.ts:165](../../../packages/wheel/src/annotate/note-format.ts#L165).
 
 Render the whole note as markdown. This is the file an agent is pointed at, so the order is deliberate: what it is, what was said, what happened, then the state.
-
-## `resolveAnchor`
-
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:288](../../../packages/wheel/src/annotate/anchor.ts#L288).
-
-Re-find an anchor against the CURRENT component tree, degrading in tiers (see the module doc). Never throws, never guesses silently: a `renamed` result says the id moved, and `orphaned` says the target is gone.
-
-## `ResolvedAnchor`
-
-Kind: interface. Source: [packages/wheel/src/annotate/anchor.ts:242](../../../packages/wheel/src/annotate/anchor.ts#L242).
-
-What re-finding an anchor produced: how good the match was, and what it landed on.
-
-## `SavedNote`
-
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:115](../../../packages/wheel/src/annotate/annotate-service.ts#L115).
-
-A saved note as the dev server hands it back, for rendering pins.
 
 ## `setNoteDownload`
 
@@ -300,15 +264,15 @@ Release one mount's claim on the session; the last one out tears it down. Refcou
 
 ## `targetOf`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:137](../../../packages/wheel/src/annotate/anchor.ts#L137).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:112](../../../packages/wheel/src/annotate/anchor.ts#L112).
 
 Project one mounted instance into the JSON a note stores.
 
 ## `targetsUnder`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:157](../../../packages/wheel/src/annotate/anchor.ts#L157).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:132](../../../packages/wheel/src/annotate/anchor.ts#L132).
 
-Every mounted instance whose DOM intersects a rectangle, innermost first. Same hit-test the inspector and the rich-screenshot capture already use, so a note over a region lists exactly what the ◰ tool would have listed.
+Every mounted instance whose DOM intersects a rectangle, innermost first. Same hit-test the inspector and the rich-screenshot capture already use, so a note over an area lists exactly what the ◰ tool would have listed.
 
 ## `VideoSession`
 

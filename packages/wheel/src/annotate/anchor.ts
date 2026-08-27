@@ -1,66 +1,46 @@
 /**
- * Anchoring: how a note finds its target again later.
+ * Anchoring: what a note is about.
  *
- * The good anchor is a component instance id — `BoardCell:3-7` — because wheel
- * already forces those to be stable (`require-stable-instance-name` makes a
- * component with an identity prop name itself from that prop, so the id follows
- * the DATA and never shifts when a list reorders).
+ * A note is a RECTANGLE you drew on the screen, and everything that was under
+ * it when you drew it. There is one anchor kind because there is one
+ * interaction — drawing the box IS picking the target.
  *
- * But code changes. A component gets renamed, a row disappears, a whole screen
- * is rewritten. So an anchor stores four things and gives up in TIERS rather
- * than all at once:
+ * The anchor records two independent descriptions of what was under the box,
+ * because a page may be a wheel app or may be plain prose, and an agent
+ * reading the note later needs whichever one exists:
  *
- *   1. the exact instance id is still mounted           → `exact`
- *   2. no, but exactly one component of that NAME is    → `renamed`
- *   3. several share the name — pick the one whose enclosing components
- *      match the recorded ancestors best                → `renamed`
- *   4. nothing matches                                  → `orphaned`
+ *   - the innermost COMPONENT under the box: its instance id (`BoardCell:3-7`),
+ *     its manifest name, and its enclosing components;
+ *   - the innermost ELEMENT under the box: its DOM path, what kind of element
+ *     it is, and a quote of its text — which is all a docs paragraph has.
  *
- * An orphaned note is never deleted or silently re-pointed. It keeps its
- * rectangle, its screenshot, and the state it captured, and it says out loud
- * that the thing it described is gone — which is itself a useful finding.
+ * Rectangles are VIEWPORT coordinates: where the thing was on screen at the
+ * moment the note was written. A note is a description of a moment, not a
+ * bookmark into the document, so nothing here tries to survive scrolling.
  */
 import type { DebugRegistry, InstanceRecord } from '../core/debug-registry';
 import { serializeValue } from '../core/serialize';
 
-import type { AnchorMatch, NoteAnchor, NoteRect, NoteTarget } from './types';
+import type { NoteAnchor, NoteRect, NoteTarget } from './types';
 
-/** How many ancestor levels an anchor remembers — enough to disambiguate, short enough to stay readable. */
+/** How many ancestor levels an anchor remembers — enough to place it, short enough to stay readable. */
 const ANCESTOR_DEPTH = 6;
 
-/** How many levels a DOM-path fallback walks up before it stops being useful. */
+/** How many levels a DOM path walks up before it stops being useful. */
 const DOM_PATH_DEPTH = 6;
 
-/** How much of a target's text an element anchor quotes to find it again. */
+/** How much of a target's text an anchor quotes. */
 const QUOTE_LENGTH = 120;
 
-/** How far the page is scrolled, or zero where there is no window. */
-function scrollOffset(): { readonly x: number; readonly y: number } {
-  return { x: globalThis.scrollX ?? 0, y: globalThis.scrollY ?? 0 };
-}
-
 /**
- * A measured rectangle as the note stores it: DOCUMENT coordinates.
- *
- * `getBoundingClientRect` is viewport-relative, so scroll has to be added back
- * in. Without that, a pin drawn from a stored rect sits where the target was
- * on screen when the note was written rather than where the target is.
+ * Marks the annotator's own overlays, so a hit-test can look straight through
+ * them. Exported because the chrome has to stamp it on everything it draws.
  */
-function toRect(rect: DOMRect | NoteRect): NoteRect {
-  const scroll = scrollOffset();
-  return { x: rect.x + scroll.x, y: rect.y + scroll.y, width: rect.width, height: rect.height };
-}
+export const CHROME_ATTRIBUTE = 'data-wheel-annotate-chrome';
 
-/** A viewport rectangle — what a pointer gives you — in document coordinates. */
-export function toDocumentRect(rect: NoteRect): NoteRect {
-  const scroll = scrollOffset();
-  return { x: rect.x + scroll.x, y: rect.y + scroll.y, width: rect.width, height: rect.height };
-}
-
-/** A stored document rectangle back in viewport coordinates, for drawing or hit-testing. */
-export function toViewportRect(rect: NoteRect): NoteRect {
-  const scroll = scrollOffset();
-  return { x: rect.x - scroll.x, y: rect.y - scroll.y, width: rect.width, height: rect.height };
+/** A measured rectangle as the note stores it: viewport coordinates, unchanged. */
+function toRect(rect: DOMRect): NoteRect {
+  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
 }
 
 /** True when two viewport rectangles overlap at all (the Figma marquee convention). */
@@ -85,12 +65,7 @@ export function describeElement(element: Element): string {
   return first ? `${tag}.${first}` : tag;
 }
 
-/**
- * A plain CSS path to an element, walking up to six levels.
- *
- * This is the last-resort anchor for the case no component claims the element
- * at all. It is fragile by nature — that is why it is fourth in line, not first.
- */
+/** A plain CSS path to an element, walking up to six levels. */
 export function domPathOf(element: Element): string {
   const parts: string[] = [];
   let current: Element | null = element;
@@ -114,7 +89,7 @@ export function domPathOf(element: Element): string {
   return parts.join(' > ');
 }
 
-/** A short quote of an element's text — what identifies a paragraph after it moves. */
+/** A short quote of an element's text — what identifies a paragraph in prose. */
 function quoteOf(element: Element): string | null {
   const text = (element.textContent ?? '').replace(/\s+/g, ' ').trim();
   return text ? text.slice(0, QUOTE_LENGTH) : null;
@@ -152,15 +127,13 @@ export function targetOf(registry: DebugRegistry, record: InstanceRecord): NoteT
  * Every mounted instance whose DOM intersects a rectangle, innermost first.
  *
  * Same hit-test the inspector and the rich-screenshot capture already use, so
- * a note over a region lists exactly what the ◰ tool would have listed.
+ * a note over an area lists exactly what the ◰ tool would have listed.
  */
 export function targetsUnder(registry: DebugRegistry, rect: NoteRect, limit = 24): NoteTarget[] {
-  // Stored rectangles are document-space; element rectangles are viewport-space.
-  const viewport = toViewportRect(rect);
   const hits: Array<{ record: InstanceRecord; element: Element }> = [];
   for (const record of registry.instances()) {
     for (const element of record.elements) {
-      if (element.isConnected && rectsIntersect(viewport, element.getBoundingClientRect())) {
+      if (element.isConnected && rectsIntersect(rect, element.getBoundingClientRect())) {
         hits.push({ record, element });
         break;
       }
@@ -172,145 +145,49 @@ export function targetsUnder(registry: DebugRegistry, rect: NoteRect, limit = 24
     .map(({ record }) => targetOf(registry, record));
 }
 
-/** Anchor a note to one picked component instance. */
-export function anchorToInstance(registry: DebugRegistry, record: InstanceRecord): NoteAnchor {
-  const element = liveElement(record);
+/**
+ * The deepest element the rectangle covers, found by hit-testing its middle.
+ *
+ * This is what makes a note on a page wheel does not own worth anything: a
+ * docs paragraph has no component, but it does have a path and a sentence.
+ *
+ * The annotator's own chrome is skipped. It has to be: the marquee's shield
+ * covers the whole page while you drag, so a plain hit-test answers "the
+ * shield" every single time and the note describes the annotator instead of
+ * the app.
+ */
+function elementUnder(rect: NoteRect): Element | null {
+  // jsdom and other non-visual environments do not implement the hit-test.
+  // Losing the DOM half of an anchor is a smaller loss than failing the note.
+  if (typeof document === 'undefined') return null;
+  const x = rect.x + rect.width / 2;
+  const y = rect.y + rect.height / 2;
+  if (typeof document.elementsFromPoint === 'function') {
+    for (const element of document.elementsFromPoint(x, y)) {
+      if (!element.closest(`[${CHROME_ATTRIBUTE}]`)) return element;
+    }
+    return null;
+  }
+  if (typeof document.elementFromPoint !== 'function') return null;
+  const element = document.elementFromPoint(x, y);
+  return element?.closest(`[${CHROME_ATTRIBUTE}]`) ? null : element;
+}
+
+/**
+ * Anchor a note to the rectangle that was drawn, describing what was under it
+ * both ways: as a component, and as plain DOM.
+ */
+export function anchorToRegion(registry: DebugRegistry, rect: NoteRect): NoteAnchor {
+  const [innermost] = targetsUnder(registry, rect, 1);
+  const record = innermost ? registry.instance(innermost.instanceId) : undefined;
+  const element = elementUnder(rect);
   return {
-    kind: 'instance',
-    instanceId: record.instanceId,
-    name: record.name,
-    ancestors: ancestorsOf(registry, record),
-    rect: element ? toRect(element.getBoundingClientRect()) : null,
+    rect,
+    instanceId: innermost?.instanceId ?? null,
+    name: innermost?.name ?? null,
+    ancestors: record ? ancestorsOf(registry, record) : [],
     domPath: element ? domPathOf(element) : null,
     element: element ? describeElement(element) : null,
     text: element ? quoteOf(element) : null
   };
-}
-
-/**
- * Anchor a note to a plain DOM element, for pages wheel does not own.
- *
- * A docs paragraph or a landing headline has no component to name, so this
- * leans on what prose actually has: where it sits in the document, what kind
- * of element it is, and a quote of its text. The quote is the part that
- * survives an edit somewhere else on the page.
- */
-export function anchorToElement(element: Element): NoteAnchor {
-  return {
-    kind: 'element',
-    instanceId: null,
-    name: null,
-    ancestors: [],
-    rect: toRect(element.getBoundingClientRect()),
-    domPath: domPathOf(element),
-    element: describeElement(element),
-    text: quoteOf(element)
-  };
-}
-
-/** Anchor a note to a dragged rectangle; the innermost component under it names the anchor. */
-export function anchorToRegion(registry: DebugRegistry, rect: NoteRect): NoteAnchor {
-  const [innermost] = targetsUnder(registry, rect, 1);
-  const record = innermost ? registry.instance(innermost.instanceId) : undefined;
-  return {
-    kind: 'region',
-    instanceId: innermost?.instanceId ?? null,
-    name: innermost?.name ?? null,
-    ancestors: record ? ancestorsOf(registry, record) : [],
-    rect,
-    domPath: null,
-    element: null,
-    text: null
-  };
-}
-
-/** Anchor a note to the screen as a whole. */
-export function anchorToPage(): NoteAnchor {
-  return {
-    kind: 'page',
-    instanceId: null,
-    name: null,
-    ancestors: [],
-    rect: null,
-    domPath: null,
-    element: null,
-    text: null
-  };
-}
-
-/** What re-finding an anchor produced: how good the match was, and what it landed on. */
-export interface ResolvedAnchor {
-  /** `exact`, `renamed` (found some other way), or `orphaned` (gone). */
-  readonly match: AnchorMatch;
-  /** The live instance, when the anchor named a component that is still mounted. */
-  readonly record: InstanceRecord | null;
-  /** The live element, for anchors on plain DOM. */
-  readonly element: Element | null;
-}
-
-/**
- * Re-find an element anchor: its path first, then its words.
- *
- * The path is exact and brittle; the quote is fuzzy and durable. A docs
- * paragraph that moved down the page keeps its sentence, and that is what
- * finds it — the same trick a comment system uses to survive an edit.
- */
-function resolveElement(anchor: NoteAnchor): ResolvedAnchor {
-  if (typeof document === 'undefined') return { match: 'orphaned', record: null, element: null };
-  if (anchor.domPath) {
-    try {
-      const found = document.querySelector(anchor.domPath);
-      // The path alone is not proof: the same slot can hold different content
-      // after an edit, so a recorded quote has to still agree.
-      if (found && (!anchor.text || (found.textContent ?? '').includes(anchor.text))) {
-        return { match: 'exact', record: null, element: found };
-      }
-    } catch {
-      // A stored path that is no longer valid CSS is just a miss.
-    }
-  }
-  if (anchor.text) {
-    const candidates = document.querySelectorAll(anchor.element?.split('.')[0] ?? '*');
-    for (const candidate of candidates) {
-      if ((candidate.textContent ?? '').replace(/\s+/g, ' ').trim().startsWith(anchor.text)) {
-        return { match: 'renamed', record: null, element: candidate };
-      }
-    }
-  }
-  return { match: 'orphaned', record: null, element: null };
-}
-
-/**
- * Re-find an anchor against the CURRENT component tree, degrading in tiers
- * (see the module doc). Never throws, never guesses silently: a `renamed`
- * result says the id moved, and `orphaned` says the target is gone.
- */
-export function resolveAnchor(registry: DebugRegistry, anchor: NoteAnchor): ResolvedAnchor {
-  if (anchor.kind === 'element') return resolveElement(anchor);
-  if (anchor.instanceId) {
-    const exact = registry.instance(anchor.instanceId);
-    if (exact && (anchor.name === null || exact.name === anchor.name)) {
-      return { match: 'exact', record: exact, element: null };
-    }
-  }
-  if (anchor.name) {
-    const sameName = registry.instances().filter((record) => record.name === anchor.name);
-    if (sameName.length === 1) return { match: 'renamed', record: sameName[0]!, element: null };
-    if (sameName.length > 1) {
-      // Several candidates: the one whose enclosing components overlap the
-      // recorded ancestors most is the best guess available.
-      const wanted = new Set(anchor.ancestors);
-      let best: InstanceRecord | null = null;
-      let bestScore = -1;
-      for (const record of sameName) {
-        const score = ancestorsOf(registry, record).filter((id) => wanted.has(id)).length;
-        if (score > bestScore) {
-          best = record;
-          bestScore = score;
-        }
-      }
-      if (best) return { match: 'renamed', record: best, element: null };
-    }
-  }
-  return { match: 'orphaned', record: null, element: null };
 }

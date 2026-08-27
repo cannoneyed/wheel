@@ -1,22 +1,23 @@
 /**
  * `AnnotateService` — the whole annotation flow as one state machine.
  *
- *   off ──arm──▶ armed ──pick──▶ composing ──save──▶ (written to disk) ──▶ armed
- *                  │                  ▲
- *                  └──record ▶ recording ┘   (stop opens the composer with the clip attached)
+ *   off ──arm──▶ armed ──draw a box──▶ composing ──save──▶ (sent) ──▶ armed
+ *
+ * There is ONE interaction: drag a rectangle around what you want to talk
+ * about. Whatever was under it comes along — the components with their live
+ * state, and the plain DOM for a page wheel does not own.
  *
  * Two things are worth knowing before reading the code:
  *
  * **The recorder runs before you press anything.** In dev the taps go in when
  * `WheelAnnotate` MOUNTS, keeping a rolling 60-second buffer for the whole
- * session — so "that just happened and I didn't hit record" is recoverable
- * with `saveRetro()`. Starting the buffer at arm time would be useless: by
- * then the thing you wanted has already happened.
+ * session. So every note carries the minute BEFORE the box was drawn — which
+ * is the minute the bug happened in. Starting the buffer at arm time would be
+ * useless: by then the thing you wanted has already happened.
  *
- * **Saving is a plain POST to the dev server**, which writes a directory of
- * files under `.wheel/notes/`. That is the whole delivery mechanism: an agent
- * reads files. The response carries a one-line command that goes straight to
- * the clipboard, so handing a note over is one paste.
+ * **Saving is a plain POST to a sink**, which the app configures and which
+ * defaults to the dev server's handler. A sink that cannot be reached costs
+ * nothing: the note downloads as one self-contained file instead.
  *
  * Everything that touches hardware (pixels, microphone, video) is injected —
  * the service itself is deterministic and testable with no browser at all.
@@ -24,21 +25,10 @@
 import { Service } from '../core/services';
 import { logger } from '../core/logger';
 import { serializeValue } from '../core/serialize';
-import type { InstanceRecord } from '../core/debug-registry';
 import type { SyncClient } from '../sync/client/client';
 import { activeErrorLog } from '../debug/error-capture';
 
-import {
-  toDocumentRect,
-  toViewportRect,
-  anchorToElement,
-  anchorToInstance,
-  anchorToPage,
-  anchorToRegion,
-  resolveAnchor,
-  targetOf,
-  targetsUnder
-} from './anchor';
+import { anchorToRegion, targetOf, targetsUnder } from './anchor';
 import { Recorder, stateTreeSnapshot } from './recorder';
 import { annotateRecorder, startAnnotateSession } from './session';
 import { downloadNote } from './download';
@@ -70,22 +60,19 @@ const WRITE_DEPTH = 4;
 const NOTICE_MS = 4_000;
 
 /**
- * Where the flow currently is.
- *
- * `armed` is the marquee: drag a rectangle around what you want to talk about,
- * or click a single point to take whatever component or element is under it.
- * There is no separate region mode, because drawing the rectangle IS the
- * interaction.
+ * Where the flow currently is. `armed` is the marquee: drag a rectangle around
+ * what you want to talk about. There is no other way in, and no mode to pick
+ * first — drawing the rectangle IS the interaction.
  */
 export type AnnotateMode = 'off' | 'armed' | 'composing';
 
 /** A note being written: everything captured so far, none of it saved yet. */
 export interface NoteDraft {
-  /** What the note will attach to. */
+  /** The rectangle, and what was under it. */
   readonly anchor: NoteAnchor;
-  /** The anchored component's captured state, when the anchor named one. */
+  /** The innermost component under the rectangle, with its captured state. */
   readonly target: NoteTarget | null;
-  /** Other components under the anchor's rectangle. */
+  /** Every other component under the rectangle. */
   readonly nearby: readonly NoteTarget[];
   /** Typed note text. */
   readonly text: string;
@@ -95,28 +82,16 @@ export interface NoteDraft {
   readonly transcript: string;
   /** Whether a voice session is capturing right now. */
   readonly listening: boolean;
-  /** `data:image/png;base64,…` of the anchored region. */
+  /** `data:image/png;base64,…` of the drawn rectangle. */
   readonly shot: string | null;
   /** `data:audio/webm;base64,…` from the microphone. */
   readonly audio: string | null;
-  /** `data:video/webm;base64,…` for a clip. */
+  /** `data:video/webm;base64,…`, when screen recording was switched on. */
   readonly video: string | null;
-  /** Clip start, or null for a point-in-time note. */
-  readonly startedAt: number | null;
-  /** Clip end, or null for a point-in-time note. */
-  readonly endedAt: number | null;
-  /** The merged event stream harvested for this draft. */
-  readonly timeline: readonly RecordedEvent[];
-  /** Every service's atoms at clip start — the half replay would need. */
-  readonly startState: Record<string, Record<string, unknown>> | null;
-}
-
-/** A saved note as the dev server hands it back, for rendering pins. */
-export interface SavedNote {
-  /** Directory name and payload id. */
-  readonly id: string;
-  /** The stored payload. */
-  readonly payload: NotePayload;
+  /** When the box was drawn — the start of what this note describes. */
+  readonly openedAt: number;
+  /** Every service's atoms when the box was drawn. */
+  readonly startState: Record<string, Record<string, unknown>>;
 }
 
 /** Injected capture seams, so the service runs headless in tests. */
@@ -142,15 +117,9 @@ export class AnnotateService extends Service {
   readonly mode = this.atom<AnnotateMode>('off', 'mode');
   /** The note being written, or null. */
   readonly draft = this.atom<NoteDraft | null>(null, 'draft');
-  /** True while a clip is recording. */
-  readonly recording = this.atom(false, 'recording');
-  /** True while screen video is being captured alongside the clip. */
+  /** True while the screen is being recorded into the open draft. */
   readonly filming = this.atom(false, 'filming');
-  /** The component the picker is hovering. */
-  readonly hovered = this.atom<string | null>(null, 'hovered');
-  /** Notes already on disk, for pins. */
-  readonly notes = this.atom<readonly SavedNote[]>([], 'notes');
-  /** True once the sink answered its listing — which is what proves it can be saved to. */
+  /** True once the sink answered — which is what proves it can be saved to. */
   readonly canSave = this.atom(false, 'canSave');
   /** Absolute directory of the last save. */
   readonly savedTo = this.atom<string | null>(null, 'savedTo');
@@ -230,11 +199,16 @@ export class AnnotateService extends Service {
     startAnnotateSession({ now: () => this.now(), registry: this.context.registry });
   }, 'beginSession');
 
-  /** Turn annotation mode on: pins appear and the picker goes live. */
+  /** Turn annotation mode on: the marquee goes live. */
   readonly arm = this.action(() => {
     if (this.mode.get() !== 'off') return;
+    // Idempotent, and normally already done by the page-wide session that
+    // started at mount. It matters when there is no session — a service used
+    // directly, or a test — because a note with no timeline is the whole
+    // feature missing.
+    this.recorder.install();
     this.mode.set('armed');
-    this.loadNotes();
+    this.probeSink();
   }, 'arm');
 
   /**
@@ -245,13 +219,8 @@ export class AnnotateService extends Service {
    */
   readonly disarm = this.action(() => {
     this.cancelVoice();
-    this.video.get()?.cancel();
-    this.video.set(null);
-    this.filming.set(false);
-    this.recorder.endClip();
-    this.recording.set(false);
+    this.cancelVideo();
     this.draft.set(null);
-    this.hovered.set(null);
     this.mode.set('off');
   }, 'disarm');
 
@@ -260,46 +229,34 @@ export class AnnotateService extends Service {
     this.disarm();
   }, 'endSession');
 
-  /** Highlight-follows-cursor while the picker is live. */
-  readonly hover = this.action((instanceId: string | null) => {
-    this.hovered.set(instanceId);
-  }, 'hover');
-
-  /** Attach a note to one component instance and open the composer. */
-  readonly pickInstance = this.action((instanceId: string) => {
-    const record = this.context.registry.instance(instanceId);
-    if (!record) {
-      logger.warn(`wheel: annotate could not find instance '${instanceId}'`);
-      return;
-    }
-    this.openComposer(anchorToInstance(this.context.registry, record), record);
-  }, 'pickInstance');
-
   /**
-   * Attach a note to a dragged rectangle and open the composer.
+   * The one door in: a drawn rectangle opens the composer.
    *
-   * The rectangle arrives in VIEWPORT coordinates, because that is what a
-   * pointer reports. It is stored in document coordinates so the note stays
-   * pinned to the page rather than to a scroll position.
+   * The rectangle is what a pointer reports — viewport coordinates — and it is
+   * stored exactly that way. A note describes what was on screen at a moment,
+   * so nothing here converts it into a place in the document.
    */
-  readonly pickRegion = this.action((viewportRect: NoteRect) => {
-    const rect = toDocumentRect(viewportRect);
-    this.openComposer(anchorToRegion(this.context.registry, rect), null, rect);
+  readonly pickRegion = this.action((rect: NoteRect) => {
+    const registry = this.context.registry;
+    const nearby = targetsUnder(registry, rect, NEARBY_LIMIT);
+    const innermost = nearby[0] ? registry.instance(nearby[0].instanceId) : undefined;
+    this.draft.set({
+      anchor: anchorToRegion(registry, rect),
+      target: innermost ? targetOf(registry, innermost) : null,
+      nearby,
+      text: '',
+      label: 'bug',
+      transcript: '',
+      listening: false,
+      shot: null,
+      audio: null,
+      video: null,
+      openedAt: this.now(),
+      startState: stateTreeSnapshot(registry)
+    });
+    this.mode.set('composing');
+    this.hold(null);
   }, 'pickRegion');
-
-  /** Attach a note to the screen as a whole and open the composer. */
-  readonly pickPage = this.action(() => {
-    this.openComposer(anchorToPage(), null);
-  }, 'pickPage');
-
-  /**
-   * Attach a note to a plain DOM element — the door for pages wheel does not
-   * own, like a docs page or a landing scroll, where there is no component to
-   * name but there is very much something wrong on the screen.
-   */
-  readonly pickElement = this.action((element: Element) => {
-    this.openComposer(anchorToElement(element), null);
-  }, 'pickElement');
 
   /** Typed note text. */
   readonly setText = this.action((text: string) => {
@@ -347,30 +304,23 @@ export class AnnotateService extends Service {
   }, 'stopListening');
 
   /**
-   * Start a clip. The taps are already running; this pins the buffer (no more
-   * age-based pruning), snapshots the starting state, and starts the video.
+   * Switch screen recording on or off for the open note.
    *
-   * A refused screen-capture prompt is NOT a failure: the timeline is the
-   * recording, the video only illustrates it.
-   */
-  readonly startClip = this.action(() => {
-    if (this.recording.get()) return;
-    this.recorder.install();
-    this.recorder.startClip(this.now());
-    this.errorCursor.set(activeErrorLog()?.entries().length ?? 0);
-    this.recording.set(true);
-  }, 'startClip');
-
-  /**
-   * Add screen video to the clip that is running.
+   * A switch rather than a mode: the timeline is recorded either way, and
+   * video is the illustration you opt into. It is never automatic, because
+   * starting it opens a browser permission prompt and a note is worth writing
+   * without one.
    *
-   * Separate from `startClip` on purpose: starting video opens a capture
-   * prompt, and pressing record should not cost a modal. The timeline is the
-   * recording; video is an illustration someone can opt into.
+   * Switching it on and leaving it on is fine — `save()` stops the recording
+   * and attaches it, so there is nothing to remember to press.
    */
-  readonly recordVideo = this.action(() => {
+  readonly toggleVideo = this.action(() => {
+    if (this.video.get()) {
+      this.stopVideo();
+      return;
+    }
     const capture = this.capture.get();
-    if (!capture || this.video.get()) return;
+    if (!capture) return;
     this.hold('asking for screen capture…');
     void startVideo(() => capture.stream())
       .then((session) => {
@@ -378,71 +328,50 @@ export class AnnotateService extends Service {
         this.filming.set(true);
         this.hold(null);
       })
-      .catch(() => this.say('no video — the timeline is recording all the same'));
-  }, 'recordVideo');
-
-  /** Stop the clip and open the composer with the whole recording attached. */
-  readonly stopClip = this.action(() => {
-    if (!this.recording.get()) return;
-    const startedAt = this.recorder.clipStartedAt() ?? this.now();
-    const endedAt = this.now();
-    this.recording.set(false);
-    this.recorder.endClip();
-    const startState = stateTreeSnapshot(this.context.registry);
-    this.openComposer(anchorToPage(), null, null, {
-      startedAt,
-      endedAt,
-      timeline: this.harvest(startedAt, endedAt),
-      startState
-    });
-    const session = this.video.get();
-    this.video.set(null);
-    this.filming.set(false);
-    if (session) {
-      void session
-        .stop()
-        .then((video) => this.patchDraft({ video }))
-        .catch(() => this.say('no video — the timeline is complete without it'));
-    }
-  }, 'stopClip');
-
-  /**
-   * Turn the rolling retro buffer into a clip — the "that just happened and I
-   * didn't press record" door. Everything still in the buffer becomes the
-   * timeline.
-   */
-  readonly saveRetro = this.action(() => {
-    const timeline = this.recorder.timeline();
-    const startedAt = timeline[0]?.at ?? this.now();
-    const endedAt = this.now();
-    this.openComposer(anchorToPage(), null, null, {
-      startedAt,
-      endedAt,
-      timeline: this.harvest(startedAt, endedAt),
-      startState: stateTreeSnapshot(this.context.registry)
-    });
-  }, 'saveRetro');
+      .catch(() => this.say('no video — the note records everything else all the same'));
+  }, 'toggleVideo');
 
   /** Throw the draft away and go back to armed. */
   readonly discard = this.action(() => {
     this.cancelVoice();
+    this.cancelVideo();
     this.draft.set(null);
     this.mode.set('armed');
   }, 'discard');
 
   /**
-   * Write the note: POST the payload, then put the read-this-file command on
-   * the clipboard so handing it to an agent is one paste.
+   * Write the note.
+   *
+   * If the screen is being recorded, that has to finish first — the video is
+   * part of what the note says. Everything after it is the same either way, so
+   * the two paths meet again in `deliver`.
    */
   readonly save = this.action(() => {
     const draft = this.draft.get();
     if (!draft) return;
+    const session = this.video.get();
+    if (!session) {
+      this.deliver(draft);
+      return;
+    }
+    this.video.set(null);
+    this.filming.set(false);
+    this.hold('finishing the recording…');
+    void session
+      .stop()
+      .then((video) => this.deliver({ ...draft, video }))
+      .catch(() => this.deliver(draft));
+  }, 'save');
+
+  /**
+   * Send one finished note, and fall back to a download if nothing answers.
+   *
+   * Deciding from `canSave` instead would race the probe — arm, draw, type
+   * fast, hit save, and a note would go to a file even though a sink was right
+   * there. So this always tries the sink, and catches.
+   */
+  private deliver(draft: NoteDraft): void {
     const payload = this.buildPayload(draft);
-    // Pin it NOW, from what is in hand. Waiting for the server listing meant a
-    // note only appeared if it round-tripped — so a note saved on a deployed
-    // app, where the delivery is a download, was never pinned at all. What you
-    // just wrote should be on the page whatever happens to it next.
-    this.notes.set([...this.notes.get(), { id: payload.id, payload }]);
     const body = {
       id: payload.id,
       payload,
@@ -453,9 +382,6 @@ export class AnnotateService extends Service {
     };
     this.draft.set(null);
     this.mode.set('armed');
-    // Try the sink; fall back to a download. Deciding from `canSave` instead
-    // would race the listing — arm, type fast, hit save, and a note would go
-    // to a file even though a sink was right there.
     const sink = this.sink.get();
     void fetch(sink.url, {
       method: 'POST',
@@ -478,110 +404,37 @@ export class AnnotateService extends Service {
         const handle = result.command ?? result.location ?? null;
         this.lastCommand.set(handle);
         if (handle) void copyToClipboard(handle);
-        this.say('saved — pinned to the page, read command copied');
-        this.loadNotes();
+        this.say('note saved — read command copied');
       })
       .catch(() => this.deliverAsDownload(payload, draft.shot));
-  }, 'save');
+  }
 
   /**
-   * Re-read the notes the sink holds (pins).
+   * Ask the sink whether it is there.
    *
-   * A sink that answers this is a sink that can be saved to, so this doubles
-   * as the capability probe — one round trip rather than two.
+   * Nothing on the page needs the note list; this is the capability probe, and
+   * the only thing it decides is whether the button says "save" or "download".
+   * Saving never waits for it.
    */
-  readonly loadNotes = this.action(() => {
+  private probeSink(): void {
     const sink = this.sink.get();
     void fetch(sink.url, { headers: sink.headers })
-      .then(async (response) => {
-        this.canSave.set(response.ok);
-        if (!response.ok) return;
-        const result = (await response.json()) as { ok: boolean; notes?: SavedNote[] };
-        if (!result.ok || !result.notes) return;
-        // Keep anything the server has not got — a downloaded note lives only
-        // here, and the listing must not quietly erase it.
-        const onDisk = new Set(result.notes.map((note) => note.id));
-        const localOnly = this.notes.get().filter((note) => !onDisk.has(note.id));
-        this.notes.set([...result.notes, ...localOnly]);
-      })
+      .then((response) => this.canSave.set(response.ok))
       .catch(() => {
-        // No sink reachable (a production page with none configured, a static
-        // preview): saving will fall back to a download, and says so.
+        // No sink reachable (a deployed page with none configured, a static
+        // preview): saving falls back to a download, and the button says so.
         this.canSave.set(false);
       });
-  }, 'loadNotes');
+  }
 
   /** Take the snackbar away now, rather than waiting out its timer. */
   readonly dismissNotice = this.action(() => {
     this.hold(null);
   }, 'dismissNotice');
 
-  /** Put a saved note's read command back on the clipboard. */
-  readonly copyCommand = this.action((id: string) => {
-    void copyToClipboard(`read .wheel/notes/${id}/note.md`);
-  }, 'copyCommand');
-
-  /** Where a saved note's pin belongs now, and how well its anchor still resolves. */
-  pinFor(note: SavedNote): { rect: NoteRect; match: 'exact' | 'renamed' | 'orphaned' } | null {
-    const resolved = resolveAnchor(this.context.registry, note.payload.anchor);
-    const live = resolved.record
-      ? [...resolved.record.elements].find((element) => element.isConnected)
-      : resolved.element;
-    if (live?.isConnected) {
-      const rect = live.getBoundingClientRect();
-      // Measured against the viewport, stored and drawn against the document.
-      return {
-        rect: toDocumentRect({ x: rect.x, y: rect.y, width: rect.width, height: rect.height }),
-        match: resolved.match
-      };
-    }
-    const fallback = note.payload.anchor.rect;
-    return fallback ? { rect: fallback, match: 'orphaned' } : null;
-  }
-
   /** The buffered timeline, for surfaces that show what is being recorded. */
   timeline(): readonly RecordedEvent[] {
     return this.recorder.timeline();
-  }
-
-  /** The mounted component that owns an element — what the picker points at. */
-  instanceAt(element: Element): InstanceRecord | undefined {
-    return this.context.registry.instanceAt(element);
-  }
-
-  /** Open the composer with an anchor, capturing state, pixels and neighbours. */
-  private openComposer(
-    anchor: NoteAnchor,
-    record: InstanceRecord | null,
-    rect: NoteRect | null = null,
-    clip?: {
-      startedAt: number;
-      endedAt: number;
-      timeline: readonly RecordedEvent[];
-      startState: Record<string, Record<string, unknown>>;
-    }
-  ): void {
-    const registry = this.context.registry;
-    const region = rect ?? anchor.rect;
-    this.draft.set({
-      anchor,
-      target: record ? targetOf(registry, record) : null,
-      nearby: region ? targetsUnder(registry, region, NEARBY_LIMIT) : [],
-      text: '',
-      label: 'bug',
-      transcript: '',
-      listening: false,
-      shot: null,
-      audio: null,
-      video: null,
-      startedAt: clip?.startedAt ?? null,
-      endedAt: clip?.endedAt ?? null,
-      timeline: clip?.timeline ?? [],
-      startState: clip?.startState ?? null
-    });
-    this.mode.set('composing');
-    this.hovered.set(null);
-    this.hold(null);
   }
 
   /**
@@ -595,10 +448,10 @@ export class AnnotateService extends Service {
   readonly captureShot = this.action(() => {
     const draft = this.draft.get();
     const capture = this.capture.get();
-    if (!draft?.anchor.rect || !capture) return;
+    if (!draft || !capture) return;
     this.hold('capturing…');
     void capture
-      .region(toViewportRect(draft.anchor.rect))
+      .region(draft.anchor.rect)
       .then((shot) => {
         this.patchDraft({ shot });
         this.hold(null);
@@ -642,6 +495,25 @@ export class AnnotateService extends Service {
     this.voice.set(null);
   }
 
+  /** Stop recording and keep the video for the open draft. */
+  private stopVideo(): void {
+    const session = this.video.get();
+    if (!session) return;
+    this.video.set(null);
+    this.filming.set(false);
+    void session
+      .stop()
+      .then((video) => this.patchDraft({ video }))
+      .catch(() => this.say('no video — the note records everything else all the same'));
+  }
+
+  /** Drop a recording without keeping it — the draft it belonged to is going away. */
+  private cancelVideo(): void {
+    this.video.get()?.cancel();
+    this.video.set(null);
+    this.filming.set(false);
+  }
+
   /**
    * The recorder's own events plus the two streams the app already records for
    * itself: sync writes (the provenance log) and errors (the capture buffer).
@@ -683,9 +555,12 @@ export class AnnotateService extends Service {
       ...(draft.video ? ['clip.webm'] : []),
       ...(draft.audio ? ['audio.webm'] : [])
     ];
+    // The window reaches back past the moment the box was drawn, because the
+    // rolling buffer has been running since the annotator mounted. The thing
+    // being complained about almost always happened BEFORE the complaint.
+    const timeline = this.harvest(this.recorder.timeline()[0]?.at ?? draft.openedAt, at);
     return {
       id: noteId(at, draft.text || draft.transcript, draft.anchor.name),
-      kind: draft.startedAt === null ? 'note' : 'clip',
       at,
       text: draft.text,
       voice: draft.transcript
@@ -696,9 +571,9 @@ export class AnnotateService extends Service {
       target: draft.target,
       nearby: draft.nearby,
       environment: this.environment(),
-      startedAt: draft.startedAt,
-      endedAt: draft.endedAt,
-      timeline: draft.timeline,
+      startedAt: timeline[0]?.at ?? draft.openedAt,
+      endedAt: at,
+      timeline,
       startState: draft.startState,
       attachments
     };
@@ -734,7 +609,7 @@ export class AnnotateService extends Service {
     const command = `read ~/Downloads/${filename}`;
     this.savedTo.set(`${filename} (downloaded)`);
     this.lastCommand.set(command);
-    this.say('no sink reachable — downloaded, pinned, read command copied');
+    this.say('no sink reachable — note downloaded, read command copied');
     void copyToClipboard(command);
   }
 }

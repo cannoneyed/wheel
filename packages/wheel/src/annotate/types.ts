@@ -13,17 +13,16 @@
  */
 
 /**
- * A rectangle in CSS pixels, in DOCUMENT coordinates.
+ * A rectangle in CSS pixels, in VIEWPORT coordinates.
  *
- * Document rather than viewport, because a note is pinned to a place in the
- * page and must stay there while the page scrolls. A viewport rectangle
- * describes where something was on screen at one instant, which stops being
- * true the moment anyone scrolls.
+ * Viewport rather than document, because a note describes a MOMENT: this is
+ * what was on screen, here, when I wrote this. It is not a bookmark into the
+ * page, and nothing tries to make it survive scrolling.
  */
 export interface NoteRect {
-  /** Distance from the document's left edge, scroll included. */
+  /** Distance from the left edge of the viewport. */
   readonly x: number;
-  /** Distance from the document's top edge, scroll included. */
+  /** Distance from the top edge of the viewport. */
   readonly y: number;
   /** Width in CSS pixels. */
   readonly width: number;
@@ -32,49 +31,36 @@ export interface NoteRect {
 }
 
 /**
- * What a note is attached to.
+ * What a note is about: the rectangle that was drawn, and what was under it.
  *
- * `instance` is the good case and the one to aim for: a component id that is
- * stable across reloads and list reorders (`require-stable-instance-name`
- * exists to keep it that way). `region` is a dragged rectangle that may cover
- * several components. `page` is a note about the screen as a whole.
+ * There is one anchor shape because there is one interaction — drawing the box
+ * IS picking the target. What was underneath is described BOTH ways, because
+ * the page may be a wheel app or may be plain prose:
  *
- * Every anchor also records the weaker signals — ancestors, rect, DOM path —
- * because that is what makes re-finding the target degrade gracefully instead
- * of failing (see `resolveAnchor`).
+ * - as a component (`instanceId`, `name`, `ancestors`), for an app;
+ * - as plain DOM (`domPath`, `element`, `text`), for a docs paragraph or a
+ *   landing headline, where there is no component to name but there is very
+ *   much something on the screen.
+ *
+ * Either half may be empty. Both are recorded whenever they exist, because the
+ * agent reading the note later takes whichever the page actually had.
  */
 export interface NoteAnchor {
-  /**
-   * How the target was chosen.
-   *
-   * `element` is the one for pages wheel does not own — a docs page, a landing
-   * scroll. There is no component to name, so the anchor leans on the DOM path
-   * and a quote of the text, which is what actually identifies a paragraph.
-   */
-  readonly kind: 'instance' | 'element' | 'region' | 'page';
-  /** The component instance id, when one was picked. */
+  /** The rectangle that was drawn, in viewport coordinates at capture time. */
+  readonly rect: NoteRect;
+  /** The innermost component under the rectangle, when the page has any. */
   readonly instanceId: string | null;
-  /** The component's manifest name (`BoardCell`), which survives renumbering. */
+  /** That component's manifest name (`BoardCell`), which survives renumbering. */
   readonly name: string | null;
-  /** Enclosing instance ids, outermost first — the fallback when the exact id is gone. */
+  /** Its enclosing instance ids, outermost first. */
   readonly ancestors: readonly string[];
-  /** Where it was on screen when the note was written. */
-  readonly rect: NoteRect | null;
-  /** A plain DOM path, for the case where no component claims the element at all. */
+  /** A plain DOM path to the innermost element under the rectangle. */
   readonly domPath: string | null;
-  /** A short description of the element itself (`h2.title`), for element anchors. */
+  /** A short description of that element (`h2.title`). */
   readonly element: string | null;
-  /**
-   * A quote of the target's text.
-   *
-   * Prose has no ids. When a docs paragraph moves, the sentence is what finds
-   * it again — the same trick a comment system uses to survive an edit.
-   */
+  /** A quote of its text — what identifies a paragraph when no component does. */
   readonly text: string | null;
 }
-
-/** How well an anchor still resolves against the live component tree. */
-export type AnchorMatch = 'exact' | 'renamed' | 'orphaned';
 
 /** One component captured alongside a note: identity, geometry, and what it held. */
 export interface NoteTarget {
@@ -227,8 +213,9 @@ export type RecordedEvent =
  *   note now lives. A non-ok answer, or none, makes the page fall back to
  *   downloading the note as one file.
  * - `GET <url>` — the saved notes as `{ ok: true, notes: [{ id, payload }] }`,
- *   newest first, so the page can pin each one back where it was left.
- *   Answering at all is what tells the page saving is possible.
+ *   newest first. Nothing on the page needs the list; it is the capability
+ *   probe, and answering at all is what tells the page saving is possible
+ *   here rather than downloading.
  *
  * The default is the dev server's `/__wheel/note`, which writes a directory
  * per note. Point it somewhere else — a Durable Object, an issue tracker, a
@@ -277,8 +264,6 @@ export interface NoteEnvironment {
 export interface NotePayload {
   /** `<epoch-ms>-<slug>`; also the directory name on disk. */
   readonly id: string;
-  /** A point-in-time note, or a recorded interval. */
-  readonly kind: 'note' | 'clip';
   /** When the note was saved. */
   readonly at: number;
   /** The typed note. Empty when the note is voice-only. */
@@ -287,27 +272,34 @@ export interface NotePayload {
   readonly voice: NoteVoice | null;
   /** What kind of remark this is. */
   readonly label: NoteLabel;
-  /** What it is attached to. */
+  /** The rectangle, and what was under it. */
   readonly anchor: NoteAnchor;
-  /** The anchored component's own state, when the anchor named one. */
+  /** The innermost component under the rectangle, with its live state. */
   readonly target: NoteTarget | null;
-  /** Other components under the anchor's rectangle, innermost first. */
+  /** Every other component under the rectangle, innermost first. */
   readonly nearby: readonly NoteTarget[];
   /** Where and on what this happened. */
   readonly environment: NoteEnvironment;
-  /** Clips only: when recording started. */
-  readonly startedAt: number | null;
-  /** Clips only: when recording stopped. */
-  readonly endedAt: number | null;
-  /** The merged event stream (empty for a bare note). */
+  /** The start of the recorded window — the oldest event the note carries. */
+  readonly startedAt: number;
+  /** The end of the recorded window: when the note was saved. */
+  readonly endedAt: number;
+  /**
+   * What the app did during that window: actions, state changes, input, sync
+   * writes, errors, routes, network.
+   *
+   * Every note carries one. The recorder keeps a rolling window from the
+   * moment the annotator mounts, so the minute BEFORE you drew the box is in
+   * here too — which is the minute the bug usually happened in.
+   */
   readonly timeline: readonly RecordedEvent[];
   /**
-   * Clips only: every service's atoms at the moment recording started.
+   * Every service's atoms when the note was drawn.
    *
-   * This is the half that makes replay possible later — a timeline of actions
-   * is only re-runnable against a known starting state.
+   * This is the half that makes a timeline re-runnable later: a list of
+   * actions only replays against a known starting state.
    */
-  readonly startState: Record<string, Record<string, unknown>> | null;
+  readonly startState: Record<string, Record<string, unknown>>;
   /** Attachment file names written beside `note.json` (`shot.png`, `clip.webm`, `audio.webm`). */
   readonly attachments: readonly string[];
 }

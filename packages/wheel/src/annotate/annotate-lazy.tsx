@@ -15,7 +15,7 @@
  * The picker, the composer, voice capture and note rendering are behind a
  * dynamic `import()` and arrive the first time someone arms. Measured on the
  * tracker: this module plus the recorder costs 4.1 KB gzipped in the main
- * bundle, and keeps 9.1 KB out of it.
+ * bundle, and keeps 8.4 KB out of it.
  *
  * ## Who can arm it
  *

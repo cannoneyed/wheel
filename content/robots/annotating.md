@@ -8,7 +8,7 @@ Leave a note on a running app and record what the app did. The recording is sema
 
 `WheelAnnotate` mounts inside any Wheel provider. `wheel/annotate` is a separate entry from `wheel/debug`, so a build can ship the annotator without the debug panel.
 
-It is split in two. Resident: the rolling recorder, the chip, the chord, the loader — 4.1 KB gzipped measured on the tracker. Deferred behind a dynamic `import()` of `annotate-system`: picker, composer, voice, note rendering — 9.1 KB, fetched on first arm.
+It is split in two. Resident: the rolling recorder, the chip, the chord, the loader — 4.1 KB gzipped measured on the tracker. Deferred behind a dynamic `import()` of `annotate-system`: picker, composer, voice, note rendering — 8.4 KB, fetched on first arm.
 
 `enabled` defaults to `isWheelDevMode()`. A production page records nothing and shows nothing unless the app passes `enabled`. The app owns that decision because it decides whose application state may be captured.
 
@@ -18,18 +18,15 @@ Service identity is declared, not preserved: every Service subclass carries `sta
 
 ## Flow
 
-`AnnotateService` holds the whole flow in `mode`: `off`, `armed` (the marquee is up), `composing`. There is no separate region mode — drawing the rectangle is the interaction.
+`AnnotateService` holds the whole flow in `mode`: `off`, `armed` (the marquee is up), `composing`. There is ONE way in — drawing the rectangle is the interaction. There is no click-to-pick, no page note, no separate clip mode and no retro door; every note is a rectangle and every note carries the rolling timeline.
 
-- `arm()` / `disarm()`: toggle annotation mode. Arming installs the recorder in development mode.
-- `pickRegion(rect)`: the primary door — a dragged rectangle, given in VIEWPORT coordinates and stored in DOCUMENT coordinates so the note stays pinned to the page across scrolling.
-- `pickInstance(id)`, `pickElement(el)`, `pickPage()`: a click without a drag, and the whole-screen case.
+- `arm()` / `disarm()`: toggle annotation mode. Arming installs the recorder (idempotent; the page-wide session normally installed it at mount).
+- `pickRegion(rect)`: the only door. The rectangle is VIEWPORT coordinates and is stored unchanged — a note describes a moment on screen, not a place in the document.
 - `captureShot()`: take the screenshot. Never automatic — it opens a permission prompt.
-- `recordVideo()`: add screen video to a running clip. Also never automatic.
+- `toggleVideo()`: switch screen recording on or off for the open draft. Never automatic. Leaving it on is expected; `save()` stops it and attaches the result.
 - `setText()`, `setLabel()`, `setTranscript()`: edit the draft.
 - `listen()` / `stopListening()`: speech capture.
-- `startClip()` / `stopClip()`: record an interval. `startClip` records the timeline only; video is `recordVideo()`.
-- `saveRetro()`: turn the rolling buffer into a clip after the fact.
-- `save()` / `discard()`: write the note, or drop it.
+- `save()` / `discard()`: send the note, or drop it.
 - `dismissNotice()`: clear the snackbar early.
 
 Labels are `bug`, `question`, `idea`, `todo`, `looks-good`.
@@ -56,29 +53,31 @@ Bounds:
 - object changes store the top-level keys that differ, not both values;
 - an action is placed after the input that ran it and before the writes it caused, because the kernel can only time it on return;
 - a merge that would erase the change is refused, so a value that leaves and returns inside the window stays two entries;
-- the buffer is a rolling 60-second window until a clip pins it; the hard cap is 20000 events;
+- the buffer is a rolling 60-second window; the hard cap is 20000 events;
 - services in the `debug` group are excluded, so the recorder never records itself.
 
 Cost with no tap installed: one null check per action call and per atom write.
 
 ## Anchors
 
-An anchor stores the instance id, the component name, the ancestor chain, the rectangle, a DOM path, an element description, and a text quote. `resolveAnchor()` returns `exact`, `renamed`, or `orphaned`. An orphaned note keeps its rectangle, screenshot, and captured state; it is never deleted or silently re-pointed.
+One shape, one constructor: `anchorToRegion(registry, rect)`. It stores the rectangle plus BOTH descriptions of what was under it — the component half (`instanceId`, `name`, `ancestors`) and the DOM half (`domPath`, `element`, `text`). Either may be empty; both are recorded when they exist, because the reader takes whichever the page had. Nothing re-finds an anchor later, so there are no match tiers.
 
-Anchor kinds: `region` (a dragged rectangle, the default), `instance` (a component, from a click), `element` (plain DOM, from a click), `page`.
+Rectangles are VIEWPORT coordinates, stored exactly as the pointer reported them. No scroll offset is added, nothing is pinned to the document, and the target outline renders `position: fixed`.
 
-All stored rectangles are DOCUMENT coordinates. `toDocumentRect()` and `toViewportRect()` convert; pins and the target outline render `position: absolute` so they scroll with the content.
+The DOM half comes from a hit-test at the rectangle's centre. It SKIPS the annotator's own overlays via `CHROME_ATTRIBUTE` (`data-wheel-annotate-chrome`), which the chrome stamps on the shield and the hint — without that, the marquee's full-page shield is what every hit-test finds, and the note describes the annotator instead of the app.
 
-`element` anchors serve pages wheel does not own — docs, landing scrolls — where nothing is in the component registry. They resolve by DOM path first, then by the text quote when the path no longer matches or its content changed. A path whose content changed is a miss, not a match. Such a page needs a `ServiceProvider` (clientless, zero services) for `WheelAnnotate` to mount at all.
+Pages wheel does not own — docs, landing scrolls — have no component to name, so the DOM half is all they carry. Such a page needs a `ServiceProvider` (clientless, zero services) for `WheelAnnotate` to mount at all.
 
 ## Artifact
 
 Saving tries the dev server first and falls back to a download, so the delivery never depends on the capability probe having returned.
 
+Every note carries the rolling window as its timeline: `buildPayload` harvests from the oldest buffered event to the save, so `startedAt` predates the moment the box was drawn. `startState` is the state tree at that moment. Both are always present.
+
 Notes go to a SINK, configured with `<WheelAnnotate sink={{ url, headers }}/>` and defaulting to `/__wheel/note`. The contract is two methods on one URL:
 
 - `POST <url>` — save one note. Body `{ id, payload, markdown, png?, video?, audio? }`; media are `data:` URLs. Answer `{ ok: true, command?, location? }`. `command` is pasteable text, `location` a URL; whichever is returned is copied to the clipboard. A non-ok answer, or an unreachable sink, falls back to downloading the note as one file.
-- `GET <url>` — `{ ok: true, notes: [{ id, payload }] }`, newest first, for pins. Answering at all sets `canSave`; there is no separate probe.
+- `GET <url>` — `{ ok: true, notes: [{ id, payload }] }`, newest first. Nothing on the page consumes the list; answering at all sets `canSave`, which decides only whether the button says "save note" or "download note".
 
 Any service implementing those two methods can replace the dev server — a Durable Object, an issue tracker, a bucket.
 
@@ -106,9 +105,9 @@ Without a dev server, `renderNoteFile()` produces ONE markdown file and `downloa
 
 - `setVoiceCapture()` and `setVideoCapture()` replace hardware capture in tests.
 - `setNoteDownload()` captures downloads instead of triggering them.
-- `AnnotateService.attach()` takes the sync client and the pixel-capture seams.
+- `AnnotateService.attach()` takes the sync client, the pixel-capture seams, and the sink.
 - Missing permissions set `notice`, not the error buffer. A refused screen capture, microphone, or recognizer is an expected outcome, not an application fault.
-- `notice` is the snackbar, rendered at page level rather than inside the composer: `save()` closes the composer, so a confirmation inside it was drawn and destroyed in one tick. Outcomes auto-dismiss after 4s through the context scheduler seam (never `setTimeout`); progress messages (`capturing…`) stay until they are cleared.
+- `notice` is the snackbar, rendered at page level rather than inside the composer: `save()` closes the composer, so a confirmation inside it was drawn and destroyed in one tick. Outcomes auto-dismiss after 4s through the context scheduler seam (never `setTimeout`); progress messages (`capturing…`) stay until they are cleared. It belongs to the annotate chrome, not to a provider an app supplies — it is in the lazy chunk and unmounts with it.
 
 Primary sources:
 

@@ -12,18 +12,18 @@ import type { NotePayload, RecordedEvent } from './types';
 function payload(overrides: Partial<NotePayload> = {}): NotePayload {
   return {
     id: '1755974400123-cell-clears',
-    kind: 'note',
     at: 1_755_974_400_123,
     text: 'Clicking a cell clears the selection',
     voice: null,
     label: 'bug',
     anchor: {
-      kind: 'instance',
+      rect: { x: 412, y: 84, width: 40, height: 40 },
       instanceId: 'BoardCell:3-7',
       name: 'BoardCell',
       ancestors: ['Board', 'BoardRow'],
-      rect: { x: 412, y: 84, width: 40, height: 40 },
-      domPath: 'div > button:nth-of-type(3)'
+      domPath: 'div > button:nth-of-type(3)',
+      element: 'button',
+      text: null
     },
     target: null,
     nearby: [],
@@ -35,10 +35,10 @@ function payload(overrides: Partial<NotePayload> = {}): NotePayload {
       userAgent: 'test-agent',
       sync: null
     },
-    startedAt: null,
-    endedAt: null,
+    startedAt: 1_755_974_400_123,
+    endedAt: 1_755_974_400_123,
     timeline: [],
-    startState: null,
+    startState: {},
     attachments: [],
     ...overrides
   };
@@ -119,7 +119,6 @@ describe('renderNoteMarkdown', () => {
   it('leads with frontmatter an agent can grep', () => {
     const markdown = renderNoteMarkdown(payload());
     expect(markdown.startsWith('---\n')).toBe(true);
-    expect(markdown).toContain('kind: note');
     expect(markdown).toContain('label: bug');
     expect(markdown).toContain('instanceId: "BoardCell:3-7"');
   });
@@ -128,10 +127,9 @@ describe('renderNoteMarkdown', () => {
     expect(renderNoteMarkdown(payload())).toContain('`BoardCell:3-7` — inside `Board` › `BoardRow`');
   });
 
-  it('renders a clip timeline with offsets relative to the recording start', () => {
+  it('renders the timeline with offsets relative to the start of the recording', () => {
     const markdown = renderNoteMarkdown(
       payload({
-        kind: 'clip',
         startedAt: 1000,
         endedAt: 1400,
         timeline: [
@@ -140,7 +138,7 @@ describe('renderNoteMarkdown', () => {
         ]
       })
     );
-    expect(markdown).toContain('durationMs: 400');
+    expect(markdown).toContain('recordedMs: 400');
     expect(markdown).toContain('| +120ms | input |');
     expect(markdown).toContain('| +121ms | action | BoardService.toggleCell() |');
   });

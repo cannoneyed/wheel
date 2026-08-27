@@ -1,11 +1,11 @@
 /**
  * Annotating wheel.dev itself — the landing scroll and the docs.
  *
- * These pages are plain Solid, not wheel apps: no `connect()`, no components
- * in the registry, nothing to pick by instance id. So the annotator falls to
- * ELEMENT anchors — a DOM path plus a quote of the text, which is what prose
- * has instead of components. This suite is the proof that a note on a docs
- * paragraph still lands on disk with enough to find that paragraph again.
+ * These pages are largely plain prose, not app screens: a docs paragraph has
+ * no `connect()` and nothing in the component registry. The anchor still has
+ * to describe it — a DOM path plus a quote of the text is what prose has
+ * instead of components. This suite is the proof that a note drawn on a docs
+ * paragraph lands on disk with enough to know what it was about.
  */
 import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -57,7 +57,10 @@ test('a docs paragraph can be annotated, and the note can find it again', async 
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
 
   const box = await paragraph.boundingBox();
-  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.move(box!.x - 6, box!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width + 6, box!.y + box!.height + 6, { steps: 8 });
+  await page.mouse.up();
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
 
   await page.getByTestId('wheel-annotate-text').fill('this paragraph buries the point');
@@ -65,15 +68,14 @@ test('a docs paragraph can be annotated, and the note can find it again', async 
 
   const note = await savedNote(before);
   const payload = note.payload as {
-    anchor: { kind: string; element: string | null; domPath: string | null; text: string | null };
+    anchor: { element: string | null; domPath: string | null; text: string | null };
     environment: { url: string };
   };
 
   // No component owns a docs paragraph, so the anchor has to carry what prose
   // does have: which element, where, and what it says. The exact tag is not
-  // asserted — a click lands on the innermost element, which may be an inline
-  // <code> or <a> inside the paragraph, and that is a correct anchor too.
-  expect(payload.anchor.kind).toBe('element');
+  // asserted — the hit-test lands on the innermost element, which may be an
+  // inline <code> or <a> inside the paragraph, and that is correct too.
   expect(payload.anchor.element).toBeTruthy();
   expect(payload.anchor.domPath).toBeTruthy();
   expect(payload.anchor.text).toBeTruthy();
@@ -95,7 +97,10 @@ test('the landing page is annotatable too', async ({ page }) => {
   // what says it is ready. Clicking before it lands hits the page instead.
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
   const box = await headline.boundingBox();
-  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.move(box!.x - 6, box!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width + 6, box!.y + box!.height + 6, { steps: 8 });
+  await page.mouse.up();
 
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
   await page.getByTestId('wheel-annotate-text').fill('the headline oversells it');
@@ -103,45 +108,15 @@ test('the landing page is annotatable too', async ({ page }) => {
 
   const note = await savedNote(before);
   const payload = note.payload as {
-    anchor: { kind: string; instanceId: string | null; domPath: string | null; text: string | null };
+    anchor: { instanceId: string | null; domPath: string | null; text: string | null };
   };
 
   // The suite serves the site with `bun run website` — a dev server, so
   // `use:viewRoot` registers and the landing sections are real components.
-  // The picker therefore gets the STRONGER anchor here, and this asserts that
-  // rather than accepting either kind: a landing page that silently stopped
-  // registering its sections would be a regression worth failing on.
-  //
-  // (A production build does not register view components, and the same click
-  // falls to an element anchor. That path is covered by the docs case above,
-  // where MDX prose has no component to claim it either way.)
-  expect(payload.anchor.kind).toBe('instance');
+  // The anchor therefore carries BOTH halves here, and this asserts the
+  // component half rather than settling for the DOM one: a landing page that
+  // silently stopped registering its sections would be a regression worth
+  // failing on.
   expect(payload.anchor.instanceId).toBeTruthy();
-});
-
-test('a saved note comes back as a pin on the docs page', async ({ page }) => {
-  await page.goto('/docs/');
-  const paragraph = page.locator('main.content > p').first();
-  await expect(paragraph).toBeVisible();
-
-  await page.getByTestId('wheel-annotate-chip').click();
-  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
-
-  // Notes from the earlier tests in this file are on disk and pin too, so
-  // count what is already there once the listing has settled.
-  const pins = page.getByTestId('wheel-annotate-pin');
-  await page.waitForTimeout(1_000);
-  const existing = await pins.count();
-
-  const box = await paragraph.boundingBox();
-  await page.mouse.move(box!.x - 6, box!.y - 6);
-  await page.mouse.down();
-  await page.mouse.move(box!.x + box!.width + 6, box!.y + box!.height + 6, { steps: 8 });
-  await page.mouse.up();
-
-  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
-  await page.getByTestId('wheel-annotate-text').fill('pin me on the docs');
-  await page.getByTestId('wheel-annotate-save').click();
-
-  await expect(pins).toHaveCount(existing + 1, { timeout: 10_000 });
+  expect(payload.anchor.domPath).toBeTruthy();
 });
