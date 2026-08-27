@@ -66,6 +66,9 @@ const PROVENANCE_HARVEST = 500;
 /** Projection depth for a synced row's value in the timeline. */
 const WRITE_DEPTH = 4;
 
+/** How long the snackbar holds an outcome — long enough to read, short enough to ignore. */
+const NOTICE_MS = 4_000;
+
 /**
  * Where the flow currently is.
  *
@@ -154,16 +157,22 @@ export class AnnotateService extends Service {
   /** The copy-and-paste command for the last save (`read .wheel/notes/…/note.md`). */
   readonly lastCommand = this.atom<string | null>(null, 'lastCommand');
   /**
-   * What the environment could not give this note — no screen capture, no
-   * microphone, no video.
+   * The snackbar line: what just happened, or what the environment could not
+   * give this note — no screen capture, no microphone, no video.
    *
    * Deliberately NOT an error. A headless browser, a denied permission and a
    * browser without speech recognition are all normal, and routing them
    * through `logger` would fill the error buffer that exists to make real
    * breakage unmissable. The note is still worth saving without pixels; the
-   * composer just says what is missing.
+   * snackbar just says what is missing.
+   *
+   * It renders OUTSIDE the composer, because the most important thing it ever
+   * says — "saved" — is said at the moment the composer closes.
    */
   readonly notice = this.atom<string | null>(null, 'notice');
+
+  /** Cancels the pending auto-dismiss, so a new message never inherits an old timer. */
+  private readonly stopDismiss = this.field<(() => void) | null>(null, 'stopDismiss');
 
   /** Used only when nothing started a page-wide session (direct service use, tests). */
   private readonly ownRecorder = new Recorder({
@@ -332,7 +341,7 @@ export class AnnotateService extends Service {
         });
       })
       .catch(() => {
-        this.notice.set('no microphone — type the note instead');
+        this.say('no microphone — type the note instead');
         this.patchDraft({ listening: false });
       });
   }, 'stopListening');
@@ -362,14 +371,14 @@ export class AnnotateService extends Service {
   readonly recordVideo = this.action(() => {
     const capture = this.capture.get();
     if (!capture || this.video.get()) return;
-    this.notice.set('asking for screen capture…');
+    this.hold('asking for screen capture…');
     void startVideo(() => capture.stream())
       .then((session) => {
         this.video.set(session);
         this.filming.set(true);
-        this.notice.set(null);
+        this.hold(null);
       })
-      .catch(() => this.notice.set('no video — the timeline is recording all the same'));
+      .catch(() => this.say('no video — the timeline is recording all the same'));
   }, 'recordVideo');
 
   /** Stop the clip and open the composer with the whole recording attached. */
@@ -393,7 +402,7 @@ export class AnnotateService extends Service {
       void session
         .stop()
         .then((video) => this.patchDraft({ video }))
-        .catch(() => this.notice.set('no video — the timeline is complete without it'));
+        .catch(() => this.say('no video — the timeline is complete without it'));
     }
   }, 'stopClip');
 
@@ -469,7 +478,7 @@ export class AnnotateService extends Service {
         const handle = result.command ?? result.location ?? null;
         this.lastCommand.set(handle);
         if (handle) void copyToClipboard(handle);
-        this.notice.set('saved — pinned to the page');
+        this.say('saved — pinned to the page, read command copied');
         this.loadNotes();
       })
       .catch(() => this.deliverAsDownload(payload, draft.shot));
@@ -501,6 +510,11 @@ export class AnnotateService extends Service {
         this.canSave.set(false);
       });
   }, 'loadNotes');
+
+  /** Take the snackbar away now, rather than waiting out its timer. */
+  readonly dismissNotice = this.action(() => {
+    this.hold(null);
+  }, 'dismissNotice');
 
   /** Put a saved note's read command back on the clipboard. */
   readonly copyCommand = this.action((id: string) => {
@@ -567,7 +581,7 @@ export class AnnotateService extends Service {
     });
     this.mode.set('composing');
     this.hovered.set(null);
-    this.notice.set(null);
+    this.hold(null);
   }
 
   /**
@@ -582,15 +596,39 @@ export class AnnotateService extends Service {
     const draft = this.draft.get();
     const capture = this.capture.get();
     if (!draft?.anchor.rect || !capture) return;
-    this.notice.set('capturing…');
+    this.hold('capturing…');
     void capture
       .region(toViewportRect(draft.anchor.rect))
       .then((shot) => {
         this.patchDraft({ shot });
-        this.notice.set(null);
+        this.hold(null);
       })
-      .catch(() => this.notice.set('no screenshot — this browser or tab refused screen capture'));
+      .catch(() => this.say('no screenshot — this browser or tab refused screen capture'));
   }, 'captureShot');
+
+  /**
+   * Say something in the snackbar, and take it away again.
+   *
+   * The dismissal goes through the context's scheduler seam rather than
+   * `setTimeout`, so a test drives it on the controlled clock like everything
+   * else and never waits four real seconds.
+   */
+  private say(text: string): void {
+    this.hold(text);
+    this.stopDismiss.set(
+      this.defer(NOTICE_MS, () => {
+        this.notice.set(null);
+        this.stopDismiss.set(null);
+      })
+    );
+  }
+
+  /** Say something that stays until it is replaced or cleared — progress, not an outcome. */
+  private hold(text: string | null): void {
+    this.stopDismiss.get()?.();
+    this.stopDismiss.set(null);
+    this.notice.set(text);
+  }
 
   /** Merge fields into the open draft; a no-op once the draft is gone. */
   private patchDraft(patch: Partial<NoteDraft>): void {
@@ -696,7 +734,7 @@ export class AnnotateService extends Service {
     const command = `read ~/Downloads/${filename}`;
     this.savedTo.set(`${filename} (downloaded)`);
     this.lastCommand.set(command);
-    this.notice.set('no sink reachable — downloaded, and pinned to the page');
+    this.say('no sink reachable — downloaded, pinned, read command copied');
     void copyToClipboard(command);
   }
 }

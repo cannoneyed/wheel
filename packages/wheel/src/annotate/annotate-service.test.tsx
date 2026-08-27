@@ -504,4 +504,58 @@ describe('<WheelAnnotate/>', () => {
     expect(composer?.textContent).toContain('BoardCell:3-7');
     service.disarm();
   });
+
+  it('says that the note was saved, after the composer that asked for it is gone', async () => {
+    // The regression this locks down: the confirmation used to render INSIDE
+    // the composer, and saving closes the composer. The note reached disk and
+    // the page said nothing at all.
+    stubFetch();
+    const context = mountApp(() => <AnnotateChrome />);
+    const service = context.services.get(AnnotateService);
+    annotator(context);
+
+    service.arm();
+    service.pickInstance('BoardCell:3-7');
+    service.setText('the snackbar should say this landed');
+    service.save();
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+
+    expect(document.querySelector('[data-testid="wheel-annotate-composer"]')).toBeNull();
+    const toast = await vi.waitFor(() => {
+      const element = document.querySelector('[data-testid="wheel-annotate-toast"]');
+      expect(element).toBeTruthy();
+      return element!;
+    });
+    expect(toast.textContent).toContain('saved');
+
+    // And clicking it takes it away, rather than waiting out the timer.
+    (toast as HTMLElement).click();
+    expect(document.querySelector('[data-testid="wheel-annotate-toast"]')).toBeNull();
+    service.disarm();
+  });
+
+  it('takes the message away on its own, so the page does not keep old news', async () => {
+    vi.useFakeTimers();
+    try {
+      stubFetch();
+      const context = mountApp(() => <AnnotateChrome />);
+      const service = context.services.get(AnnotateService);
+      annotator(context);
+
+      service.arm();
+      service.pickInstance('BoardCell:3-7');
+      service.setText('this one dismisses itself');
+      service.save();
+      await vi.waitFor(() => expect(service.notice.get()).toContain('saved'));
+
+      // The dismissal goes through the context scheduler, not setTimeout, so a
+      // test advances it on the controlled clock.
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(service.notice.get()).toBeNull();
+      expect(document.querySelector('[data-testid="wheel-annotate-toast"]')).toBeNull();
+      service.disarm();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

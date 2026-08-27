@@ -30,13 +30,13 @@ Anchor a note to a dragged rectangle; the innermost component under it names the
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:120](../../../packages/wheel/src/annotate/annotate-service.ts#L120).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:123](../../../packages/wheel/src/annotate/annotate-service.ts#L123).
 
 Injected capture seams, so the service runs headless in tests.
 
 ## `AnnotateMode`
 
-Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:77](../../../packages/wheel/src/annotate/annotate-service.ts#L77).
+Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:80](../../../packages/wheel/src/annotate/annotate-service.ts#L80).
 
 Where the flow currently is. `armed` is the marquee: drag a rectangle around what you want to talk about, or click a single point to take whatever component or element is under it. There is no separate region mode, because drawing the rectangle IS the interaction.
 
@@ -48,7 +48,7 @@ The running recorder, or null when annotation is not enabled on this page.
 
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:131](../../../packages/wheel/src/annotate/annotate-service.ts#L131).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:134](../../../packages/wheel/src/annotate/annotate-service.ts#L134).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
 
@@ -96,7 +96,7 @@ What a note is attached to. `instance` is the good case and the one to aim for: 
 
 ## `NoteDraft`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:80](../../../packages/wheel/src/annotate/annotate-service.ts#L80).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:83](../../../packages/wheel/src/annotate/annotate-service.ts#L83).
 
 A note being written: everything captured so far, none of it saved yet.
 
@@ -234,7 +234,7 @@ What re-finding an anchor produced: how good the match was, and what it landed o
 
 ## `SavedNote`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:112](../../../packages/wheel/src/annotate/annotate-service.ts#L112).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:115](../../../packages/wheel/src/annotate/annotate-service.ts#L115).
 
 A saved note as the dev server hands it back, for rendering pins.
 

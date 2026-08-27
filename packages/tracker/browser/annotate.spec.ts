@@ -106,6 +106,11 @@ test('a dragged rectangle lands on disk with the components under it', async ({ 
   expect(payload.nearby.length).toBeGreaterThan(0);
   expect(Object.keys(payload.nearby[0]!.state).length).toBeGreaterThan(0);
 
+  // Saving says so. The composer is gone by now, so a confirmation drawn
+  // inside it would have been invisible — this is the page telling you the
+  // note landed.
+  await expect(page.getByTestId('wheel-annotate-toast')).toContainText('saved');
+
   // And note.md is readable on its own, which is what an agent is handed.
   expect(note.markdown).toContain('# this row renders the wrong assignee');
   expect(note.markdown).toContain('## What it is attached to');
@@ -249,6 +254,9 @@ test('a note pins even when there is no dev server to save it to', async ({ page
     page.getByTestId('wheel-annotate-save').click()
   ]);
   expect(download.suggestedFilename()).toContain('pinned-without-a-server');
+  // The fallback says which way the note went, so "downloaded" is never
+  // mistaken for "saved to the repo".
+  await expect(page.getByTestId('wheel-annotate-toast')).toContainText('downloaded');
   // Exactly one: with the sink unreachable the listing never answers either,
   // so the only pin on the page is the note just written.
   await expect(page.getByTestId('wheel-annotate-pin')).toHaveCount(1, { timeout: 10_000 });

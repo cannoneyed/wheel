@@ -189,7 +189,10 @@ so the transcript is the deliverable and the audio is only there to check agains
 ```
 
 Saving copies `read .wheel/notes/1755974400123-cell-clears/note.md` to your clipboard, so handing
-the note over is one paste. `note.md` opens with frontmatter worth grepping (id, label, url,
+the note over is one paste. A snackbar at the bottom of the screen says which way the note went —
+saved to the sink, or downloaded — and takes itself away after a few seconds. It sits outside the
+composer on purpose: saving closes the composer, so a confirmation drawn inside it would appear
+and vanish in the same instant. `note.md` opens with frontmatter worth grepping (id, label, url,
 anchor, viewport, duration, event count), then your note, then the timeline as a table, then the
 state that produced it. `note.json` holds the same facts unabridged — the markdown is a projection
 of it and the two can never disagree.

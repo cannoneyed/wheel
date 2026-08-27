@@ -30,6 +30,7 @@ Service identity is declared, not preserved: every Service subclass carries `sta
 - `startClip()` / `stopClip()`: record an interval. `startClip` records the timeline only; video is `recordVideo()`.
 - `saveRetro()`: turn the rolling buffer into a clip after the fact.
 - `save()` / `discard()`: write the note, or drop it.
+- `dismissNotice()`: clear the snackbar early.
 
 Labels are `bug`, `question`, `idea`, `todo`, `looks-good`.
 
@@ -107,6 +108,7 @@ Without a dev server, `renderNoteFile()` produces ONE markdown file and `downloa
 - `setNoteDownload()` captures downloads instead of triggering them.
 - `AnnotateService.attach()` takes the sync client and the pixel-capture seams.
 - Missing permissions set `notice`, not the error buffer. A refused screen capture, microphone, or recognizer is an expected outcome, not an application fault.
+- `notice` is the snackbar, rendered at page level rather than inside the composer: `save()` closes the composer, so a confirmation inside it was drawn and destroyed in one tick. Outcomes auto-dismiss after 4s through the context scheduler seam (never `setTimeout`); progress messages (`capturing…`) stay until they are cleared.
 
 Primary sources:
 

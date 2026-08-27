@@ -176,6 +176,25 @@ const styles = {
     'max-width': '100%',
     'border-radius': '4px',
     border: '1px solid var(--wheel-stage-line-strong, #2a2f3a)'
+  },
+  snackbar: {
+    position: 'fixed',
+    bottom: '16px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    // Above the composer: the thing it most often says is "saved", and the
+    // composer is on its way out at that moment.
+    'z-index': LAYER + 4,
+    'max-width': '80vw',
+    padding: '8px 14px',
+    'border-radius': '8px',
+    border: '1px solid var(--wheel-stage-line-heavy, #3a3b3e)',
+    background: 'var(--wheel-stage-4, #1a1d23)',
+    color: 'var(--wheel-stage-ink-strong, #e5e7eb)',
+    font: '12px ui-monospace, monospace',
+    // wheel-color: a floating surface needs a shadow to separate from the app
+    'box-shadow': '0 6px 20px rgba(0,0,0,0.35)',
+    cursor: 'pointer'
   }
 } satisfies Record<string, JSX.CSSProperties>;
 
@@ -263,6 +282,7 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
         <TargetOutline service={service} />
         <Composer service={service} />
       </Show>
+      <Snackbar service={service} />
     </Portal>
   );
 }
@@ -565,12 +585,37 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
               discard
             </button>
           </div>
-          <Show when={props.service.notice.get()}>
-            {(notice) => <div style={styles.dim}>{notice()}</div>}
-          </Show>
           <Show when={props.service.lastCommand.get()}>
             {(command) => <div style={styles.dim}>copied: {command()}</div>}
           </Show>
+        </div>
+      )}
+    </Show>
+  );
+}
+
+/**
+ * The snackbar: what just happened.
+ *
+ * Outside every mode branch on purpose. Saving closes the composer and returns
+ * to armed, so a confirmation rendered inside the composer was drawn and
+ * destroyed in the same tick — the note went to disk and the page said nothing.
+ *
+ * The service takes the message away on its own timer; clicking dismisses it
+ * early, because a message about the thing you just did should never be in the
+ * way of the next thing.
+ */
+function Snackbar(props: { service: AnnotateService }): JSX.Element {
+  return (
+    <Show when={props.service.notice.get()}>
+      {(notice) => (
+        <div
+          style={styles.snackbar}
+          data-testid="wheel-annotate-toast"
+          role="status"
+          onClick={() => props.service.dismissNotice()}
+        >
+          {notice()}
         </div>
       )}
     </Show>
