@@ -1696,9 +1696,7 @@ export class SyncClient {
     }
     this.replaying = 'undo';
     try {
-      const handle = this.mutateCommand(inverseGroup, false);
-      this.notify();
-      return handle;
+      return this.mutateCommand(inverseGroup, false);
     } finally {
       this.replaying = null;
     }
@@ -1712,9 +1710,7 @@ export class SyncClient {
     }
     this.replaying = 'redo';
     try {
-      const handle = this.mutateCommand(inverseGroup, false);
-      this.notify();
-      return handle;
+      return this.mutateCommand(inverseGroup, false);
     } finally {
       this.replaying = null;
     }

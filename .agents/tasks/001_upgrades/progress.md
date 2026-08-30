@@ -22,7 +22,7 @@ on chat history.
 | 0B. Prove Wheel materializer | `M` | Complete | Proof scenarios, differential check, and local gates passed |
 | 1. Correct protocol and servers | `M` | Complete | Both engines and shared protocol fixtures passed |
 | 1B. Add atomic mutation groups | `L` | Complete | Client, TypeScript, Elixir, and shared wire gates passed |
-| 2. Build Tracker proof slice | `L` | Not started | Differential checks not run |
+| 2. Build Tracker proof slice | `L` | Complete | Tracker proof and current-client differential gates passed |
 | 3. Add Elixir grouping and external writes | `M` | Not started | PostgreSQL checks not run |
 | 4. Move client state ownership | `L` | Not started | Ownership checks not run |
 | 5. Expand query and source contracts | `L` | Not started | Contract checks not run |
@@ -125,14 +125,14 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 
 ### Phase 2
 
-- [ ] Pass overlapping query membership tests.
-- [ ] Pass release and entity collection tests.
-- [ ] Pass empty-result status tests.
-- [ ] Pass server order tests.
-- [ ] Pass aggregate and multi-collection action tests.
-- [ ] Pass the three-issue grouped update and grouped undo test.
-- [ ] Pass current-client and materializer differential tests.
-- [ ] Confirm no intermediate query result is observable.
+- [x] Pass overlapping query membership tests.
+- [x] Pass release and entity collection tests.
+- [x] Pass empty-result status tests.
+- [x] Pass server order tests.
+- [x] Pass aggregate and multi-collection action tests.
+- [x] Pass the three-issue grouped update and grouped undo test.
+- [x] Pass current-client and materializer differential tests.
+- [x] Confirm no intermediate query result is observable.
 
 ### Phase 3
 
@@ -207,11 +207,81 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-30 | 1B | Reject groups above 128 members | One frame and transaction stay bounded without splitting atomic work. |
 | 2026-08-30 | 1B | Replace the version 1 browser outbox | The old single-call row shape cannot preserve group atomicity, and this project does not keep compatibility paths. |
 | 2026-08-30 | 1B | Classify replay orphans by server sequence | A matching sequence came from the command itself; an earlier sequence came from a peer delete. |
+| 2026-08-30 | 2 | Preserve confirmed query order | The materializer sorts only when optimistic writes affect a scope; untouched rows keep the server order. |
+| 2026-08-30 | 2 | Publish undo and redo through the command path | `mutateCommand` already publishes the optimistic result, so `undo` and `redo` must not notify again. |
 | 2026-08-30 | 0B | Keep the materializer proof internal | The standalone core passed its gate, but production ownership moves only in Phase 4. |
 
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-30: Complete Phase 2
+
+**State:** Complete
+
+**Changes**
+
+- Added a Tracker proof using the real `issues.byTeam`, `issues.byProject`,
+  `issue_labels.byTeam`, and `project_counts.all` declarations.
+- Proved membership replacement, overlapping claims, final-claim pruning, empty live scopes,
+  and server-owned order.
+- Proved `issues.create` publishes its issue and label links together.
+- Proved a related issue move and aggregate count replacement publish in one server batch.
+- Proved three `issues.update` calls apply, settle, and undo as one command in both the
+  materializer and the real client.
+- Added a scripted differential test for pooled rows, query order, optimistic replay, rejection
+  rollback, and stale query state.
+- Preserved confirmed server order until an optimistic write affects the query scope.
+- Removed duplicate `undo` and `redo` notifications. The shared command path already publishes
+  their optimistic result.
+- Kept the materializer internal. Production `SyncClient` still owns application reads.
+
+**Validation**
+
+- Tracker Phase 2 proof: 1 file and 6 tests passed with no type errors.
+- Tracker proof plus the Phase 0B materializer suite: 2 files and 19 tests passed.
+- `bun run test:unit:node`: 104 files and 806 tests passed with no type errors.
+- `bun run check:static`: passed lint, generated schema checks, generated API checks, type checks,
+  service checks, Cloudflare types, and package validation.
+- `git diff --check`: passed.
+
+Browser tests were not run. Phase 2 adds a headless proof and changes no UI or browser-only path.
+
+**Decisions**
+
+- Keep Tracker proof helpers in the Tracker test tree and import the internal materializer
+  directly.
+- Keep aggregate rows server-owned because `project_counts.all` has no optimistic projection.
+- Move production state ownership only in Phase 4.
+
+**Blockers**
+
+- None.
+
+**Exit gate:** Passed. The Tracker slice matches the current client after confirmed, optimistic,
+replayed, stale, and rejected inputs. Every materializer input publishes one final view.
+
+### 2026-08-30: Start Phase 2
+
+**State:** In progress
+
+**Changes**
+
+- Started the Tracker query, mutation, service, and materializer proof inventory.
+
+**Validation**
+
+- Pending.
+
+**Decisions**
+
+- Keep the proof in Tracker tests. Production client ownership remains a Phase 4 change.
+
+**Blockers**
+
+- None.
+
+**Exit gate:** Pending.
 
 ### 2026-08-30: Complete Phase 1B
 

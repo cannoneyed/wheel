@@ -1,10 +1,11 @@
 /**
- * Internal Phase 0B proof for Wheel-owned client state materialization.
+ * Internal proof for Wheel-owned client state materialization.
  *
  * The materializer keeps confirmed query state separate from pending commands.
  * Each rebuild replays complete commands on private table forks, derives query
- * results, and publishes one final view. This module is not exported from the
- * Wheel package and does not serve production reads during the proof phase.
+ * results, and publishes one final view. Phases 0B and 2 exercise it with
+ * generic and Tracker data. It is not exported and does not serve production
+ * reads during the proof phase.
  */
 import { canonicalParams } from '../../core/params';
 import {
@@ -165,7 +166,7 @@ function mapEqual(left: ReadonlyMap<string, Row> | undefined, right: ReadonlyMap
 }
 
 /**
- * Standalone Wheel materializer used only by the Phase 0B proof.
+ * Standalone Wheel materializer used by the pre-migration proof phases.
  *
  * Every mutating method stages confirmed and optimistic work first. The class
  * swaps its readable view and calls listeners only after the stage succeeds.
@@ -534,17 +535,23 @@ export class WheelMaterializer {
     for (const scope of scopes.values()) {
       const rows = tableMap(working, scope.query.into.name);
       const ids = scope.order.filter((id) => rows.has(id));
+      let hasProjectedWrites = false;
       if (scope.query.projection) {
         const membership = new Set(ids);
         for (const id of touched.get(scope.query.into.name) ?? []) {
           const row = rows.get(id);
-          if (row && scope.query.projection.filter(row, scope.params)) membership.add(id);
+          const wasMember = membership.has(id);
+          const isMember = row !== undefined && scope.query.projection.filter(row, scope.params);
+          if (wasMember || isMember) hasProjectedWrites = true;
+          if (isMember) membership.add(id);
           else membership.delete(id);
         }
         ids.splice(0, ids.length, ...membership);
       }
       const result = ids.map((id) => rows.get(id)).filter((row): row is Row => row !== undefined);
-      if (scope.query.projection?.sort) result.sort(scope.query.projection.sort);
+      // Confirmed order belongs to the server. Re-sort only when optimistic
+      // writes added, removed, or changed a row in this query scope.
+      if (hasProjectedWrites && scope.query.projection?.sort) result.sort(scope.query.projection.sort);
       queryRows.set(scope.key, Object.freeze(result));
       queryStatuses.set(scope.key, scope.status);
       queryTables.set(scope.key, scope.query.into.name);
