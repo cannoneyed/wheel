@@ -129,13 +129,11 @@ describe('failed mutations', () => {
 
   test('engine pre-validation refusals are typed error verdicts, not throws', async () => {
     const client = await world.client('web_d');
-    const result = await world.server.mutate(
+    const result = await world.server.mutateGroup(
       {
         clientId: 'web_d',
         mutationId: client.newId('m'),
-        name: 'no.suchMutation',
-        args: {},
-        ids: []
+        calls: [{ name: 'no.suchMutation', args: {}, ids: [] }]
       },
       {
         actor: 'user:test',
@@ -191,13 +189,11 @@ describe('failed mutations', () => {
       error: { code: 'invalid_args', message: expect.stringContaining('class instances are not data (Date)') }
     });
 
-    const serverResult = await world.server.mutate(
+    const serverResult = await world.server.mutateGroup(
       {
         clientId: 'web_json',
         mutationId: client.newId('m'),
-        name: probeJson.name,
-        args: { value: 42n },
-        ids: []
+        calls: [{ name: probeJson.name, args: { value: 42n }, ids: [] }]
       },
       {
         actor: 'user:test',

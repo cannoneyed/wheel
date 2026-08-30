@@ -47,6 +47,23 @@ defmodule WheelSync.Ctx do
     end
   end
 
+  def assert_consumed!(%__MODULE__{ref: ref}) do
+    case Process.get({__MODULE__, ref}) do
+      [] ->
+        :ok
+
+      remaining when is_list(remaining) ->
+        raise WheelSync.Error,
+          code: "id_stream_unused",
+          message: "The mutation left #{length(remaining)} client ids unused."
+
+      _ ->
+        raise WheelSync.Error,
+          code: "invalid_id_stream",
+          message: "The mutation id stream is unavailable."
+    end
+  end
+
   defp validate_id!(id, prefix) do
     if Regex.match?(@id_pattern, id) && String.starts_with?(id, prefix <> "_") do
       id

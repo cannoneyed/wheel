@@ -49,7 +49,7 @@
 import {
   OrphanedError,
   validateTableKey,
-  type InverseSpec,
+  type MutationCall,
   type MutationDecl,
   type MutationRejection,
   type PresenceDecl,
@@ -110,7 +110,7 @@ export type MutationState = 'pending' | 'queued' | 'confirmed' | 'rejected' | 'o
 /** The audit record of one mutation attempt, including its rejection/error if any. */
 export interface MutationInfo {
   readonly mutationId: string;
-  readonly mutation: string;
+  readonly mutations: readonly string[];
   readonly state: MutationState;
   readonly rejection?: MutationRejection;
   /** Present on `failed`: the typed "this mutation is broken" verdict — the server's crash, or invalid args caught locally (`code: 'invalid_args'`). */
@@ -129,14 +129,21 @@ export interface MutationHandle {
   readonly settled: Promise<MutationInfo>;
 }
 
-interface OptimisticEntry {
-  readonly mutationId: string;
+interface OptimisticCall {
   readonly decl: MutationDecl;
   readonly args: Record<string, unknown>;
   readonly ids: readonly string[];
+}
+
+interface OptimisticEntry {
+  readonly mutationId: string;
+  readonly calls: readonly OptimisticCall[];
   state: MutationState;
   confirmedSeq?: number;
+  /** Seq whose server delta first made this in-flight command fail with orphan(). */
+  replayOrphanedAtSeq?: number;
   writes: readonly { table: string; rowId: string }[];
+  rollbackUndoBookkeeping?: () => void;
   /** Settles the caller's MutationHandle.settled promise. */
   resolveSettled?: (info: MutationInfo) => void;
 }
@@ -275,15 +282,36 @@ export class SyncClient {
   /** In-flight dedup latch for connect(); null when no connect is running. */
   private connecting: Promise<void> | null = null;
   private version = 0;
-  private undoStack: InverseSpec[] = [];
-  private redoStack: InverseSpec[] = [];
+  private undoStack: Array<readonly MutationCall<any>[]> = [];
+  private redoStack: Array<readonly MutationCall<any>[]> = [];
   private replaying: 'undo' | 'redo' | null = null;
   private readonly peerPresence = new Map<string, Record<string, unknown>>();
   private readonly peerPresenceActors = new Map<string, string>();
+  private readonly stopIncompatibleServerListener: (() => void) | undefined;
 
   constructor(private readonly options: SyncClientOptions) {
     this.idGen = createIdGen({ clock: options.clock, randomBytes: options.randomBytes });
     this.provenance = new ProvenanceLog(options.provenanceCapacity);
+    this.stopIncompatibleServerListener = options.transport.onIncompatibleServer?.((message) => {
+      this.failForOldServer(message);
+    });
+  }
+
+  private failForOldServer(message: string): void {
+    for (const entry of [...this.pending]) {
+      entry.state = 'failed';
+      const info: MutationInfo = {
+        mutationId: entry.mutationId,
+        mutations: entry.calls.map((call) => call.decl.name),
+        state: 'failed',
+        error: { kind: 'error', code: 'server_too_old', message }
+      };
+      this.dropEntry(entry, 'rollback');
+      this.logMutation(info);
+      entry.resolveSettled?.(info);
+      void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
+    }
+    this.notify();
   }
 
   /** The same injected wall clock used by ids, mutations, and provenance. */
@@ -841,146 +869,172 @@ export class SyncClient {
    * every computed verdict is terminal.
    */
   mutate<Args extends Record<string, unknown>>(decl: MutationDecl<Args>, args: NoInfer<Args>): MutationHandle {
+    return this.mutateCommand([{ mutation: decl, args }], false);
+  }
+
+  /** Apply several existing mutations as one optimistic, durable, and server-side transaction. */
+  mutateGroup(calls: ReadonlyArray<MutationCall<any>>): MutationHandle {
+    return this.mutateCommand(calls, true);
+  }
+
+  private mutateCommand(calls: ReadonlyArray<MutationCall<any>>, requireUndo: boolean): MutationHandle {
     const mutationId = this.idGen.newId('m');
-    const parsed = decl.args.safeParse(args);
-    if (!parsed.success) {
-      // Invalid args are the caller's bug: terminal and un-retryable exactly
-      // like a crashed handler, so they take the SAME `failed` channel rather
-      // than throwing out of mutate(). Nothing is applied, queued, or sent —
-      // the mutation never happened, it just settles broken. (The server would
-      // return this identical `invalid_args` verdict if the args slipped past;
-      // catching locally spares the round trip.)
-      const message = `Args for mutation "${decl.name}" are invalid: ${parsed.error.issues
-        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-        .join('; ')}`;
-      const info: MutationInfo = {
-        mutationId,
-        mutation: decl.name,
-        state: 'failed',
-        error: { kind: 'error', code: 'invalid_args', message }
-      };
-      this.logMutation(info);
+    const mutations = Object.freeze(calls.map((call) => call.mutation.name));
+    const terminal = (
+      state: 'confirmed' | 'failed' | 'orphaned',
+      error?: MutationError
+    ): MutationHandle => {
+      const info: MutationInfo = { mutationId, mutations, state, error };
+      if (calls.length > 0) this.logMutation(info);
       return { mutationId, settled: Promise.resolve(info) };
-    }
-    try {
-      validateJsonValue(`Args for mutation "${decl.name}"`, parsed.data);
-    } catch (error) {
-      if (!(error instanceof JsonValueError)) throw error;
-      const info: MutationInfo = {
-        mutationId,
-        mutation: decl.name,
-        state: 'failed',
-        error: { kind: 'error', code: 'invalid_args', message: error.message }
-      };
-      this.logMutation(info);
-      return { mutationId, settled: Promise.resolve(info) };
-    }
-    const generated: string[] = [];
-    let writes: readonly { table: string; rowId: string }[] = [];
-    let rollbackUndoBookkeeping = (): void => {};
+    };
 
-    // Undo bookkeeping (locked design: undo IS a mutation). The inverse is
-    // captured against the effective state BEFORE the optimistic apply.
-    if (decl.invert) {
-      const inverse = decl.invert(
-        {
-          get: (table, id) => this.get(table, id),
-          list: (table) => this.rows(table)
-        },
-        parsed.data
-      );
-      if (inverse) {
-        if (this.replaying === 'undo') {
-          this.redoStack.push(inverse);
-          rollbackUndoBookkeeping = () => {
-            const index = this.redoStack.lastIndexOf(inverse);
-            if (index >= 0) this.redoStack.splice(index, 1);
-          };
-        } else {
-          this.undoStack.push(inverse);
-          const previousRedo = this.replaying === null ? this.redoStack : null;
-          if (this.replaying === null) {
-            this.redoStack = []; // a fresh local edit invalidates redo history
-          }
-          rollbackUndoBookkeeping = () => {
-            const index = this.undoStack.lastIndexOf(inverse);
-            if (index >= 0) this.undoStack.splice(index, 1);
-            if (previousRedo) this.redoStack = previousRedo;
-          };
-        }
+    if (calls.length === 0) return terminal('confirmed');
+    if (calls.length > 128) {
+      return terminal('failed', {
+        kind: 'error',
+        code: 'group_too_large',
+        message: 'A mutation group may contain at most 128 members.'
+      });
+    }
+
+    const prepared: Array<{ decl: MutationDecl; args: Record<string, unknown>; ids: string[] }> = [];
+    for (const call of calls) {
+      const parsed = call.mutation.args.safeParse(call.args);
+      if (!parsed.success) {
+        return terminal('failed', {
+          kind: 'error',
+          code: 'invalid_args',
+          message: `Args for mutation "${call.mutation.name}" are invalid: ${parsed.error.issues
+            .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+            .join('; ')}`
+        });
       }
+      try {
+        validateJsonValue(`Args for mutation "${call.mutation.name}"`, parsed.data);
+      } catch (error) {
+        if (!(error instanceof JsonValueError)) throw error;
+        return terminal('failed', {
+          kind: 'error',
+          code: 'invalid_args',
+          message: error.message
+        });
+      }
+      prepared.push({ decl: call.mutation as MutationDecl, args: parsed.data, ids: [] });
     }
 
-    if (decl.optimistic) {
-      const working = cloneTables(this.effective);
-      const overlay = new OverlayCache(working);
-      decl.optimistic(
-        overlay,
-        parsed.data,
-        {
+    // Preflight on a private fork. Inverses see earlier group members, while
+    // readers and listeners see none of the fork until every member succeeds.
+    const working = cloneTables(this.effective);
+    const inverses: MutationCall<any>[] = [];
+    const writes: Array<{ table: string; rowId: string; value: Row | undefined }> = [];
+    try {
+      for (const call of prepared) {
+        const inverse = call.decl.invert?.(
+          {
+            get: (table, id) => tableMap(working, table.name).get(id) as never,
+            list: (table) => [...tableMap(working, table.name).values()] as never
+          },
+          call.args
+        ) ?? null;
+        if (requireUndo && inverse === null) {
+          return terminal('failed', {
+            kind: 'error',
+            code: 'non_invertible_group',
+            message: `Mutation "${call.decl.name}" is not invertible in the current state.`
+          });
+        }
+        if (inverse) inverses.unshift({ mutation: inverse.mutation, args: inverse.args });
+
+        const overlay = new OverlayCache(working);
+        call.decl.optimistic?.(overlay, call.args, {
           newId: (prefix) => {
             const id = this.idGen.newId(prefix);
-            generated.push(id);
+            call.ids.push(id);
             return id;
           },
           now: () => this.options.clock.now(),
           actor: this.options.actor
-        }
-      );
-      writes = overlay.writes.map(({ table, rowId }) => ({ table, rowId }));
-      for (const write of overlay.writes) {
-        this.markChanged(write.table);
-        this.provenance.record({
-          at: this.options.clock.now(),
-          table: write.table,
-          rowId: write.rowId,
-          value: write.value,
-          cause: { kind: 'optimistic', mutationId, mutation: decl.name }
         });
+        writes.push(...overlay.writes);
+      }
+    } catch (error) {
+      if (error instanceof OrphanedError) return terminal('orphaned');
+      return terminal('failed', {
+        kind: 'error',
+        code: 'optimistic_handler_error',
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    let rollbackUndoBookkeeping = (): void => {};
+    if (inverses.length === prepared.length) {
+      const inverseGroup = Object.freeze(inverses);
+      if (this.replaying === 'undo') {
+        this.redoStack.push(inverseGroup);
+        rollbackUndoBookkeeping = () => {
+          const index = this.redoStack.lastIndexOf(inverseGroup);
+          if (index >= 0) this.redoStack.splice(index, 1);
+        };
+      } else {
+        this.undoStack.push(inverseGroup);
+        const previousRedo = this.replaying === null ? this.redoStack : null;
+        if (this.replaying === null) this.redoStack = [];
+        rollbackUndoBookkeeping = () => {
+          const index = this.undoStack.lastIndexOf(inverseGroup);
+          if (index >= 0) this.undoStack.splice(index, 1);
+          if (previousRedo) this.redoStack = previousRedo;
+        };
       }
     }
 
     const entry: OptimisticEntry = {
       mutationId,
-      decl: decl as MutationDecl,
-      args: parsed.data,
-      ids: generated,
+      calls: prepared.map((call) => ({ ...call, ids: Object.freeze([...call.ids]) })),
       state: 'pending',
-      writes
+      writes: writes.map(({ table, rowId }) => ({ table, rowId })),
+      rollbackUndoBookkeeping
     };
     const settled = new Promise<MutationInfo>((resolve) => {
       entry.resolveSettled = resolve;
     });
     this.pending.push(entry);
-    this.rebase();
+    this.effective = working;
+    for (const write of writes) {
+      this.markChanged(write.table);
+      this.provenance.record({
+        at: this.options.clock.now(),
+        table: write.table,
+        rowId: write.rowId,
+        value: write.value,
+        cause: { kind: 'optimistic', mutationId, mutations }
+      });
+    }
     this.notify();
 
-    // Durability before the wire: the outbox entry commits, THEN the send
-    // goes out — a crash after this point replays instead of losing work.
     const persistAndSend = (async () => {
       try {
         await this.options.localCache.appendOutbox({
           mutationId,
-          mutation: decl.name,
-          args: parsed.data,
-          ids: generated,
+          calls: entry.calls.map((call) => ({
+            mutation: call.decl.name,
+            args: call.args,
+            ids: call.ids
+          })),
           enqueuedAt: this.options.clock.now()
         });
       } catch {
-        // Local-first is a hard contract. The preview was visible instantly,
-        // but it cannot remain or reach the wire if durable storage refused it.
         entry.state = 'failed';
         const info: MutationInfo = {
           mutationId,
-          mutation: decl.name,
+          mutations,
           state: 'failed',
           error: {
             kind: 'error',
             code: 'local_persistence_failed',
-            message: `Could not save mutation "${decl.name}" to the local outbox.`
+            message: `Could not save mutation group [${mutations.join(', ')}] to the local outbox.`
           }
         };
-        rollbackUndoBookkeeping();
         this.dropEntry(entry, 'rollback');
         this.logMutation(info);
         entry.resolveSettled?.(info);
@@ -1005,15 +1059,25 @@ export class SyncClient {
    */
   private async attemptSend(entry: OptimisticEntry): Promise<void> {
     let info: MutationInfo;
+    const mutations = entry.calls.map((call) => call.decl.name);
     try {
-      const result = await this.options.transport.mutate({
+      const result = await this.options.transport.mutateGroup({
         clientId: this.options.clientId,
         mutationId: entry.mutationId,
-        name: entry.decl.name,
-        args: entry.args,
-        ids: entry.ids
+        calls: entry.calls.map((call) => ({ name: call.decl.name, args: call.args, ids: call.ids }))
       });
-      if (result.ok) {
+      if (
+        result.ok &&
+        entry.replayOrphanedAtSeq !== undefined &&
+        entry.replayOrphanedAtSeq !== result.seq
+      ) {
+        // A peer's earlier change removed this command's target. The server
+        // may still accept a no-op handler, but the client's optimistic
+        // contract is terminally orphaned and must not become confirmed.
+        entry.state = 'orphaned';
+        info = { mutationId: entry.mutationId, mutations, state: 'orphaned' };
+        this.dropEntry(entry, 'orphaned');
+      } else if (result.ok) {
         // Confirmed is NOT done: the entry stays in pending[] and keeps
         // replaying optimistically until base has materialized this seq
         // (releaseSettledEntries). Dropping it here would flicker the row
@@ -1021,21 +1085,22 @@ export class SyncClient {
         entry.state = 'confirmed';
         entry.confirmedSeq = result.seq;
         this.lastSeq = Math.max(this.lastSeq, result.seq);
-        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'confirmed' };
+        info = { mutationId: entry.mutationId, mutations, state: 'confirmed' };
         this.releaseSettledEntries();
       } else if ('rejection' in result) {
         entry.state = 'rejected';
-        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'rejected', rejection: result.rejection };
+        info = { mutationId: entry.mutationId, mutations, state: 'rejected', rejection: result.rejection };
         this.dropEntry(entry, 'rollback');
       } else {
         // The server RAN this mutation and it broke (typed error verdict) —
         // terminal. Roll back and settle loudly; retrying poison would fail
         // identically forever and block the queue behind it.
         entry.state = 'failed';
-        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'failed', error: result.error };
+        info = { mutationId: entry.mutationId, mutations, state: 'failed', error: result.error };
         this.dropEntry(entry, 'rollback');
       }
     } catch {
+      if (!this.pending.includes(entry)) return;
       // ONLY failure-to-communicate lands here (the transports' contract):
       // park and retry when the connection returns. Server verdicts —
       // including crashes — arrive as VALUES above, never as throws.
@@ -1098,9 +1163,11 @@ export class SyncClient {
       }
       const entry: OptimisticEntry = {
         mutationId: persisted.mutationId,
-        decl: { name: persisted.mutation } as MutationDecl,
-        args: persisted.args,
-        ids: persisted.ids,
+        calls: persisted.calls.map((call) => ({
+          decl: { name: call.mutation } as MutationDecl,
+          args: call.args,
+          ids: call.ids
+        })),
         state: 'pending',
         writes: []
       };
@@ -1110,9 +1177,11 @@ export class SyncClient {
   }
 
   private logMutation(info: MutationInfo): void {
-    const log = this.mutationLog.get(info.mutation) ?? [];
-    log.push(info);
-    this.mutationLog.set(info.mutation, log);
+    for (const mutation of new Set(info.mutations)) {
+      const log = this.mutationLog.get(mutation) ?? [];
+      log.push(info);
+      this.mutationLog.set(mutation, log);
+    }
   }
 
   /** The audit trail of one mutation name: last outcome and all attempts. */
@@ -1120,13 +1189,19 @@ export class SyncClient {
     const name = typeof decl === 'string' ? decl : decl.name;
     const settledLog = this.mutationLog.get(name) ?? [];
     const pendingInfos = this.pending
-      .filter((entry) => entry.decl.name === name && entry.state === 'pending')
-      .map((entry): MutationInfo => ({ mutationId: entry.mutationId, mutation: name, state: 'pending' }));
+      .filter((entry) => entry.calls.some((call) => call.decl.name === name))
+      .map((entry): MutationInfo => ({
+        mutationId: entry.mutationId,
+        mutations: entry.calls.map((call) => call.decl.name),
+        state: entry.state
+      }));
     const all = [...settledLog, ...pendingInfos];
     return { last: all[all.length - 1], all };
   }
 
   private dropEntry(entry: OptimisticEntry, cause: 'rollback' | 'orphaned'): void {
+    entry.rollbackUndoBookkeeping?.();
+    entry.rollbackUndoBookkeeping = undefined;
     const index = this.pending.indexOf(entry);
     if (index >= 0) {
       this.pending.splice(index, 1);
@@ -1138,7 +1213,7 @@ export class SyncClient {
         table: write.table,
         rowId: write.rowId,
         value: tableMap(this.base, write.table).get(write.rowId),
-        cause: { kind: cause, mutationId: entry.mutationId, mutation: entry.decl.name }
+        cause: { kind: cause, mutationId: entry.mutationId, mutations: entry.calls.map((call) => call.decl.name) }
       });
     }
     this.rebase();
@@ -1155,7 +1230,6 @@ export class SyncClient {
     for (const entry of [...this.pending]) {
       if (entry.state === 'confirmed' && entry.confirmedSeq !== undefined && this.appliedSeq >= entry.confirmedSeq) {
         this.pending.splice(this.pending.indexOf(entry), 1);
-        this.logMutation({ mutationId: entry.mutationId, mutation: entry.decl.name, state: 'confirmed' });
         for (const write of entry.writes) {
           this.markChanged(write.table);
         }
@@ -1504,30 +1578,36 @@ export class SyncClient {
   // ── rebase ─────────────────────────────────────────────────────────────
 
   private rebase(): void {
-    const working = cloneTables(this.base);
+    let working = cloneTables(this.base);
     for (const entry of [...this.pending]) {
-      if (!entry.decl.optimistic) {
-        continue;
-      }
-      const overlay = new OverlayCache(working);
-      let nextId = 0;
+      const commandFork = cloneTables(working);
+      const writes: Array<{ table: string; rowId: string }> = [];
       try {
-        entry.decl.optimistic(
-          overlay,
-          entry.args,
-          {
-            // Positional replay of the entry's id stream: every rebase hands
-            // the handler the SAME ids it minted originally, so optimistic
-            // rows keep the ids the server will confirm. The 'orphan'
-            // fallback fires only when a handler asks for MORE ids on replay
-            // than it minted at enqueue (a nondeterministic handler) — those
-            // ids can never match the server's.
-            newId: () => entry.ids[nextId++] ?? this.idGen.newId('orphan'),
+        for (const call of entry.calls) {
+          if (!call.decl.optimistic) continue;
+          const overlay = new OverlayCache(commandFork);
+          let nextId = 0;
+          call.decl.optimistic(overlay, call.args, {
+            newId: (prefix) => {
+              const id = call.ids[nextId++];
+              if (id === undefined) {
+                throw new Error(`Mutation "${call.decl.name}" exhausted its deterministic ID stream.`);
+              }
+              if (!id.startsWith(`${prefix}_`)) {
+                throw new Error(`Mutation "${call.decl.name}" expected a "${prefix}_" deterministic ID.`);
+              }
+              return id;
+            },
             now: () => this.options.clock.now(),
             actor: this.options.actor
+          });
+          if (nextId !== call.ids.length) {
+            throw new Error(`Mutation "${call.decl.name}" left deterministic IDs unused.`);
           }
-        );
-        entry.writes = overlay.writes.map(({ table, rowId }) => ({ table, rowId }));
+          writes.push(...overlay.writes.map(({ table, rowId }) => ({ table, rowId })));
+        }
+        entry.writes = writes;
+        working = commandFork;
       } catch (error) {
         // Two very different reasons a replay throws, kept apart on purpose:
         //
@@ -1545,20 +1625,38 @@ export class SyncClient {
         // the SURVIVING pending mutations on a fresh base clone — so one poison
         // handler (and its partial writes) can never corrupt the rest.
         if (error instanceof OrphanedError) {
+          // A mutation response follows its own deltas on both in-process and
+          // WebSocket transports. Record the delta seq and wait for the
+          // verdict. A matching result seq means this command caused the
+          // delete; a later result seq means an earlier peer change did.
+          if (entry.state === 'pending') {
+            entry.replayOrphanedAtSeq ??= this.appliedSeq;
+            continue;
+          }
+          if (entry.state === 'confirmed' && entry.confirmedSeq === this.appliedSeq) continue;
+          if (entry.state === 'queued' && entry.replayOrphanedAtSeq !== undefined) continue;
           entry.state = 'orphaned';
-          const info: MutationInfo = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'orphaned' };
+          const info: MutationInfo = {
+            mutationId: entry.mutationId,
+            mutations: entry.calls.map((call) => call.decl.name),
+            state: 'orphaned'
+          };
           this.logMutation(info);
           entry.resolveSettled?.(info);
           void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
           this.dropEntry(entry, 'orphaned');
           return; // dropEntry re-runs rebase without this entry
         }
-        logger.error(`wheel: optimistic handler for mutation "${entry.decl.name}" (${entry.mutationId}) threw during replay; mutation marked failed and rolled back.`, error);
+        logger.error(
+          `wheel: optimistic mutation group [${entry.calls.map((call) => call.decl.name).join(', ')}] ` +
+            `(${entry.mutationId}) threw during replay; the group was marked failed and rolled back.`,
+          error
+        );
         entry.state = 'failed';
         const message = error instanceof Error ? error.message : String(error);
         const info: MutationInfo = {
           mutationId: entry.mutationId,
-          mutation: entry.decl.name,
+          mutations: entry.calls.map((call) => call.decl.name),
           state: 'failed',
           error: { kind: 'error', code: 'optimistic_handler_error', message }
         };
@@ -1592,13 +1690,13 @@ export class SyncClient {
    * returned handle.
    */
   undo(): MutationHandle | null {
-    const inverse = this.undoStack.pop();
-    if (!inverse) {
+    const inverseGroup = this.undoStack.pop();
+    if (!inverseGroup) {
       return null;
     }
     this.replaying = 'undo';
     try {
-      const handle = this.mutate(inverse.mutation, inverse.args);
+      const handle = this.mutateCommand(inverseGroup, false);
       this.notify();
       return handle;
     } finally {
@@ -1608,13 +1706,13 @@ export class SyncClient {
 
   /** Redo the most recently undone mutation (same rules as undo). */
   redo(): MutationHandle | null {
-    const inverse = this.redoStack.pop();
-    if (!inverse) {
+    const inverseGroup = this.redoStack.pop();
+    if (!inverseGroup) {
       return null;
     }
     this.replaying = 'redo';
     try {
-      const handle = this.mutate(inverse.mutation, inverse.args);
+      const handle = this.mutateCommand(inverseGroup, false);
       this.notify();
       return handle;
     } finally {
@@ -1812,6 +1910,7 @@ export class SyncClient {
    */
   close(): void {
     this.lifecycle.abort();
+    this.stopIncompatibleServerListener?.();
     this.cancelPresenceTimer();
     this.options.transport.close(this.options.clientId);
     this.connected = false;

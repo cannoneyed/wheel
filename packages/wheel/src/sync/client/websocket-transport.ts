@@ -17,7 +17,7 @@ import {
   type SyncSocketRequest,
   type SyncSocketVersionMismatchReason
 } from '../socket-protocol';
-import type { MutateRequest, MutateResult, ServerEvent, Snapshot } from '../protocol';
+import type { MutateGroupRequest, MutateResult, ServerEvent, Snapshot } from '../protocol';
 import { TransientSyncError, type SyncConnectionStatus, type SyncTransport } from './transport';
 
 const BACKOFF_BASE_MS = 250;
@@ -140,6 +140,7 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
   const lifecycle = new AbortController();
   const signal = lifecycle.signal;
   const pending = new Map<string, PendingRequest>();
+  const incompatibleServerListeners = new Set<(message: string) => void>();
   const wakeCallbacks = new Set<() => void>();
   const eventTarget =
     options.eventTarget ??
@@ -150,6 +151,7 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
     (globalThis as unknown as { navigator?: { onLine?: boolean } }).navigator?.onLine === false;
   let connected = false;
   let nextRequestId = 0;
+  let serverTooOld: SyncVersionMismatch | null = null;
 
   const rejectPending = (error: Error): void => {
     for (const request of pending.values()) request.reject(error);
@@ -259,6 +261,17 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
             }
             if (message.type === 'version_mismatch') {
               mismatch = message;
+              if (
+                message.reason === 'protocol_mismatch' &&
+                message.serverProtocol < message.clientProtocol
+              ) {
+                serverTooOld = message;
+                for (const listener of incompatibleServerListeners) {
+                  listener(
+                    `The sync server speaks protocol ${message.serverProtocol}, but mutation groups require protocol ${message.clientProtocol}.`
+                  );
+                }
+              }
               options.onVersionMismatch?.(message);
               return;
             }
@@ -399,9 +412,21 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
     async unsubscribe(_clientId, subscriptionId): Promise<void> {
       await request<Record<string, never>>({ type: 'unsubscribe', subscriptionId });
     },
-    async mutate(mutation: MutateRequest): Promise<MutateResult> {
+    async mutateGroup(command: MutateGroupRequest): Promise<MutateResult> {
+      if (serverTooOld) {
+        return {
+          ok: false,
+          error: {
+            kind: 'error',
+            code: 'server_too_old',
+            message:
+              `The sync server speaks protocol ${serverTooOld.serverProtocol}, ` +
+              `but mutation groups require protocol ${serverTooOld.clientProtocol}.`
+          }
+        };
+      }
       try {
-        return await request<MutateResult>({ type: 'mutate', mutation });
+        return await request<MutateResult>({ type: 'mutateGroup', command });
       } catch (error) {
         if (error instanceof SocketResponseError && !error.detail.retryable) {
           return {
@@ -413,6 +438,15 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
         throw error;
       }
     },
+    onIncompatibleServer(listener): () => void {
+      incompatibleServerListeners.add(listener);
+      if (serverTooOld) {
+        listener(
+          `The sync server speaks protocol ${serverTooOld.serverProtocol}, but mutation groups require protocol ${serverTooOld.clientProtocol}.`
+        );
+      }
+      return () => incompatibleServerListeners.delete(listener);
+    },
     async setPresence(_clientId, state): Promise<void> {
       await request<Record<string, never>>({ type: 'presence', state });
     },
@@ -421,6 +455,7 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
       eventTarget.removeEventListener?.('offline', handleOffline);
       eventTarget.removeEventListener?.('online', handleOnline);
       connected = false;
+      incompatibleServerListeners.clear();
       dropCurrentSocket?.(
         new TransientSyncError('sync WebSocket transport closed'),
         1000,

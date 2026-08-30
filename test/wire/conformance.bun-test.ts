@@ -324,6 +324,92 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     b.close();
   });
 
+  test('a three-member group commits once, runs in order, and dedupes as one command', async () => {
+    const inbox = await Inbox.open(baseUrl, 'group');
+    await inbox.next((message) => message.type === 'hello');
+    const subscriptionId = await subscribe(inbox);
+    const widgetId = 'widget_0190b62e-0000-7000-8000-000000000020';
+    const group = {
+      protocol: 2,
+      type: 'mutateGroup',
+      requestId: 'group-create',
+      command: {
+        clientId: 'ignored',
+        mutationId: 'm_0190b62e-0000-7000-8000-000000000020',
+        calls: [
+          {
+            name: 'widgets.create',
+            args: { title: 'Grouped', position: 1, active: true, note: null },
+            ids: [widgetId]
+          },
+          { name: 'widgets.move', args: { widgetId, position: 7 }, ids: [] },
+          { name: 'widgets.touch', args: { widgetId }, ids: [] }
+        ]
+      }
+    };
+
+    inbox.send(group);
+    const [response, delta] = await Promise.all([
+      inbox.response('group-create'),
+      inbox.next(deltaFor(subscriptionId, 1)),
+      inbox.next(checkpointFor(1))
+    ]);
+    expect(response).toMatchObject({ ok: true, value: { ok: true, seq: 1 } });
+    expect(delta).toMatchObject({
+      event: { delta: { puts: [{ id: widgetId, title: 'Grouped', position: 7 }], order: [widgetId] } }
+    });
+
+    inbox.send(group);
+    expect(await inbox.response('group-create')).toMatchObject({
+      ok: true,
+      value: { ok: true, seq: 1 }
+    });
+    await inbox.expectNo(
+      (message) => message.type === 'event' && message.event.type === 'delta'
+    );
+    inbox.close();
+  });
+
+  test('group validation runs before handlers and enforces the member cap', async () => {
+    const inbox = await Inbox.open(baseUrl, 'group-validation');
+    await inbox.next((message) => message.type === 'hello');
+    const invalid = request('createAlpha');
+    invalid.requestId = 'invalid-group';
+    const command = invalid.command as JsonRecord;
+    command.mutationId = 'm_0190b62e-0000-7000-8000-000000000021';
+    command.calls = [
+      ...((command.calls as JsonRecord[])),
+      { name: 'widgets.move', args: { widgetId: 42, position: 'bad' }, ids: [] }
+    ];
+    inbox.send(invalid);
+    expect(await inbox.response('invalid-group')).toMatchObject({
+      ok: true,
+      value: { ok: false, error: { code: 'invalid_args' } }
+    });
+
+    const oversized = clone(invalid);
+    oversized.requestId = 'oversized-group';
+    (oversized.command as JsonRecord).mutationId =
+      'm_0190b62e-0000-7000-8000-000000000022';
+    (oversized.command as JsonRecord).calls = Array.from({ length: 129 }, () => ({
+      name: 'system.noop',
+      args: {},
+      ids: []
+    }));
+    inbox.send(oversized);
+    expect(await inbox.response('oversized-group')).toMatchObject({
+      ok: true,
+      value: { ok: false, error: { code: 'group_too_large' } }
+    });
+
+    inbox.send({ ...request('subscribe'), requestId: 'verify-empty' });
+    expect(await inbox.response('verify-empty')).toMatchObject({
+      ok: true,
+      value: { seq: 0, rows: [] }
+    });
+    inbox.close();
+  });
+
   test('changed, unchanged, and unrelated commits each emit a checkpoint', async () => {
     const inbox = await Inbox.open(baseUrl, 'checkpoints');
     await inbox.next((message) => message.type === 'hello');
@@ -447,7 +533,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     await inbox.next((message) => message.type === 'hello');
 
     const exhausted = request('pair');
-    (exhausted.mutation as JsonRecord).ids = [
+    ((((exhausted.command as JsonRecord).calls as JsonRecord[])[0])!).ids = [
       'widget_0190b62e-0000-7000-8000-000000000005'
     ];
     inbox.send(exhausted);
@@ -458,9 +544,9 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
 
     const mismatch = request('createAlpha');
     mismatch.requestId = 'mismatch';
-    (mismatch.mutation as JsonRecord).mutationId =
+    (mismatch.command as JsonRecord).mutationId =
       'm_0190b62e-0000-7000-8000-000000000007';
-    (mismatch.mutation as JsonRecord).ids = [
+    ((((mismatch.command as JsonRecord).calls as JsonRecord[])[0])!).ids = [
       'note_0190b62e-0000-7000-8000-000000000007'
     ];
     inbox.send(mismatch);
@@ -471,7 +557,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
 
     const malformed = request('createAlpha');
     malformed.requestId = 'malformed-id';
-    (malformed.mutation as JsonRecord).mutationId = 'not-an-id';
+    (malformed.command as JsonRecord).mutationId = 'not-an-id';
     inbox.send(malformed);
     expect(await inbox.response('malformed-id')).toMatchObject({
       ok: true,
@@ -489,14 +575,26 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
 
     const rejected = {
       protocol: 2,
-      type: 'mutate',
+      type: 'mutateGroup',
       requestId: 'reject',
-      mutation: {
+      command: {
         clientId: 'ignored',
         mutationId: 'm_0190b62e-0000-7000-8000-000000000008',
-        name: 'widgets.reject',
-        args: { widgetId: 'widget_0190b62e-0000-7000-8000-000000000001' },
-        ids: []
+        calls: [
+          {
+            name: 'widgets.move',
+            args: {
+              widgetId: 'widget_0190b62e-0000-7000-8000-000000000001',
+              position: 99
+            },
+            ids: []
+          },
+          {
+            name: 'widgets.reject',
+            args: { widgetId: 'widget_0190b62e-0000-7000-8000-000000000001' },
+            ids: []
+          }
+        ]
       }
     };
     inbox.send(rejected);
@@ -510,8 +608,8 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
 
     const failed = clone(rejected);
     failed.requestId = 'fail';
-    failed.mutation.mutationId = 'm_0190b62e-0000-7000-8000-000000000009';
-    failed.mutation.name = 'widgets.fail';
+    failed.command.mutationId = 'm_0190b62e-0000-7000-8000-000000000009';
+    failed.command.calls[1]!.name = 'widgets.fail';
     inbox.send(failed);
     expect(await inbox.response('fail')).toMatchObject({
       ok: true,
@@ -522,7 +620,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     inbox.send({ ...request('subscribe'), requestId: 'verify' });
     expect(await inbox.response('verify')).toMatchObject({
       ok: true,
-      value: { seq: 1, rows: [{ title: 'Alpha λ' }] }
+      value: { seq: 1, rows: [{ title: 'Alpha λ', position: 1.25 }] }
     });
     inbox.close();
   });
@@ -542,9 +640,9 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
 
     const extra = request('createAlpha');
     extra.requestId = 'extra';
-    (extra.mutation as JsonRecord).mutationId =
+    (extra.command as JsonRecord).mutationId =
       'm_0190b62e-0000-7000-8000-000000000010';
-    ((extra.mutation as JsonRecord).args as JsonRecord).extra = true;
+    (((((extra.command as JsonRecord).calls as JsonRecord[])[0])!).args as JsonRecord).extra = true;
     inboxSend(a, extra);
     expect(await a.response('extra')).toMatchObject({
       ok: true,

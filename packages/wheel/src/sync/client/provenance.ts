@@ -7,9 +7,9 @@
 export type WriteCause =
   | { kind: 'bootstrap'; seq: number; subscriptionId: string }
   | { kind: 'sync-apply'; seq: number; subscriptionId: string }
-  | { kind: 'optimistic'; mutationId: string; mutation: string }
-  | { kind: 'rollback'; mutationId: string; mutation: string }
-  | { kind: 'orphaned'; mutationId: string; mutation: string }
+  | { kind: 'optimistic'; mutationId: string; mutations: readonly string[] }
+  | { kind: 'rollback'; mutationId: string; mutations: readonly string[] }
+  | { kind: 'orphaned'; mutationId: string; mutations: readonly string[] }
   /** Served from the persisted local cache at boot, before any wire confirmation. */
   | { kind: 'hydrate'; seq: number };
 

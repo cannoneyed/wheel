@@ -35,9 +35,7 @@ const subscription = (key: string) => ({
 
 const outboxEntry = (mutationId: string, enqueuedAt: number) => ({
   mutationId,
-  mutation: 'todos.add',
-  args: { text: 'pending' },
-  ids: ['id_1'],
+  calls: [{ mutation: 'todos.add', args: { text: 'pending' }, ids: ['id_1'] }],
   enqueuedAt
 });
 

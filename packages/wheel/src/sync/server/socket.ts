@@ -14,7 +14,7 @@ import {
   type SyncSocketRequest,
   type SyncSocketVersionMismatchReason
 } from '../socket-protocol';
-import type { MutateRequest, MutateResult, Snapshot } from '../protocol';
+import type { MutateGroupRequest, MutateResult, Snapshot } from '../protocol';
 import type { SyncConnection, SyncConnectionState, SyncServer } from './engine';
 import { SyncServerError } from './errors';
 
@@ -129,16 +129,21 @@ function parseRequest(raw: string): SyncSocketRequest {
     if (value.state !== null && !isRecord(value.state)) {
       throw new TypeError('Sync presence state must be an object or null.');
     }
-  } else if (value.type === 'mutate') {
-    const mutation = value.mutation;
+  } else if (value.type === 'mutateGroup') {
+    const command = value.command;
     if (
-      !isRecord(mutation) ||
-      typeof mutation.mutationId !== 'string' ||
-      typeof mutation.name !== 'string' ||
-      !Array.isArray(mutation.ids) ||
-      !mutation.ids.every((id) => typeof id === 'string')
+      !isRecord(command) ||
+      typeof command.mutationId !== 'string' ||
+      !Array.isArray(command.calls) ||
+      !command.calls.every(
+        (call) =>
+          isRecord(call) &&
+          typeof call.name === 'string' &&
+          Array.isArray(call.ids) &&
+          call.ids.every((id) => typeof id === 'string')
+      )
     ) {
-      throw new TypeError('Sync mutate message is invalid.');
+      throw new TypeError('Sync mutateGroup message is invalid.');
     }
   } else {
     throw new TypeError('Sync message type is unknown.');
@@ -433,11 +438,11 @@ export class SyncSocketServer {
         this.options.server.setPresence(record.connection.clientId, request.state);
         value = {};
       } else {
-        const mutation: MutateRequest = {
-          ...request.mutation,
+        const command: MutateGroupRequest = {
+          ...request.command,
           clientId: record.connection.clientId
         };
-        value = await this.options.server.mutate(mutation, record.connection.principal);
+        value = await this.options.server.mutateGroup(command, record.connection.principal);
       }
       this.persist(record, attachment.ownerClientId);
       this.send(socket, {

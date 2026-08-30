@@ -16,6 +16,7 @@ export { SqlQueryHandler, type QueryHandler, type QueryHandlerCtx, type QueryRea
 export type {
   SyncBackend,
   BackendMutateResult,
+  BackendMutationCall,
   ExternalChangeRecord,
   SyncBackendInitOptions
 } from './sync-backend';
@@ -44,7 +45,8 @@ export {
   type SyncConnectionState,
   type SyncSubscriptionState,
   type SyncServerOptions,
-  type MutateRequest,
+  type MutateGroupRequest,
+  type MutateCallRequest,
   type MutateResult,
   type MutationError,
   type RowDelta,

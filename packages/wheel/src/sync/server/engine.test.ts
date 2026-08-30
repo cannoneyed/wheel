@@ -148,13 +148,11 @@ const principal = {
 };
 
 async function mutate(name: string, args: unknown, generated: string[] = []) {
-  return server.mutate(
+  return server.mutateGroup(
     {
       clientId: 'test_client',
       mutationId: ids.newId('m'),
-      name,
-      args,
-      ids: generated
+      calls: [{ name, args, ids: generated }]
     },
     principal
   );
@@ -451,12 +449,10 @@ describe('mutation → sync log → delta', () => {
     const request = {
       clientId: 'test_client',
       mutationId: ids.newId('m'),
-      name: 'todos.add',
-      args: { listId: 'l_1', text: 'once' },
-      ids: [ids.newId('todo')]
+      calls: [{ name: 'todos.add', args: { listId: 'l_1', text: 'once' }, ids: [ids.newId('todo')] }]
     };
-    const first = await server.mutate(request, principal);
-    const second = await server.mutate(request, principal);
+    const first = await server.mutateGroup(request, principal);
+    const second = await server.mutateGroup(request, principal);
     expect(first).toEqual(second);
     expect(addHandlerRuns).toBe(1);
   });
@@ -468,6 +464,53 @@ describe('mutation → sync log → delta', () => {
       error: { code: 'invalid_args' }
     });
     expect(addHandlerRuns).toBe(0);
+  });
+
+  test('validates every group member before running the first handler', async () => {
+    const result = await server.mutateGroup(
+      {
+        clientId: 'test_client',
+        mutationId: ids.newId('m'),
+        calls: [
+          { name: 'todos.add', args: { listId: 'l_1', text: 'first' }, ids: [ids.newId('todo')] },
+          { name: 'todos.add', args: { listId: 'l_1', text: 42 }, ids: [ids.newId('todo')] },
+          { name: 'todos.add', args: { listId: 'l_1', text: 'third' }, ids: [ids.newId('todo')] }
+        ]
+      },
+      principal
+    );
+    expect(result).toMatchObject({ ok: false, error: { code: 'invalid_args' } });
+    expect(addHandlerRuns).toBe(0);
+    expect(await db.query('select * from wheel_sync_log')).toHaveLength(0);
+  });
+
+  test('commits three group members under one sequence and one log row', async () => {
+    const result = await server.mutateGroup(
+      {
+        clientId: 'test_client',
+        mutationId: ids.newId('m'),
+        calls: ['first', 'second', 'third'].map((text) => ({
+          name: 'todos.add',
+          args: { listId: 'l_1', text },
+          ids: [ids.newId('todo')]
+        }))
+      },
+      principal
+    );
+    expect(result).toEqual({ ok: true, seq: 1 });
+    expect(addHandlerRuns).toBe(3);
+    expect(await db.query('select text from todos order by sort_rank')).toHaveLength(3);
+    expect(await db.query('select * from wheel_sync_log')).toHaveLength(1);
+  });
+
+  test('rejects 129 group members without running a handler', async () => {
+    const call = { name: 'todos.toggle', args: { todoId: 'todo_none' }, ids: [] };
+    const result = await server.mutateGroup(
+      { clientId: 'test_client', mutationId: ids.newId('m'), calls: Array.from({ length: 129 }, () => call) },
+      principal
+    );
+    expect(result).toMatchObject({ ok: false, error: { code: 'group_too_large' } });
+    expect(await db.query('select * from wheel_sync_log')).toHaveLength(0);
   });
 });
 
@@ -483,6 +526,27 @@ describe('rejection and rollback (typed values, not wire exceptions)', () => {
     expect(await db.query('select * from wheel_sync_log')).toHaveLength(0);
     expect(server.seq()).toBe(0);
   });
+
+  test('a later rejection rolls earlier group members back', async () => {
+    const result = await server.mutateGroup(
+      {
+        clientId: 'test_client',
+        mutationId: ids.newId('m'),
+        calls: [
+          {
+            name: 'todos.add',
+            args: { listId: 'l_1', text: 'must roll back' },
+            ids: [ids.newId('todo')]
+          },
+          { name: 'todos.forbidden', args: {}, ids: [] }
+        ]
+      },
+      principal
+    );
+    expect(result).toMatchObject({ ok: false, rejection: { code: 'forbidden' } });
+    expect(await db.query("select * from todos where text = 'must roll back'")).toHaveLength(0);
+    expect(await db.query('select * from wheel_sync_log')).toHaveLength(0);
+  });
 });
 
 describe('id replay', () => {
@@ -496,7 +560,7 @@ describe('id replay', () => {
   // These are VERDICTS about a broken mutation, not throws — a throw
   // would make clients park-and-retry a mutation that breaks identically
   // forever. Loud now means a typed, terminal error result.
-  function expectError(result: Awaited<ReturnType<typeof server.mutate>>, code: string, pattern: RegExp): void {
+  function expectError(result: Awaited<ReturnType<typeof server.mutateGroup>>, code: string, pattern: RegExp): void {
     if (result.ok || !('error' in result)) {
       throw new Error(`expected an error verdict, got ${JSON.stringify(result)}`);
     }
@@ -522,8 +586,8 @@ describe('id replay', () => {
 
   test('malformed mutation ids and row ids are refused', async () => {
     expectError(
-      await server.mutate(
-        { clientId: 'c', mutationId: 'not-an-id', name: 'todos.add', args: {}, ids: [] },
+      await server.mutateGroup(
+        { clientId: 'c', mutationId: 'not-an-id', calls: [{ name: 'todos.add', args: {}, ids: [] }] },
         principal
       ),
       'invalid_mutation_id',

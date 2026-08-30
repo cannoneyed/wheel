@@ -120,12 +120,12 @@ Options for {@link wheelDriver}.
 
 ## `World`
 
-Kind: class. Source: [packages/wheel/src/testing/world.ts:203](../../../packages/wheel/src/testing/world.ts#L203).
+Kind: class. Source: [packages/wheel/src/testing/world.ts:205](../../../packages/wheel/src/testing/world.ts#L205).
 
 The in-process harness: real engine + real clients on in-process SQLite with fixed clock, seeded ids, and a pausable network - if World can't reproduce it, the engine doesn't claim it.
 
 ## `WorldOptions`
 
-Kind: interface. Source: [packages/wheel/src/testing/world.ts:192](../../../packages/wheel/src/testing/world.ts#L192).
+Kind: interface. Source: [packages/wheel/src/testing/world.ts:194](../../../packages/wheel/src/testing/world.ts#L194).
 
 What a World needs: syncModules + server bindings, a setup(db) seeder, and an optional seed for determinism.

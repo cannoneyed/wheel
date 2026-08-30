@@ -491,7 +491,7 @@ function causeLabel(cause: WriteCause): JSX.Element {
   return (
     <span style={{ color: CAUSE_COLORS[cause.kind] }}>
       {cause.kind}
-      <span style={sectionStyles.dim}> {'seq' in cause ? `seq ${cause.seq}` : cause.mutation}</span>
+      <span style={sectionStyles.dim}> {'seq' in cause ? `seq ${cause.seq}` : cause.mutations.join(', ')}</span>
     </span>
   );
 }

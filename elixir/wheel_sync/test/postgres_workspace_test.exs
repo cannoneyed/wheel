@@ -33,47 +33,156 @@ defmodule WheelSync.PostgresWorkspaceTest do
     request = %{
       "clientId" => "client:shared-id",
       "mutationId" => @mutation_id,
-      "name" => "widgets.create",
-      "args" => %{
-        "title" => "Shared id",
-        "position" => 1.0,
-        "active" => true,
-        "note" => nil
-      },
-      "ids" => [@widget_id]
+      "calls" => [
+        %{
+          "name" => "widgets.create",
+          "args" => %{
+            "title" => "Shared id",
+            "position" => 1.0,
+            "active" => true,
+            "note" => nil
+          },
+          "ids" => [@widget_id]
+        }
+      ]
     }
 
     assert {:ok, %{"ok" => true, "seq" => 1}} =
-             WheelSync.Workspace.mutate(workspace_a, request, principal(@workspace_a))
+             WheelSync.Workspace.mutate_group(workspace_a, request, principal(@workspace_a))
 
     assert {:ok, %{"ok" => true, "seq" => 1}} =
-             WheelSync.Workspace.mutate(workspace_b, request, principal(@workspace_b))
+             WheelSync.Workspace.mutate_group(workspace_b, request, principal(@workspace_b))
 
     assert {:ok, %{"ok" => true, "seq" => 1}} =
-             WheelSync.Workspace.mutate(workspace_a, request, principal(@workspace_a))
+             WheelSync.Workspace.mutate_group(workspace_a, request, principal(@workspace_a))
 
     move = %{
       "clientId" => "client:a",
       "mutationId" => "m_0190b62e-0000-7000-8000-000000000022",
-      "name" => "widgets.move",
-      "args" => %{"widgetId" => @widget_id, "position" => 2.0},
-      "ids" => []
+      "calls" => [
+        %{
+          "name" => "widgets.move",
+          "args" => %{"widgetId" => @widget_id, "position" => 2.0},
+          "ids" => []
+        }
+      ]
     }
 
     assert {:ok, %{"ok" => true, "seq" => 2}} =
-             WheelSync.Workspace.mutate(workspace_a, move, principal(@workspace_a))
+             WheelSync.Workspace.mutate_group(workspace_a, move, principal(@workspace_a))
 
-    assert WheelSync.Storage.current_seq(names.postgres, @workspace_a) == 2
+    grouped_id = "widget_0190b62e-0000-7000-8000-000000000023"
+
+    grouped = %{
+      "clientId" => "client:a",
+      "mutationId" => "m_0190b62e-0000-7000-8000-000000000023",
+      "calls" => [
+        %{
+          "name" => "widgets.create",
+          "args" => %{
+            "title" => "Grouped",
+            "position" => 1.0,
+            "active" => true,
+            "note" => nil
+          },
+          "ids" => [grouped_id]
+        },
+        %{
+          "name" => "widgets.move",
+          "args" => %{"widgetId" => grouped_id, "position" => 3.0},
+          "ids" => []
+        }
+      ]
+    }
+
+    assert {:ok, %{"ok" => true, "seq" => 3}} =
+             WheelSync.Workspace.mutate_group(workspace_a, grouped, principal(@workspace_a))
+
+    assert [[3.0]] =
+             Postgrex.query!(
+               names.postgres,
+               "select position from wire_widgets where workspace_id = $1 and id = $2",
+               [@workspace_a, grouped_id]
+             ).rows
+
+    assert [["widgets.create,widgets.move"]] =
+             Postgrex.query!(
+               names.postgres,
+               "select name from wheel_sync_log where workspace_id = $1 and seq = 3",
+               [@workspace_a]
+             ).rows
+
+    rejected = %{
+      "clientId" => "client:a",
+      "mutationId" => "m_0190b62e-0000-7000-8000-000000000024",
+      "calls" => [
+        %{
+          "name" => "widgets.move",
+          "args" => %{"widgetId" => @widget_id, "position" => 9.0},
+          "ids" => []
+        },
+        %{
+          "name" => "widgets.reject",
+          "args" => %{"widgetId" => @widget_id},
+          "ids" => []
+        }
+      ]
+    }
+
+    assert {:ok,
+            %{
+              "ok" => false,
+              "rejection" => %{"code" => "forbidden", "kind" => "rejection"}
+            }} =
+             WheelSync.Workspace.mutate_group(
+               workspace_a,
+               rejected,
+               principal(@workspace_a)
+             )
+
+    assert [[2.0]] =
+             Postgrex.query!(
+               names.postgres,
+               "select position from wire_widgets where workspace_id = $1 and id = $2",
+               [@workspace_a, @widget_id]
+             ).rows
+
+    oversized = %{
+      "clientId" => "client:a",
+      "mutationId" => "m_0190b62e-0000-7000-8000-000000000025",
+      "calls" =>
+        List.duplicate(
+          %{
+            "name" => "widgets.move",
+            "args" => %{"widgetId" => @widget_id, "position" => 10.0},
+            "ids" => []
+          },
+          129
+        )
+    }
+
+    assert {:ok, %{"ok" => false, "error" => %{"code" => "group_too_large"}}} =
+             WheelSync.Workspace.mutate_group(
+               workspace_a,
+               oversized,
+               principal(@workspace_a)
+             )
+
+    assert WheelSync.Storage.current_seq(names.postgres, @workspace_a) == 3
     assert WheelSync.Storage.current_seq(names.postgres, @workspace_b) == 1
 
-    assert [[@workspace_a, @widget_id, 2.0], [@workspace_b, @widget_id, 1.0]] =
+    assert [
+             [@workspace_a, @widget_id, 2.0],
+             [@workspace_a, ^grouped_id, 3.0],
+             [@workspace_b, @widget_id, 1.0]
+           ] =
              Postgrex.query!(
                names.postgres,
                """
                select workspace_id, id, position
                from wire_widgets
                where workspace_id in ($1, $2)
-               order by workspace_id
+               order by workspace_id, id
                """,
                [@workspace_a, @workspace_b]
              ).rows
@@ -126,18 +235,22 @@ defmodule WheelSync.PostgresWorkspaceTest do
     create = %{
       "clientId" => "client:query",
       "mutationId" => "m_0190b62e-0000-7000-8000-000000000031",
-      "name" => "widgets.create",
-      "args" => %{
-        "title" => "Kept row",
-        "position" => 1.0,
-        "active" => true,
-        "note" => nil
-      },
-      "ids" => ["widget_0190b62e-0000-7000-8000-000000000031"]
+      "calls" => [
+        %{
+          "name" => "widgets.create",
+          "args" => %{
+            "title" => "Kept row",
+            "position" => 1.0,
+            "active" => true,
+            "note" => nil
+          },
+          "ids" => ["widget_0190b62e-0000-7000-8000-000000000031"]
+        }
+      ]
     }
 
     assert {:ok, %{"ok" => true, "seq" => 1}} =
-             WheelSync.Workspace.mutate(workspace, create, principal)
+             WheelSync.Workspace.mutate_group(workspace, create, principal)
 
     assert_receive {:wheel_event, %{"type" => "delta", "delta" => %{"seq" => 1}}}
     assert_receive {:wheel_event, %{"type" => "checkpoint", "seq" => 1}}
@@ -145,13 +258,11 @@ defmodule WheelSync.PostgresWorkspaceTest do
     break_query = %{
       "clientId" => "client:query",
       "mutationId" => "m_0190b62e-0000-7000-8000-000000000032",
-      "name" => "widgets.breakQuery",
-      "args" => %{},
-      "ids" => []
+      "calls" => [%{"name" => "widgets.breakQuery", "args" => %{}, "ids" => []}]
     }
 
     assert {:ok, %{"ok" => true, "seq" => 2}} =
-             WheelSync.Workspace.mutate(workspace, break_query, principal)
+             WheelSync.Workspace.mutate_group(workspace, break_query, principal)
 
     assert_receive {:wheel_event,
                     %{
@@ -178,13 +289,11 @@ defmodule WheelSync.PostgresWorkspaceTest do
     recover_query = %{
       "clientId" => "client:query",
       "mutationId" => "m_0190b62e-0000-7000-8000-000000000033",
-      "name" => "widgets.recoverQuery",
-      "args" => %{},
-      "ids" => []
+      "calls" => [%{"name" => "widgets.recoverQuery", "args" => %{}, "ids" => []}]
     }
 
     assert {:ok, %{"ok" => true, "seq" => 3}} =
-             WheelSync.Workspace.mutate(workspace, recover_query, principal)
+             WheelSync.Workspace.mutate_group(workspace, recover_query, principal)
 
     assert_receive {:wheel_event,
                     %{

@@ -12,7 +12,7 @@ Read-only view of the effective client state — what invert() captures old valu
 
 ## `CacheScopes`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:103](../../../packages/wheel/src/sync/client/local-cache.ts#L103).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:105](../../../packages/wheel/src/sync/client/local-cache.ts#L105).
 
 The two persistence scopes, split on purpose. Snapshots are row-shaped, so their scope carries the app's row-schema fingerprint: a schema change retires them and the client re-bootstraps — that is the designed invalidation. The outbox holds mutations (name + args, replayed and deduped by the server), which no schema fingerprint invalidates: scoping them by the fingerprint silently abandoned every pending write that straddled a schema change (found 2026-08-10). `retires` names the scopes this app owns and no longer serves; the cache deletes their rows at open, because a scope nothing will ever read again otherwise grows the store — and the boot-time getAll over it — forever. It must answer false for every scope a DIFFERENT app in the same store still serves.
 
@@ -54,7 +54,7 @@ A one-shot deferred call, cancelable — the injectable face of setTimeout.
 
 ## `ExplainResult`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:176](../../../packages/wheel/src/sync/client/client.ts#L176).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:183](../../../packages/wheel/src/sync/client/client.ts#L183).
 
 What explain() answers: the current value plus the full provenance chain of causes.
 
@@ -72,7 +72,7 @@ Injected id source (prefixed UUIDv7s) - deterministic in World, real randomness 
 
 ## `IndexedDbCache`
 
-Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:113](../../../packages/wheel/src/sync/client/local-cache.ts#L113).
+Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:115](../../../packages/wheel/src/sync/client/local-cache.ts#L115).
 
 IndexedDB-backed store for browsers. One database per storeName.
 
@@ -126,33 +126,45 @@ Live rows + status for one (query, params) subscription.
 
 ## `LocalCache`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:49](../../../packages/wheel/src/sync/client/local-cache.ts#L49).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:51](../../../packages/wheel/src/sync/client/local-cache.ts#L51).
 
 Storage contract. Implementations: IndexedDbCache (browser), MemoryCache (tests/SSR). All methods are async and must never throw for missing keys — absence is `undefined`/`[]`.
 
 ## `MemoryCache`
 
-Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:60](../../../packages/wheel/src/sync/client/local-cache.ts#L60).
+Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:62](../../../packages/wheel/src/sync/client/local-cache.ts#L62).
 
 In-memory cache: tests, SSR, and environments without IndexedDB.
 
-## `MutateRequest`
+## `MutateCallRequest`
 
 Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:67](../../../packages/wheel/src/sync/protocol.ts#L67).
 
-A mutation crossing the wire; actor identity comes from the authenticated server connection.
+One ordered member of an atomic mutation command.
+
+## `MutateGroupRequest`
+
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:75](../../../packages/wheel/src/sync/protocol.ts#L75).
+
+An atomic mutation command crossing the wire; actor identity comes from the authenticated connection.
 
 ## `MutateResult`
 
-Kind: type. Source: [packages/wheel/src/sync/protocol.ts:96](../../../packages/wheel/src/sync/protocol.ts#L96).
+Kind: type. Source: [packages/wheel/src/sync/protocol.ts:101](../../../packages/wheel/src/sync/protocol.ts#L101).
 
 A mutation's typed outcome. THE DOCTRINE: anything the engine COMPUTES — success, a business rejection, or "this mutation crashed me" — travels as a value in this envelope. A thrown exception is reserved for the one thing that is genuinely transient: failure to communicate or a recovering engine — and ONLY those may be retried as "offline".
 
 ## `mutation`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:269](../../../packages/wheel/src/sync/declarations.ts#L269).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:275](../../../packages/wheel/src/sync/declarations.ts#L275).
 
 Declare a mutation (sync-side). The server handler binds to it by name in *.server.ts.
+
+## `MutationCall`
+
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:269](../../../packages/wheel/src/sync/declarations.ts#L269).
+
+One existing mutation declaration and its arguments inside an atomic command.
 
 ## `MutationCtx`
 
@@ -168,7 +180,7 @@ A declared write: named + typed args and the optimistic handler that previews it
 
 ## `MutationError`
 
-Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:83](../../../packages/wheel/src/sync/protocol.ts#L83).
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:88](../../../packages/wheel/src/sync/protocol.ts#L88).
 
 The server RAN (or definitively refused) this mutation and it broke — a bug, not a business rule and not a network problem. Terminal: retrying the identical mutation would break identically, so clients must FAIL it loudly instead of queueing it (a queued poison mutation blocks every mutation behind it, forever, silently).
 
@@ -186,7 +198,7 @@ The audit record of one mutation attempt, including its rejection/error if any.
 
 ## `MutationRejection`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:353](../../../packages/wheel/src/sync/declarations.ts#L353).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:359](../../../packages/wheel/src/sync/declarations.ts#L359).
 
 Typed rejection — a value that crosses the wire, not an exception class.
 
@@ -204,31 +216,31 @@ The optimistic handlers' entire write vocabulary: rows are frozen values; `updat
 
 ## `orphan`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:408](../../../packages/wheel/src/sync/declarations.ts#L408).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:414](../../../packages/wheel/src/sync/declarations.ts#L414).
 
 Throw this from an optimistic handler when a row it reads is missing on replay — `if (!cache.get(issues, id)) throw orphan('issue ' + id + ' is gone')`. Signals a legitimate row-is-gone, not a bug: the client settles the mutation `orphaned` and rolls it back cleanly, instead of `failed`. Reserve it for genuine row-gone guards; let real invariant violations throw normally so they surface as `failed` with the original error.
 
 ## `OrphanedError`
 
-Kind: class. Source: [packages/wheel/src/sync/declarations.ts:391](../../../packages/wheel/src/sync/declarations.ts#L391).
+Kind: class. Source: [packages/wheel/src/sync/declarations.ts:397](../../../packages/wheel/src/sync/declarations.ts#L397).
 
 The typed signal an optimistic handler throws when the row it depends on is gone — deleted by a peer's confirmed delta before this pending mutation replayed. It means "there is nothing left for me to edit," NOT "I have a bug." The client treats it as the ONE legitimate reason to abandon a replaying optimistic mutation: the entry settles `orphaned` (terminal, cleanly rolled back), never `failed`. Why a dedicated class instead of a bare `Error`: rebase() must tell "the row vanished" apart from "the handler crashed (typo, null deref)". A bare throw used to be swallowed as `orphaned`, so a real bug silently rolled the mutation back with no error to paste. Now only an `OrphanedError` takes the orphaned path; every other throw settles the mutation `failed` and logs.
 
 ## `patchMutation`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:312](../../../packages/wheel/src/sync/declarations.ts#L312).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:318](../../../packages/wheel/src/sync/declarations.ts#L318).
 
 The guard → patch → capture-prior → self-inverse skeleton that patch-by-id mutations copy verbatim. It read-guards the row (orphans if a peer deleted it first), applies the caller's partial patch, and makes the mutation ITS OWN inverse by replaying the prior values of exactly the fields the patch touched: export const projectUpdate = patchMutation({ name: 'projects.update', args: t.object({ projectId: t.string(), patch: ProjectPatch }), table: projects, id: (args) => args.projectId, description: 'edit project' }); `stamp` contributes server-mirroring fields the patch does not carry and the inverse must NOT restore — they are re-derived on every apply (undo included): stamp: (ctx) => ({ updatedAt: ctx.now() }) // issues.update stamp: (_ctx, _args, row) => ({ version: row.version + 1 }) Reserved for the `{ id, patch }` shape only. The odd cases — flat args (`{ commentId, body }`), multi-row writes, creates/deletes, mutations that skip rather than orphan on a missing row — stay hand-written.
 
 ## `PeerPresenceFailure`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:188](../../../packages/wheel/src/sync/client/client.ts#L188).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:195](../../../packages/wheel/src/sync/client/client.ts#L195).
 
 One peer whose presence payload the reader's declaration REJECTED — surfaced, never silently dropped. A peer running an older schema shows up here so the caller (and the debug panel) can see "this peer's presence didn't validate" instead of an unexplained absence.
 
 ## `PeersResult`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:204](../../../packages/wheel/src/sync/client/client.ts#L204).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:211](../../../packages/wheel/src/sync/client/client.ts#L211).
 
 What `peers(decl)` answers: `valid` peers keyed by clientId, plus the `failures` whose payload the declaration rejected. Splitting them means a bad peer is a THING THE CALLER CAN SEE — the whole point of 4.4 — rather than a vanished entry.
 
@@ -288,7 +300,7 @@ A declared live query: named + typed params, target table, and optional client p
 
 ## `QueryHandle`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:163](../../../packages/wheel/src/sync/client/client.ts#L163).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:170](../../../packages/wheel/src/sync/client/client.ts#L170).
 
 A live subscription handle: current rows (server order + optimistic projection) and release().
 
@@ -318,13 +330,13 @@ Injected randomness source backing id generation — seeded in tests, crypto in 
 
 ## `rejection`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:373](../../../packages/wheel/src/sync/declarations.ts#L373).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:379](../../../packages/wheel/src/sync/declarations.ts#L379).
 
 `throw rejection('forbidden', ...)` in a server handler → typed rejection to the client. A NOUN on purpose: it BUILDS a value, it does not act. Written without `throw` — `rejection('forbidden', 'no')` on its own line — it reads as plainly inert, which is exactly the mistake the old verb form `reject(...)` hid ("reject" looks like it did something; forgetting `throw` guarded nothing).
 
 ## `RejectionError`
 
-Kind: class. Source: [packages/wheel/src/sync/declarations.ts:360](../../../packages/wheel/src/sync/declarations.ts#L360).
+Kind: class. Source: [packages/wheel/src/sync/declarations.ts:366](../../../packages/wheel/src/sync/declarations.ts#L366).
 
 The throwable carrier for a typed MutationRejection - thrown server-side by rejection(), never crosses the wire as an exception.
 
@@ -366,7 +378,7 @@ Events that the server pushes through a connection.
 
 ## `Snapshot`
 
-Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:102](../../../packages/wheel/src/sync/protocol.ts#L102).
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:107](../../../packages/wheel/src/sync/protocol.ts#L107).
 
 A subscription's bootstrap payload: full rows at a known seq.
 
@@ -390,13 +402,13 @@ The JSON WebSocket protocol. Increment only when one deployment cannot read the 
 
 ## `SyncClient`
 
-Kind: class. Source: [packages/wheel/src/sync/client/client.ts:236](../../../packages/wheel/src/sync/client/client.ts#L236).
+Kind: class. Source: [packages/wheel/src/sync/client/client.ts:243](../../../packages/wheel/src/sync/client/client.ts#L243).
 
 The client engine: server-truth cache + optimistic overlay, subscriptions deduped by canonical key, provenance on every write (see module doc).
 
 ## `SyncClientOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:212](../../../packages/wheel/src/sync/client/client.ts#L212).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:219](../../../packages/wheel/src/sync/client/client.ts#L219).
 
 Everything a SyncClient needs injected: transport, identity, clock, randomness.
 

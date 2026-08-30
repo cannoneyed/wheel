@@ -89,13 +89,15 @@ describe('row-image pruning fallback', () => {
     const runsB = runsOf('list_b');
 
     // SQLite has no images, so both subscriptions re-run.
-    await server.mutate(
+    await server.mutateGroup(
       {
         clientId: 'web_prune',
         mutationId: 'm_0190b62e-0000-7000-8000-0000000000b1',
-        name: 'todos.add',
-        args: { listId: 'list_b', text: 'for b' },
-        ids: ['todo_0190b62e-0000-7000-8000-0000000000b2']
+        calls: [{
+          name: 'todos.add',
+          args: { listId: 'list_b', text: 'for b' },
+          ids: ['todo_0190b62e-0000-7000-8000-0000000000b2']
+        }]
       },
       principal
     );
@@ -105,13 +107,15 @@ describe('row-image pruning fallback', () => {
     expect(deltas).toEqual([subB.subscriptionId]);
 
     // The second write again re-runs both subscriptions.
-    await server.mutate(
+    await server.mutateGroup(
       {
         clientId: 'web_prune',
         mutationId: 'm_0190b62e-0000-7000-8000-0000000000a1',
-        name: 'todos.add',
-        args: { listId: 'list_a', text: 'for a' },
-        ids: ['todo_0190b62e-0000-7000-8000-0000000000a2']
+        calls: [{
+          name: 'todos.add',
+          args: { listId: 'list_a', text: 'for a' },
+          ids: ['todo_0190b62e-0000-7000-8000-0000000000a2']
+        }]
       },
       principal
     );

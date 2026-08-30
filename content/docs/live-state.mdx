@@ -102,6 +102,31 @@ Why the split is sacred: the client retries `queued` mutations in order, forever
 
 The exact outcome table, the wire envelopes that produce each one, and the three error carriers all live in one place: [Names and errors](#/reference).
 
+### Atomic mutation groups
+
+`mutateGroup()` runs existing mutation declarations as one user action:
+
+```ts
+return this.mutateGroup([
+  { mutation: issueUpdate, args: { issueId: firstId, patch: { status: 'done' } } },
+  { mutation: issueUpdate, args: { issueId: secondId, patch: { status: 'done' } } },
+  { mutation: issueUpdate, args: { issueId: thirdId, patch: { status: 'done' } } }
+]);
+```
+
+The client validates and applies every member before it publishes the result. It stores one outbox
+record and counts one pending command. The server runs the calls in list order inside one
+transaction, writes one sync-log row, and publishes once. A rejection, failure, or orphan rolls
+back the whole group. Replay and exactly-once handling also use the group's one mutation id.
+
+Every member must return a complete inverse. The client captures inverses against the prior
+members' writes, then runs them in reverse order as one undo command. A missing or `null` inverse
+fails the group before any optimistic write. Keep permanent work, such as a cascading hard delete,
+as a plain `mutate()` call because the client cannot reconstruct every deleted dependent row.
+
+An empty group settles locally as confirmed. A group may contain at most 128 calls. Wheel rejects
+larger groups instead of splitting their transaction.
+
 ## How a delta reaches a client
 
 A common misreading: `rerunOn: ['todos']` looks like "the subscription is the table." It isn't. The pipeline for every committed write:

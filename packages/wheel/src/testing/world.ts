@@ -15,7 +15,7 @@ import type { MutationRejection } from '../sync/declarations';
 import { SyncClient } from '../sync/client/client';
 import { MemoryCache } from '../sync/client/local-cache';
 import type { SyncTransport } from '../sync/client/transport';
-import type { MutateRequest, MutateResult, ServerEvent, Snapshot } from '../sync/protocol';
+import type { MutateGroupRequest, MutateResult, ServerEvent, Snapshot } from '../sync/protocol';
 import type { SyncConnection, SyncServer } from '../sync/server/engine';
 import { createSyncServer } from '../sync/server/node-engine';
 import type { DbRow } from '../sync/protocol';
@@ -139,9 +139,11 @@ class InProcessTransport implements SyncTransport {
     });
   }
 
-  mutate(request: MutateRequest): Promise<MutateResult> {
+  mutateGroup(request: MutateGroupRequest): Promise<MutateResult> {
     return this.network.run(request.clientId, async () => {
-      const scripted = this.rejections.findIndex((entry) => entry.mutation === request.name);
+      const scripted = this.rejections.findIndex((entry) =>
+        request.calls.some((call) => call.name === entry.mutation)
+      );
       if (scripted >= 0) {
         const [{ rejection }] = this.rejections.splice(scripted, 1);
         return { ok: false as const, rejection };
@@ -150,7 +152,7 @@ class InProcessTransport implements SyncTransport {
       if (!connection) {
         throw new Error(`World transport: client "${request.clientId}" is not connected.`);
       }
-      return this.server.mutate(request, connection.principal);
+      return this.server.mutateGroup(request, connection.principal);
     });
   }
 

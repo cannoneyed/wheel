@@ -12,19 +12,19 @@ Apply every pending migration in one Durable Object storage transaction. Stored 
 
 ## `authenticateSyncSocket`
 
-Kind: function. Source: [packages/wheel/src/sync/server/socket.ts:535](../../../packages/wheel/src/sync/server/socket.ts#L535).
+Kind: function. Source: [packages/wheel/src/sync/server/socket.ts:540](../../../packages/wheel/src/sync/server/socket.ts#L540).
 
 Authenticate and validate the HTTP request before its WebSocket upgrade.
 
 ## `AuthenticateSyncSocketOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:513](../../../packages/wheel/src/sync/server/socket.ts#L513).
+Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:518](../../../packages/wheel/src/sync/server/socket.ts#L518).
 
 Trust policy used before a runtime accepts a WebSocket upgrade.
 
 ## `AuthenticateSyncSocketResult`
 
-Kind: type. Source: [packages/wheel/src/sync/server/socket.ts:520](../../../packages/wheel/src/sync/server/socket.ts#L520).
+Kind: type. Source: [packages/wheel/src/sync/server/socket.ts:525](../../../packages/wheel/src/sync/server/socket.ts#L525).
 
 Authenticated handshake data or the HTTP response that refuses the upgrade.
 
@@ -34,6 +34,12 @@ Kind: type. Source: [packages/wheel/src/sync/server/sync-backend.ts:31](../../..
 
 Result of an atomic mutation application. `ok: true` carries the minted seq, the tables the handler touched (drives watcher re-runs), and — when the backend captures them (Tier-1 pruning) — the per-row before/after images or the `'overflow'` sentinel. `ok: false` is a domain REJECTION the handler raised (`rejection(...)`), rolled back cleanly — NOT an error. Every other failure (duplicate mutationId, connection death, a handler exception, an id-stream violation) is THROWN so the engine can classify it (exactly-once vs transient vs terminal).
 
+## `BackendMutationCall`
+
+Kind: interface. Source: [packages/wheel/src/sync/server/sync-backend.ts:41](../../../packages/wheel/src/sync/server/sync-backend.ts#L41).
+
+One validated member ready to run inside a backend-owned transaction.
+
 ## `buildRegistry`
 
 Kind: function. Source: [packages/wheel/src/sync/server/registry.ts:120](../../../packages/wheel/src/sync/server/registry.ts#L120).
@@ -42,13 +48,13 @@ Boot-time cross-check of syncModules against server bindings. Every query and mu
 
 ## `CloudflareSyncBackend`
 
-Kind: class. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:76](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L76).
+Kind: class. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:77](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L77).
 
 Durable Object backend for one object's private SQLite database.
 
 ## `CloudflareSyncBackendOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:52](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L52).
+Kind: interface. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:53](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L53).
 
 Storage and clock dependencies for one Durable Object backend.
 
@@ -60,7 +66,7 @@ Scan sync module exports for declarations. Modules are plain `import *` namespac
 
 ## `createCloudflareSyncBackend`
 
-Kind: function. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:201](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L201).
+Kind: function. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:203](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L203).
 
 Create the Wheel backend owned by one Durable Object instance.
 
@@ -72,7 +78,7 @@ Build a stable schema document from the same declarations and bindings the TypeS
 
 ## `createSyncServer`
 
-Kind: function. Source: [packages/wheel/src/sync/server/engine.ts:1185](../../../packages/wheel/src/sync/server/engine.ts#L1185).
+Kind: function. Source: [packages/wheel/src/sync/server/engine.ts:1211](../../../packages/wheel/src/sync/server/engine.ts#L1211).
 
 Boot the engine: registry cross-check, writer lease, backend install (sync log + tracking), external-change feed, then the writer loop.
 
@@ -102,49 +108,55 @@ Schema versions before and after one migration pass.
 
 ## `DurableObjectSqlCursor`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:36](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L36).
+Kind: interface. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:37](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L37).
 
 Cursor subset used by the backend. Cloudflare cursors expose `toArray()`.
 
 ## `DurableObjectSqlRow`
 
-Kind: type. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:33](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L33).
+Kind: type. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:34](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L34).
 
 One row returned by Durable Object SQL.
 
 ## `DurableObjectSqlStorageLike`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:41](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L41).
+Kind: interface. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:42](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L42).
 
 SQLite storage subset used by the backend.
 
 ## `DurableObjectStorageLike`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:46](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L46).
+Kind: interface. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:47](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L47).
 
 Durable Object transaction subset used by the backend.
 
 ## `ExternalChangeRecord`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/sync-backend.ts:71](../../../packages/wheel/src/sync/server/sync-backend.ts#L71).
+Kind: interface. Source: [packages/wheel/src/sync/server/sync-backend.ts:80](../../../packages/wheel/src/sync/server/sync-backend.ts#L80).
 
 One sync-log record for a change the engine DID NOT author — an external write (legacy store / CLI / job) or a push-source invalidation minting ordering only. The engine supplies the fields it owns (a fresh deterministic mutationId, the wall clock, provenance strings); the backend appends the row and returns its seq. `touched` may be empty (push sources mint a seq without re-triggering watchers — the engine does its own diff).
 
-## `MutateRequest`
+## `MutateCallRequest`
 
 Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:67](../../../packages/wheel/src/sync/protocol.ts#L67).
 
-A mutation crossing the wire; actor identity comes from the authenticated server connection.
+One ordered member of an atomic mutation command.
+
+## `MutateGroupRequest`
+
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:75](../../../packages/wheel/src/sync/protocol.ts#L75).
+
+An atomic mutation command crossing the wire; actor identity comes from the authenticated connection.
 
 ## `MutateResult`
 
-Kind: type. Source: [packages/wheel/src/sync/protocol.ts:96](../../../packages/wheel/src/sync/protocol.ts#L96).
+Kind: type. Source: [packages/wheel/src/sync/protocol.ts:101](../../../packages/wheel/src/sync/protocol.ts#L101).
 
 A mutation's typed outcome. THE DOCTRINE: anything the engine COMPUTES — success, a business rejection, or "this mutation crashed me" — travels as a value in this envelope. A thrown exception is reserved for the one thing that is genuinely transient: failure to communicate or a recovering engine — and ONLY those may be retried as "offline".
 
 ## `MutationError`
 
-Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:83](../../../packages/wheel/src/sync/protocol.ts#L83).
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:88](../../../packages/wheel/src/sync/protocol.ts#L88).
 
 The server RAN (or definitively refused) this mutation and it broke — a bug, not a business rule and not a network problem. Terminal: retrying the identical mutation would break identically, so clients must FAIL it loudly instead of queueing it (a queued poison mutation blocks every mutation behind it, forever, silently).
 
@@ -198,7 +210,7 @@ The wire unit of change: whole-row puts + id deletes + the full ordered id list 
 
 ## `runDurableObjectSql`
 
-Kind: function. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:67](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L67).
+Kind: function. Source: [packages/wheel/src/sync/server/backends/cloudflare-backend.ts:68](../../../packages/wheel/src/sync/server/backends/cloudflare-backend.ts#L68).
 
 Execute one Wheel/SQLite statement and consume its cursor before returning.
 
@@ -282,7 +294,7 @@ A transaction handle inside a mutation: execute SQL, all-or-nothing with the syn
 
 ## `Snapshot`
 
-Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:102](../../../packages/wheel/src/sync/protocol.ts#L102).
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:107](../../../packages/wheel/src/sync/protocol.ts#L107).
 
 A subscription's bootstrap payload: full rows at a known seq.
 
@@ -300,31 +312,31 @@ Canonical checked-in artifact form.
 
 ## `SubscriptionDebugInfo`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:87](../../../packages/wheel/src/sync/server/engine.ts#L87).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:88](../../../packages/wheel/src/sync/server/engine.ts#L88).
 
 One row of the /sync/_debug/subscriptions table: params, watch list, row count, run stats.
 
 ## `SyncBackend`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/sync-backend.ts:91](../../../packages/wheel/src/sync/server/sync-backend.ts#L91).
+Kind: interface. Source: [packages/wheel/src/sync/server/sync-backend.ts:100](../../../packages/wheel/src/sync/server/sync-backend.ts#L100).
 
 The whole-database adapter the engine drives. All members run on (or are awaited by) the engine's single writer loop unless noted; a backend never needs its own concurrency control for correctness.
 
 ## `SyncBackendInitOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/sync-backend.ts:41](../../../packages/wheel/src/sync/server/sync-backend.ts#L41).
+Kind: interface. Source: [packages/wheel/src/sync/server/sync-backend.ts:50](../../../packages/wheel/src/sync/server/sync-backend.ts#L50).
 
 Backend install options — mirrors the engine's DB-shaped `createSyncServer` options.
 
 ## `SyncConnection`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:154](../../../packages/wheel/src/sync/server/engine.ts#L154).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:155](../../../packages/wheel/src/sync/server/engine.ts#L155).
 
 One client's server-side presence: subscribe, events out, and death-drops-subscriptions.
 
 ## `SyncConnectionState`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:146](../../../packages/wheel/src/sync/server/engine.ts#L146).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:147](../../../packages/wheel/src/sync/server/engine.ts#L147).
 
 The connection state Cloudflare stores with a hibernatable WebSocket.
 
@@ -336,7 +348,7 @@ The collected declarations of all sync modules (*.sync.ts), keyed by name.
 
 ## `SyncServer`
 
-Kind: class. Source: [packages/wheel/src/sync/server/engine.ts:177](../../../packages/wheel/src/sync/server/engine.ts#L177).
+Kind: class. Source: [packages/wheel/src/sync/server/engine.ts:178](../../../packages/wheel/src/sync/server/engine.ts#L178).
 
 The engine: ONE writer loop serializing subscribes, mutations, and re-runs - seq disorder and bootstrap races are unrepresentable (see module doc).
 
@@ -348,7 +360,7 @@ Typed server-side failures with stable codes for WebSocket replies and logs.
 
 ## `SyncServerOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:106](../../../packages/wheel/src/sync/server/engine.ts#L106).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:107](../../../packages/wheel/src/sync/server/engine.ts#L107).
 
 Runtime-neutral engine options. Backend construction belongs to a runtime entry point; the engine accepts one already-built backend and never imports Node, Bun, or Cloudflare modules.
 
@@ -372,7 +384,7 @@ Data established by the authenticated HTTP upgrade request.
 
 ## `SyncSocketServer`
 
-Kind: class. Source: [packages/wheel/src/sync/server/socket.ts:201](../../../packages/wheel/src/sync/server/socket.ts#L201).
+Kind: class. Source: [packages/wheel/src/sync/server/socket.ts:206](../../../packages/wheel/src/sync/server/socket.ts#L206).
 
 One SyncServer exposed as authenticated request/reply operations on WebSockets.
 
@@ -384,7 +396,7 @@ Version policy, limits, engine, and observability for one WebSocket server.
 
 ## `SyncSubscriptionState`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:139](../../../packages/wheel/src/sync/server/engine.ts#L139).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:140](../../../packages/wheel/src/sync/server/engine.ts#L140).
 
 One live-query descriptor that can rebuild its in-memory comparison baseline after hibernation.
 

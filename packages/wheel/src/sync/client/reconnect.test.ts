@@ -119,10 +119,10 @@ function scriptedTransport(world: World, options: { holdSubscribes?: boolean } =
       if (state.offline || !conn.current) throw new TypeError('fetch failed');
       conn.current.unsubscribe(subscriptionId);
     },
-    async mutate(request) {
+    async mutateGroup(request) {
       if (state.offline) throw new TypeError('fetch failed');
       if (!conn.current) throw new TypeError('fetch failed');
-      return world.server.mutate(request, conn.current.principal);
+      return world.server.mutateGroup(request, conn.current.principal);
     },
     async setPresence(): Promise<void> {},
     close(): void {

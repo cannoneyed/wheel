@@ -4,14 +4,14 @@
  * (the same JSON-safe shapes that cross WebSockets in production), so structured
  * clone carries it without translation.
  */
-import type { MutateRequest, ServerEvent } from 'wheel/sync/server';
+import type { MutateGroupRequest, ServerEvent } from 'wheel/sync/server';
 
 /** Request from the main thread; every op but the fire-and-forget `close` gets one reply keyed by `id`. */
 export type WorkerRequest =
   | { id: number; op: 'connect'; demo: string; clientId: string; actor: string }
   | { id: number; op: 'subscribe'; demo: string; clientId: string; queryName: string; params: unknown }
   | { id: number; op: 'unsubscribe'; demo: string; clientId: string; subscriptionId: string }
-  | { id: number; op: 'mutate'; demo: string; request: MutateRequest }
+  | { id: number; op: 'mutateGroup'; demo: string; request: MutateGroupRequest }
   | { id: number; op: 'presence'; demo: string; clientId: string; state: Record<string, unknown> | null }
   | { id: number; op: 'close'; demo: string; clientId: string };
 

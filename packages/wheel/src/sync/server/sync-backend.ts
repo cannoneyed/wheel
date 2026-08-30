@@ -37,6 +37,15 @@ export type BackendMutateResult =
     }
   | { readonly ok: false; readonly rejection: MutationRejection };
 
+/** One validated member ready to run inside a backend-owned transaction. */
+export interface BackendMutationCall {
+  readonly binding: ServeMutationBinding;
+  readonly args: Record<string, unknown>;
+  readonly ctx: ServerMutationCtx;
+  /** Fails inside the transaction when the handler consumed too few deterministic IDs. */
+  readonly assertIdsConsumed: () => void;
+}
+
 /** Backend install options — mirrors the engine's DB-shaped `createSyncServer` options. */
 export interface SyncBackendInitOptions {
   /**
@@ -121,11 +130,7 @@ export interface SyncBackend {
    * `{ ok: false, rejection }` (clean rollback, a domain verdict); EVERY other
    * failure is thrown.
    */
-  runMutation(
-    binding: ServeMutationBinding,
-    args: Record<string, unknown>,
-    ctx: ServerMutationCtx
-  ): Promise<BackendMutateResult>;
+  runMutation(calls: readonly BackendMutationCall[]): Promise<BackendMutateResult>;
 
   /**
    * Has this mutationId already committed? Returns its ORIGINAL seq or null.

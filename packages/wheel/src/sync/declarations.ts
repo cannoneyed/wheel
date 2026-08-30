@@ -265,6 +265,12 @@ export interface MutationDecl<Args extends Record<string, unknown> = Record<stri
   readonly declSite: string;
 }
 
+/** One existing mutation declaration and its arguments inside an atomic command. */
+export interface MutationCall<Args extends Record<string, unknown> = Record<string, unknown>> {
+  readonly mutation: MutationDecl<Args>;
+  readonly args: Args;
+}
+
 /** Declare a mutation (sync-side). The server handler binds to it by name in *.server.ts. */
 export function mutation<ArgsSchema extends t.ZodType<Record<string, unknown>>>(options: {
   name: string;

@@ -42,9 +42,9 @@ export function withSimulatedLatency(inner: SyncTransport): SyncTransport {
       await sleep(simulatedLatency.ms);
       return inner.unsubscribe(clientId, subscriptionId);
     },
-    async mutate(request) {
+    async mutateGroup(request) {
       await sleep(simulatedLatency.ms);
-      return inner.mutate(request);
+      return inner.mutateGroup(request);
     },
     async setPresence(clientId, state) {
       await sleep(simulatedLatency.ms);

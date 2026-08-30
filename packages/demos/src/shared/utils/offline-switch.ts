@@ -83,7 +83,7 @@ export function withOfflineSwitch(
       gate(() => inner.subscribe(clientId, queryName, params)),
     unsubscribe: (clientId, subscriptionId) =>
       gate(() => inner.unsubscribe(clientId, subscriptionId)),
-    mutate: (request) => gate(() => inner.mutate(request)),
+    mutateGroup: (request) => gate(() => inner.mutateGroup(request)),
     setPresence: (clientId, state) => gate(() => inner.setPresence(clientId, state)),
     close: (clientId) => inner.close(clientId)
   };

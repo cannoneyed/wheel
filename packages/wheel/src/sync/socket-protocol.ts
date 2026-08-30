@@ -1,4 +1,4 @@
-import type { MutateRequest, MutateResult, ServerEvent, Snapshot } from './protocol';
+import type { MutateGroupRequest, MutateResult, ServerEvent, Snapshot } from './protocol';
 
 /** The JSON WebSocket protocol. Increment only when one deployment cannot read the other deployment's frames. */
 export const SYNC_PROTOCOL_VERSION = 2 as const;
@@ -20,8 +20,8 @@ export type SyncSocketRequest =
       readonly subscriptionId: string;
     })
   | (RequestBase & {
-      readonly type: 'mutate';
-      readonly mutation: MutateRequest;
+      readonly type: 'mutateGroup';
+      readonly command: MutateGroupRequest;
     })
   | (RequestBase & {
       readonly type: 'presence';

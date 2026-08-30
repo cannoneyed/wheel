@@ -29,7 +29,7 @@ import { monotonicNowMs, systemClock, systemRandomBytes } from '../../core/runti
 import { logger } from '../../core/logger';
 import type { DbRow } from '../protocol';
 import { SyncServerError } from './errors';
-import type { SyncBackend } from './sync-backend';
+import type { BackendMutationCall, SyncBackend } from './sync-backend';
 import type { ServeMutationBinding, ServeQueryBinding, ServerMutationCtx } from './serve';
 import type { RowImage } from './query-handler';
 import type { SqlFragment } from '../sql';
@@ -37,7 +37,7 @@ import type { SqlFragment } from '../sql';
 // sync so the browser client can name them without importing this server
 // module. The engine imports and re-exports them.
 import type {
-  MutateRequest,
+  MutateGroupRequest,
   MutateResult,
   ServerEvent,
   Snapshot,
@@ -45,7 +45,8 @@ import type {
   SyncQueryStatus
 } from '../protocol';
 export type {
-  MutateRequest,
+  MutateGroupRequest,
+  MutateCallRequest,
   MutateResult,
   MutationError,
   QueryStatusEvent,
@@ -661,8 +662,8 @@ export class SyncServer {
     return keyed;
   }
 
-  /** Run one mutation through the writer loop: validate, delegate to the backend, re-run watchers. */
-  async mutate(request: MutateRequest, principal: AuthPrincipal): Promise<MutateResult> {
+  /** Run one atomic mutation command through the writer loop. */
+  async mutateGroup(request: MutateGroupRequest, principal: AuthPrincipal): Promise<MutateResult> {
     // Pre-validation verdicts are VALUES, not throws (see MutateResult's
     // doctrine): the server definitively refuses this request and would
     // refuse it identically on every retry.
@@ -670,40 +671,54 @@ export class SyncServer {
       ok: false,
       error: { kind: 'error', code, message }
     });
-    const binding = this.registry.mutationBindings.get(request.name) as ServeMutationBinding | undefined;
-    const decl = this.registry.mutations.get(request.name);
-    if (!binding || !decl) {
-      return fail('unknown_mutation', `No mutation named "${request.name}" is registered.`);
-    }
     if (!isValidId(request.mutationId, 'm')) {
       return fail('invalid_mutation_id', `Mutation id ${JSON.stringify(request.mutationId)} is not a valid m_<uuidv7>.`);
     }
-    for (const id of request.ids) {
-      if (!isValidId(id)) {
-        return fail('invalid_id', `Pre-generated id ${JSON.stringify(id)} is not a valid prefixed UUIDv7.`);
+    if (request.calls.length === 0) {
+      return fail('empty_mutation_group', 'A mutation group must contain at least one member.');
+    }
+    if (request.calls.length > 128) {
+      return fail('group_too_large', 'A mutation group may contain at most 128 members.');
+    }
+
+    const prepared: Array<{
+      binding: ServeMutationBinding;
+      args: Record<string, unknown>;
+      ids: readonly string[];
+    }> = [];
+    for (const call of request.calls) {
+      const binding = this.registry.mutationBindings.get(call.name) as ServeMutationBinding | undefined;
+      const decl = this.registry.mutations.get(call.name);
+      if (!binding || !decl) {
+        return fail('unknown_mutation', `No mutation named "${call.name}" is registered.`);
       }
-    }
-    try {
-      validateJsonValue(`Args for mutation "${request.name}"`, request.args);
-    } catch (error) {
-      if (error instanceof JsonValueError) {
-        return fail('invalid_args', error.message);
+      for (const id of call.ids) {
+        if (!isValidId(id)) {
+          return fail('invalid_id', `Pre-generated id ${JSON.stringify(id)} is not a valid prefixed UUIDv7.`);
+        }
       }
-      throw error;
-    }
-    const parsed = decl.args.safeParse(request.args);
-    if (!parsed.success) {
-      return fail(
-        'invalid_args',
-        `Args for mutation "${request.name}" are invalid: ${parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')}`
-      );
-    }
-    const args = parsed.data;
-    if (!jsonParseIsIdentity(request.args, args)) {
-      return fail(
-        'invalid_args',
-        `Args for mutation "${request.name}" contain fields or parse-time normalization outside its JSON Schema contract.`
-      );
+      try {
+        validateJsonValue(`Args for mutation "${call.name}"`, call.args);
+      } catch (error) {
+        if (error instanceof JsonValueError) return fail('invalid_args', error.message);
+        throw error;
+      }
+      const parsed = decl.args.safeParse(call.args);
+      if (!parsed.success) {
+        return fail(
+          'invalid_args',
+          `Args for mutation "${call.name}" are invalid: ${parsed.error.issues
+            .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+            .join('; ')}`
+        );
+      }
+      if (!jsonParseIsIdentity(call.args, parsed.data)) {
+        return fail(
+          'invalid_args',
+          `Args for mutation "${call.name}" contain fields or parse-time normalization outside its JSON Schema contract.`
+        );
+      }
+      prepared.push({ binding, args: parsed.data, ids: call.ids });
     }
 
     const timing = liveTimingEnabled();
@@ -717,44 +732,54 @@ export class SyncServer {
       if (alreadyCommitted) {
         return { ok: true as const, seq: alreadyCommitted.seq };
       }
-      // The deterministic id stream: the handler consumes ctx.newId in call
-      // order; a prefix mismatch/exhaustion fails loudly (conformance rule 4).
-      // Built HERE (backend-agnostic) and handed to the backend to run.
-      let nextId = 0;
-      const ctx: ServerMutationCtx = {
-        mutationId: request.mutationId,
-        clientId: request.clientId,
-        actor: principal.actor,
-        workspaceId: principal.workspaceId,
-        sessionId: principal.sessionId,
-        now: () => this.clock.now(),
-        newId: (prefix: string) => {
-          const id = request.ids[nextId];
-          nextId += 1;
-          if (id === undefined) {
-            throw new SyncServerError(
-              'id_stream_exhausted',
-              `Mutation "${request.name}" asked for more ids than the client pre-generated (${request.ids.length}). ` +
-                'The optimistic handler and server handler must request ids in the same order.'
-            );
+      const backendCalls: BackendMutationCall[] = prepared.map((call) => {
+        let nextId = 0;
+        const ctx: ServerMutationCtx = {
+          mutationId: request.mutationId,
+          clientId: request.clientId,
+          actor: principal.actor,
+          workspaceId: principal.workspaceId,
+          sessionId: principal.sessionId,
+          now: () => this.clock.now(),
+          newId: (prefix: string) => {
+            const id = call.ids[nextId++];
+            if (id === undefined) {
+              throw new SyncServerError(
+                'id_stream_exhausted',
+                `Mutation "${call.binding.name}" asked for more ids than the client pre-generated ` +
+                  `for this group member (${call.ids.length}).`
+              );
+            }
+            if (!id.startsWith(`${prefix}_`)) {
+              throw new SyncServerError(
+                'id_stream_mismatch',
+                `Mutation "${call.binding.name}" id #${nextId} has prefix "${id.split('_')[0]}" but the server asked for "${prefix}".`
+              );
+            }
+            return id;
           }
-          if (!id.startsWith(`${prefix}_`)) {
-            throw new SyncServerError(
-              'id_stream_mismatch',
-              `Mutation "${request.name}" id #${nextId} has prefix "${id.split('_')[0]}" but the server asked for "${prefix}". ` +
-                'The optimistic handler and server handler must request ids in the same order.'
-            );
+        };
+        return {
+          binding: call.binding,
+          args: call.args,
+          ctx,
+          assertIdsConsumed: () => {
+            if (nextId !== call.ids.length) {
+              throw new SyncServerError(
+                'id_stream_unused',
+                `Mutation "${call.binding.name}" consumed ${nextId} of ${call.ids.length} deterministic ids.`
+              );
+            }
           }
-          return id;
-        }
-      };
+        };
+      });
 
       let result;
       try {
         // The backend runs the handler + appends the sync-log record
         // atomically, and (for echo-capable backends) records the self-echo
         // marker before this resolves (conformance rule 5).
-        result = await this.backend.runMutation(binding, args, ctx);
+        result = await this.backend.runMutation(backendCalls);
       } catch (error) {
         // Exactly-once replay: the outbox may re-send a mutation whose commit
         // landed but whose ack was lost (crash between commit and outbox
@@ -787,7 +812,8 @@ export class SyncServer {
         const finishedAt = monotonicNow();
         // wheel-console: WHEEL_TIMING=1 diagnostics print to the server process stdout
         console.log(
-          `[live-timing] mutate ${request.name} queueWait=${formatMs(startedAt - queuedAt)} ` +
+          `[live-timing] mutateGroup [${request.calls.map((call) => call.name).join(', ')}] ` +
+            `queueWait=${formatMs(startedAt - queuedAt)} ` +
             `txn=${formatMs(committedAt - startedAt)} ${formatRerun(rerun)} ` +
             `total=${formatMs(finishedAt - queuedAt)}`
         );

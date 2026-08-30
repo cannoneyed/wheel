@@ -160,16 +160,18 @@ test('WebSockets retain subscriptions and presence through Durable Object hibern
   await evictDurableObject(stub, { webSockets: 'hibernate' });
 
   socketA.send(
-    request('mutate', 'mutate-after-wake', {
-      mutation: {
+    request('mutateGroup', 'mutate-after-wake', {
+      command: {
         clientId: 'untrusted-client-id',
         mutationId: 'm_0190b62e-0000-7000-8000-000000000001',
-        name: 'teams.update',
-        args: {
-          teamId: 'team_0190b62e-0000-7000-8000-00000000t001',
-          patch: { name: 'Cloud Team' }
-        },
-        ids: []
+        calls: [{
+          name: 'teams.update',
+          args: {
+            teamId: 'team_0190b62e-0000-7000-8000-00000000t001',
+            patch: { name: 'Cloud Team' }
+          },
+          ids: []
+        }]
       }
     })
   );

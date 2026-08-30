@@ -18,7 +18,7 @@ import { RejectionError, rejection } from '../../declarations';
 import { t, validateRow, type RowSchema } from '../../schema';
 import { sql } from '../../sql';
 import type { ServeMutationBinding, ServerMutationCtx } from '../serve';
-import type { SyncBackend } from '../sync-backend';
+import type { BackendMutateResult, SyncBackend } from '../sync-backend';
 
 /** One fresh backend over one fresh database, plus a raw `exec` for creating the app tables the triggers attach to, and teardown. */
 export interface ConformanceHarness {
@@ -89,6 +89,16 @@ export function runBackendConformance(
     return { kind: 'serve-mutation', name, handler, mutation: undefined, declSite: 'test' } as unknown as ServeMutationBinding;
   }
 
+  /** Run a one-member command through the group-native backend contract. */
+  function runMutation(
+    backend: SyncBackend,
+    binding: ServeMutationBinding,
+    args: Record<string, unknown>,
+    ctx: ServerMutationCtx
+  ): Promise<BackendMutateResult> {
+    return backend.runMutation([{ binding, args, ctx, assertIdsConsumed: () => {} }]);
+  }
+
   describe(`SyncBackend conformance (${label})`, () => {
     test('init on a fresh database reports lastSeq 0', async () => {
       const h = await boot();
@@ -106,7 +116,7 @@ export function runBackendConformance(
         const binding = makeMutation('widget.create', async (tx, args) => {
           await tx.run('insert into widgets (id, name) values (?, ?)', [args.id, args.name]);
         });
-        const result = await h.backend.runMutation(binding, { id: 'w1', name: 'Alpha' }, makeCtx('m_1'));
+        const result = await runMutation(h.backend, binding, { id: 'w1', name: 'Alpha' }, makeCtx('m_1'));
         expect(result.ok).toBe(true);
         if (result.ok) {
           expect(result.seq).toBe(1);
@@ -120,14 +130,60 @@ export function runBackendConformance(
       }
     });
 
+    test('a group runs in order inside one transaction and unions touched tables', async () => {
+      const h = await boot();
+      try {
+        const create = makeMutation('widget.create', async (tx) => {
+          await tx.run('insert into widgets (id, name) values (?, ?)', ['w1', 'first']);
+        });
+        const copy = makeMutation('gadget.copy', async (tx) => {
+          const [widget] = await tx.run('select name from widgets where id = ?', ['w1']);
+          await tx.run('insert into gadgets (id, label) values (?, ?)', ['g1', widget!.name]);
+        });
+        const result = await h.backend.runMutation([
+          { binding: create, args: {}, ctx: makeCtx('m_group'), assertIdsConsumed: () => {} },
+          { binding: copy, args: {}, ctx: makeCtx('m_group'), assertIdsConsumed: () => {} }
+        ]);
+        expect(result.ok && result.seq).toBe(1);
+        if (result.ok) expect(result.touched).toEqual(['widgets', 'gadgets']);
+        const [gadget] = await h.backend.reader.query('select label from gadgets where id = ?', ['g1']);
+        expect(gadget!.label).toBe('first');
+      } finally {
+        await h.dispose();
+      }
+    });
+
+    test('a rejection in a later group member rolls every member back', async () => {
+      const h = await boot();
+      try {
+        const create = makeMutation('widget.create', async (tx) => {
+          await tx.run('insert into widgets (id, name) values (?, ?)', ['w1', 'first']);
+        });
+        const refuse = makeMutation('gadget.refuse', async (tx) => {
+          await tx.run('insert into gadgets (id, label) values (?, ?)', ['g1', 'doomed']);
+          throw rejection('blocked', 'group refused');
+        });
+        const result = await h.backend.runMutation([
+          { binding: create, args: {}, ctx: makeCtx('m_group'), assertIdsConsumed: () => {} },
+          { binding: refuse, args: {}, ctx: makeCtx('m_group'), assertIdsConsumed: () => {} }
+        ]);
+        expect(result.ok).toBe(false);
+        expect((await h.backend.reader.query('select id from widgets')).length).toBe(0);
+        expect((await h.backend.reader.query('select id from gadgets')).length).toBe(0);
+        expect(await h.backend.findCommitted('m_group')).toBeNull();
+      } finally {
+        await h.dispose();
+      }
+    });
+
     test('seq is strictly increasing across mutations and external changes', async () => {
       const h = await boot();
       try {
         const insert = makeMutation('widget.create', async (tx, args) => {
           await tx.run('insert into widgets (id, name) values (?, ?)', [args.id, args.name]);
         });
-        const r1 = await h.backend.runMutation(insert, { id: 'w1', name: 'A' }, makeCtx('m_1'));
-        const r2 = await h.backend.runMutation(insert, { id: 'w2', name: 'B' }, makeCtx('m_2'));
+        const r1 = await runMutation(h.backend, insert, { id: 'w1', name: 'A' }, makeCtx('m_1'));
+        const r2 = await runMutation(h.backend, insert, { id: 'w2', name: 'B' }, makeCtx('m_2'));
         const seq3 = await h.backend.recordExternalChange({
           mutationId: 'm_3',
           mutationName: 'external.write',
@@ -153,7 +209,7 @@ export function runBackendConformance(
         });
         let threw = false;
         try {
-          await h.backend.runMutation(binding, { id: 'w1', name: 'A' }, makeCtx('m_1'));
+          await runMutation(h.backend, binding, { id: 'w1', name: 'A' }, makeCtx('m_1'));
         } catch {
           threw = true;
         }
@@ -172,7 +228,7 @@ export function runBackendConformance(
           await tx.run('insert into widgets (id, name) values (?, ?)', [args.id, args.name]);
           throw rejection('forbidden', 'not allowed');
         });
-        const result = await h.backend.runMutation(binding, { id: 'w1', name: 'A' }, makeCtx('m_1'));
+        const result = await runMutation(h.backend, binding, { id: 'w1', name: 'A' }, makeCtx('m_1'));
         expect(result.ok).toBe(false);
         if (!result.ok) {
           expect(result.rejection.code).toBe('forbidden');
@@ -190,11 +246,11 @@ export function runBackendConformance(
         const insert = makeMutation('widget.create', async (tx, args) => {
           await tx.run('insert into widgets (id, name) values (?, ?)', [args.id, args.name]);
         });
-        const first = await h.backend.runMutation(insert, { id: 'w1', name: 'first' }, makeCtx('m_dup'));
+        const first = await runMutation(h.backend, insert, { id: 'w1', name: 'first' }, makeCtx('m_dup'));
         expect(first.ok && first.seq).toBe(1);
         let threw = false;
         try {
-          await h.backend.runMutation(insert, { id: 'w2', name: 'second' }, makeCtx('m_dup'));
+          await runMutation(h.backend, insert, { id: 'w2', name: 'second' }, makeCtx('m_dup'));
         } catch {
           threw = true;
         }
@@ -220,7 +276,7 @@ export function runBackendConformance(
           await tx.run('insert into widgets (id, name) values (?, ?)', [a, 'first']);
           await tx.run('insert into widgets (id, name) values (?, ?)', [b, 'second']);
         });
-        await h.backend.runMutation(binding, {}, makeCtx('m_1', ['widget_aaa', 'widget_bbb']));
+        await runMutation(h.backend, binding, {}, makeCtx('m_1', ['widget_aaa', 'widget_bbb']));
         const rows = await h.backend.reader.query('select id, name from widgets order by name');
         expect(rows.length).toBe(2);
         expect(rows[0]!.id).toBe('widget_aaa');
@@ -238,7 +294,7 @@ export function runBackendConformance(
           await tx.run('insert into widgets (id, name) values (?, ?)', ['w1', 'W']);
           await tx.run('insert into gadgets (id, label) values (?, ?)', ['g2', 'G2']);
         });
-        const result = await h.backend.runMutation(binding, {}, makeCtx('m_1'));
+        const result = await runMutation(h.backend, binding, {}, makeCtx('m_1'));
         expect(result.ok).toBe(true);
         if (result.ok) {
           expect(result.touched).toEqual(['gadgets', 'widgets']);
@@ -255,7 +311,7 @@ export function runBackendConformance(
           await tx.run('insert into widgets (id, name) values (?, ?)', ['w1', 'W']);
           await tx.run('insert into gadgets (id, label) values (?, ?)', ['g1', 'G']);
         });
-        await h.backend.runMutation(insert, {}, makeCtx('m_1'));
+        await runMutation(h.backend, insert, {}, makeCtx('m_1'));
         const results = await h.backend.runQueries!([
           sql`select name from widgets`,
           sql`select label from gadgets`
@@ -298,7 +354,7 @@ export function runBackendConformance(
             'hello'
           ]);
         });
-        await h.backend.runMutation(binding, {}, makeCtx('m_1'));
+        await runMutation(h.backend, binding, {}, makeCtx('m_1'));
         const [row] = await h.backend.reader.query('select id, name, flag, n, r, s from widgets');
         expect(typeof row!.id).toBe('string');
         expect(row!.name).toBeNull();
@@ -326,7 +382,7 @@ export function runBackendConformance(
           // `done` bound as JS true → the driver stores 1; `size` as a JS number.
           await tx.run('insert into tasks (id, done, size) values (?, ?, ?)', ['t1', true, 42]);
         });
-        await h.backend.runMutation(binding, {}, makeCtx('m_1'));
+        await runMutation(h.backend, binding, {}, makeCtx('m_1'));
         const [row] = await h.backend.reader.query('select id, done, size from tasks');
         // Repaired at the seam: real boolean, not 1; real bigint, not number.
         expect(typeof row!.done).toBe('boolean');
@@ -358,7 +414,7 @@ export function runBackendConformance(
         const binding = makeMutation('flag.create', async (tx) => {
           await tx.run('insert into flags (id, done) values (?, ?)', ['f1', false]);
         });
-        await h.backend.runMutation(binding, {}, makeCtx('m_1'));
+        await runMutation(h.backend, binding, {}, makeCtx('m_1'));
         const [batched] = await h.backend.runQueries!([sql`select id, done from flags`]);
         expect(typeof batched![0]!.done).toBe('boolean');
         expect(batched![0]!.done).toBe(false);
@@ -373,7 +429,7 @@ export function runBackendConformance(
         const binding = makeMutation('widget.reject', async () => {
           throw rejection('nope', 'no');
         });
-        const result = await h.backend.runMutation(binding, {}, makeCtx('m_1'));
+        const result = await runMutation(h.backend, binding, {}, makeCtx('m_1'));
         // If two copies of RejectionError existed, the backend's instanceof check
         // would miss and this would throw instead of returning ok:false.
         expect(result.ok).toBe(false);

@@ -34,10 +34,12 @@ export interface PersistedSubscription {
 /** A persisted pending mutation, replayable byte-for-byte. */
 export interface PersistedOutboxEntry {
   readonly mutationId: string;
-  readonly mutation: string;
-  readonly args: Record<string, unknown>;
-  /** Pre-generated id stream — server replay stays deterministic. */
-  readonly ids: readonly string[];
+  readonly calls: readonly {
+    readonly mutation: string;
+    readonly args: Record<string, unknown>;
+    /** This member's pre-generated id stream. */
+    readonly ids: readonly string[];
+  }[];
   readonly enqueuedAt: number;
 }
 
@@ -83,7 +85,7 @@ export class MemoryCache implements LocalCache {
   }
 }
 
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const SUBS = 'subscriptions';
 const OUTBOX = 'outbox';
 
@@ -122,10 +124,16 @@ export class IndexedDbCache implements LocalCache {
     if (!this.dbPromise) {
       this.dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
         const request = indexedDB.open(`wheel:${this.storeName}`, DB_VERSION);
-        request.onupgradeneeded = () => {
+        request.onupgradeneeded = (event) => {
           const db = request.result;
           if (!db.objectStoreNames.contains(SUBS)) {
             db.createObjectStore(SUBS, { keyPath: 'storageKey' });
+          }
+          // Version 2 replaces the obsolete single-mutation outbox shape.
+          // The protocol has no safe member-wise fallback, so stale version-1
+          // entries cannot be replayed under the atomic command contract.
+          if (event.oldVersion > 0 && event.oldVersion < 2 && db.objectStoreNames.contains(OUTBOX)) {
+            db.deleteObjectStore(OUTBOX);
           }
           if (!db.objectStoreNames.contains(OUTBOX)) {
             const store = db.createObjectStore(OUTBOX, { keyPath: 'storageKey' });

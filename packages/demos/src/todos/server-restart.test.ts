@@ -50,8 +50,8 @@ function switchableTransport(ref: { world: World }, clientId: string): SyncTrans
     async unsubscribe(_id, subscriptionId) {
       conn?.unsubscribe(subscriptionId);
     },
-    async mutate(request) {
-      return ref.world.server.mutate(request, conn!.principal);
+    async mutateGroup(request) {
+      return ref.world.server.mutateGroup(request, conn!.principal);
     },
     async setPresence() {},
     close() {

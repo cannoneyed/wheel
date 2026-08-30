@@ -595,7 +595,7 @@ describe('current client differential', () => {
         };
       },
       async unsubscribe(): Promise<void> {},
-      async mutate(): Promise<MutateResult> {
+      async mutateGroup(): Promise<MutateResult> {
         return mutationResult;
       },
       async setPresence(): Promise<void> {},

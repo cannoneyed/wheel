@@ -162,12 +162,10 @@ describe('createWebSocketTransport', () => {
     const mutation = {
       clientId: 'client-test',
       mutationId: 'm_test',
-      name: 'todos.add',
-      args: {},
-      ids: []
+      calls: [{ name: 'todos.add', args: {}, ids: [] }]
     };
 
-    const terminal = transport.mutate(mutation);
+    const terminal = transport.mutateGroup(mutation);
     const terminalRequest = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
     socket.serverMessage({
       protocol: 2,
@@ -181,7 +179,7 @@ describe('createWebSocketTransport', () => {
       error: { kind: 'error', code: 'invalid_args', message: 'args failed' }
     });
 
-    const retryable = transport.mutate(mutation);
+    const retryable = transport.mutateGroup(mutation);
     const retryableRequest = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
     socket.serverMessage({
       protocol: 2,
@@ -223,6 +221,49 @@ describe('createWebSocketTransport', () => {
     });
     sockets[0]!.close(4410, 'client_outdated');
     await vi.waitFor(() => expect(mismatches).toEqual(['client_outdated']));
+    transport.close('client-test');
+    await connecting;
+  });
+
+  test('maps an older protocol to a terminal server_too_old group result', async () => {
+    const sockets: FakeSocket[] = [];
+    let incompatible = false;
+    const transport = createWebSocketTransport({
+      baseUrl: 'https://sync.test',
+      applicationVersion: 3,
+      createSocket() {
+        const socket = new FakeSocket();
+        sockets.push(socket);
+        return socket;
+      },
+      random01: () => 0.5
+    });
+    transport.onIncompatibleServer?.(() => {
+      incompatible = true;
+    });
+    const connecting = transport.connect('client-test', () => {});
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    sockets[0]!.open();
+    sockets[0]!.serverMessage({
+      protocol: 2,
+      type: 'version_mismatch',
+      reason: 'protocol_mismatch',
+      clientProtocol: 2,
+      serverProtocol: 1,
+      clientApplicationVersion: 3,
+      serverApplicationVersion: 3,
+      minimumClientVersion: 2
+    });
+    sockets[0]!.close(4410, 'protocol_mismatch');
+    await vi.waitFor(() => expect(incompatible).toBe(true));
+
+    await expect(
+      transport.mutateGroup({
+        clientId: 'client-test',
+        mutationId: 'm_test',
+        calls: [{ name: 'todos.add', args: {}, ids: [] }]
+      })
+    ).resolves.toMatchObject({ ok: false, error: { code: 'server_too_old' } });
     transport.close('client-test');
     await connecting;
   });

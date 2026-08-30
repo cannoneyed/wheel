@@ -24,8 +24,8 @@ defmodule WheelSync.Workspace do
   def unsubscribe(server, pid, subscription_id),
     do: GenServer.call(server, {:unsubscribe, pid, subscription_id})
 
-  def mutate(server, request, principal),
-    do: GenServer.call(server, {:mutate, request, principal}, 30_000)
+  def mutate_group(server, request, principal),
+    do: GenServer.call(server, {:mutate_group, request, principal}, 30_000)
 
   def presence(server, pid, presence), do: GenServer.call(server, {:presence, pid, presence})
 
@@ -165,10 +165,10 @@ defmodule WheelSync.Workspace do
     end
   end
 
-  def handle_call({:mutate, request, principal}, _from, state) do
-    case validate_mutation(state.registry, request) do
+  def handle_call({:mutate_group, request, principal}, _from, state) do
+    case validate_mutation_group(state.registry, request) do
       :ok ->
-        case apply_mutation(state, request, principal) do
+        case apply_mutation_group(state, request, principal) do
           {:committed, seq, touched} ->
             state = %{state | seq: seq}
             state = rerun_subscriptions(state, touched)
@@ -214,9 +214,7 @@ defmodule WheelSync.Workspace do
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state),
     do: {:noreply, remove_connection(state, pid)}
 
-  defp apply_mutation(state, request, principal) do
-    mutation = Map.fetch!(state.registry.mutations, request["name"])
-
+  defp apply_mutation_group(state, request, principal) do
     result =
       Postgrex.transaction(state.names.postgres, fn connection ->
         case WheelSync.Storage.find_committed(
@@ -228,7 +226,7 @@ defmodule WheelSync.Workspace do
             {:duplicate, seq}
 
           :missing ->
-            run_handler(state, connection, mutation, request, principal)
+            run_handlers(state, connection, request, principal)
         end
       end)
 
@@ -241,17 +239,42 @@ defmodule WheelSync.Workspace do
     error in Postgrex.Error -> classify_postgres_error(error)
   end
 
-  defp run_handler(state, connection, mutation, request, principal) do
+  defp run_handlers(state, connection, request, principal) do
     tx = WheelSync.Tx.open(connection, state.workspace_id)
-    ctx = WheelSync.Ctx.open(principal, request)
 
     try do
-      case mutation.run(tx, request["args"], ctx) do
-        :ok -> commit_handler(state, tx, connection, request, principal)
-        {:ok, _value} -> commit_handler(state, tx, connection, request, principal)
-        {:reject, code, message} -> Postgrex.rollback(connection, {:rejection, code, message})
-        other -> raise "mutation handler returned #{inspect(other)}"
-      end
+      Enum.each(request["calls"], fn call ->
+        mutation = Map.fetch!(state.registry.mutations, call["name"])
+
+        context_request =
+          call
+          |> Map.put("clientId", request["clientId"])
+          |> Map.put("mutationId", request["mutationId"])
+
+        ctx = WheelSync.Ctx.open(principal, context_request)
+
+        try do
+          case mutation.run(tx, call["args"], ctx) do
+            :ok ->
+              :ok
+
+            {:ok, _value} ->
+              :ok
+
+            {:reject, code, message} ->
+              Postgrex.rollback(connection, {:rejection, code, message})
+
+            other ->
+              raise "mutation handler returned #{inspect(other)}"
+          end
+
+          WheelSync.Ctx.assert_consumed!(ctx)
+        after
+          WheelSync.Ctx.close(ctx)
+        end
+      end)
+
+      commit_handlers(state, tx, connection, request, principal)
     rescue
       error in WheelSync.Rejection ->
         Postgrex.rollback(connection, {:rejection, error.code, error.message})
@@ -282,12 +305,11 @@ defmodule WheelSync.Workspace do
 
         Postgrex.rollback(connection, {:terminal, "handler_error", detail})
     after
-      WheelSync.Ctx.close(ctx)
       WheelSync.Tx.close(tx)
     end
   end
 
-  defp commit_handler(state, tx, connection, request, principal) do
+  defp commit_handlers(state, tx, connection, request, principal) do
     touched = WheelSync.Tx.touched(tx)
     declared = Map.keys(state.registry.contract.tables) |> MapSet.new()
 
@@ -315,18 +337,44 @@ defmodule WheelSync.Workspace do
     {:committed, seq, touched}
   end
 
-  defp validate_mutation(registry, request) do
-    if is_map(request) and is_binary(request["name"]) do
-      with {:ok, mutation_spec} <-
-             fetch_named(registry.contract.mutations, request["name"], "unknown_mutation"),
-           :ok <- validate_mutation_id(request["mutationId"]),
-           :ok <- validate_ids(request["ids"]),
-           :ok <- validate(mutation_spec["validator"], request["args"], "invalid_args") do
-        :ok
-      end
-    else
-      {:error, "invalid_mutation", "Mutation request is invalid."}
+  defp validate_mutation_group(registry, request) when is_map(request) do
+    with :ok <- validate_mutation_id(request["mutationId"]),
+         :ok <- validate_calls_size(request["calls"]),
+         :ok <- validate_calls(registry, request["calls"]) do
+      :ok
     end
+  end
+
+  defp validate_mutation_group(_registry, _request),
+    do: {:error, "invalid_mutation_group", "Mutation group request is invalid."}
+
+  defp validate_calls_size(calls) when is_list(calls) and length(calls) in 1..128, do: :ok
+
+  defp validate_calls_size(calls) when is_list(calls) and length(calls) > 128,
+    do: {:error, "group_too_large", "A mutation group may contain at most 128 members."}
+
+  defp validate_calls_size(_calls),
+    do: {:error, "empty_mutation_group", "A mutation group must contain at least one member."}
+
+  defp validate_calls(registry, calls) do
+    Enum.reduce_while(calls, :ok, fn call, :ok ->
+      result =
+        if is_map(call) and is_binary(call["name"]) do
+          with {:ok, mutation_spec} <-
+                 fetch_named(registry.contract.mutations, call["name"], "unknown_mutation"),
+               :ok <- validate_ids(call["ids"]),
+               :ok <- validate(mutation_spec["validator"], call["args"], "invalid_args") do
+            :ok
+          end
+        else
+          {:error, "invalid_mutation", "Mutation group member is invalid."}
+        end
+
+      case result do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
   end
 
   defp validate_mutation_id(value) when is_binary(value) do

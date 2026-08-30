@@ -20,7 +20,8 @@ export interface SyncTransport {
   connect(clientId: string, onEvent: (event: ServerEvent) => void, identity: ClientIdentity): Promise<void>;
   subscribe(clientId: string, queryName: string, params: unknown): Promise<Snapshot>;
   unsubscribe(clientId: string, subscriptionId: string): Promise<void>;
-  mutate(request: MutateRequest): Promise<MutateResult>;
+  mutateGroup(request: MutateGroupRequest): Promise<MutateResult>;
+  onIncompatibleServer?(listener: (message: string) => void): () => void;
   setPresence(clientId: string, state: Record<string, unknown> | null): Promise<void>;
   close(clientId: string): void;
 }
@@ -31,7 +32,8 @@ export interface SyncTransport {
 | `connect` | Opens the transport; every server push arrives through `onEvent`. The WebSocket transport authenticates its HTTP upgrade before the engine sees it |
 | `subscribe` | Returns the query's first `Snapshot`; deltas arrive later on the event stream |
 | `unsubscribe` | Releases one server subscription immediately. Local cache retention is a separate decision |
-| `mutate` | The one write path — everything the outbox sends goes through it |
+| `mutateGroup` | The one write path. A plain `mutate()` sends a one-member command through it |
+| `onIncompatibleServer` | Optional callback for a server that predates the current command protocol |
 | `setPresence` | Fire-and-forget ephemeral state: no `seq`, dies with the connection |
 | `close` | Tears the connection down |
 

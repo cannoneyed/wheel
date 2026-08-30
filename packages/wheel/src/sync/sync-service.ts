@@ -13,7 +13,7 @@ import { canonicalParams } from '../core/params';
 import { captureDeclSite } from '../core/decl-site';
 import type { DebugMeta } from '../core/debug-registry';
 import { Service, INHERIT_SCOPE, type ComputedAccessor, type ComputedFor } from '../core/services';
-import type { MutationDecl, QueryDecl } from './declarations';
+import type { MutationCall, MutationDecl, QueryDecl } from './declarations';
 import type { SyncClient, MutationHandle, QueryHandle } from './client/client';
 
 /** Query subscription lifecycle, surfaced as a value. Errors are sticky. */
@@ -257,5 +257,10 @@ export abstract class SyncService extends Service {
     args: Args
   ): MutationHandle {
     return this.client.mutate(mutation, args);
+  }
+
+  /** Fire several existing mutations as one atomic command. */
+  protected mutateGroup(calls: ReadonlyArray<MutationCall<any>>): MutationHandle {
+    return this.client.mutateGroup(calls);
   }
 }

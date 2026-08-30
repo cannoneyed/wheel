@@ -21,6 +21,7 @@ export { compileSql, type CompiledSql } from '../sql';
 export type {
   SyncBackend,
   BackendMutateResult,
+  BackendMutationCall,
   ExternalChangeRecord,
   SyncBackendInitOptions
 } from './sync-backend';
@@ -44,7 +45,8 @@ export {
   type SyncConnection,
   type SyncConnectionState,
   type SyncSubscriptionState,
-  type MutateRequest,
+  type MutateGroupRequest,
+  type MutateCallRequest,
   type MutateResult,
   type MutationError,
   type QueryStatusEvent,

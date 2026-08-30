@@ -63,14 +63,19 @@ export type ServerEvent =
       readonly state: Record<string, unknown> | null;
     };
 
-/** A mutation crossing the wire; actor identity comes from the authenticated server connection. */
-export interface MutateRequest {
-  readonly clientId: string;
-  readonly mutationId: string;
+/** One ordered member of an atomic mutation command. */
+export interface MutateCallRequest {
   readonly name: string;
   readonly args: unknown;
-  /** The client's pre-generated id stream; the server replays it, so optimistic ids and committed ids always match. */
+  /** This member's client-generated deterministic id stream. */
   readonly ids: readonly string[];
+}
+
+/** An atomic mutation command crossing the wire; actor identity comes from the authenticated connection. */
+export interface MutateGroupRequest {
+  readonly clientId: string;
+  readonly mutationId: string;
+  readonly calls: readonly MutateCallRequest[];
 }
 
 /**

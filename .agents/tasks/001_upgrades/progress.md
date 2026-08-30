@@ -21,7 +21,7 @@ on chat history.
 | 0A. Evaluate TanStack ownership | `S` | Complete | Model rejected; dependency and prototype removed |
 | 0B. Prove Wheel materializer | `M` | Complete | Proof scenarios, differential check, and local gates passed |
 | 1. Correct protocol and servers | `M` | Complete | Both engines and shared protocol fixtures passed |
-| 1B. Add atomic mutation groups | `L` | Ready | Awaiting phase approval |
+| 1B. Add atomic mutation groups | `L` | Complete | Client, TypeScript, Elixir, and shared wire gates passed |
 | 2. Build Tracker proof slice | `L` | Not started | Differential checks not run |
 | 3. Add Elixir grouping and external writes | `M` | Not started | PostgreSQL checks not run |
 | 4. Move client state ownership | `L` | Not started | Ownership checks not run |
@@ -109,19 +109,19 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 
 ### Phase 1B
 
-- [ ] Export `MutationCall` and add `mutateGroup` to `SyncClient` and `SyncService`.
-- [ ] Normalize `mutate` and `mutateGroup` to one command model.
-- [ ] Validate every member and the 128-member limit before optimistic apply.
-- [ ] Pass one-publication and no-partial-read client tests.
-- [ ] Pass ordered inverse capture and reverse grouped undo tests.
-- [ ] Pass non-invertible member preflight tests.
-- [ ] Pass whole-group rejection, failure, orphan, and rollback tests.
-- [ ] Pass single-entry outbox reload and retry tests.
-- [ ] Pass exactly-once group replay tests.
-- [ ] Pass TypeScript and Elixir one-transaction tests.
-- [ ] Pass grouped wire fixtures through in-process and WebSocket transports.
-- [ ] Pass old-server refusal without member-wise fallback.
-- [ ] Confirm pending and queued counts treat a group as one command.
+- [x] Export `MutationCall` and add `mutateGroup` to `SyncClient` and `SyncService`.
+- [x] Normalize `mutate` and `mutateGroup` to one command model.
+- [x] Validate every member and the 128-member limit before optimistic apply.
+- [x] Pass one-publication and no-partial-read client tests.
+- [x] Pass ordered inverse capture and reverse grouped undo tests.
+- [x] Pass non-invertible member preflight tests.
+- [x] Pass whole-group rejection, failure, orphan, and rollback tests.
+- [x] Pass single-entry outbox reload and retry tests.
+- [x] Pass exactly-once group replay tests.
+- [x] Pass TypeScript and Elixir one-transaction tests.
+- [x] Pass grouped wire fixtures through in-process and WebSocket transports.
+- [x] Pass old-server refusal without member-wise fallback.
+- [x] Confirm pending and queued counts treat a group as one command.
 
 ### Phase 2
 
@@ -205,11 +205,91 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-30 | 1B | Reject a group when any member is not invertible | Every accepted group promises one complete undo entry; a partial inverse would leave writes applied. |
 | 2026-08-30 | 1B | Keep permanent operations as single mutations | A hard delete may cascade through data that the client cannot restore completely, so it cannot join a group that promises undo. |
 | 2026-08-30 | 1B | Reject groups above 128 members | One frame and transaction stay bounded without splitting atomic work. |
+| 2026-08-30 | 1B | Replace the version 1 browser outbox | The old single-call row shape cannot preserve group atomicity, and this project does not keep compatibility paths. |
+| 2026-08-30 | 1B | Classify replay orphans by server sequence | A matching sequence came from the command itself; an earlier sequence came from a peer delete. |
 | 2026-08-30 | 0B | Keep the materializer proof internal | The standalone core passed its gate, but production ownership moves only in Phase 4. |
 
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-30: Complete Phase 1B
+
+**State:** Complete
+
+**Changes**
+
+- Added `MutationCall`, `SyncClient.mutateGroup`, and the protected `SyncService` wrapper.
+- Normalized plain mutations and groups to one ordered `calls[]` command in memory, IndexedDB,
+  transports, debug records, and provenance.
+- Added private group preflight, per-member deterministic IDs, one optimistic publication, and
+  reverse grouped undo.
+- Replaced the single-mutation wire frame with `mutateGroup` and removed the old transport and
+  server paths.
+- Added one-transaction group execution, validation, deduplication, logging, reruns, and
+  checkpoints to SQLite, Cloudflare, and Elixir/Postgres.
+- Added terminal `server_too_old` handling without member-wise fallback.
+- Used the command sequence to distinguish a command's own delete from a peer delete during
+  optimistic replay.
+- Replaced version 1 IndexedDB outbox rows instead of adding a compatibility conversion.
+- Updated shared wire fixtures, generated API documents, and the public live-state, undo, and
+  transport guides.
+- Made the Elixir backend CI shell stop when an inner test or compile command fails.
+
+**Validation**
+
+- `bun run check:static`: passed lint, generated schema checks, generated API checks, type checks,
+  service checks, Cloudflare types, and package validation.
+- `bun run test:unit:node`: 103 files and 800 tests passed with no type errors.
+- `bun run test:unit:components`: 155 files passed; 1,882 tests passed and 26 skipped.
+- `bun run test:backends`: all 16 SQLite backend tests passed.
+- `bun run test:cloudflare`: 3 files and 26 tests passed.
+- TypeScript SQLite shared wire gate: all 12 fixtures passed.
+- Docker PostgreSQL gate: all 6 Elixir tests passed, including grouped commit and rollback.
+- Elixir/Postgres shared wire gate: all 12 fixtures passed.
+- Tracker Elixir server compiled and formatted without warnings.
+- `git diff --check`: passed.
+
+Browser UI tests were not run. Phase 1B changes the headless sync and WebSocket contracts. The
+direct TypeScript and Elixir WebSocket fixture suites cover those paths.
+
+**Decisions**
+
+- Keep `mutate` as the public one-call helper, but send it through the group command path.
+- Require a complete inverse for every non-empty group member before visible state changes.
+- Keep permanent deletes as non-invertible single mutations.
+- Refuse groups above 128 calls on both client and server.
+
+**Blockers**
+
+- None.
+
+**Exit gate:** Passed. Both engines commit, reject, fail, deduplicate, and replay one command.
+The client publishes, persists, settles, orphans, and undoes the command as one unit.
+
+### 2026-08-30: Start Phase 1B
+
+**State:** In progress
+
+**Changes**
+
+- Started the client command, outbox, protocol, TypeScript server, Elixir server, and shared
+  fixture inventory.
+
+**Validation**
+
+- Pending.
+
+**Decisions**
+
+- Keep `mutate` and `mutateGroup` on one internal command path.
+- Require every grouped member to provide an inverse before optimistic apply.
+
+**Blockers**
+
+- None.
+
+**Exit gate:** Pending.
 
 ### 2026-08-30: Start Phase 1
 

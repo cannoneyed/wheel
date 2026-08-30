@@ -80,7 +80,7 @@ defmodule WheelSync.Storage do
         workspace_id,
         seq,
         request["mutationId"],
-        request["name"],
+        request["calls"] |> Enum.map(& &1["name"]) |> Enum.join(","),
         MapSet.to_list(touched),
         principal.actor,
         request["clientId"]

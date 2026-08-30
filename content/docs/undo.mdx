@@ -57,11 +57,30 @@ stamp: (_ctx, _args, row) => ({ version: row.version + 1 })
 
 <CodeExample example={undoSource} region="service" />
 
+## Group existing mutations
+
+Use `mutateGroup()` when one action needs several existing mutations and one undo step:
+
+```ts
+this.mutateGroup([
+  { mutation: updateTodo, args: { todoId: firstId, patch: { done: true } } },
+  { mutation: updateTodo, args: { todoId: secondId, patch: { done: true } } }
+]);
+```
+
+Wheel captures each inverse after applying the prior member to a private view. Undo runs those
+inverses in reverse order as one atomic command. Every member must supply an inverse. If one member
+returns `null` or has no `invert`, the group fails before it changes visible state.
+
+Permanent operations still belong in plain `mutate()` calls. A hard delete may cascade through
+rows the client never loaded, so its inverse cannot restore the full database state. That mutation
+can omit `invert`, but it cannot join a group that promises complete undo.
+
 ## What undo gives you
 
 - **Undo is multiplayer.** The inverse is a normal mutation, so every other client sees the undo as an ordinary write.
 - **A fresh local edit invalidates redo.** Same as every editor you have used — the redo stack clears when you make a new change.
-- **Bulk edits stay one undo step** when you shape args per target (`{ updates: [{ id, patch }] }`); the inverse is the same mutation with each row's own priors.
+- **Bulk edits stay one undo step.** Use one mutation with per-target args, or group several existing invertible mutations.
 - **Not everything must be invertible.** Hard deletes and bookkeeping mutations can return `null` (or omit `invert`) — a deliberate, guarded choice, not a gap.
 
 ## Next

@@ -105,9 +105,9 @@ function failingTransport(world: World, failures: { count: number; error: () => 
     async unsubscribe(_id, subscriptionId) {
       conn.current?.unsubscribe(subscriptionId);
     },
-    async mutate(request) {
+    async mutateGroup(request) {
       if (!conn.current) throw new TypeError('fetch failed');
-      return world.server.mutate(request, conn.current.principal);
+      return world.server.mutateGroup(request, conn.current.principal);
     },
     async setPresence(): Promise<void> {},
     close(): void {

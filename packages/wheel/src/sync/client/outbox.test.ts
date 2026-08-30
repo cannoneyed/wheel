@@ -110,10 +110,10 @@ function flakyTransport(world: World, clientId: string): SyncTransport & { offli
       if (transport.offline || !conn.current) throw new TypeError('fetch failed');
       conn.current.unsubscribe(subscriptionId);
     },
-    async mutate(request: Parameters<SyncTransport['mutate']>[0]) {
+    async mutateGroup(request: Parameters<SyncTransport['mutateGroup']>[0]) {
       if (transport.offline) throw new TypeError('fetch failed');
       if (!conn.current) throw new TypeError('fetch failed');
-      return world.server.mutate(request, conn.current.principal);
+      return world.server.mutateGroup(request, conn.current.principal);
     },
     async setPresence(): Promise<void> {},
     close(): void {
@@ -152,7 +152,7 @@ describe('offline queue', () => {
     const world = await World.create({ syncModules: [syncModule], servers: [servers], setup: seedTodos });
     const { client, transport } = makeClient(world, 'web_storage_fail', new RejectingCache(), 5);
     await client.subscribe(todosByList, { listId: 'l_1' });
-    const send = vi.spyOn(transport, 'mutate');
+    const send = vi.spyOn(transport, 'mutateGroup');
 
     const handle = client.mutate(addTodo, { listId: 'l_1', text: 'must be durable' });
     expect(client.rows(todos).map((row) => row.text)).toContain('must be durable');
@@ -185,7 +185,9 @@ describe('offline queue', () => {
     expect(handle.rows().map((r) => r.text)).toEqual(['seeded todo', 'written offline']);
     expect(client.queuedMutations()).toBe(1);
     // Durably in the outbox before any wire attempt.
-    expect((await store.loadOutbox()).map((e) => e.mutation)).toEqual(['todos.add']);
+    expect((await store.loadOutbox()).map((entry) => entry.calls.map((call) => call.mutation))).toEqual([
+      ['todos.add']
+    ]);
 
     transport.offline = false;
     client.setConnectionStatus('connected'); // what the transport reports on stream return
@@ -233,17 +235,19 @@ describe('outbox replay across reloads', () => {
     const request = {
       clientId: 'web_dup',
       mutationId: 'm_0190b62e-0000-7000-8000-00000000d0d0',
-      name: 'todos.add',
-      args: { listId: 'l_1', text: 'once only' },
-      ids: ['todo_0190b62e-0000-7000-8000-00000000d0d1']
+      calls: [{
+        name: 'todos.add',
+        args: { listId: 'l_1', text: 'once only' },
+        ids: ['todo_0190b62e-0000-7000-8000-00000000d0d1']
+      }]
     };
     const principal = {
       actor: 'tester',
       workspaceId: 'outbox-test',
       sessionId: 'session:test'
     };
-    const firstResult = await world.server.mutate(request, principal);
-    const secondResult = await world.server.mutate(request, principal);
+    const firstResult = await world.server.mutateGroup(request, principal);
+    const secondResult = await world.server.mutateGroup(request, principal);
     expect(firstResult.ok).toBe(true);
     expect(secondResult.ok).toBe(true);
     if (firstResult.ok && secondResult.ok) {

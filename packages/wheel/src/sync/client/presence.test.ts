@@ -40,7 +40,7 @@ function makeClient() {
     },
     subscribe: async () => ({ subscriptionId: 'sub_1', query: 'q', seq: 0, rows: [] }),
     unsubscribe: async () => {},
-    mutate: async () => ({ ok: true, seq: 1 }),
+    mutateGroup: async () => ({ ok: true, seq: 1 }),
     setPresence: async (_clientId, state) => {
       sends.push(state);
     },
