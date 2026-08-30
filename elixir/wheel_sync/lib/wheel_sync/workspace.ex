@@ -1,6 +1,7 @@
 defmodule WheelSync.Workspace do
   @moduledoc false
   use GenServer
+  require Logger
 
   @mutation_id ~r/^m_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
   @id ~r/^[A-Za-z][A-Za-z0-9_-]*_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
@@ -85,9 +86,36 @@ defmodule WheelSync.Workspace do
     with {:ok, connection} <- fetch_connection(state, pid),
          {:ok, query_spec} <-
            fetch_named(state.registry.contract.queries, query_name, "unknown_query"),
-         :ok <- validate(query_spec["validator"], params, "invalid_params"),
-         {:ok, rows} <- run_query(state, query_name, params, connection.principal) do
+         :ok <- validate(query_spec["validator"], params, "invalid_params") do
       subscription_id = issue_id("sub")
+
+      {rows, status} =
+        case run_query(state, query_name, params, connection.principal) do
+          {:ok, rows} ->
+            {rows, live_status()}
+
+          {:error, code, message} ->
+            log_query_failure(
+              state,
+              query_name,
+              params,
+              subscription_id,
+              "initial",
+              code,
+              message
+            )
+
+            emit_query_telemetry(
+              :failure,
+              state,
+              query_name,
+              params,
+              subscription_id,
+              "error"
+            )
+
+            {[], failed_status("error")}
+        end
 
       subscription = %{
         id: subscription_id,
@@ -96,6 +124,7 @@ defmodule WheelSync.Workspace do
         params: params,
         principal: connection.principal,
         rows: rows,
+        status: status,
         rerun_on: MapSet.new(query_spec["rerunOn"])
       }
 
@@ -103,7 +132,8 @@ defmodule WheelSync.Workspace do
         "subscriptionId" => subscription_id,
         "query" => query_name,
         "seq" => state.seq,
-        "rows" => Enum.map(rows, &elem(&1, 1))
+        "rows" => Enum.map(rows, &elem(&1, 1)),
+        "status" => status
       }
 
       {:reply, {:ok, snapshot},
@@ -333,7 +363,7 @@ defmodule WheelSync.Workspace do
       {:ok, key_rows!(query_name, table, rows)}
     rescue
       error in WheelSync.Error -> {:error, error.code, error.message}
-      error in Postgrex.Error -> {:error, "query_error", Exception.message(error)}
+      error -> {:error, "query_error", Exception.message(error)}
     end
   end
 
@@ -390,15 +420,45 @@ defmodule WheelSync.Workspace do
                ) do
             {:ok, next_rows} ->
               emit_delta(subscription, next_rows, state.seq)
-              {id, %{subscription | rows: next_rows}}
+              emit_query_recovery(state, subscription)
+              {id, %{subscription | rows: next_rows, status: live_status()}}
 
-            {:error, _code, _message} ->
-              {id, subscription}
+            {:error, code, message} ->
+              status_kind = if subscription.status["kind"] == "error", do: "error", else: "stale"
+              status = failed_status(status_kind)
+
+              log_query_failure(
+                state,
+                subscription.query,
+                subscription.params,
+                subscription.id,
+                "rerun",
+                code,
+                message
+              )
+
+              emit_query_telemetry(
+                :failure,
+                state,
+                subscription.query,
+                subscription.params,
+                subscription.id,
+                status_kind
+              )
+
+              send(
+                subscription.pid,
+                {:wheel_event, query_status_event(subscription, state.seq, status)}
+              )
+
+              {id, %{subscription | status: status}}
           end
         end
       end)
 
-    %{state | subscriptions: subscriptions}
+    state = %{state | subscriptions: subscriptions}
+    broadcast(state.connections, %{"type" => "checkpoint", "seq" => state.seq}, nil)
+    state
   end
 
   defp emit_delta(subscription, next_rows, seq) do
@@ -412,7 +472,10 @@ defmodule WheelSync.Workspace do
 
     deletes = for {key, _row} <- subscription.rows, not Map.has_key?(next, key), do: key
 
-    if puts != [] or deletes != [] do
+    previous_order = Enum.map(subscription.rows, &elem(&1, 0))
+    next_order = Enum.map(next_rows, &elem(&1, 0))
+
+    if puts != [] or deletes != [] or previous_order != next_order do
       event = %{
         "type" => "delta",
         "delta" => %{
@@ -421,12 +484,74 @@ defmodule WheelSync.Workspace do
           "seq" => seq,
           "puts" => puts,
           "deletes" => deletes,
-          "order" => Enum.map(next_rows, &elem(&1, 0))
+          "order" => next_order
         }
       }
 
       send(subscription.pid, {:wheel_event, event})
     end
+  end
+
+  defp emit_query_recovery(state, subscription) do
+    if subscription.status["kind"] != "live" do
+      send(
+        subscription.pid,
+        {:wheel_event, query_status_event(subscription, state.seq, live_status())}
+      )
+
+      emit_query_telemetry(
+        :recovery,
+        state,
+        subscription.query,
+        subscription.params,
+        subscription.id,
+        "live"
+      )
+    end
+  end
+
+  defp query_status_event(subscription, seq, status) do
+    %{
+      "type" => "query_status",
+      "status" => %{
+        "subscriptionId" => subscription.id,
+        "query" => subscription.query,
+        "seq" => seq,
+        "status" => status
+      }
+    }
+  end
+
+  defp live_status, do: %{"kind" => "live"}
+
+  defp failed_status(kind) do
+    %{
+      "kind" => kind,
+      "error" => %{"code" => "query_error", "message" => "The live query failed."}
+    }
+  end
+
+  defp log_query_failure(state, query, params, subscription_id, phase, code, message) do
+    Logger.error(
+      "wheel: live query failed " <>
+        "workspace=#{inspect(state.workspace_id)} query=#{inspect(query)} " <>
+        "params=#{inspect(params)} subscription=#{inspect(subscription_id)} " <>
+        "phase=#{phase} code=#{inspect(code)} error=#{inspect(message)}"
+    )
+  end
+
+  defp emit_query_telemetry(kind, state, query, params, subscription_id, status) do
+    :telemetry.execute(
+      [:wheel_sync, :query, kind],
+      %{count: 1},
+      %{
+        workspace_id: state.workspace_id,
+        query: query,
+        params: params,
+        subscription_id: subscription_id,
+        status: status
+      }
+    )
   end
 
   defp remove_connection(state, pid) do

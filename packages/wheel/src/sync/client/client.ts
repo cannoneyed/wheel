@@ -68,7 +68,14 @@ import { systemDefer, type Defer } from '../../core/runtime-defaults';
 import { logger } from '../../core/logger';
 import type { Clock, IdGen, RandomBytes } from '../ids';
 import { createIdGen } from '../ids';
-import type { MutationError, RowDelta, ServerEvent, Snapshot } from '../protocol';
+import type {
+  MutationError,
+  QueryStatusEvent,
+  RowDelta,
+  ServerEvent,
+  Snapshot,
+  SyncQueryStatus
+} from '../protocol';
 import { OverlayCache, cloneTables, freezeRow, tableMap, type Row, type Tables } from './cache';
 import { ProvenanceLog, type ProvenanceEntry, type WriteCause } from './provenance';
 import type { LocalCache, PersistedSubscription } from './local-cache';
@@ -143,9 +150,13 @@ interface ClientSubscription {
   order: string[];
   /** Highest delta seq applied — stale (reordered) deltas are refused. */
   lastDeltaSeq: number;
+  /** Highest query-status seq applied. Status may share a seq with its delta. */
+  lastStatusSeq: number;
   refs: number;
   /** True while serving hydrated (persisted, possibly outdated) rows — no wire subscription yet. */
   stale: boolean;
+  /** Server-owned query lifecycle. Hydration starts stale until the wire responds. */
+  status: SyncQueryStatus;
 }
 
 /** A live subscription handle: current rows (server order + optimistic projection) and release(). */
@@ -154,7 +165,9 @@ export interface QueryHandle<RowT extends Row = Row> {
   readonly subscriptionId: string;
   /** Current effective rows: server membership/order + optimistic projection. */
   rows(): readonly RowT[];
-  /** True while rows come from the hydrated cache and no wire snapshot has confirmed them yet. */
+  /** Current server-owned query lifecycle. */
+  status(): SyncQueryStatus;
+  /** True while rows are hydrated but unconfirmed, or the server reports that its last valid rows are stale. */
   stale(): boolean;
   release(): void;
 }
@@ -483,8 +496,12 @@ export class SyncClient {
       rows(): readonly RowT[] {
         return self.queryRows(query as unknown as QueryDecl, queryParams, key) as readonly RowT[];
       },
+      status(): SyncQueryStatus {
+        return self.subscriptions.get(key)?.status ?? { kind: 'stale' };
+      },
       stale(): boolean {
-        return self.subscriptions.get(key)?.stale ?? false;
+        const subscription = self.subscriptions.get(key);
+        return subscription?.stale === true || subscription?.status.kind === 'stale';
       },
       release(): void {
         if (released) return;
@@ -561,8 +578,10 @@ export class SyncClient {
       subscriptionId: `hydrated:${key}`,
       order: [...persisted.order],
       lastDeltaSeq: persisted.seq,
+      lastStatusSeq: persisted.seq,
       refs: 0,
-      stale: true
+      stale: true,
+      status: { kind: 'stale' }
     };
     const hydratedRows = persisted.rows.map((raw, index) => {
       const row = freezeRow({ ...validateRow(`cached query ${query.name}`, table.schema, raw) });
@@ -694,6 +713,7 @@ export class SyncClient {
           // the wire snapshot is the authority from here on. Mirrors the
           // reset in rebootstrap() — keep both in sync.
           subscription.lastDeltaSeq = 0;
+          subscription.lastStatusSeq = 0;
         } else {
           subscription = {
             key,
@@ -702,8 +722,10 @@ export class SyncClient {
             subscriptionId: snapshot.subscriptionId,
             order: [],
             lastDeltaSeq: snapshot.seq,
+            lastStatusSeq: snapshot.seq,
             refs: 0,
-            stale: false
+            stale: false,
+            status: snapshot.status
           };
           this.subscriptions.set(key, subscription);
         }
@@ -1147,16 +1169,22 @@ export class SyncClient {
 
   // ── server events ──────────────────────────────────────────────────────
 
-  // Highest seq MATERIALIZED into base (applySnapshot/applyDelta only) —
-  // unlike lastSeq, the highest seq merely OBSERVED (confirm acks bump that
-  // too). releaseSettledEntries must gate on appliedSeq: a
-  // confirm ack proves the server committed, not that this client holds the
-  // resulting rows.
+  // Highest seq the server has finished materializing for this connection.
+  // Snapshots, deltas, and checkpoints advance it; mutation acknowledgements
+  // only advance lastSeq. releaseSettledEntries gates on appliedSeq because an
+  // ack proves commit, while a checkpoint proves the rerun pass is complete.
   private appliedSeq = 0;
-  /** Non-null only during rebootstrap(): deltas whose subscription is not registered yet, awaiting replay. */
-  private rebootstrapBuffer: RowDelta[] | null = null;
+  /** Non-null during rebootstrap: ordered data events awaiting the atomic snapshot swap. */
+  private rebootstrapBuffer: ServerEvent[] | null = null;
 
   private applyEvent(event: ServerEvent): void {
+    if (
+      this.rebootstrapBuffer &&
+      (event.type === 'delta' || event.type === 'query_status' || event.type === 'checkpoint')
+    ) {
+      this.rebootstrapBuffer.push(event);
+      return;
+    }
     if (event.type === 'hello') {
       // A hello starts a new server connection. The previous connection can
       // vanish during a deploy before it sends peer leave events.
@@ -1166,6 +1194,10 @@ export class SyncClient {
       if (hadPeers) this.notify();
     } else if (event.type === 'delta') {
       this.applyDelta(event.delta);
+    } else if (event.type === 'query_status') {
+      this.applyQueryStatus(event.status);
+    } else if (event.type === 'checkpoint') {
+      this.applyCheckpoint(event.seq);
     } else if (event.type === 'presence') {
       if (event.state === null) {
         this.peerPresence.delete(event.clientId);
@@ -1323,10 +1355,39 @@ export class SyncClient {
       });
     }
     subscription.lastDeltaSeq = Math.max(subscription.lastDeltaSeq ?? 0, snapshot.seq);
+    subscription.lastStatusSeq = Math.max(subscription.lastStatusSeq ?? 0, snapshot.seq);
+    subscription.status = snapshot.status;
     this.lastSeq = Math.max(this.lastSeq, snapshot.seq);
     this.appliedSeq = Math.max(this.appliedSeq, snapshot.seq);
-    this.schedulePersist(subscription);
+    if (subscription.status.kind === 'live') this.schedulePersist(subscription);
     this.rebase();
+    this.notify();
+  }
+
+  private applyQueryStatus(event: QueryStatusEvent): void {
+    const subscription = this.subscriptionsById.get(event.subscriptionId);
+    if (!subscription) return;
+    if (event.query !== subscription.query.name) {
+      throw new Error(
+        `Query status for subscription "${event.subscriptionId}" named "${event.query}" instead of "${subscription.query.name}".`
+      );
+    }
+    if (event.seq < subscription.lastStatusSeq) return;
+    subscription.lastStatusSeq = event.seq;
+    subscription.status = event.status;
+    this.lastSeq = Math.max(this.lastSeq, event.seq);
+    this.markChanged(subscription.query.into.name);
+    if (event.status.kind === 'live') this.schedulePersist(subscription);
+    this.notify();
+  }
+
+  private applyCheckpoint(seq: number): void {
+    if (!Number.isSafeInteger(seq) || seq < 0) {
+      throw new Error(`Sync checkpoint seq must be a non-negative safe integer; received ${JSON.stringify(seq)}.`);
+    }
+    this.lastSeq = Math.max(this.lastSeq, seq);
+    this.appliedSeq = Math.max(this.appliedSeq, seq);
+    this.releaseSettledEntries();
     this.notify();
   }
 
@@ -1348,7 +1409,7 @@ export class SyncClient {
         }
         for (const key of keys) {
           const sub = this.subscriptions.get(key);
-          if (!sub || sub.stale) continue;
+          if (!sub || sub.stale || sub.status.kind !== 'live') continue;
           const rows = tableMap(this.base, sub.query.into.name);
           void this.options.localCache
             .saveSubscription({
@@ -1368,10 +1429,6 @@ export class SyncClient {
   private applyDelta(delta: RowDelta): void {
     const subscription = this.subscriptionsById.get(delta.subscriptionId);
     if (!subscription) {
-      // Mid-rebootstrap, a delta can beat its subscription's registration
-      // (the server subscription exists as soon as subscribe() resolves);
-      // buffer it for replay after the swap instead of dropping it.
-      this.rebootstrapBuffer?.push(delta);
       return;
     }
     if (delta.seq <= subscription.lastDeltaSeq) {
@@ -1682,10 +1739,8 @@ export class SyncClient {
    *  2. The swap itself (clear base → register ids → apply snapshots) is
    *     synchronous — no await sits between clearing and repopulating, so no
    *     event can ever observe the half-swapped state.
-   *  3. Deltas that arrive between the server creating a new subscription and
-   *     this client registering its id land in `rebootstrapBuffer` (see
-   *     applyDelta) and replay AFTER the swap; genuinely stale ones are then
-   *     refused by the per-subscription seq guard.
+   *  3. Deltas, query statuses, and checkpoints arriving before the new ids
+   *     register land in `rebootstrapBuffer` and replay after the swap.
    *  4. Presence republish comes last: the server dropped this client's
    *     presence with the dead stream, and without the republish peers see
    *     this client vanish until its next natural update.
@@ -1719,6 +1774,7 @@ export class SyncClient {
         // the new epoch are silently refused until seq outgrows the old one.
         // Mirrors the reset in ensureWireSubscription() — keep both in sync.
         subscription.lastDeltaSeq = 0;
+        subscription.lastStatusSeq = 0;
         // A wire snapshot IS the upgrade out of hydrated-cache mode: a
         // subscription that booted stale and reconnected before its first
         // ordinary wire upgrade goes live HERE. (Without this line it stayed
@@ -1726,11 +1782,11 @@ export class SyncClient {
         subscription.stale = false;
         this.applySnapshot(subscription, snapshot);
       }
-      // Deltas that raced the swap replay now; stale ones are refused by seq.
+      // Data events that raced the swap replay now in original wire order.
       const buffered = this.rebootstrapBuffer;
       this.rebootstrapBuffer = null;
-      for (const delta of buffered) {
-        this.applyDelta(delta);
+      for (const event of buffered) {
+        this.applyEvent(event);
       }
     } finally {
       this.rebootstrapBuffer = null;

@@ -29,10 +29,15 @@ defmodule WheelSync.Test.WidgetsAll do
   def sql(_params, principal) do
     {
       """
-      select id, title, position, active, note
+      select id,
+             case when coalesce(
+               (select fail from wire_query_control where workspace_id = $1),
+               false
+             ) then null else title end as title,
+             position, active, note
       from wire_widgets
       where workspace_id = $1
-      order by position, id
+      order by sort_order, id
       """,
       [principal.workspace_id]
     }
@@ -50,8 +55,8 @@ defmodule WheelSync.Test.WidgetCreate do
     WheelSync.Tx.exec!(
       tx,
       """
-      insert into wire_widgets (workspace_id, id, title, position, active, note)
-      values ($1, $2, $3, $4, $5, $6)
+      insert into wire_widgets (workspace_id, id, title, position, sort_order, active, note)
+      values ($1, $2, $3, $4, $4, $5, $6)
       """,
       [
         tx.workspace_id,
@@ -65,6 +70,96 @@ defmodule WheelSync.Test.WidgetCreate do
 
     WheelSync.Tx.touch!(tx, "widgets")
   end
+end
+
+defmodule WheelSync.Test.WidgetReorder do
+  @behaviour WheelSync.Mutation
+
+  @impl true
+  def name, do: "widgets.reorder"
+
+  @impl true
+  def run(tx, args, _ctx) do
+    WheelSync.Tx.exec!(
+      tx,
+      "update wire_widgets set sort_order = $1 where workspace_id = $2 and id = $3",
+      [args["sortOrder"], tx.workspace_id, args["widgetId"]]
+    )
+
+    WheelSync.Tx.touch!(tx, "widgets")
+  end
+end
+
+defmodule WheelSync.Test.WidgetTouch do
+  @behaviour WheelSync.Mutation
+
+  @impl true
+  def name, do: "widgets.touch"
+
+  @impl true
+  def run(tx, args, _ctx) do
+    WheelSync.Tx.exec!(
+      tx,
+      "update wire_widgets set title = title where workspace_id = $1 and id = $2",
+      [tx.workspace_id, args["widgetId"]]
+    )
+
+    WheelSync.Tx.touch!(tx, "widgets")
+  end
+end
+
+defmodule WheelSync.Test.WidgetBreakQuery do
+  @behaviour WheelSync.Mutation
+
+  @impl true
+  def name, do: "widgets.breakQuery"
+
+  @impl true
+  def run(tx, _args, _ctx) do
+    WheelSync.Tx.exec!(
+      tx,
+      """
+      insert into wire_query_control (workspace_id, fail)
+      values ($1, true)
+      on conflict (workspace_id) do update set fail = excluded.fail
+      """,
+      [tx.workspace_id]
+    )
+
+    WheelSync.Tx.touch!(tx, "widgets")
+  end
+end
+
+defmodule WheelSync.Test.WidgetRecoverQuery do
+  @behaviour WheelSync.Mutation
+
+  @impl true
+  def name, do: "widgets.recoverQuery"
+
+  @impl true
+  def run(tx, _args, _ctx) do
+    WheelSync.Tx.exec!(
+      tx,
+      """
+      insert into wire_query_control (workspace_id, fail)
+      values ($1, false)
+      on conflict (workspace_id) do update set fail = excluded.fail
+      """,
+      [tx.workspace_id]
+    )
+
+    WheelSync.Tx.touch!(tx, "widgets")
+  end
+end
+
+defmodule WheelSync.Test.SystemNoop do
+  @behaviour WheelSync.Mutation
+
+  @impl true
+  def name, do: "system.noop"
+
+  @impl true
+  def run(_tx, _args, _ctx), do: :ok
 end
 
 defmodule WheelSync.Test.WidgetMove do
@@ -120,8 +215,8 @@ defmodule WheelSync.Test.WidgetPair do
     WheelSync.Tx.exec!(
       tx,
       """
-      insert into wire_widgets (workspace_id, id, title, position, active, note)
-      values ($1, $2, $3, $4, true, null)
+      insert into wire_widgets (workspace_id, id, title, position, sort_order, active, note)
+      values ($1, $2, $3, $4, $4, true, null)
       """,
       [tx.workspace_id, id, title, position]
     )
@@ -170,7 +265,7 @@ defmodule WheelSync.Test.WireResetter do
   def reset(postgres) do
     Postgrex.query!(
       postgres,
-      "truncate table wire_widgets, wheel_sync_log, wheel_sync_workspaces",
+      "truncate table wire_query_control, wire_widgets, wheel_sync_log, wheel_sync_workspaces",
       []
     )
 
@@ -197,6 +292,11 @@ defmodule WheelSync.Test.WireApp do
       mutations: [
         WheelSync.Test.WidgetCreate,
         WheelSync.Test.WidgetMove,
+        WheelSync.Test.WidgetReorder,
+        WheelSync.Test.WidgetTouch,
+        WheelSync.Test.WidgetBreakQuery,
+        WheelSync.Test.WidgetRecoverQuery,
+        WheelSync.Test.SystemNoop,
         WheelSync.Test.WidgetDelete,
         WheelSync.Test.WidgetPair,
         WheelSync.Test.WidgetReject,
@@ -209,9 +309,25 @@ defmodule WheelSync.Test.WireApp do
           id text not null,
           title text not null,
           position double precision not null,
+          sort_order double precision not null,
           active boolean not null,
           note text,
           primary key (workspace_id, id)
+        )
+        """,
+        """
+        alter table wire_widgets add column if not exists sort_order double precision
+        """,
+        """
+        update wire_widgets set sort_order = position where sort_order is null
+        """,
+        """
+        alter table wire_widgets alter column sort_order set not null
+        """,
+        """
+        create table if not exists wire_query_control (
+          workspace_id text primary key,
+          fail boolean not null
         )
         """
       ],

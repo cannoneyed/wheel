@@ -72,7 +72,7 @@ Build a stable schema document from the same declarations and bindings the TypeS
 
 ## `createSyncServer`
 
-Kind: function. Source: [packages/wheel/src/sync/server/engine.ts:1028](../../../packages/wheel/src/sync/server/engine.ts#L1028).
+Kind: function. Source: [packages/wheel/src/sync/server/engine.ts:1185](../../../packages/wheel/src/sync/server/engine.ts#L1185).
 
 Boot the engine: registry cross-check, writer lease, backend install (sync log + tracking), external-change feed, then the writer loop.
 
@@ -132,19 +132,19 @@ One sync-log record for a change the engine DID NOT author — an external write
 
 ## `MutateRequest`
 
-Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:45](../../../packages/wheel/src/sync/protocol.ts#L45).
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:67](../../../packages/wheel/src/sync/protocol.ts#L67).
 
 A mutation crossing the wire; actor identity comes from the authenticated server connection.
 
 ## `MutateResult`
 
-Kind: type. Source: [packages/wheel/src/sync/protocol.ts:74](../../../packages/wheel/src/sync/protocol.ts#L74).
+Kind: type. Source: [packages/wheel/src/sync/protocol.ts:96](../../../packages/wheel/src/sync/protocol.ts#L96).
 
 A mutation's typed outcome. THE DOCTRINE: anything the engine COMPUTES — success, a business rejection, or "this mutation crashed me" — travels as a value in this envelope. A thrown exception is reserved for the one thing that is genuinely transient: failure to communicate or a recovering engine — and ONLY those may be retried as "offline".
 
 ## `MutationError`
 
-Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:61](../../../packages/wheel/src/sync/protocol.ts#L61).
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:83](../../../packages/wheel/src/sync/protocol.ts#L83).
 
 The server RAN (or definitively refused) this mutation and it broke — a bug, not a business rule and not a network problem. Terminal: retrying the identical mutation would break identically, so clients must FAIL it loudly instead of queueing it (a queued poison mutation blocks every mutation behind it, forever, silently).
 
@@ -264,7 +264,7 @@ Minimal shape of a server binding, as produced by serveQuery/serveMutation.
 
 ## `ServerEvent`
 
-Kind: type. Source: [packages/wheel/src/sync/protocol.ts:33](../../../packages/wheel/src/sync/protocol.ts#L33).
+Kind: type. Source: [packages/wheel/src/sync/protocol.ts:53](../../../packages/wheel/src/sync/protocol.ts#L53).
 
 Events that the server pushes through a connection.
 
@@ -282,7 +282,7 @@ A transaction handle inside a mutation: execute SQL, all-or-nothing with the syn
 
 ## `Snapshot`
 
-Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:80](../../../packages/wheel/src/sync/protocol.ts#L80).
+Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:102](../../../packages/wheel/src/sync/protocol.ts#L102).
 
 A subscription's bootstrap payload: full rows at a known seq.
 
@@ -300,7 +300,7 @@ Canonical checked-in artifact form.
 
 ## `SubscriptionDebugInfo`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:69](../../../packages/wheel/src/sync/server/engine.ts#L69).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:87](../../../packages/wheel/src/sync/server/engine.ts#L87).
 
 One row of the /sync/_debug/subscriptions table: params, watch list, row count, run stats.
 
@@ -318,13 +318,13 @@ Backend install options — mirrors the engine's DB-shaped `createSyncServer` op
 
 ## `SyncConnection`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:134](../../../packages/wheel/src/sync/server/engine.ts#L134).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:154](../../../packages/wheel/src/sync/server/engine.ts#L154).
 
 One client's server-side presence: subscribe, events out, and death-drops-subscriptions.
 
 ## `SyncConnectionState`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:126](../../../packages/wheel/src/sync/server/engine.ts#L126).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:146](../../../packages/wheel/src/sync/server/engine.ts#L146).
 
 The connection state Cloudflare stores with a hibernatable WebSocket.
 
@@ -336,7 +336,7 @@ The collected declarations of all sync modules (*.sync.ts), keyed by name.
 
 ## `SyncServer`
 
-Kind: class. Source: [packages/wheel/src/sync/server/engine.ts:157](../../../packages/wheel/src/sync/server/engine.ts#L157).
+Kind: class. Source: [packages/wheel/src/sync/server/engine.ts:177](../../../packages/wheel/src/sync/server/engine.ts#L177).
 
 The engine: ONE writer loop serializing subscribes, mutations, and re-runs - seq disorder and bootstrap races are unrepresentable (see module doc).
 
@@ -348,7 +348,7 @@ Typed server-side failures with stable codes for WebSocket replies and logs.
 
 ## `SyncServerOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:87](../../../packages/wheel/src/sync/server/engine.ts#L87).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:106](../../../packages/wheel/src/sync/server/engine.ts#L106).
 
 Runtime-neutral engine options. Backend construction belongs to a runtime entry point; the engine accepts one already-built backend and never imports Node, Bun, or Cloudflare modules.
 
@@ -384,7 +384,7 @@ Version policy, limits, engine, and observability for one WebSocket server.
 
 ## `SyncSubscriptionState`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:119](../../../packages/wheel/src/sync/server/engine.ts#L119).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:139](../../../packages/wheel/src/sync/server/engine.ts#L139).
 
 One live-query descriptor that can rebuild its in-memory comparison baseline after hibernation.
 

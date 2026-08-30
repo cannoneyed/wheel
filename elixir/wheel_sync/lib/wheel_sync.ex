@@ -1,7 +1,7 @@
 defmodule WheelSync do
   @moduledoc false
 
-  @protocol_version 1
+  @protocol_version 2
 
   def protocol_version, do: @protocol_version
 

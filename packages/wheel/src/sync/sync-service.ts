@@ -20,6 +20,7 @@ import type { SyncClient, MutationHandle, QueryHandle } from './client/client';
 export type QueryStatus =
   | { kind: 'loading' }
   | { kind: 'live' }
+  | { kind: 'stale'; error?: unknown }
   | { kind: 'error'; error: unknown };
 
 /** Live rows + status for one (query, params) subscription. */
@@ -127,7 +128,7 @@ export abstract class SyncService extends Service {
       get status(): QueryStatus {
         context.trackVersion();
         if (error !== null) return { kind: 'error', error };
-        return handle ? { kind: 'live' } : { kind: 'loading' };
+        return handle ? handle.status() : { kind: 'loading' };
       },
       get rows(): readonly RowT[] {
         const version = context.trackTable(query.into.name);

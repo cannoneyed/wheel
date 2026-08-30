@@ -72,7 +72,7 @@ class FakeSocket implements SyncClientSocket {
 
 function hello(applicationVersion = 3): SyncSocketMessage {
   return {
-    protocol: 1,
+    protocol: 2,
     type: 'hello',
     connectionId: 'conn_test',
     applicationVersion,
@@ -117,22 +117,28 @@ describe('createWebSocketTransport', () => {
   test('uses one versioned socket for requests, responses, and server events', async () => {
     const { transport, socket, urls, events } = await connectTransport();
     expect(urls[0]).toBe(
-      'wss://sync.test/api/sync/websocket?client=client+test&protocol=1&version=3&ticket=one-use'
+      'wss://sync.test/api/sync/websocket?client=client+test&protocol=2&version=3&ticket=one-use'
     );
 
     const subscribed = transport.subscribe('ignored', 'todos.all', { owner: 'me' });
     const subscribe = JSON.parse(socket.sent[0]!) as { requestId: string };
     socket.serverMessage({
-      protocol: 1,
+      protocol: 2,
       type: 'response',
       requestId: subscribe.requestId,
       ok: true,
-      value: { subscriptionId: 'sub_1', query: 'todos.all', seq: 4, rows: [{ id: 'todo_1' }] }
+      value: {
+        subscriptionId: 'sub_1',
+        query: 'todos.all',
+        seq: 4,
+        rows: [{ id: 'todo_1' }],
+        status: { kind: 'live' }
+      }
     });
     await expect(subscribed).resolves.toMatchObject({ subscriptionId: 'sub_1', seq: 4 });
 
     socket.serverMessage({
-      protocol: 1,
+      protocol: 2,
       type: 'event',
       event: {
         type: 'delta',
@@ -164,7 +170,7 @@ describe('createWebSocketTransport', () => {
     const terminal = transport.mutate(mutation);
     const terminalRequest = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
     socket.serverMessage({
-      protocol: 1,
+      protocol: 2,
       type: 'response',
       requestId: terminalRequest.requestId,
       ok: false,
@@ -178,7 +184,7 @@ describe('createWebSocketTransport', () => {
     const retryable = transport.mutate(mutation);
     const retryableRequest = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
     socket.serverMessage({
-      protocol: 1,
+      protocol: 2,
       type: 'response',
       requestId: retryableRequest.requestId,
       ok: false,
@@ -206,11 +212,11 @@ describe('createWebSocketTransport', () => {
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
     sockets[0]!.open();
     sockets[0]!.serverMessage({
-      protocol: 1,
+      protocol: 2,
       type: 'version_mismatch',
       reason: 'client_outdated',
-      clientProtocol: 1,
-      serverProtocol: 1,
+      clientProtocol: 2,
+      serverProtocol: 2,
       clientApplicationVersion: 3,
       serverApplicationVersion: 4,
       minimumClientVersion: 4

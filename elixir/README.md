@@ -1,6 +1,6 @@
 # Elixir sync backend
 
-`wheel_sync` serves Wheel protocol v1 over WebSocket with Elixir and Postgres. The TypeScript client connects without an adapter or client change.
+`wheel_sync` serves Wheel protocol v2 over WebSocket with Elixir and Postgres. The TypeScript client connects without an adapter or client change.
 
 The existing TypeScript SQLite and Durable Object engines remain supported. Applications choose a server by changing the `/sync/websocket` target.
 

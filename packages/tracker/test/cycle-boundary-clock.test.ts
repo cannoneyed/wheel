@@ -34,6 +34,7 @@ describe('CycleService boundary clock', () => {
           query: 'cycles.byTeam',
           subscriptionId: 'sub-cycle',
           rows: () => cycles,
+          status: () => ({ kind: 'live' }),
           stale: () => false,
           release: () => {}
         } satisfies QueryHandle<Cycle>)

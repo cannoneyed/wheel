@@ -1,7 +1,7 @@
 import type { MutateRequest, MutateResult, ServerEvent, Snapshot } from './protocol';
 
 /** The JSON WebSocket protocol. Increment only when one deployment cannot read the other deployment's frames. */
-export const SYNC_PROTOCOL_VERSION = 1 as const;
+export const SYNC_PROTOCOL_VERSION = 2 as const;
 
 interface RequestBase {
   readonly protocol: typeof SYNC_PROTOCOL_VERSION;

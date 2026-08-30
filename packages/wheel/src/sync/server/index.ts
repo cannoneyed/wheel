@@ -47,9 +47,12 @@ export {
   type MutateRequest,
   type MutateResult,
   type MutationError,
+  type QueryStatusEvent,
   type RowDelta,
   type ServerEvent,
   type Snapshot,
+  type SyncQueryError,
+  type SyncQueryStatus,
   type SubscriptionDebugInfo
 } from './engine';
 export {

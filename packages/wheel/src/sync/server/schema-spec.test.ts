@@ -40,7 +40,7 @@ describe('createSchemaSpec', () => {
     const spec = createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
     expect(spec).toMatchObject({
       schemaSpecVersion: 1,
-      protocolVersion: 1,
+      protocolVersion: 2,
       tables: [
         {
           name: 'memberships',

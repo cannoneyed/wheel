@@ -41,7 +41,7 @@ class Inbox {
     const url = new URL('/sync/websocket', baseUrl);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     url.searchParams.set('client', client);
-    url.searchParams.set('protocol', String(options.protocol ?? 1));
+    url.searchParams.set('protocol', String(options.protocol ?? 2));
     url.searchParams.set('version', String(options.version ?? WIRE_APPLICATION_VERSION));
     url.searchParams.set('actor', options.actor ?? 'user:wire');
     url.searchParams.set('session', options.session ?? `session:${client}`);
@@ -133,6 +133,22 @@ function deltaFor(subscriptionId: string, seq: number): Predicate {
     message.event.delta.seq === seq;
 }
 
+function checkpointFor(seq: number): Predicate {
+  return (message) =>
+    message.type === 'event' &&
+    message.event.type === 'checkpoint' &&
+    message.event.seq === seq;
+}
+
+function statusFor(subscriptionId: string, seq: number, kind: string): Predicate {
+  return (message) =>
+    message.type === 'event' &&
+    message.event.type === 'query_status' &&
+    message.event.status.subscriptionId === subscriptionId &&
+    message.event.status.seq === seq &&
+    message.event.status.status.kind === kind;
+}
+
 async function subscribe(inbox: Inbox): Promise<string> {
   inbox.send(request('subscribe'));
   const response = await inbox.response('subscribe');
@@ -169,7 +185,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     const current = await Inbox.open(baseUrl, 'current');
     const hello = await current.next((message) => message.type === 'hello');
     expect(hello).toMatchObject({
-      protocol: 1,
+      protocol: 2,
       type: 'hello',
       applicationVersion: WIRE_APPLICATION_VERSION,
       schemaVersion: 1
@@ -193,7 +209,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     expect(await older.next((message) => message.type === 'version_mismatch')).toMatchObject({
       reason: 'client_outdated'
     });
-    const protocol = await Inbox.open(baseUrl, 'protocol', { protocol: 2 });
+    const protocol = await Inbox.open(baseUrl, 'protocol', { protocol: 3 });
     expect(await protocol.next((message) => message.type === 'version_mismatch')).toMatchObject({
       reason: 'protocol_mismatch'
     });
@@ -211,13 +227,13 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
       fill(expectedFixture.emptySnapshot, { subscriptionId: response.value.subscriptionId })
     );
     inbox.send({
-      protocol: 1,
+      protocol: 2,
       type: 'unsubscribe',
       requestId: 'unsubscribe',
       subscriptionId: response.value.subscriptionId
     });
     expect(await inbox.response('unsubscribe')).toEqual({
-      protocol: 1,
+      protocol: 2,
       type: 'response',
       requestId: 'unsubscribe',
       ok: true,
@@ -261,8 +277,24 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     });
     await a.response('create-beta');
 
+    a.send(request('reorderBetaFirst'));
+    const reordered = await a.next(deltaFor(subA, 3));
+    expect(reordered).toMatchObject({
+      event: {
+        delta: {
+          puts: [],
+          deletes: [],
+          order: [
+            'widget_0190b62e-0000-7000-8000-000000000002',
+            'widget_0190b62e-0000-7000-8000-000000000001'
+          ]
+        }
+      }
+    });
+    await a.response('reorder-beta');
+
     a.send(request('moveBetaFirst'));
-    const moved = await a.next(deltaFor(subA, 3));
+    const moved = await a.next(deltaFor(subA, 4));
     expect(moved).toMatchObject({
       event: {
         delta: {
@@ -277,7 +309,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     await a.response('move-beta');
 
     a.send(request('deleteAlpha'));
-    const deleted = await a.next(deltaFor(subA, 4));
+    const deleted = await a.next(deltaFor(subA, 5));
     expect(deleted).toMatchObject({
       event: {
         delta: {
@@ -290,6 +322,107 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     await a.response('delete-alpha');
     a.close();
     b.close();
+  });
+
+  test('changed, unchanged, and unrelated commits each emit a checkpoint', async () => {
+    const inbox = await Inbox.open(baseUrl, 'checkpoints');
+    await inbox.next((message) => message.type === 'hello');
+    const subscriptionId = await subscribe(inbox);
+
+    inbox.send(request('createAlpha'));
+    await Promise.all([
+      inbox.response('create-alpha'),
+      inbox.next(deltaFor(subscriptionId, 1)),
+      inbox.next(checkpointFor(1))
+    ]);
+
+    inbox.send(request('touchAlpha'));
+    await Promise.all([inbox.response('touch-alpha'), inbox.next(checkpointFor(2))]);
+    await inbox.expectNo(deltaFor(subscriptionId, 2));
+
+    inbox.send(request('noop'));
+    await Promise.all([inbox.response('noop'), inbox.next(checkpointFor(3))]);
+    await inbox.expectNo(deltaFor(subscriptionId, 3));
+    inbox.close();
+  });
+
+  test('a failed rerun keeps rows stale, commits, and recovers to live', async () => {
+    const inbox = await Inbox.open(baseUrl, 'stale-query');
+    await inbox.next((message) => message.type === 'hello');
+    const subscriptionId = await subscribe(inbox);
+
+    inbox.send(request('createAlpha'));
+    await Promise.all([
+      inbox.response('create-alpha'),
+      inbox.next(deltaFor(subscriptionId, 1)),
+      inbox.next(checkpointFor(1))
+    ]);
+
+    inbox.send(request('breakQuery'));
+    const [committed, stale] = await Promise.all([
+      inbox.response('break-query'),
+      inbox.next(statusFor(subscriptionId, 2, 'stale')),
+      inbox.next(checkpointFor(2))
+    ]);
+    expect(committed).toMatchObject({ ok: true, value: { ok: true, seq: 2 } });
+    expect(stale).toMatchObject({
+      event: {
+        status: {
+          status: {
+            kind: 'stale',
+            error: { code: 'query_error', message: 'The live query failed.' }
+          }
+        }
+      }
+    });
+    await inbox.expectNo(deltaFor(subscriptionId, 2));
+
+    inbox.send(request('recoverQuery'));
+    await Promise.all([
+      inbox.response('recover-query'),
+      inbox.next(statusFor(subscriptionId, 3, 'live')),
+      inbox.next(checkpointFor(3))
+    ]);
+    await inbox.expectNo(deltaFor(subscriptionId, 3));
+    inbox.close();
+  });
+
+  test('an initial query failure returns an error snapshot and later recovers', async () => {
+    const inbox = await Inbox.open(baseUrl, 'error-query');
+    await inbox.next((message) => message.type === 'hello');
+
+    inbox.send(request('createAlpha'));
+    await Promise.all([inbox.response('create-alpha'), inbox.next(checkpointFor(1))]);
+    inbox.send(request('breakQuery'));
+    await Promise.all([inbox.response('break-query'), inbox.next(checkpointFor(2))]);
+
+    inbox.send(request('subscribe'));
+    const snapshot = await inbox.response('subscribe');
+    if (snapshot.type !== 'response' || !snapshot.ok || !('subscriptionId' in snapshot.value)) {
+      throw new Error(`Subscribe failed: ${JSON.stringify(snapshot)}`);
+    }
+    const subscriptionId = snapshot.value.subscriptionId;
+    expect(snapshot).toMatchObject({
+      ok: true,
+      value: {
+        subscriptionId,
+        seq: 2,
+        rows: [],
+        status: {
+          kind: 'error',
+          error: { code: 'query_error', message: 'The live query failed.' }
+        }
+      }
+    });
+
+    inbox.send(request('recoverQuery'));
+    await Promise.all([
+      inbox.response('recover-query'),
+      inbox.next(deltaFor(subscriptionId, 3)),
+      inbox.next(statusFor(subscriptionId, 3, 'live')),
+      inbox.next(checkpointFor(3))
+    ]);
+    inbox.close();
   });
 
   test('duplicate mutation ids return the original seq without another delta', async () => {
@@ -355,7 +488,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     await Promise.all([inbox.response('create-alpha'), inbox.next(deltaFor(subscriptionId, 1))]);
 
     const rejected = {
-      protocol: 1,
+      protocol: 2,
       type: 'mutate',
       requestId: 'reject',
       mutation: {

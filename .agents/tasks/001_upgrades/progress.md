@@ -20,8 +20,8 @@ on chat history.
 |---|---:|---|---|
 | 0A. Evaluate TanStack ownership | `S` | Complete | Model rejected; dependency and prototype removed |
 | 0B. Prove Wheel materializer | `M` | Complete | Proof scenarios, differential check, and local gates passed |
-| 1. Correct protocol and servers | `M` | Ready | Awaiting phase approval |
-| 1B. Add atomic mutation groups | `L` | Not started | Client, wire, server, outbox, and undo checks not run |
+| 1. Correct protocol and servers | `M` | Complete | Both engines and shared protocol fixtures passed |
+| 1B. Add atomic mutation groups | `L` | Ready | Awaiting phase approval |
 | 2. Build Tracker proof slice | `L` | Not started | Differential checks not run |
 | 3. Add Elixir grouping and external writes | `M` | Not started | PostgreSQL checks not run |
 | 4. Move client state ownership | `L` | Not started | Ownership checks not run |
@@ -99,13 +99,13 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 
 ### Phase 1
 
-- [ ] Pass TypeScript order-only delta tests.
-- [ ] Pass Elixir order-only delta tests.
-- [ ] Pass grouped rerun failure tests.
-- [ ] Pass stale-to-live recovery tests.
-- [ ] Pass changed, unchanged, and unrelated checkpoint tests.
-- [ ] Pass shared wire fixtures against both engines.
-- [ ] Confirm a rerun failure cannot retry a committed mutation.
+- [x] Pass TypeScript order-only delta tests.
+- [x] Pass Elixir order-only delta tests.
+- [x] Pass grouped rerun failure tests.
+- [x] Pass stale-to-live recovery tests.
+- [x] Pass changed, unchanged, and unrelated checkpoint tests.
+- [x] Pass shared wire fixtures against both engines.
+- [x] Confirm a rerun failure cannot retry a committed mutation.
 
 ### Phase 1B
 
@@ -210,6 +210,59 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-30: Start Phase 1
+
+**State:** Complete
+
+**Changes**
+
+- Bumped the wire protocol from version 1 to version 2.
+- Added snapshot status, query status events, and connection checkpoints.
+- Added client handling for `error`, `stale`, and `live` query states.
+- Kept confirmed optimistic state until a delta, snapshot, or checkpoint proves the rerun pass
+  finished.
+- Fixed order-only deltas in both engines.
+- Isolated TypeScript query-group failures and retried failed batches by group.
+- Kept last valid rows after rerun failures and restored `live` after recovery.
+- Added safe wire errors, detailed server logs, and Elixir failure and recovery telemetry.
+- Expanded the shared fixtures with order-only, unchanged, unrelated, failure, and recovery
+  cases.
+- Updated schema fixtures, public exports, and generated API documents for protocol version 2.
+- Kept Phase 0 changes isolated in commit `8562e5e`.
+
+**Validation**
+
+- `bun run test:unit:node`: 102 files and 782 tests passed.
+- `bun run test:unit:components`: 155 files passed; 1,882 tests passed and 26 skipped.
+- `bun run test:wire`: TypeScript SQLite passed all 10 shared fixture cases.
+- `bun run test:backends`: 14 SQLite backend tests passed.
+- `bun run test:cloudflare`: 3 files and 24 tests passed.
+- `bun run test:elixir`: 6 Elixir tests passed; 2 Postgres tests were excluded because
+  `DATABASE_URL` was absent. The Tracker Elixir server compiled.
+- One-shot Docker Postgres gate: all 6 Elixir tests passed, including both Postgres tests. The
+  Tracker Elixir server compiled without warnings.
+- Shared Elixir/Postgres wire gate: all 10 fixture cases passed.
+- `bun run schema:wire:check` and `bun run schema:tracker:check`: passed.
+- `bun run typecheck`: passed for Wheel, apps, and Cloudflare.
+- `bun run lint`: passed.
+- `bun run docs:robots:check`: passed.
+- `git diff --check`: passed.
+
+**Decisions**
+
+- Treat query execution failures as subscription state, not request failure.
+- Return an `error` snapshot on initial failure. Preserve rows and return `stale` after a later
+  failure.
+- Send one checkpoint to every connection after each committed rerun pass, including passes
+  with no changed rows or affected queries.
+- Keep full query errors in server logs and send one stable `query_error` payload on the wire.
+
+**Blockers**
+
+- None.
+
+**Exit gate:** Passed. Both engine suites and the same 10 protocol fixtures passed.
 
 ### 2026-08-30: Complete Phase 0B
 

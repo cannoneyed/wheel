@@ -1,13 +1,13 @@
 {
   "subscribe": {
-    "protocol": 1,
+    "protocol": 2,
     "type": "subscribe",
     "requestId": "subscribe",
     "query": "widgets.all",
     "params": {}
   },
   "createAlpha": {
-    "protocol": 1,
+    "protocol": 2,
     "type": "mutate",
     "requestId": "create-alpha",
     "mutation": {
@@ -24,7 +24,7 @@
     }
   },
   "createBeta": {
-    "protocol": 1,
+    "protocol": 2,
     "type": "mutate",
     "requestId": "create-beta",
     "mutation": {
@@ -41,7 +41,7 @@
     }
   },
   "moveBetaFirst": {
-    "protocol": 1,
+    "protocol": 2,
     "type": "mutate",
     "requestId": "move-beta",
     "mutation": {
@@ -55,8 +55,23 @@
       "ids": []
     }
   },
+  "reorderBetaFirst": {
+    "protocol": 2,
+    "type": "mutate",
+    "requestId": "reorder-beta",
+    "mutation": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000011",
+      "name": "widgets.reorder",
+      "args": {
+        "widgetId": "widget_0190b62e-0000-7000-8000-000000000002",
+        "sortOrder": 0.5
+      },
+      "ids": []
+    }
+  },
   "deleteAlpha": {
-    "protocol": 1,
+    "protocol": 2,
     "type": "mutate",
     "requestId": "delete-alpha",
     "mutation": {
@@ -70,7 +85,7 @@
     }
   },
   "pair": {
-    "protocol": 1,
+    "protocol": 2,
     "type": "mutate",
     "requestId": "pair",
     "mutation": {
@@ -84,8 +99,58 @@
       ]
     }
   },
+  "touchAlpha": {
+    "protocol": 2,
+    "type": "mutate",
+    "requestId": "touch-alpha",
+    "mutation": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000012",
+      "name": "widgets.touch",
+      "args": {
+        "widgetId": "widget_0190b62e-0000-7000-8000-000000000001"
+      },
+      "ids": []
+    }
+  },
+  "noop": {
+    "protocol": 2,
+    "type": "mutate",
+    "requestId": "noop",
+    "mutation": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000013",
+      "name": "system.noop",
+      "args": {},
+      "ids": []
+    }
+  },
+  "breakQuery": {
+    "protocol": 2,
+    "type": "mutate",
+    "requestId": "break-query",
+    "mutation": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000014",
+      "name": "widgets.breakQuery",
+      "args": {},
+      "ids": []
+    }
+  },
+  "recoverQuery": {
+    "protocol": 2,
+    "type": "mutate",
+    "requestId": "recover-query",
+    "mutation": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000015",
+      "name": "widgets.recoverQuery",
+      "args": {},
+      "ids": []
+    }
+  },
   "presence": {
-    "protocol": 1,
+    "protocol": 2,
     "type": "presence",
     "requestId": "presence",
     "state": { "route": "/widgets", "cursor": null }

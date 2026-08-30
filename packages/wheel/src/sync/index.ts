@@ -52,6 +52,9 @@ export { positionBetween } from './ordering';
 export { systemClock, systemDefer, systemRandomBytes, type Defer } from '../core/runtime-defaults';
 export type {
   RowDelta,
+  QueryStatusEvent,
+  SyncQueryError,
+  SyncQueryStatus,
   ServerEvent,
   MutateRequest,
   MutationError,

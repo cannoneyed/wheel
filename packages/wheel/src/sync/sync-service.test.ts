@@ -24,6 +24,7 @@ describe('liveQuery subscribe/dispose race', () => {
       query: 'todos.all',
       subscriptionId: 'sub-1',
       rows: () => [],
+      status: () => ({ kind: 'live' }),
       stale: () => false,
       release: () => {
         releaseCalls += 1;
@@ -80,6 +81,7 @@ describe('liveQuery invalidation is table-scoped', () => {
       // Fresh array per call, exactly like the real client's queryRows —
       // identity stability must come from the view's cache, not the stub.
       rows: () => [{ id: `${name}-row` }],
+      status: () => ({ kind: 'live' }),
       stale: () => false,
       release: () => {}
     });

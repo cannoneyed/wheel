@@ -584,12 +584,14 @@ describe('current client differential', () => {
         query: string;
         seq: number;
         rows: readonly Record<string, unknown>[];
+        status: { readonly kind: 'live' };
       }> {
         return {
           subscriptionId: 'sub_items_a',
           query: itemsByTeam.name,
           seq: 1,
-          rows: [seedItem('item_1')]
+          rows: [seedItem('item_1')],
+          status: { kind: 'live' }
         };
       },
       async unsubscribe(): Promise<void> {},

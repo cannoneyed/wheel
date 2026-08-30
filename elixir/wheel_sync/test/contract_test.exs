@@ -10,6 +10,11 @@ defmodule WheelSync.ContractTest do
         mutations: [
           WheelSync.Test.WidgetCreate,
           WheelSync.Test.WidgetMove,
+          WheelSync.Test.WidgetReorder,
+          WheelSync.Test.WidgetTouch,
+          WheelSync.Test.WidgetBreakQuery,
+          WheelSync.Test.WidgetRecoverQuery,
+          WheelSync.Test.SystemNoop,
           WheelSync.Test.WidgetDelete,
           WheelSync.Test.WidgetPair,
           WheelSync.Test.WidgetReject,

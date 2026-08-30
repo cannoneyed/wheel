@@ -28,6 +28,7 @@ defmodule WheelSync.MixProject do
       {:jason, "~> 1.4"},
       {:jsv, "~> 0.22"},
       {:postgrex, "~> 0.22"},
+      {:telemetry, "~> 1.0"},
       {:websock_adapter, "~> 0.5"}
     ]
   end

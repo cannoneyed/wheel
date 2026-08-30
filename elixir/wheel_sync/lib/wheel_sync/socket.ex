@@ -2,7 +2,7 @@ defmodule WheelSync.Socket do
   @moduledoc false
   @behaviour WebSock
 
-  @protocol 1
+  @protocol 2
 
   @impl true
   def init(handshake) do
