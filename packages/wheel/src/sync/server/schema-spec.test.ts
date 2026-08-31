@@ -40,9 +40,9 @@ function fixture() {
 }
 
 describe('createSchemaSpec', () => {
-  test('emits schemas, composite keys, rerun hints, and presence', () => {
+  test('emits schemas, composite keys, rerun hints, and presence', async () => {
     const { syncModule, servers } = fixture();
-    const spec = createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
+    const spec = await createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
     expect(spec).toMatchObject({
       schemaSpecVersion: 2,
       protocolVersion: 3,
@@ -68,9 +68,9 @@ describe('createSchemaSpec', () => {
     expect(stringifySchemaSpec(spec).endsWith('\n')).toBe(true);
   });
 
-  test('fingerprints cached row shape, identity, and query ownership only', () => {
+  test('fingerprints cached row shape, identity, and query ownership only', async () => {
     const { syncModule, servers } = fixture();
-    const spec = createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
+    const spec = await createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
     const original = spec.rowSchemaFingerprint;
     const table = spec.tables[0]!;
     const query = spec.queries[0]!;
@@ -91,17 +91,17 @@ describe('createSchemaSpec', () => {
         }
       ]
     };
-    expect(fingerprintSnapshotRows(reordered)).toBe(original);
+    await expect(fingerprintSnapshotRows(reordered)).resolves.toBe(original);
 
     const archiveTable = { ...table, name: 'memberships_archive' };
     const archiveQuery = { ...query, name: 'memberships.archive', into: archiveTable.name };
     const twoContracts = { tables: [table, archiveTable], queries: [query, archiveQuery] };
     expect(
-      fingerprintSnapshotRows({
+      await fingerprintSnapshotRows({
         tables: [...twoContracts.tables].reverse(),
         queries: [...twoContracts.queries].reverse()
       })
-    ).toBe(fingerprintSnapshotRows(twoContracts));
+    ).toBe(await fingerprintSnapshotRows(twoContracts));
 
     const unrelated = {
       ...spec,
@@ -109,7 +109,7 @@ describe('createSchemaSpec', () => {
       mutations: [{ name: 'memberships.changed', argsSchema: { type: 'string' } }],
       presence: { name: 'changed', stateSchema: { type: 'string' } }
     };
-    expect(fingerprintSnapshotRows(unrelated)).toBe(original);
+    await expect(fingerprintSnapshotRows(unrelated)).resolves.toBe(original);
 
     const withField = {
       ...spec,
@@ -124,55 +124,55 @@ describe('createSchemaSpec', () => {
         }
       ]
     };
-    expect(fingerprintSnapshotRows(withField)).not.toBe(original);
-    expect(
+    await expect(fingerprintSnapshotRows(withField)).resolves.not.toBe(original);
+    await expect(
       fingerprintSnapshotRows({
         ...spec,
         tables: [{ ...table, name: 'renamed_memberships' }]
       })
-    ).not.toBe(original);
-    expect(
+    ).resolves.not.toBe(original);
+    await expect(
       fingerprintSnapshotRows({
         ...spec,
         tables: [{ ...table, jsonSchema: { ...schema, required: required.slice(0, -1) } }]
       })
-    ).not.toBe(original);
-    expect(
+    ).resolves.not.toBe(original);
+    await expect(
       fingerprintSnapshotRows({
         ...spec,
         tables: [{ ...table, key: { ...table.key, fields: [...table.key.fields].reverse() } }]
       })
-    ).not.toBe(original);
-    expect(
+    ).resolves.not.toBe(original);
+    await expect(
       fingerprintSnapshotRows({
         ...spec,
         tables: [{ ...table, key: { ...table.key, separator: '|' } }]
       })
-    ).not.toBe(original);
-    expect(
+    ).resolves.not.toBe(original);
+    await expect(
       fingerprintSnapshotRows({ ...spec, tables: [{ ...table, virtual: !table.virtual }] })
-    ).not.toBe(original);
-    expect(
+    ).resolves.not.toBe(original);
+    await expect(
       fingerprintSnapshotRows({ ...spec, queries: [{ ...query, into: 'other_table' }] })
-    ).not.toBe(original);
+    ).resolves.not.toBe(original);
   });
 
-  test('fails on Zod parse behavior that plain JSON Schema cannot reproduce', () => {
+  test('fails on Zod parse behavior that plain JSON Schema cannot reproduce', async () => {
     const { syncModule, servers } = fixture();
     const bad = mutation({
       name: 'memberships.defaulted',
       args: t.object({ role: t.string().default('member') })
     });
     const badServer = serveMutation({ mutation: bad, handler: async () => {} });
-    expect(() =>
+    await expect(
       createSchemaSpec({
         syncModules: [{ ...syncModule, bad }],
         servers: [{ ...servers, badServer }]
       })
-    ).toThrow(/input and output shapes differ/);
+    ).rejects.toThrow(/input and output shapes differ/);
   });
 
-  test('fails when key metadata does not name required string fields', () => {
+  test('fails when key metadata does not name required string fields', async () => {
     const { syncModule, servers } = fixture();
     const invalid = table({
       name: 'invalid_keys',
@@ -180,11 +180,11 @@ describe('createSchemaSpec', () => {
       key: (row) => String(row.id),
       keySpec: { fields: ['id'] }
     });
-    expect(() =>
+    await expect(
       createSchemaSpec({
         syncModules: [{ ...syncModule, invalid }],
         servers: [servers]
       })
-    ).toThrow(/key field "id" must be a string/);
+    ).rejects.toThrow(/key field "id" must be a string/);
   });
 });

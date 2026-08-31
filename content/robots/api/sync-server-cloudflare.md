@@ -72,7 +72,7 @@ Create the Wheel backend owned by one Durable Object instance.
 
 ## `createSchemaSpec`
 
-Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:127](../../../packages/wheel/src/sync/server/schema-spec.ts#L127).
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:132](../../../packages/wheel/src/sync/server/schema-spec.ts#L132).
 
 Build a stable schema document from the same declarations and bindings the TypeScript engine boots.
 
@@ -138,7 +138,7 @@ One sync-log record for a change the engine DID NOT author — an external write
 
 ## `fingerprintSnapshotRows`
 
-Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:76](../../../packages/wheel/src/sync/server/schema-spec.ts#L76).
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:74](../../../packages/wheel/src/sync/server/schema-spec.ts#L74).
 
 Hash only the declarations that control cached row shape, identity, and ownership.
 
@@ -234,31 +234,31 @@ Execute one Wheel/SQLite statement and consume its cursor before returning.
 
 ## `SchemaSpecKey`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:15](../../../packages/wheel/src/sync/server/schema-spec.ts#L15).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:13](../../../packages/wheel/src/sync/server/schema-spec.ts#L13).
 
 Serializable row-key rule shared by sync engines in every language.
 
 ## `SchemaSpecMutation`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:37](../../../packages/wheel/src/sync/server/schema-spec.ts#L37).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:35](../../../packages/wheel/src/sync/server/schema-spec.ts#L35).
 
 One mutation's language-neutral argument shape.
 
 ## `SchemaSpecPresence`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:43](../../../packages/wheel/src/sync/server/schema-spec.ts#L43).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:41](../../../packages/wheel/src/sync/server/schema-spec.ts#L41).
 
 Optional application presence shape used to check server registration.
 
 ## `SchemaSpecQuery`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:29](../../../packages/wheel/src/sync/server/schema-spec.ts#L29).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:27](../../../packages/wheel/src/sync/server/schema-spec.ts#L27).
 
 One query's input shape, output table, and invalidation hints.
 
 ## `SchemaSpecTable`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:21](../../../packages/wheel/src/sync/server/schema-spec.ts#L21).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:19](../../../packages/wheel/src/sync/server/schema-spec.ts#L19).
 
 One table's wire row shape, identity rule, and storage kind.
 
@@ -324,7 +324,7 @@ The standard SQLite handler: a sql`` fragment plus table-level re-run hints. ser
 
 ## `stringifySchemaSpec`
 
-Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:184](../../../packages/wheel/src/sync/server/schema-spec.ts#L184).
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:189](../../../packages/wheel/src/sync/server/schema-spec.ts#L189).
 
 Canonical checked-in artifact form.
 
@@ -432,12 +432,12 @@ Validate a generated row fingerprint at a public configuration boundary.
 
 ## `WHEEL_SCHEMA_SPEC_VERSION`
 
-Kind: value. Source: [packages/wheel/src/sync/server/schema-spec.ts:10](../../../packages/wheel/src/sync/server/schema-spec.ts#L10).
+Kind: value. Source: [packages/wheel/src/sync/server/schema-spec.ts:8](../../../packages/wheel/src/sync/server/schema-spec.ts#L8).
 
 Version of the generated document shape. Independent from the wire version.
 
 ## `WheelSchemaSpec`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:49](../../../packages/wheel/src/sync/server/schema-spec.ts#L49).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:47](../../../packages/wheel/src/sync/server/schema-spec.ts#L47).
 
 Complete language-neutral application contract consumed by external sync engines.

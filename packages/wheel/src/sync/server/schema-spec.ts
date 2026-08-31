@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 import type { TableDecl } from '../declarations';
 import { ROW_SCHEMA_FINGERPRINT_PREFIX, type RowSchemaFingerprint } from '../row-schema';
 import { toContractJsonSchema, type JsonSchema } from '../schema';
@@ -73,10 +71,10 @@ function canonicalJson(value: unknown, parentKey?: string): unknown {
 }
 
 /** Hash only the declarations that control cached row shape, identity, and ownership. */
-export function fingerprintSnapshotRows(spec: {
+export async function fingerprintSnapshotRows(spec: {
   readonly tables: readonly SchemaSpecTable[];
   readonly queries: readonly Pick<SchemaSpecQuery, 'name' | 'into'>[];
-}): RowSchemaFingerprint {
+}): Promise<RowSchemaFingerprint> {
   const input = {
     tables: [...spec.tables]
       .sort((left, right) => left.name.localeCompare(right.name))
@@ -94,7 +92,14 @@ export function fingerprintSnapshotRows(spec: {
       .map((query) => ({ name: query.name, into: query.into }))
   };
   const canonical = JSON.stringify(canonicalJson(input));
-  return `${ROW_SCHEMA_FINGERPRINT_PREFIX}${createHash('sha256').update(canonical, 'utf8').digest('hex')}`;
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(canonical)
+  );
+  const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(
+    ''
+  );
+  return `${ROW_SCHEMA_FINGERPRINT_PREFIX}${hex}`;
 }
 
 function assertKeySchema(table: TableDecl, jsonSchema: JsonSchema): void {
@@ -124,10 +129,10 @@ function assertKeySchema(table: TableDecl, jsonSchema: JsonSchema): void {
 }
 
 /** Build a stable schema document from the same declarations and bindings the TypeScript engine boots. */
-export function createSchemaSpec(options: {
+export async function createSchemaSpec(options: {
   readonly syncModules: object[];
   readonly servers: object[];
-}): WheelSchemaSpec {
+}): Promise<WheelSchemaSpec> {
   const registry = buildRegistry(options);
   const tables = [...registry.tables.values()]
     .map((table): SchemaSpecTable => {
@@ -172,7 +177,7 @@ export function createSchemaSpec(options: {
   return {
     schemaSpecVersion: WHEEL_SCHEMA_SPEC_VERSION,
     protocolVersion: SYNC_PROTOCOL_VERSION,
-    rowSchemaFingerprint: fingerprintSnapshotRows({ tables, queries }),
+    rowSchemaFingerprint: await fingerprintSnapshotRows({ tables, queries }),
     tables,
     queries,
     mutations,
