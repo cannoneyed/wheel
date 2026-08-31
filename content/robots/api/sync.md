@@ -12,9 +12,9 @@ Read-only view of the effective client state — what invert() captures old valu
 
 ## `CacheScopes`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:109](../../../packages/wheel/src/sync/client/local-cache.ts#L109).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:106](../../../packages/wheel/src/sync/client/local-cache.ts#L106).
 
-The two persistence scopes, split on purpose. Snapshots are row-shaped, so their scope carries the app's row-schema fingerprint: a schema change retires them and the client re-bootstraps — that is the designed invalidation. The outbox holds mutations (name + args, replayed and deduped by the server), which no schema fingerprint invalidates: scoping them by the fingerprint silently abandoned every pending write that straddled a schema change (found 2026-08-10). `retires` names the scopes this app owns and no longer serves; the cache deletes their rows at open, because a scope nothing will ever read again otherwise grows the store — and the boot-time getAll over it — forever. It must answer false for every scope a DIFFERENT app in the same store still serves.
+The two persistence scopes, split on purpose. Snapshots are row-shaped, so their scope carries the app's row-schema fingerprint: a schema change retires them and the client re-bootstraps — that is the designed invalidation. The outbox holds mutations (name + args, replayed and deduped by the server), which no schema fingerprint invalidates: scoping them by the fingerprint silently abandoned every pending write that straddled a schema change (found 2026-08-10). `retires` names the snapshot scopes this app owns and no longer serves; the cache deletes their rows at open, because a scope nothing will ever read again otherwise grows the store — and the boot-time getAll over it — forever. It must answer false for every scope a DIFFERENT app in the same store still serves.
 
 ## `ClientIdentity`
 
@@ -30,7 +30,7 @@ Injected wall clock — real time in production, a fixed/stepping clock in tests
 
 ## `createCacheScopes`
 
-Kind: function. Source: [packages/wheel/src/sync/client/local-cache.ts:119](../../../packages/wheel/src/sync/client/local-cache.ts#L119).
+Kind: function. Source: [packages/wheel/src/sync/client/local-cache.ts:116](../../../packages/wheel/src/sync/client/local-cache.ts#L116).
 
 Build the standard split scopes for cached rows and durable pending commands.
 
@@ -42,7 +42,7 @@ UUIDv7 generator over an injected clock and randomness source. Within one millis
 
 ## `createRowSchemaReloadGuard`
 
-Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:17](../../../packages/wheel/src/sync/row-schema.ts#L17).
+Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:10](../../../packages/wheel/src/sync/row-schema.ts#L10).
 
 Allow one asset reload for each new server row contract.
 
@@ -84,7 +84,7 @@ Injected id source (prefixed UUIDv7s) - deterministic in World, real randomness 
 
 ## `IndexedDbCache`
 
-Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:138](../../../packages/wheel/src/sync/client/local-cache.ts#L138).
+Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:136](../../../packages/wheel/src/sync/client/local-cache.ts#L136).
 
 IndexedDB-backed store for browsers. One database per storeName.
 
@@ -138,13 +138,13 @@ Live rows + status for one (query, params) subscription.
 
 ## `LocalCache`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:55](../../../packages/wheel/src/sync/client/local-cache.ts#L55).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:52](../../../packages/wheel/src/sync/client/local-cache.ts#L52).
 
 Storage contract. Implementations: IndexedDbCache (browser), MemoryCache (tests/SSR). All methods are async and must never throw for missing keys — absence is `undefined`/`[]`.
 
 ## `MemoryCache`
 
-Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:66](../../../packages/wheel/src/sync/client/local-cache.ts#L66).
+Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:63](../../../packages/wheel/src/sync/client/local-cache.ts#L63).
 
 In-memory cache: tests, SSR, and environments without IndexedDB.
 
@@ -258,13 +258,13 @@ What `peers(decl)` answers: `valid` peers keyed by clientId, plus the `failures`
 
 ## `PersistedOutboxEntry`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:39](../../../packages/wheel/src/sync/client/local-cache.ts#L39).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:36](../../../packages/wheel/src/sync/client/local-cache.ts#L36).
 
 A persisted pending mutation, replayable byte-for-byte.
 
 ## `PersistedSubscription`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:30](../../../packages/wheel/src/sync/client/local-cache.ts#L30).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:27](../../../packages/wheel/src/sync/client/local-cache.ts#L27).
 
 A persisted snapshot of one subscription's server truth.
 
@@ -375,12 +375,6 @@ A row schema must produce a plain JSON object.
 Kind: type. Source: [packages/wheel/src/sync/row-schema.ts:7](../../../packages/wheel/src/sync/row-schema.ts#L7).
 
 Exact identity of the declarations that control cached subscription rows.
-
-## `RowSchemaReloadStorage`
-
-Kind: interface. Source: [packages/wheel/src/sync/row-schema.ts:10](../../../packages/wheel/src/sync/row-schema.ts#L10).
-
-Minimal browser storage surface used by the reload-loop guard.
 
 ## `RowValidationError`
 
@@ -564,7 +558,7 @@ Validate one row against a schema, throwing an error that names the source decla
 
 ## `validateRowSchemaFingerprint`
 
-Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:39](../../../packages/wheel/src/sync/row-schema.ts#L39).
+Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:32](../../../packages/wheel/src/sync/row-schema.ts#L32).
 
 Validate a generated row fingerprint at a public configuration boundary.
 

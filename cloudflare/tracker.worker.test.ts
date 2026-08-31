@@ -137,13 +137,11 @@ test('WebSockets retain subscriptions and presence through Durable Object hibern
   const helloB = await socketB.next((message) => message.type === 'hello');
   expect(helloA).toMatchObject({
     applicationVersion: 1,
-    schemaVersion: 1,
-    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
+    schemaVersion: 1
   });
   expect(helloB).toMatchObject({
     applicationVersion: 1,
-    schemaVersion: 1,
-    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
+    schemaVersion: 1
   });
 
   socketA.send(request('subscribe', 'subscribe-a', { query: 'teams.all', params: {} }));
@@ -285,8 +283,7 @@ test('deployment shutdown closes sockets and a fresh connection bootstraps again
   const replacement = await openSyncSocket(stub, { client: 'deploy-client' });
   expect(await replacement.next((message) => message.type === 'hello')).toMatchObject({
     applicationVersion: TRACKER_APPLICATION_VERSION,
-    schemaVersion: TRACKER_MIGRATIONS.length,
-    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
+    schemaVersion: TRACKER_MIGRATIONS.length
   });
   replacement.socket.close(1000, 'test_done');
 });

@@ -61,7 +61,7 @@ export interface SyncSocketServerOptions {
   /** Applied Durable Object SQLite schema version, reported in hello frames. */
   readonly schemaVersion: number;
   /** Exact generated identity of cached row declarations. */
-  readonly rowSchemaFingerprint: RowSchemaFingerprint | string;
+  readonly rowSchemaFingerprint: string;
   readonly maxMessageBytes?: number;
   /** Maximum JSON size kept in a hibernation attachment. Defaults below Cloudflare's 16 KiB limit. */
   readonly maxAttachmentBytes?: number;
@@ -367,8 +367,7 @@ export class SyncSocketServer {
         type: 'hello',
         connectionId,
         applicationVersion: this.applicationVersion,
-        schemaVersion: this.schemaVersion,
-        rowSchemaFingerprint: this.rowSchemaFingerprint
+        schemaVersion: this.schemaVersion
       });
     } catch (error) {
       this.report(error, { operation: 'accept' });

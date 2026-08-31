@@ -21,10 +21,7 @@
  */
 
 import type { Row } from './cache';
-import {
-  validateRowSchemaFingerprint,
-  type RowSchemaFingerprint
-} from '../row-schema';
+import { validateRowSchemaFingerprint } from '../row-schema';
 
 /** A persisted snapshot of one subscription's server truth. */
 export interface PersistedSubscription {
@@ -100,37 +97,38 @@ const OUTBOX = 'outbox';
  * invalidation. The outbox holds mutations (name + args, replayed and deduped
  * by the server), which no schema fingerprint invalidates: scoping them by
  * the fingerprint silently abandoned every pending write that straddled a
- * schema change (found 2026-08-10). `retires` names the scopes this app owns
- * and no longer serves; the cache deletes their rows at open, because a
- * scope nothing will ever read again otherwise grows the store — and the
- * boot-time getAll over it — forever. It must answer false for every scope
- * a DIFFERENT app in the same store still serves.
+ * schema change (found 2026-08-10). `retires` names the snapshot scopes this
+ * app owns and no longer serves; the cache deletes their rows at open, because
+ * a scope nothing will ever read again otherwise grows the store — and the
+ * boot-time getAll over it — forever. It must answer false for every scope a
+ * DIFFERENT app in the same store still serves.
  */
 export interface CacheScopes {
   /** Scope for subscription snapshots — carries the schema fingerprint. */
   readonly snapshots: string;
   /** Scope for the durable outbox — carries the store identity only. */
   readonly outbox: string;
-  /** True for a dead scope this app owns; its rows are deleted at open. */
+  /** True for a dead snapshot scope this app owns; its rows are deleted at open. */
   readonly retires: (scope: string) => boolean;
 }
 
 /** Build the standard split scopes for cached rows and durable pending commands. */
 export function createCacheScopes(options: {
   readonly storeScope: string;
-  readonly rowSchemaFingerprint: RowSchemaFingerprint | string;
+  readonly rowSchemaFingerprint: string;
 }): CacheScopes {
   if (options.storeScope === '') {
     throw new TypeError('storeScope must be non-empty.');
   }
   const fingerprint = validateRowSchemaFingerprint(options.rowSchemaFingerprint);
   const prefix = `${options.storeScope}|`;
-  const snapshots = `${prefix}snapshots:${fingerprint}`;
+  const snapshotPrefix = `${prefix}snapshots:`;
+  const snapshots = `${snapshotPrefix}${fingerprint}`;
   const outbox = `${prefix}outbox`;
   return Object.freeze({
     snapshots,
     outbox,
-    retires: (scope: string) => scope.startsWith(prefix) && scope !== snapshots && scope !== outbox
+    retires: (scope: string) => scope.startsWith(snapshotPrefix) && scope !== snapshots
   });
 }
 

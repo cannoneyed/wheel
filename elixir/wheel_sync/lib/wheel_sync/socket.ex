@@ -64,8 +64,7 @@ defmodule WheelSync.Socket do
         "type" => "hello",
         "connectionId" => connection_id,
         "applicationVersion" => application_version,
-        "schemaVersion" => Map.fetch!(config, :schema_version),
-        "rowSchemaFingerprint" => row_schema_fingerprint
+        "schemaVersion" => Map.fetch!(config, :schema_version)
       }
 
       stream_hello = event(%{"type" => "hello", "clientId" => connection_id})

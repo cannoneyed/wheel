@@ -103,7 +103,6 @@ export {
   ROW_SCHEMA_FINGERPRINT_PREFIX,
   createRowSchemaReloadGuard,
   validateRowSchemaFingerprint,
-  type RowSchemaFingerprint,
-  type RowSchemaReloadStorage
+  type RowSchemaFingerprint
 } from './row-schema';
 export { SyncService, type LiveQueryFor, type LiveQueryView, type QueryStatus } from './sync-service';

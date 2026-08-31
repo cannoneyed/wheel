@@ -12,19 +12,19 @@ Apply every pending migration in one Durable Object storage transaction. Stored 
 
 ## `authenticateSyncSocket`
 
-Kind: function. Source: [packages/wheel/src/sync/server/socket.ts:556](../../../packages/wheel/src/sync/server/socket.ts#L556).
+Kind: function. Source: [packages/wheel/src/sync/server/socket.ts:555](../../../packages/wheel/src/sync/server/socket.ts#L555).
 
 Authenticate and validate the HTTP request before its WebSocket upgrade.
 
 ## `AuthenticateSyncSocketOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:534](../../../packages/wheel/src/sync/server/socket.ts#L534).
+Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:533](../../../packages/wheel/src/sync/server/socket.ts#L533).
 
 Trust policy used before a runtime accepts a WebSocket upgrade.
 
 ## `AuthenticateSyncSocketResult`
 
-Kind: type. Source: [packages/wheel/src/sync/server/socket.ts:541](../../../packages/wheel/src/sync/server/socket.ts#L541).
+Kind: type. Source: [packages/wheel/src/sync/server/socket.ts:540](../../../packages/wheel/src/sync/server/socket.ts#L540).
 
 Authenticated handshake data or the HTTP response that refuses the upgrade.
 
@@ -426,7 +426,7 @@ Rewrite Wheel SQL tag placeholders to SQLite positional placeholders. String lit
 
 ## `validateRowSchemaFingerprint`
 
-Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:39](../../../packages/wheel/src/sync/row-schema.ts#L39).
+Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:32](../../../packages/wheel/src/sync/row-schema.ts#L32).
 
 Validate a generated row fingerprint at a public configuration boundary.
 

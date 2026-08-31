@@ -51,7 +51,6 @@ export type SyncSocketMessage =
       readonly connectionId: string;
       readonly applicationVersion: number;
       readonly schemaVersion: number;
-      readonly rowSchemaFingerprint: string;
     }
   | {
       readonly protocol: typeof SYNC_PROTOCOL_VERSION;

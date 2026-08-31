@@ -6,19 +6,12 @@ const ROW_SCHEMA_FINGERPRINT_PATTERN = /^wheel-rows-sha256:[0-9a-f]{64}$/;
 /** Exact identity of the declarations that control cached subscription rows. */
 export type RowSchemaFingerprint = `${typeof ROW_SCHEMA_FINGERPRINT_PREFIX}${string}`;
 
-/** Minimal browser storage surface used by the reload-loop guard. */
-export interface RowSchemaReloadStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
 /** Allow one asset reload for each new server row contract. */
 export function createRowSchemaReloadGuard(
-  storage: RowSchemaReloadStorage,
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
   key: string
 ): {
-  readonly shouldReload: (serverFingerprint: RowSchemaFingerprint | string) => boolean;
+  readonly shouldReload: (serverFingerprint: string) => boolean;
   readonly clear: () => void;
 } {
   if (key === '') throw new TypeError('The row-schema reload key must be non-empty.');

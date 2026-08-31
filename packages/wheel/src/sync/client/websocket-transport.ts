@@ -73,7 +73,7 @@ export interface WebSocketTransportOptions {
   /** Monotonic application API version sent during every handshake. */
   readonly applicationVersion: number;
   /** Exact generated identity of cached row declarations. */
-  readonly rowSchemaFingerprint: RowSchemaFingerprint | string;
+  readonly rowSchemaFingerprint: string;
   /** Non-secret query parameters used by demo authentication or a one-use ticket. */
   readonly params?:
     | Record<string, string>

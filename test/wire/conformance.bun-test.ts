@@ -200,8 +200,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
       protocol: 3,
       type: 'hello',
       applicationVersion: WIRE_APPLICATION_VERSION,
-      schemaVersion: 1,
-      rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
+      schemaVersion: 1
     });
     if (hello.type !== 'hello') throw new Error('Expected hello');
     expect(

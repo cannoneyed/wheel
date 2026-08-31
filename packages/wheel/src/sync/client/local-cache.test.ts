@@ -66,7 +66,7 @@ describe('IndexedDbCache scopes', () => {
     globalThis.indexedDB = new IDBFactory();
     const dead = new IndexedDbCache('app', scopesFor('proj-store', 'a'));
     await dead.saveSubscription(subscription('todos.byList|{}'));
-    const foreign = new IndexedDbCache('app', scopesFor('other-store', 'c'));
+    const foreign = new IndexedDbCache('app', scopesFor('proj-store|foreign', 'c'));
     await foreign.saveSubscription(subscription('other.query|{}'));
 
     // Open under the new fingerprint: proj's old generation dies, the other
@@ -74,7 +74,7 @@ describe('IndexedDbCache scopes', () => {
     const current = new IndexedDbCache('app', scopesFor('proj-store', 'b'));
     await current.loadSubscriptions();
 
-    const foreignAgain = new IndexedDbCache('app', scopesFor('other-store', 'c'));
+    const foreignAgain = new IndexedDbCache('app', scopesFor('proj-store|foreign', 'c'));
     expect((await foreignAgain.loadSubscriptions()).map((sub) => sub.key)).toEqual(['other.query|{}']);
     // The dead generation is gone from storage, not merely filtered: reopening
     // under the OLD fingerprint finds nothing.

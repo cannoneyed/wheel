@@ -79,8 +79,7 @@ function hello(applicationVersion = 3): SyncSocketMessage {
     type: 'hello',
     connectionId: 'conn_test',
     applicationVersion,
-    schemaVersion: 7,
-    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
+    schemaVersion: 7
   };
 }
 
