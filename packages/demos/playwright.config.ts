@@ -1,58 +1,49 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
-import { portlessRoute } from '../../scripts/portless';
+import { TEST_PORTS, testOrigin } from '../../scripts/test-ports';
 
 /** Playwright resolves webServer cwd against the CONFIG file; these commands are root-relative. */
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 /**
- * Every server this suite needs resolves the same way, PER SERVER: an
- * explicit env override, then a LIVE portless route (attach to whatever is
- * already serving it), then the literal port with playwright starting its
- * own.
+ * Every server this suite needs is STARTED BY THE SUITE, on a port reserved
+ * for tests.
  *
- * Per-server matters: the standalone host and the embedded host are
- * independent. When the website is already running under portless but the
- * demos preview is not, playwright must attach to the former and start only
- * the latter — starting a duplicate website is both wasteful and a fresh
- * chance to collide on 4790.
+ * It used to resolve a portless route per server and attach to whatever was
+ * already serving that name. That is how the standalone host once ended up
+ * being a sibling repo's dev server, and how the embedded host ended up being
+ * the website from another worktree. A route is claimed by name, and names are
+ * global to the machine — see AGENTS.md, "portless is for humans, not for
+ * machines".
  *
- * Detection reads portless's registry, never a supervisor-specific env var:
- * it must not matter whether Solo, a bare terminal, or anything else
- * launched the app. Nothing here requires portless to exist — with no
- * routes, this is byte-for-byte the old fixed-port behavior.
+ * Each `*_BROWSER_BASE_URL` remains a deliberate door for a human pointing the
+ * suite somewhere; global setup then verifies it is this checkout.
  */
-function resolveServer(
-  portlessName: string,
-  fallbackUrl: string,
-  override: string | undefined
-): { url: string; managed: boolean } {
-  if (override !== undefined) return { url: override, managed: false };
-  const route = portlessRoute(portlessName);
-  return route ? { url: route.url, managed: false } : { url: fallbackUrl, managed: true };
+function resolveServer(port: number, override: string | undefined): { url: string; managed: boolean } {
+  return override === undefined
+    ? { url: testOrigin(port), managed: true }
+    : { url: override, managed: false };
 }
 
-// NOTE the name: `wheel-demos-preview`, not `wheel-demos`. This suite's
-// subject is the PRODUCTION BUILD (vite preview + SPA fallback, minified
-// output). A running dev server must never be silently substituted — it
-// would, for one, make SHELL-21's "class names survive minification"
-// assertion pass vacuously. Run `bun run dev:demos:preview` to attach.
-const app = resolveServer('wheel-demos-preview', 'http://127.0.0.1:4794', process.env.DEMOS_BROWSER_BASE_URL);
-const website = resolveServer('wheel-website', 'http://127.0.0.1:4790', process.env.WEBSITE_BROWSER_BASE_URL);
-const sync = resolveServer('wheel-demos-sync', 'http://127.0.0.1:4795', process.env.DEMOS_SYNC_BASE_URL);
+// NOTE the name: this suite's subject is the PRODUCTION BUILD (vite preview +
+// SPA fallback, minified output). A running dev server must never be silently
+// substituted — it would, for one, make SHELL-21's "class names survive
+// minification" assertion pass vacuously.
+const app = resolveServer(TEST_PORTS.demosPreview, process.env.DEMOS_BROWSER_BASE_URL);
+const website = resolveServer(TEST_PORTS.website, process.env.WEBSITE_BROWSER_BASE_URL);
+const sync = resolveServer(TEST_PORTS.demosSync, process.env.DEMOS_SYNC_BASE_URL);
 
 const baseURL = app.url;
 
 /**
- * Every server below treats `PORT` as "my supervisor assigned me this port".
- * That is right under portless, and wrong for a MANAGED server: playwright
- * waits on the literal fallback url, so a `PORT` inherited from whatever
- * launched the test run (Solo, a hub ship gate, a plain shell that exports
- * it) moves the server somewhere playwright never looks. Pinning the port
- * makes the url and the server agree on one number. `managed` is only true
- * when the url IS the literal fallback, so this reads the number back out of
- * it rather than repeating it.
+ * Every server below treats `PORT` as "my supervisor assigned me this port",
+ * and the suite is that supervisor — so it names each port explicitly rather
+ * than inheriting one. A `PORT` leaking in from whatever launched the test run
+ * would move a server somewhere playwright never looks: the sync server binds
+ * :4056, the app proxies `/sync` to the reserved port, every request is
+ * ECONNREFUSED, and the suite fails on the sync badge instead of on anything
+ * it meant to check.
  */
 const pinnedPort = (url: string) => new URL(url).port;
 
@@ -62,15 +53,18 @@ const managedServers = [
     cwd: repoRoot,
     env: { PORT: pinnedPort(sync.url) },
     url: `${sync.url}/`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 30_000
   },
   app.managed && {
     command: 'bunx vite preview --config packages/demos/vite.config.ts',
     cwd: repoRoot,
-    env: { PREVIEW_PORT: pinnedPort(app.url) },
+    // DEMOS_SYNC_ORIGIN is how the preview is told where its backend is;
+    // without it the vite config would resolve a portless route and proxy the
+    // suite's requests to a human's dev server.
+    env: { PREVIEW_PORT: pinnedPort(app.url), DEMOS_SYNC_ORIGIN: sync.url },
     url: app.url,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 30_000
   },
   website.managed && {
@@ -80,7 +74,7 @@ const managedServers = [
     cwd: repoRoot,
     env: { PORT: pinnedPort(website.url), WHEEL_DEMOS_EMBED_WATCH: '0' },
     url: website.url,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000
   }
 ].filter(Boolean) as Array<{
@@ -103,6 +97,7 @@ const managedServers = [
  */
 export default defineConfig({
   testDir: './browser',
+  globalSetup: fileURLToPath(new URL('../../scripts/verify-server-identity.ts', import.meta.url)),
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,

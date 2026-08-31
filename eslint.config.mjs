@@ -228,6 +228,37 @@ export default [
     }
   },
 
+  // Machine-run code never resolves a portless route. A route is claimed by
+  // NAME, and names are global to the machine: whoever registered
+  // `wheel-website` last owns it, which may be another checkout, another
+  // worktree, or another repository. A suite that resolves one can silently
+  // test code that is not the code under test — which has happened twice (see
+  // AGENTS.md, "portless is for humans, not for machines"). Tests start their
+  // own servers on reserved ports, or read an explicit environment variable.
+  {
+    files: [
+      '**/*.spec.ts',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      'packages/*/playwright.config.ts',
+      'packages/*/browser/**/*.ts'
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/scripts/portless', '**/scripts/portless.ts'],
+              message:
+                'portless is for local user development only. Machine-run code names its server explicitly: start one on a port from scripts/test-ports.ts, or read a *_BROWSER_BASE_URL override. See AGENTS.md, "portless is for humans, not for machines".'
+            }
+          ]
+        }
+      ]
+    }
+  },
+
   // Tests — architecture rules stay ON (tests are not exempt from the
   // doctrine); only the documentation bar is dropped.
   {

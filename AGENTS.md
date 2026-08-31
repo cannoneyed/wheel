@@ -95,6 +95,37 @@ One-shot commands such as tests, builds, formatting, and migrations still run in
 
 `solo.yml` defines the repository processes. Changes to that file require a human to click **Sync** and approve the commands in Solo.
 
+## portless is for humans, not for machines
+
+portless assigns each named app a free port and serves it at
+`https://<name>.localhost`. Use it for **local user development only**: the dev
+servers a person starts and looks at.
+
+**Never resolve a portless route from anything machine-made** — tests,
+playwright configs, CI, agents, scripts. A route is claimed by NAME, and names
+are global to the machine. Whoever registered `wheel-website` last owns it,
+which may be another checkout, another worktree, or another repository
+entirely. Machine-run code that asks portless "where is the website?" gets an
+answer that has nothing to do with the code under test.
+
+That is not hypothetical. It has cost real time twice:
+
+- a sibling repo's dev server on 4794 was adopted by `reuseExistingServer`, and
+  the demo behavior suite silently tested the wrong app;
+- the website suite attached to a dev server from the main checkout while the
+  change under test sat in a worktree, so a broken test passed locally and
+  failed in CI.
+
+**A machine says which server it means, explicitly.** Tests start their own on
+their own ports (`packages/*/playwright.config.ts`), or read an explicit
+environment variable. `no-restricted-imports` blocks `scripts/portless` from
+every spec, playwright config, and browser support file, so this cannot come
+back by accident.
+
+An app config that serves BOTH a human dev server and a machine-started
+preview reads its environment variable first and falls back to portless — the
+override is how a machine says "not that one, this one".
+
 ## Subagent model routing
 
 Every `Agent` spawn sets `model` explicitly. Omitting it inherits the session model — the most expensive tier — so mechanical work silently runs at top cost. Picking the model is part of writing the task, not an afterthought.

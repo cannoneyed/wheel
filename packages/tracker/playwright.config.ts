@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
-import { portlessRoute } from "../../scripts/portless";
+import { TEST_PORTS, testOrigin } from "../../scripts/test-ports";
 
 /**
  * Playwright resolves `webServer.cwd` against the CONFIG file, not the repo
@@ -17,30 +17,26 @@ const backend = process.env.TRACKER_BROWSER_BACKEND ?? "sqlite";
 if (backend !== "sqlite" && backend !== "postgres") {
   throw new Error("TRACKER_BROWSER_BACKEND must be sqlite or postgres.");
 }
-const syncPort = backend === "postgres" ? "4799" : "4797";
-const externalSyncOrigin = process.env.TRACKER_BROWSER_SYNC_ORIGIN;
-const syncOrigin = externalSyncOrigin ?? `http://127.0.0.1:${syncPort}`;
 
 /**
- * Where the app under test lives, in precedence order:
- *   1. TRACKER_BROWSER_BASE_URL — explicit override, always wins;
- *   2. a LIVE portless route — whoever started the app (a bare terminal,
- *      Solo, Surface, anything) registered it, so attach instead of
- *      starting a competing server on a port someone else may hold;
- *   3. the literal port — nothing else is running, so manage our own.
+ * The suite starts its own tracker and its own sync server, on ports reserved
+ * for tests.
  *
- * Detection reads portless's own registry, never a supervisor-specific env
- * var: this must not care WHAT launched the app.
+ * It used to resolve a portless route first and attach to whatever had claimed
+ * `wheel-tracker-preview` — which may be a different checkout. See AGENTS.md,
+ * "portless is for humans, not for machines".
+ *
+ * Two doors remain, both explicit. `TRACKER_BROWSER_SYNC_ORIGIN` names a
+ * backend the suite did not start (CI publishes the Elixir container on a
+ * random host port). `TRACKER_BROWSER_BASE_URL` names the app itself; global
+ * setup then verifies it is this checkout.
  */
-// `-preview`, not `wheel-tracker`: this suite serves the production
-// build, so a running dev server must not be substituted for it.
-const portlessApp = portlessRoute("wheel-tracker-preview");
-const baseURL =
-  process.env.TRACKER_BROWSER_BASE_URL ??
-  portlessApp?.url ??
-  "http://127.0.0.1:4798";
-const managesServers =
-  process.env.TRACKER_BROWSER_BASE_URL === undefined && portlessApp === null;
+const syncPort =
+  backend === "postgres" ? TEST_PORTS.trackerSyncPostgres : TEST_PORTS.trackerSync;
+const externalSyncOrigin = process.env.TRACKER_BROWSER_SYNC_ORIGIN;
+const syncOrigin = externalSyncOrigin ?? testOrigin(syncPort);
+const override = process.env.TRACKER_BROWSER_BASE_URL;
+const baseURL = override ?? testOrigin(TEST_PORTS.trackerPreview);
 
 export default defineConfig({
   testDir: "./browser",
@@ -48,6 +44,9 @@ export default defineConfig({
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "line",
+  globalSetup: fileURLToPath(
+    new URL("../../scripts/verify-server-identity.ts", import.meta.url),
+  ),
   use: {
     ...devices["Desktop Chrome"],
     baseURL,
@@ -56,18 +55,18 @@ export default defineConfig({
     ignoreHTTPSErrors: true,
   },
   /**
-   * Every server here treats `PORT` as "my supervisor assigned me this port".
-   * That is right under portless, and wrong here: when playwright starts the
-   * servers itself it waits on the LITERAL ports below, so a `PORT` inherited
-   * from whatever launched the test run (Solo, a hub ship gate, a plain shell
-   * that exports it) moves the server somewhere playwright never looks. The
-   * sync server then binds, say, :4056, the app proxies `/sync` to :4797,
-   * every request is ECONNREFUSED, and the suite fails on the sync badge
-   * instead of on anything it meant to check. Pinning the port in `env` is
-   * what makes the managed case say the same number twice.
+   * Each server is told its port explicitly, and the app is told where its
+   * backend is with `TRACKER_SYNC_ORIGIN` — otherwise the preview would
+   * resolve the sync server through portless and proxy the suite's requests to
+   * a human's dev backend.
+   *
+   * `reuseExistingServer` is false on purpose: adopting a stranger's server is
+   * the failure this config exists to prevent, so a taken port must stop the
+   * run rather than quietly change what is under test.
    */
-  webServer: managesServers
-    ? [
+  webServer: override
+    ? undefined
+    : [
         ...(externalSyncOrigin
           ? []
           : [
@@ -80,13 +79,13 @@ export default defineConfig({
                 env:
                   backend === "postgres"
                     ? {
-                        TRACKER_PORT: syncPort,
+                        TRACKER_PORT: String(syncPort),
                         TRACKER_RESET_DATABASE: "1",
                         DATABASE_URL: process.env.DATABASE_URL ?? "",
                       }
-                    : { TRACKER_PORT: syncPort },
-                url: `http://127.0.0.1:${syncPort}/readyz`,
-                reuseExistingServer: !process.env.CI,
+                    : { TRACKER_PORT: String(syncPort) },
+                url: `${syncOrigin}/readyz`,
+                reuseExistingServer: false,
                 timeout: 30_000,
               },
             ]),
@@ -94,14 +93,13 @@ export default defineConfig({
           command: "bunx vite preview --config packages/tracker/vite.config.ts",
           cwd: repoRoot,
           env: {
-            PORT: new URL(baseURL).port,
+            PORT: String(TEST_PORTS.trackerPreview),
             TRACKER_SYNC_ORIGIN: syncOrigin,
           },
           url: baseURL,
-          reuseExistingServer: !process.env.CI,
+          reuseExistingServer: false,
           timeout: 30_000,
         },
-      ]
-    : undefined,
+      ],
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });

@@ -13,7 +13,7 @@ import {
   type BehaviorHost
 } from 'wheel/testing/playwright';
 
-import { portlessRoute } from '../../../../scripts/portless';
+import { TEST_PORTS, testOrigin } from '../../../../scripts/test-ports';
 
 const repoRoot = fileURLToPath(new URL('../../../..', import.meta.url));
 
@@ -21,18 +21,17 @@ const repoRoot = fileURLToPath(new URL('../../../..', import.meta.url));
 export const HOSTS: readonly BehaviorHost[] = [
   {
     name: 'standalone',
-    origin:
-      process.env.DEMOS_BROWSER_BASE_URL ??
-      portlessRoute('wheel-demos-preview')?.url ??
-      'http://127.0.0.1:4794',
+    // The suite starts this server itself, on a port reserved for tests. It
+    // never asks portless where the app is — a route is claimed by name, and
+    // the winner may be another checkout entirely (AGENTS.md, "portless is for
+    // humans, not for machines"). That mistake once made this suite test a
+    // sibling repository's dev server.
+    origin: process.env.DEMOS_BROWSER_BASE_URL ?? testOrigin(TEST_PORTS.demosPreview),
     prefix: ''
   },
   {
     name: 'embedded',
-    origin:
-      process.env.WEBSITE_BROWSER_BASE_URL ??
-      portlessRoute('wheel-website')?.url ??
-      'http://127.0.0.1:4790',
+    origin: process.env.WEBSITE_BROWSER_BASE_URL ?? testOrigin(TEST_PORTS.website),
     prefix: '/demos'
   }
 ];

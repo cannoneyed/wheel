@@ -46,7 +46,7 @@ export default defineProject({
       'packages/wheel/eslint/**/*.test.mjs',
       'packages/demos/src/**/*.test.{ts,tsx}',
       'packages/tracker/**/*.test.{ts,tsx}',
-      'scripts/ci/**/*.test.ts',
+      'scripts/**/*.test.ts',
     ],
     exclude: ['packages/wheel/src/components/**/*.test.{ts,tsx}'],
     testTimeout: 30_000,
