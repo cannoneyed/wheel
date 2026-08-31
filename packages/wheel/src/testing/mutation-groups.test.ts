@@ -261,6 +261,7 @@ describe('atomic mutation groups', () => {
       actor: 'user:test',
       clock: fixedClock(1_700_000_003_000, 1),
       randomBytes: seededRandomBytes(4),
+      syncModules: [syncModule],
       localCache: new MemoryCache()
     });
     await client.subscribe(itemList, {});
@@ -323,8 +324,13 @@ describe('atomic mutation groups', () => {
     const store = new MemoryCache();
     const makeTransport = (offline: boolean) => {
       const sent: MutateGroupRequest[] = [];
+      let push: Parameters<SyncTransport['connect']>[1] = () => {};
+      let finish = () => {};
       const transport: SyncTransport = {
-        async connect() {},
+        async connect(_clientId, onEvent) {
+          push = onEvent;
+          push({ type: 'hello', clientId: 'outbox_group' });
+        },
         async subscribe() {
           return {
             subscriptionId: 'sub_items',
@@ -342,12 +348,17 @@ describe('atomic mutation groups', () => {
         async mutateGroup(request) {
           sent.push(request);
           if (offline) throw new TransientSyncError('offline');
-          return { ok: true, seq: 2 };
+          return new Promise<{ ok: true; seq: number }>((resolve) => {
+            finish = () => {
+              push({ type: 'checkpoint', seq: 2 });
+              resolve({ ok: true, seq: 2 });
+            };
+          });
         },
         async setPresence() {},
         close() {}
       };
-      return { transport, sent };
+      return { transport, sent, finish: () => finish() };
     };
 
     const firstWire = makeTransport(true);
@@ -357,6 +368,7 @@ describe('atomic mutation groups', () => {
       actor: 'user:test',
       clock: fixedClock(1_700_000_000_000, 1),
       randomBytes: seededRandomBytes(1),
+      syncModules: [syncModule],
       localCache: store
     });
     await first.subscribe(itemList, {});
@@ -381,12 +393,15 @@ describe('atomic mutation groups', () => {
       actor: 'user:test',
       clock: fixedClock(1_700_000_001_000, 1),
       randomBytes: seededRandomBytes(2),
+      syncModules: [syncModule],
       localCache: store
     });
     await second.connect();
     expect(secondWire.sent).toHaveLength(1);
     expect(secondWire.sent[0]?.calls).toHaveLength(3);
     expect(secondWire.sent[0]?.mutationId).toBe(persisted?.mutationId);
+    expect(second.rows(items).map((item) => item.label)).toEqual(['A1', 'B1', 'C1']);
+    secondWire.finish();
     await expect.poll(async () => (await store.loadOutbox()).length).toBe(0);
     second.close();
   });
@@ -427,6 +442,7 @@ describe('atomic mutation groups', () => {
       actor: 'user:test',
       clock: fixedClock(1_700_000_002_000, 1),
       randomBytes: seededRandomBytes(3),
+      syncModules: [syncModule],
       localCache: new MemoryCache()
     });
     await client.subscribe(itemList, {});

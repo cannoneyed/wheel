@@ -38,6 +38,7 @@ import { logger } from 'wheel/core';
 import { createWorkerSyncTransport, inBrowserSyncEnabled } from '../in-browser/worker-transport';
 import { withSimulatedLatency } from './simulated-latency';
 import { ROW_SCHEMA_FINGERPRINTS } from '../row-schema.generated';
+import { DEMO_SYNC_MODULES } from '../../sync-modules';
 
 const clients = new Map<string, SyncClient>();
 const DEMO_APPLICATION_VERSION = 1;
@@ -67,6 +68,8 @@ export function demoClient(demo: string): SyncClient {
   // Fresh wire id per page load — never persisted (module doc: WIRE ID).
   const clientId = `web_${crypto.randomUUID().slice(0, 8)}`;
   const fingerprint = rowSchemaFingerprint(demo);
+  const syncModules = DEMO_SYNC_MODULES[demo as keyof typeof DEMO_SYNC_MODULES];
+  if (!syncModules) throw new Error(`Demo ${JSON.stringify(demo)} has no client sync module.`);
   const rowSchemaReload = createRowSchemaReloadGuard(
     sessionStorage,
     `wheel-demos.${demo}.rowSchemaReload`
@@ -119,6 +122,7 @@ export function demoClient(demo: string): SyncClient {
     actor: `user:${clientId}`,
     clock: systemClock,
     randomBytes: systemRandomBytes,
+    syncModules,
     localCache: inBrowser
       ? new MemoryCache()
       : new IndexedDbCache(

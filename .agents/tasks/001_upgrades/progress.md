@@ -25,7 +25,7 @@ on chat history.
 | 2. Build Tracker proof slice | `L` | Complete | Tracker proof and current-client differential gates passed |
 | 2B. Automate snapshot fingerprints | `L` | Complete | Local and Buildkite gates passed |
 | 3. Add Elixir grouping and external writes | `M` | Complete | PostgreSQL grouping and external-write checks passed |
-| 4. Move client state ownership | `L` | Not started | Ownership checks not run |
+| 4. Move client state ownership | `L` | Complete | Materializer ownership and local behavior gates passed |
 | 5. Expand query and source contracts | `L` | Not started | Contract checks not run |
 | 6. Rename APIs and enforce boundary | `M` | Not started | Final local and CI checks not run |
 | 7. Add multi-node invalidation | `L` | Deferred | Scope not active |
@@ -161,15 +161,15 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 
 ### Phase 4
 
-- [ ] Pass pending-command reload tests.
-- [ ] Pass acknowledgement-before-checkpoint reconnect tests.
-- [ ] Pass server sequence reset tests.
-- [ ] Pass unchanged mutation tests.
-- [ ] Pass rejection, rebase, and orphan tests.
-- [ ] Pass multi-collection undo and redo tests.
-- [ ] Pass grouped reload, rebase, rollback, orphan, undo, and redo tests.
-- [ ] Pass state-machine fuzz tests.
-- [ ] Remove duplicate base, effective, and order state from `SyncClient`.
+- [x] Pass pending-command reload tests.
+- [x] Pass acknowledgement-before-checkpoint reconnect tests.
+- [x] Pass server sequence reset tests.
+- [x] Pass unchanged mutation tests.
+- [x] Pass rejection, rebase, and orphan tests.
+- [x] Pass multi-collection undo and redo tests.
+- [x] Pass grouped reload, rebase, rollback, orphan, undo, and redo tests.
+- [x] Pass state-machine fuzz tests.
+- [x] Remove duplicate base, effective, and order state from `SyncClient`.
 
 ### Phase 5
 
@@ -234,10 +234,71 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-30 | 3 | Group by native Elixir terms | Map and struct equality gives exact `{query, params, principal}` groups without a second canonical serializer. |
 | 2026-08-30 | 3 | Reuse `WheelSync.Tx` for external writes | The callback, touched tables, sequence, and log entry share one PostgreSQL transaction. |
 | 2026-08-30 | 3 | Require one touched table | An external callback cannot commit application rows without naming the declared tables that Wheel must rerun. |
+| 2026-08-31 | 4 | Make the materializer the only client row owner | One confirmed store and one replay path remove drift between base, effective, and query-order state. |
+| 2026-08-31 | 4 | Require client sync modules | Reload needs registered mutation handlers and table schemas to validate and replay durable commands. |
+| 2026-08-31 | 4 | Persist each command's optimistic preview | A reload can show pending work before confirmed subscriptions finish loading. |
+| 2026-08-31 | 4 | Release durable commands only after a current-generation checkpoint | An acknowledgement alone can race a disconnect before the server publishes authoritative query state. |
+| 2026-08-31 | 4 | Keep provenance in `SyncClient` | Provenance describes transport and lifecycle causes; the materializer only owns row computation and publication. |
 
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-31: Complete Phase 4
+
+**State:** Complete
+
+**Worktree**
+
+- Branch `wheel-upgrades`, based on commit `5fc324d`, with Phase 4 changes not yet committed.
+- Existing changes to `AGENTS.md`, `wheel-version.md`, and `wheel-upgrades-report.md` remain outside this phase.
+
+**Changes**
+
+- Made `WheelMaterializer` the only owner of confirmed rows, pending replay, query membership,
+  query order, query status, and the published effective view.
+- Routed hydration, snapshots, deltas, subscription release, settlement, rejection, rollback,
+  rebase, orphan handling, undo, and redo through materializer inputs.
+- Added a client declaration registry from shared sync modules.
+- Persisted validated optimistic previews with outbox commands and restored them before confirmed
+  rows load.
+- Replayed restored handlers with their original deterministic IDs after confirmed hydration.
+- Kept acknowledged commands in the outbox until a checkpoint arrives in the same connection
+  generation. Reconnects resend acknowledged but uncheckpointed commands.
+- Added reload, grouped reload, current-generation checkpoint, sequence-reset, and
+  multi-collection undo and redo coverage.
+- Removed Phase 0B's recorded runtime counters, the unused query registry, and the client's copy
+  of materializer write sets after a ponytail simplification pass.
+- Updated applications, examples, architecture docs, live-state docs, and generated API docs for
+  the required client sync-module registry and new ownership model.
+
+**Validation**
+
+- `bun run lint`: passed.
+- `bun run typecheck`: passed.
+- `bun run test`: 155 component files passed with 1,882 tests passed and 26 existing skips; 105
+  node files passed with 815 tests passed and no type errors. No Phase 4 sync test was skipped.
+- `bun run docs:robots:check`: passed after regenerating the API reference.
+- `git diff --check`: passed.
+- The ownership search found no `base`, `effective`, or subscription-order store in
+  `SyncClient`.
+- Browser tests were not required for this phase. The repository guide reserves the full browser
+  suite for Buildkite after a push.
+
+**Decisions**
+
+- Keep transport, persistence, mutation lifecycle, undo history, and provenance in `SyncClient`.
+- Keep row computation and publication inside the materializer.
+- Treat a current-generation checkpoint as the only durable release signal.
+
+**Blockers**
+
+- None.
+
+**Exit gate**
+
+- Passed. `SyncClient` has no duplicate row or query-order state, and all required local behavior
+  gates pass.
 
 ### 2026-08-30: Implement Phase 3
 

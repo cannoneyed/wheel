@@ -75,6 +75,7 @@ describe('server restart (fresh epoch)', () => {
       actor: 'tester',
       clock: fixedClock(1_700_000_000_000, 1),
       randomBytes: seededRandomBytes(31),
+      syncModules: [todosSync],
       localCache: new MemoryCache()
     });
     const handle = await client.subscribe(todosSync.todoList, {});

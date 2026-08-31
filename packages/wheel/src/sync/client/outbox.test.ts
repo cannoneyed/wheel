@@ -131,6 +131,7 @@ function makeClient(world: World, clientId: string, store: MemoryCache, seed: nu
     actor: 'tester',
     clock: fixedClock(1_700_000_000_000, 1),
     randomBytes: seededRandomBytes(seed),
+    syncModules: [syncModule],
     localCache: store
   });
   return { client, transport };
@@ -203,6 +204,64 @@ describe('offline queue', () => {
 });
 
 describe('outbox replay across reloads', () => {
+  test('restores the durable optimistic preview before confirmed rows load', async () => {
+    const store = new MemoryCache();
+    await store.appendOutbox({
+      mutationId: 'm_reload_preview',
+      calls: [
+        {
+          mutation: addTodo.name,
+          args: { listId: 'l_1', text: 'visible during reload' },
+          ids: ['todo_reload_preview']
+        }
+      ],
+      preview: [
+        {
+          table: todos.name,
+          rowId: 'todo_reload_preview',
+          value: {
+            id: 'todo_reload_preview',
+            listId: 'l_1',
+            text: 'visible during reload',
+            done: false,
+            position: 1
+          }
+        }
+      ],
+      enqueuedAt: 1
+    });
+    let listener: (event: Parameters<Parameters<SyncTransport['connect']>[1]>[0]) => void = () => {};
+    const transport: SyncTransport = {
+      async connect(_clientId, onEvent) {
+        listener = onEvent;
+        listener({ type: 'hello', clientId: 'web_preview' });
+      },
+      async subscribe() {
+        return new Promise(() => {});
+      },
+      async unsubscribe() {},
+      async mutateGroup() {
+        return new Promise(() => {});
+      },
+      async setPresence() {},
+      close() {}
+    };
+    const client = new SyncClient({
+      transport,
+      clientId: 'web_preview',
+      actor: 'tester',
+      clock: fixedClock(1_700_000_000_000, 1),
+      randomBytes: seededRandomBytes(10),
+      syncModules: [syncModule],
+      localCache: store
+    });
+
+    await client.connect();
+    expect(client.rows(todos).map((row) => row.text)).toEqual(['visible during reload']);
+    expect((await store.loadOutbox()).map((entry) => entry.mutationId)).toEqual(['m_reload_preview']);
+    client.close();
+  });
+
   test('a new client on the same store replays surviving entries, exactly once', async () => {
     const world = await World.create({ syncModules: [syncModule], servers: [servers], setup: seedTodos });
     const store = new MemoryCache();

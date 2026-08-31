@@ -1,10 +1,9 @@
 // @vitest-environment node
 /**
- * Phase 0B proof for the Wheel-owned state materializer.
+ * Wheel-owned state materializer coverage.
  *
  * The cases focus on semantic command replay, query membership, atomic
- * publication, and whole-group failure. Production SyncClient still owns
- * application reads while this proof remains internal.
+ * publication, whole-group failure, and the production SyncClient boundary.
  */
 import { describe, expect, test } from 'vitest';
 
@@ -159,6 +158,25 @@ const editAndAudit = mutation({
     if (!cache.get(items, args.itemId)) throw orphan(`item ${args.itemId} is gone`);
     cache.update(items, args.itemId, { label: args.label });
     cache.put(audits, { id: ctx.newId('audit'), message: `changed ${args.itemId}` });
+  }
+});
+
+const setAuditMessage = mutation({
+  name: 'audits.setMessage',
+  args: t.object({ auditId: t.string(), message: t.string() }),
+  optimistic: (cache, args) => {
+    if (!cache.get(audits, args.auditId)) throw orphan(`audit ${args.auditId} is gone`);
+    cache.update(audits, args.auditId, { message: args.message });
+  },
+  invert: (reader, args): InverseSpec | null => {
+    const prior = reader.get(audits, args.auditId);
+    return prior
+      ? {
+          mutation: setAuditMessage,
+          args: { auditId: args.auditId, message: prior.message },
+          description: 'set audit message'
+        }
+      : null;
   }
 });
 
@@ -363,6 +381,76 @@ describe('Wheel materializer server batches', () => {
 });
 
 describe('Wheel materializer command replay', () => {
+  test('restores a preview, then semantically replays it over confirmed hydration', () => {
+    const materializer = makeMaterializer();
+    expect(materializer.restoreCommand(
+      {
+        mutationId: 'restored_move',
+        calls: [call(moveItem, { itemId: 'item_1', teamId: 'B' })],
+        requireUndo: false
+      },
+      [{ table: items.name, rowId: 'item_1', value: seedItem('item_1', 'B', 'from-A') }]
+    )).toEqual({ state: 'pending' });
+    expect(materializer.get(items, 'item_1')).toEqual(seedItem('item_1', 'B', 'from-A'));
+
+    materializer.applyServerBatch({
+      queries: [
+        update(itemsByTeam, { teamId: 'C' }, {
+          puts: [seedItem('item_1', 'C', 'peer')],
+          order: ['item_1']
+        })
+      ]
+    });
+
+    expect(materializer.get(items, 'item_1')).toEqual(seedItem('item_1', 'B', 'from-C'));
+    expect(materializer.commandWrites('restored_move')).toEqual([
+      { table: items.name, rowId: 'item_1', value: seedItem('item_1', 'B', 'from-C') }
+    ]);
+  });
+
+  test('keeps a restored group atomic until every collection can replay', () => {
+    const materializer = makeMaterializer();
+    materializer.restoreCommand(
+      {
+        mutationId: 'restored_group',
+        calls: [
+          call(setItemLabel, { itemId: 'item_1', label: 'edited item' }),
+          call(setAuditMessage, { auditId: 'audit_1', message: 'edited audit' })
+        ],
+        requireUndo: false
+      },
+      [
+        { table: items.name, rowId: 'item_1', value: seedItem('item_1', 'A', 'edited item') },
+        { table: audits.name, rowId: 'audit_1', value: { id: 'audit_1', message: 'edited audit' } }
+      ]
+    );
+
+    materializer.applyServerBatch({
+      queries: [
+        update(itemsByTeam, { teamId: 'A' }, {
+          puts: [seedItem('item_1')],
+          order: ['item_1']
+        })
+      ]
+    });
+    expect(materializer.commandUsesPreview('restored_group')).toBe(true);
+    expect(materializer.get(items, 'item_1')?.label).toBe('edited item');
+    expect(materializer.get(audits, 'audit_1')?.message).toBe('edited audit');
+
+    materializer.applyServerBatch({
+      queries: [
+        update(allAudits, {}, {
+          puts: [{ id: 'audit_1', message: 'base audit' }],
+          order: ['audit_1']
+        })
+      ]
+    });
+    expect(materializer.commandUsesPreview('restored_group')).toBe(false);
+    expect(materializer.commandReplayFailure('restored_group')).toBeUndefined();
+    expect(materializer.get(items, 'item_1')?.label).toBe('edited item');
+    expect(materializer.get(audits, 'audit_1')?.message).toBe('edited audit');
+  });
+
   test('keeps two commands in order and reuses the original ID stream', () => {
     const materializer = makeMaterializer();
     materializer.applyServerBatch({ queries: [update(itemsByTeam, { teamId: 'A' })] });
@@ -382,14 +470,6 @@ describe('Wheel materializer command replay', () => {
     expect(materializer.pendingCommandIds()).toEqual(['create_1', 'edit_1']);
     expect(materializer.get(items, 'item_fixed')).toEqual(seedItem('item_fixed', 'A', 'edited second'));
     expect(labels(materializer.queryRows(itemsByTeam, { teamId: 'A' }))).toEqual(['edited second']);
-    expect(materializer.metrics()).toMatchObject({
-      preflights: 2,
-      rebuilds: 4,
-      tableClones: 13,
-      commandReplays: 5,
-      memberReplays: 5,
-      publications: 4
-    });
   });
 
   test('publishes a multi-collection command without an intermediate view', () => {
@@ -569,6 +649,63 @@ describe('Wheel materializer query scopes', () => {
 });
 
 describe('current client differential', () => {
+  test('undoes and redoes one command across two collections', async () => {
+    const transport: SyncTransport = {
+      async connect() {},
+      async subscribe(_clientId, queryName) {
+        if (queryName === allAudits.name) {
+          return {
+            subscriptionId: 'sub_audits',
+            query: allAudits.name,
+            seq: 1,
+            rows: [{ id: 'audit_1', message: 'base audit' }],
+            status: { kind: 'live' }
+          };
+        }
+        return {
+          subscriptionId: 'sub_items',
+          query: itemsByTeam.name,
+          seq: 1,
+          rows: [seedItem('item_1')],
+          status: { kind: 'live' }
+        };
+      },
+      async unsubscribe() {},
+      async mutateGroup() {
+        return new Promise(() => {});
+      },
+      async setPresence() {},
+      close() {}
+    };
+    const client = new SyncClient({
+      transport,
+      clientId: 'multi_collection_undo',
+      actor: 'user:test',
+      clock: fixedClock(1_700_000_000_000, 1),
+      randomBytes: seededRandomBytes(16),
+      syncModules: [{ items, audits, itemsByTeam, allAudits, setItemLabel, setAuditMessage }],
+      localCache: new MemoryCache()
+    });
+    await client.subscribe(itemsByTeam, { teamId: 'A' });
+    await client.subscribe(allAudits, {});
+
+    client.mutateGroup([
+      { mutation: setItemLabel, args: { itemId: 'item_1', label: 'edited item' } },
+      { mutation: setAuditMessage, args: { auditId: 'audit_1', message: 'edited audit' } }
+    ]);
+    expect(client.get(items, 'item_1')?.label).toBe('edited item');
+    expect(client.get(audits, 'audit_1')?.message).toBe('edited audit');
+
+    expect(client.undo()).not.toBeNull();
+    expect(client.get(items, 'item_1')?.label).toBe('base');
+    expect(client.get(audits, 'audit_1')?.message).toBe('base audit');
+
+    expect(client.redo()).not.toBeNull();
+    expect(client.get(items, 'item_1')?.label).toBe('edited item');
+    expect(client.get(audits, 'audit_1')?.message).toBe('edited audit');
+    client.close();
+  });
+
   test('matches rows through optimistic replay, a peer update, and rejection rollback', async () => {
     let onEvent: (event: ServerEvent) => void = () => {};
     let resolveMutation: (result: MutateResult) => void = () => {};
@@ -607,6 +744,7 @@ describe('current client differential', () => {
       actor: 'user:test',
       clock: fixedClock(1_700_000_000_000, 1),
       randomBytes: seededRandomBytes(17),
+      syncModules: [],
       localCache: new MemoryCache()
     });
     const handle = await client.subscribe(itemsByTeam, { teamId: 'A' });
@@ -667,7 +805,6 @@ describe('current client differential', () => {
     expect(client.get(items, 'item_1')?.label).toBe('remote');
     expect(clientPublications).toBe(3);
     expect(materializerPublications).toBe(3);
-    expect(materializer.metrics().publications).toBe(4);
 
     handle.release();
     client.close();

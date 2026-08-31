@@ -7,15 +7,14 @@
  * - Without a durable outbox, a reload or crash with unconfirmed mutations in
  *   flight silently loses that work.
  *
- * Design: persistence sits UNDER the existing base + pending[] → rebase()
- * overlay model, which is kept unchanged. The store is written asynchronously
- * after applies (debounced for base tables, immediately for outbox entries).
+ * Design: persistence sits under the materializer. Confirmed query snapshots
+ * are debounced, while outbox commands and their optimistic previews commit
+ * before a wire send.
  * The optimistic preview appears first, but no wire send starts until the
  * outbox commits; storage failure removes the preview and settles the mutation
- * failed, so undurable state never masquerades as saved. On boot the client hydrates base tables from
- * the store instantly (status 'stale'), replays the outbox through the normal
- * mutate path (deterministic: the pre-generated id stream and mutationId are
- * persisted with each entry), then re-bootstraps in the background and swaps.
+ * failed, so undurable state never masquerades as saved. On boot the client
+ * restores previews, hydrates confirmed rows as stale, then replays registered
+ * handlers with their persisted IDs as confirmed state arrives.
  *
  * Everything is keyed by (storeName, clientId) so multiple apps/tabs coexist.
  */
@@ -40,6 +39,12 @@ export interface PersistedOutboxEntry {
     readonly args: Record<string, unknown>;
     /** This member's pre-generated id stream. */
     readonly ids: readonly string[];
+  }[];
+  /** Last published optimistic output. `null` is a delete. */
+  readonly preview: readonly {
+    readonly table: string;
+    readonly rowId: string;
+    readonly value: Row | null;
   }[];
   readonly enqueuedAt: number;
 }
@@ -86,7 +91,7 @@ export class MemoryCache implements LocalCache {
   }
 }
 
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const SUBS = 'subscriptions';
 const OUTBOX = 'outbox';
 
@@ -150,10 +155,9 @@ export class IndexedDbCache implements LocalCache {
           if (!db.objectStoreNames.contains(SUBS)) {
             db.createObjectStore(SUBS, { keyPath: 'storageKey' });
           }
-          // Version 2 replaces the obsolete single-mutation outbox shape.
-          // The protocol has no safe member-wise fallback, so stale version-1
-          // entries cannot be replayed under the atomic command contract.
-          if (event.oldVersion > 0 && event.oldVersion < 2 && db.objectStoreNames.contains(OUTBOX)) {
+          // Version 3 adds the optimistic preview required to restore pending
+          // work before confirmed rows hydrate. Older rows cannot provide it.
+          if (event.oldVersion > 0 && event.oldVersion < 3 && db.objectStoreNames.contains(OUTBOX)) {
             db.deleteObjectStore(OUTBOX);
           }
           if (!db.objectStoreNames.contains(OUTBOX)) {

@@ -1,6 +1,5 @@
 /**
- * Client row storage. `base` is server truth; the optimistic overlay is
- * replayed on top to produce the effective view.
+ * Row storage primitives used inside the Wheel materializer.
  * Rows are frozen plain objects; ALL writes go through the patch vocabulary
  * (put/update/delete), so the representation is swappable behind this file.
  */

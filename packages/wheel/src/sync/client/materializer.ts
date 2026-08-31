@@ -1,11 +1,9 @@
 /**
- * Internal proof for Wheel-owned client state materialization.
+ * Wheel-owned client state materialization.
  *
  * The materializer keeps confirmed query state separate from pending commands.
  * Each rebuild replays complete commands on private table forks, derives query
- * results, and publishes one final view. Phases 0B and 2 exercise it with
- * generic and Tracker data. It is not exported and does not serve production
- * reads during the proof phase.
+ * results, and publishes one final view.
  */
 import { canonicalParams } from '../../core/params';
 import {
@@ -18,6 +16,7 @@ import {
   type TableDecl
 } from '../declarations';
 import { jsonParseIsIdentity, validateJsonValue, validateRow } from '../schema';
+import type { SyncQueryStatus } from '../protocol';
 import { cloneTables, freezeRow, OverlayCache, tableMap, type RecordedWrite, type Row, type Tables } from './cache';
 
 type AnyMutationDecl = MutationDecl<any>;
@@ -26,9 +25,7 @@ type AnyQueryDecl = QueryDecl<any, any>;
 /** Lifecycle state stored beside one materialized query scope. */
 export type MaterializerQueryStatus =
   | { readonly kind: 'loading' }
-  | { readonly kind: 'live' }
-  | { readonly kind: 'stale'; readonly error?: unknown }
-  | { readonly kind: 'error'; readonly error: unknown };
+  | SyncQueryStatus;
 
 /** One existing mutation declaration and the data needed to replay it. */
 export interface MaterializerCall<Args extends Record<string, unknown> = Record<string, unknown>> {
@@ -44,6 +41,8 @@ export interface MaterializerCommand {
   readonly calls: readonly MaterializerCall<any>[];
   /** `mutateGroup` sets this; plain `mutate` permits a non-invertible single call. */
   readonly requireUndo: boolean;
+  /** Present only for a command's first optimistic run. Replay uses the stored ID stream. */
+  readonly newId?: (prefix: string) => string;
 }
 
 /** Complete server result state for one query scope inside a confirmed batch. */
@@ -63,7 +62,7 @@ export interface MaterializerServerBatch {
   readonly settledCommandIds?: readonly string[];
 }
 
-/** Terminal or pending result returned by the proof command boundary. */
+/** Terminal or pending result returned by the materializer command boundary. */
 export interface MaterializerCommandResult {
   readonly state: 'pending' | 'confirmed' | 'rejected' | 'failed' | 'orphaned';
   readonly message?: string;
@@ -73,16 +72,6 @@ export interface MaterializerCommandResult {
 export interface MaterializerPublication {
   readonly revision: number;
   readonly changedTables: ReadonlySet<string>;
-}
-
-/** Counters used to compare rebuild cost and publication count during Phase 0B. */
-export interface MaterializerMetrics {
-  readonly preflights: number;
-  readonly rebuilds: number;
-  readonly tableClones: number;
-  readonly commandReplays: number;
-  readonly memberReplays: number;
-  readonly publications: number;
 }
 
 interface PreparedCall {
@@ -97,6 +86,8 @@ interface PendingCommand {
   readonly inverses: readonly InverseSpec[];
   readonly requireUndo: boolean;
   readonly writes: readonly RecordedWrite[];
+  /** Durable optimistic output shown until the first confirmed input can trigger semantic replay. */
+  readonly preview?: readonly RecordedWrite[];
 }
 
 interface QueryScope {
@@ -119,15 +110,6 @@ interface BuildResult {
   readonly view: PublishedView;
   readonly pending: readonly PendingCommand[];
   readonly outcomes: readonly [string, MaterializerCommandResult][];
-}
-
-interface MutableMetrics {
-  preflights: number;
-  rebuilds: number;
-  tableClones: number;
-  commandReplays: number;
-  memberReplays: number;
-  publications: number;
 }
 
 /** Canonical identity for one declared query and parameter object. */
@@ -166,22 +148,12 @@ function mapEqual(left: ReadonlyMap<string, Row> | undefined, right: ReadonlyMap
 }
 
 /**
- * Standalone Wheel materializer used by the pre-migration proof phases.
- *
  * Every mutating method stages confirmed and optimistic work first. The class
  * swaps its readable view and calls listeners only after the stage succeeds.
  */
 export class WheelMaterializer {
   readonly #listeners = new Set<(publication: MaterializerPublication) => void>();
   readonly #outcomes = new Map<string, MaterializerCommandResult>();
-  readonly #metrics: MutableMetrics = {
-    preflights: 0,
-    rebuilds: 0,
-    tableClones: 0,
-    commandReplays: 0,
-    memberReplays: 0,
-    publications: 0
-  };
   #confirmed: Tables = new Map();
   #scopes = new Map<string, QueryScope>();
   #pending: readonly PendingCommand[] = [];
@@ -197,6 +169,8 @@ export class WheelMaterializer {
     private readonly options: {
       readonly actor: string;
       readonly now: () => number;
+      /** Production keeps replay failures until the server verdict identifies their cause. */
+      readonly retainReplayFailures?: boolean;
     }
   ) {}
 
@@ -221,6 +195,13 @@ export class WheelMaterializer {
     return [...tableMap(this.#view.tables, table.name).values()] as RowT[];
   }
 
+  /** Every effective table for diagnostics. */
+  tablesDebug(): Array<{ table: string; rows: readonly Row[] }> {
+    return [...this.#view.tables.entries()]
+      .map(([table, rows]) => ({ table, rows: [...rows.values()] as readonly Row[] }))
+      .sort((left, right) => left.table.localeCompare(right.table));
+  }
+
   /** Read the current effective rows for one declared query scope. */
   queryRows<Params extends Record<string, unknown>, RowT extends Row>(
     query: QueryDecl<Params, RowT>,
@@ -237,6 +218,24 @@ export class WheelMaterializer {
     return this.#view.queryStatuses.get(materializerQueryKey(query, params));
   }
 
+  /** Confirmed server order for one query scope. */
+  queryOrder(query: AnyQueryDecl, params: Record<string, unknown>): readonly string[] {
+    return this.#scopes.get(materializerQueryKey(query, params))?.order ?? [];
+  }
+
+  /** Confirmed rows for persistence. Optimistic writes are deliberately excluded. */
+  confirmedQueryRows(query: AnyQueryDecl, params: Record<string, unknown>): readonly Row[] {
+    const scope = this.#scopes.get(materializerQueryKey(query, params));
+    if (!scope) return [];
+    const rows = tableMap(this.#confirmed, query.into.name);
+    return scope.order.map((id) => rows.get(id)).filter((row): row is Row => row !== undefined);
+  }
+
+  /** Read one confirmed row for rollback provenance. */
+  confirmedGet(tableName: string, id: string): Row | undefined {
+    return tableMap(this.#confirmed, tableName).get(id);
+  }
+
   /** Current state for a command removed during replay or explicitly settled. */
   commandState(mutationId: string): MaterializerCommandResult | undefined {
     if (this.#pending.some((command) => command.mutationId === mutationId)) return { state: 'pending' };
@@ -248,14 +247,30 @@ export class WheelMaterializer {
     return this.#pending.find((command) => command.mutationId === mutationId)?.inverses ?? [];
   }
 
+  /** Validated calls and deterministic IDs stored for one pending command. */
+  commandCalls(mutationId: string): readonly MaterializerCall<any>[] {
+    return this.#pending.find((command) => command.mutationId === mutationId)?.calls ?? [];
+  }
+
+  /** Current complete write set for one pending command. */
+  commandWrites(mutationId: string): readonly RecordedWrite[] {
+    return this.#pending.find((command) => command.mutationId === mutationId)?.writes ?? [];
+  }
+
+  /** Whether a restored command still waits for enough confirmed state to replay. */
+  commandUsesPreview(mutationId: string): boolean {
+    return this.#pending.find((command) => command.mutationId === mutationId)?.preview !== undefined;
+  }
+
+  /** Replay failure retained until SyncClient can compare it with the server verdict. */
+  commandReplayFailure(mutationId: string): MaterializerCommandResult | undefined {
+    const result = this.#outcomes.get(mutationId);
+    return result?.state === 'failed' || result?.state === 'orphaned' ? result : undefined;
+  }
+
   /** Pending command IDs in semantic replay order. */
   pendingCommandIds(): readonly string[] {
     return this.#pending.map((command) => command.mutationId);
-  }
-
-  /** Phase 0B allocation, replay, and publication counters. */
-  metrics(): MaterializerMetrics {
-    return { ...this.#metrics };
   }
 
   /**
@@ -263,7 +278,7 @@ export class WheelMaterializer {
    * Query updates contain complete final order but may contain delta-only puts.
    */
   applyServerBatch(batch: MaterializerServerBatch): void {
-    const nextConfirmed = this.#cloneTables(this.#confirmed);
+    const nextConfirmed = cloneTables(this.#confirmed);
     const nextScopes = new Map(this.#scopes);
     const pruneCandidates = new Map<string, Set<string>>();
     const seenScopes = new Set<string>();
@@ -296,11 +311,16 @@ export class WheelMaterializer {
 
       const table = update.query.into;
       const tableRows = tableMap(nextConfirmed, table.name);
+      const putKeys = new Set<string>();
       for (const [index, raw] of (update.puts ?? []).entries()) {
         const row = freezeRow({
           ...validateRow(`materializer query ${update.query.name}`, table.schema, raw)
         });
         const id = validateTableKey(table, row, `Materializer query "${update.query.name}" put ${index}`);
+        if (putKeys.has(id)) {
+          throw new Error(`Materializer query "${update.query.name}" has duplicate put key "${id}".`);
+        }
+        putKeys.add(id);
         tableRows.set(id, row);
       }
 
@@ -342,7 +362,7 @@ export class WheelMaterializer {
     this.#scopes = nextScopes;
     this.#pending = built.pending;
     for (const mutationId of settled) this.#outcomes.set(mutationId, { state: 'confirmed' });
-    for (const [mutationId, result] of built.outcomes) this.#outcomes.set(mutationId, result);
+    this.#recordBuildOutcomes(built);
     this.#publish(built.view);
   }
 
@@ -363,36 +383,16 @@ export class WheelMaterializer {
       return result;
     }
 
-    const prepared: PreparedCall[] = [];
-    for (const call of command.calls) {
-      const parsed = call.mutation.args.safeParse(call.args);
-      if (!parsed.success || !jsonParseIsIdentity(call.args, parsed.data)) {
-        const result = {
-          state: 'failed',
-          message: `Args for mutation "${call.mutation.name}" are invalid.`
-        } as const;
-        this.#outcomes.set(command.mutationId, result);
-        return result;
-      }
-      try {
-        validateJsonValue(`Args for mutation "${call.mutation.name}"`, parsed.data);
-      } catch (error) {
-        const result = { state: 'failed', message: String((error as Error)?.message ?? error) } as const;
-        this.#outcomes.set(command.mutationId, result);
-        return result;
-      }
-      prepared.push({
-        mutation: call.mutation as AnyMutationDecl,
-        args: parsed.data,
-        ids: Object.freeze([...call.ids])
-      });
+    const prepared = this.#prepareCalls(command.calls);
+    if (!Array.isArray(prepared)) {
+      this.#outcomes.set(command.mutationId, prepared);
+      return prepared;
     }
 
-    this.#metrics.preflights += 1;
-    const preflight = this.#cloneTables(this.#view.tables);
+    const preflight = cloneTables(this.#view.tables);
     const inverses: InverseSpec[] = [];
     try {
-      for (const call of prepared) {
+      for (const [index, call] of prepared.entries()) {
         const inverse = call.mutation.invert?.(tableReader(preflight), call.args) ?? null;
         if (command.requireUndo && inverse === null) {
           const result = {
@@ -403,7 +403,8 @@ export class WheelMaterializer {
           return result;
         }
         if (inverse) inverses.unshift(inverse);
-        this.#applyCall(preflight, call, false);
+        const applied = this.#applyCall(preflight, call, command.newId);
+        prepared[index] = { ...call, ids: applied.ids };
       }
     } catch (error) {
       const result = error instanceof OrphanedError
@@ -421,10 +422,49 @@ export class WheelMaterializer {
       writes: Object.freeze([])
     };
     const built = this.#build(this.#confirmed, this.#scopes, [...this.#pending, pending]);
+    const ownFailure = built.outcomes.find(([mutationId]) => mutationId === command.mutationId)?.[1];
+    if (ownFailure) {
+      const withoutFailed = this.#build(
+        this.#confirmed,
+        this.#scopes,
+        built.pending.filter((candidate) => candidate.mutationId !== command.mutationId)
+      );
+      this.#pending = withoutFailed.pending;
+      this.#recordBuildOutcomes(withoutFailed);
+      this.#outcomes.set(command.mutationId, ownFailure);
+      this.#publish(withoutFailed.view);
+      return ownFailure;
+    }
     this.#pending = built.pending;
-    for (const [mutationId, result] of built.outcomes) this.#outcomes.set(mutationId, result);
+    this.#recordBuildOutcomes(built);
     this.#publish(built.view);
     return this.commandState(command.mutationId) ?? { state: 'failed', message: 'Command disappeared during replay.' };
+  }
+
+  /** Restore a durable command preview before confirmed rows finish hydrating. */
+  restoreCommand(command: MaterializerCommand, preview: readonly RecordedWrite[]): MaterializerCommandResult {
+    if (command.calls.length === 0) return { state: 'confirmed' };
+    if (command.calls.length > 128) {
+      return { state: 'failed', message: 'A mutation group may contain at most 128 members.' };
+    }
+    if (this.#pending.some((pending) => pending.mutationId === command.mutationId) || this.#outcomes.has(command.mutationId)) {
+      return { state: 'failed', message: `Duplicate materializer command "${command.mutationId}".` };
+    }
+    const prepared = this.#prepareCalls(command.calls);
+    if (!Array.isArray(prepared)) return prepared;
+    const restored: PendingCommand = {
+      mutationId: command.mutationId,
+      calls: Object.freeze(prepared),
+      inverses: Object.freeze([]),
+      requireUndo: command.requireUndo,
+      preview: Object.freeze([...preview]),
+      writes: Object.freeze([...preview])
+    };
+    const built = this.#build(this.#confirmed, this.#scopes, [...this.#pending, restored], false);
+    this.#pending = built.pending;
+    this.#recordBuildOutcomes(built);
+    this.#publish(built.view);
+    return this.commandState(command.mutationId) ?? { state: 'failed', message: 'Command disappeared during restore.' };
   }
 
   /** Remove a rejected, failed, or orphaned command and publish the surviving replay. */
@@ -437,7 +477,7 @@ export class WheelMaterializer {
     );
     this.#pending = built.pending;
     this.#outcomes.set(mutationId, { state });
-    for (const [failedId, result] of built.outcomes) this.#outcomes.set(failedId, result);
+    this.#recordBuildOutcomes(built);
     this.#publish(built.view);
     return true;
   }
@@ -447,7 +487,7 @@ export class WheelMaterializer {
     const key = materializerQueryKey(query, params);
     const released = this.#scopes.get(key);
     if (!released) return false;
-    const nextConfirmed = this.#cloneTables(this.#confirmed);
+    const nextConfirmed = cloneTables(this.#confirmed);
     const nextScopes = new Map(this.#scopes);
     nextScopes.delete(key);
     this.#pruneUnclaimed(
@@ -459,24 +499,54 @@ export class WheelMaterializer {
     this.#confirmed = nextConfirmed;
     this.#scopes = nextScopes;
     this.#pending = built.pending;
-    for (const [mutationId, result] of built.outcomes) this.#outcomes.set(mutationId, result);
+    this.#recordBuildOutcomes(built);
     this.#publish(built.view);
     return true;
   }
 
-  #cloneTables(tables: Tables): Tables {
-    this.#metrics.tableClones += 1;
-    return cloneTables(tables);
+  #prepareCalls(calls: readonly MaterializerCall<any>[]): PreparedCall[] | MaterializerCommandResult {
+    const prepared: PreparedCall[] = [];
+    for (const call of calls) {
+      const parsed = call.mutation.args.safeParse(call.args);
+      if (!parsed.success || !jsonParseIsIdentity(call.args, parsed.data)) {
+        return { state: 'failed', message: `Args for mutation "${call.mutation.name}" are invalid.` };
+      }
+      try {
+        validateJsonValue(`Args for mutation "${call.mutation.name}"`, parsed.data);
+      } catch (error) {
+        return { state: 'failed', message: String((error as Error)?.message ?? error) };
+      }
+      prepared.push({
+        mutation: call.mutation as AnyMutationDecl,
+        args: parsed.data,
+        ids: Object.freeze([...call.ids])
+      });
+    }
+    return prepared;
   }
 
-  #applyCall(tables: Tables, call: PreparedCall, replay: boolean): readonly RecordedWrite[] {
-    if (replay) this.#metrics.memberReplays += 1;
+  #recordBuildOutcomes(built: BuildResult): void {
+    for (const command of built.pending) this.#outcomes.delete(command.mutationId);
+    for (const [mutationId, result] of built.outcomes) this.#outcomes.set(mutationId, result);
+  }
+
+  #applyCall(
+    tables: Tables,
+    call: PreparedCall,
+    generateId?: (prefix: string) => string
+  ): { readonly writes: readonly RecordedWrite[]; readonly ids: readonly string[] } {
     const overlay = new OverlayCache(tables);
     let nextId = 0;
+    const generatedIds: string[] = [];
     call.mutation.optimistic?.(overlay, call.args, {
       actor: this.options.actor,
       now: this.options.now,
       newId: (prefix: string) => {
+        if (generateId) {
+          const id = generateId(prefix);
+          generatedIds.push(id);
+          return id;
+        }
         const id = call.ids[nextId];
         nextId += 1;
         if (id === undefined) {
@@ -488,36 +558,73 @@ export class WheelMaterializer {
         return id;
       }
     });
-    if (nextId !== call.ids.length) {
+    if (!generateId && nextId !== call.ids.length) {
       throw new Error(`Mutation "${call.mutation.name}" left deterministic IDs unused.`);
     }
-    return overlay.writes;
+    return {
+      writes: overlay.writes,
+      ids: generateId ? Object.freeze(generatedIds) : call.ids
+    };
   }
 
   #build(
     confirmed: Tables,
     scopes: ReadonlyMap<string, QueryScope>,
-    pending: readonly PendingCommand[]
+    pending: readonly PendingCommand[],
+    activatePreviews = true
   ): BuildResult {
-    this.#metrics.rebuilds += 1;
-    let working = this.#cloneTables(confirmed);
+    let working = cloneTables(confirmed);
     const surviving: PendingCommand[] = [];
     const outcomes: Array<[string, MaterializerCommandResult]> = [];
     const touched = new Map<string, Set<string>>();
 
     for (const command of pending) {
-      this.#metrics.commandReplays += 1;
-      const commandFork = this.#cloneTables(working);
+      const commandFork = cloneTables(working);
       const writes: RecordedWrite[] = [];
+      if (command.preview && !activatePreviews) {
+        for (const write of command.preview) {
+          const rows = tableMap(commandFork, write.table);
+          if (write.value === undefined) rows.delete(write.rowId);
+          else rows.set(write.rowId, freezeRow({ ...write.value }));
+          writes.push(write);
+        }
+        working = commandFork;
+        for (const write of writes) {
+          const ids = touched.get(write.table) ?? new Set<string>();
+          ids.add(write.rowId);
+          touched.set(write.table, ids);
+        }
+        surviving.push({ ...command, writes: Object.freeze(writes) });
+        continue;
+      }
       try {
-        for (const call of command.calls) writes.push(...this.#applyCall(commandFork, call, true));
+        for (const call of command.calls) writes.push(...this.#applyCall(commandFork, call).writes);
       } catch (error) {
-        outcomes.push([
-          command.mutationId,
+        const outcome: MaterializerCommandResult =
           error instanceof OrphanedError
             ? { state: 'orphaned', message: error.message }
-            : { state: 'failed', message: String((error as Error)?.message ?? error) }
+            : { state: 'failed', message: String((error as Error)?.message ?? error) };
+        outcomes.push([
+          command.mutationId,
+          outcome
         ]);
+        if (command.preview) {
+          const previewFork = cloneTables(working);
+          for (const write of command.preview) {
+            const rows = tableMap(previewFork, write.table);
+            if (write.value === undefined) rows.delete(write.rowId);
+            else rows.set(write.rowId, freezeRow({ ...write.value }));
+            const ids = touched.get(write.table) ?? new Set<string>();
+            ids.add(write.rowId);
+            touched.set(write.table, ids);
+          }
+          working = previewFork;
+          surviving.push(command);
+          continue;
+        }
+        if (this.options.retainReplayFailures) {
+          surviving.push(command);
+        }
         continue;
       }
       working = commandFork;
@@ -526,7 +633,7 @@ export class WheelMaterializer {
         ids.add(write.rowId);
         touched.set(write.table, ids);
       }
-      surviving.push({ ...command, writes: Object.freeze(writes) });
+      surviving.push({ ...command, preview: undefined, writes: Object.freeze(writes) });
     }
 
     const queryRows = new Map<string, readonly Row[]>();
@@ -611,7 +718,6 @@ export class WheelMaterializer {
   #publish(next: PublishedView): void {
     const changedTables = this.#changedTables(next);
     this.#view = next;
-    this.#metrics.publications += 1;
     const publication: MaterializerPublication = {
       revision: next.revision,
       changedTables

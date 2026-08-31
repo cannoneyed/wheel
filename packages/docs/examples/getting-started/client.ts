@@ -9,6 +9,7 @@ import {
 } from 'wheel/sync';
 import { logger } from 'wheel/core';
 import { ROW_SCHEMA_FINGERPRINT } from './row-schema.generated';
+import * as todosSync from './todos.sync';
 
 function stable(
   storage: Storage,
@@ -76,6 +77,7 @@ client = new SyncClient({
   actor: `user:${wireId}`,
   clock: systemClock,
   randomBytes: systemRandomBytes,
+  syncModules: [todosSync],
   // Two scopes on purpose: snapshots carry the generated row fingerprint,
   // while the outbox keeps only the stable store identity. A declaration
   // change retires old rows without abandoning pending mutations.

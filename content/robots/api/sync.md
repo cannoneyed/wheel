@@ -12,7 +12,7 @@ Read-only view of the effective client state — what invert() captures old valu
 
 ## `CacheScopes`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:106](../../../packages/wheel/src/sync/client/local-cache.ts#L106).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:111](../../../packages/wheel/src/sync/client/local-cache.ts#L111).
 
 The two persistence scopes, split on purpose. Snapshots are row-shaped, so their scope carries the app's row-schema fingerprint: a schema change retires them and the client re-bootstraps — that is the designed invalidation. The outbox holds mutations (name + args, replayed and deduped by the server), which no schema fingerprint invalidates: scoping them by the fingerprint silently abandoned every pending write that straddled a schema change (found 2026-08-10). `retires` names the snapshot scopes this app owns and no longer serves; the cache deletes their rows at open, because a scope nothing will ever read again otherwise grows the store — and the boot-time getAll over it — forever. It must answer false for every scope a DIFFERENT app in the same store still serves.
 
@@ -30,7 +30,7 @@ Injected wall clock — real time in production, a fixed/stepping clock in tests
 
 ## `createCacheScopes`
 
-Kind: function. Source: [packages/wheel/src/sync/client/local-cache.ts:116](../../../packages/wheel/src/sync/client/local-cache.ts#L116).
+Kind: function. Source: [packages/wheel/src/sync/client/local-cache.ts:121](../../../packages/wheel/src/sync/client/local-cache.ts#L121).
 
 Build the standard split scopes for cached rows and durable pending commands.
 
@@ -66,7 +66,7 @@ A one-shot deferred call, cancelable — the injectable face of setTimeout.
 
 ## `ExplainResult`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:183](../../../packages/wheel/src/sync/client/client.ts#L183).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:180](../../../packages/wheel/src/sync/client/client.ts#L180).
 
 What explain() answers: the current value plus the full provenance chain of causes.
 
@@ -84,7 +84,7 @@ Injected id source (prefixed UUIDv7s) - deterministic in World, real randomness 
 
 ## `IndexedDbCache`
 
-Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:136](../../../packages/wheel/src/sync/client/local-cache.ts#L136).
+Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:141](../../../packages/wheel/src/sync/client/local-cache.ts#L141).
 
 IndexedDB-backed store for browsers. One database per storeName.
 
@@ -138,13 +138,13 @@ Live rows + status for one (query, params) subscription.
 
 ## `LocalCache`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:52](../../../packages/wheel/src/sync/client/local-cache.ts#L52).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:57](../../../packages/wheel/src/sync/client/local-cache.ts#L57).
 
 Storage contract. Implementations: IndexedDbCache (browser), MemoryCache (tests/SSR). All methods are async and must never throw for missing keys — absence is `undefined`/`[]`.
 
 ## `MemoryCache`
 
-Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:63](../../../packages/wheel/src/sync/client/local-cache.ts#L63).
+Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:68](../../../packages/wheel/src/sync/client/local-cache.ts#L68).
 
 In-memory cache: tests, SSR, and environments without IndexedDB.
 
@@ -198,13 +198,13 @@ The server RAN (or definitively refused) this mutation and it broke — a bug, n
 
 ## `MutationHandle`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:121](../../../packages/wheel/src/sync/client/client.ts#L121).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:122](../../../packages/wheel/src/sync/client/client.ts#L122).
 
 What mutate() returns: the mutation id plus a promise for its settled outcome.
 
 ## `MutationInfo`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:111](../../../packages/wheel/src/sync/client/client.ts#L111).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:112](../../../packages/wheel/src/sync/client/client.ts#L112).
 
 The audit record of one mutation attempt, including its rejection/error if any.
 
@@ -216,7 +216,7 @@ Typed rejection — a value that crosses the wire, not an exception class.
 
 ## `MutationState`
 
-Kind: type. Source: [packages/wheel/src/sync/client/client.ts:108](../../../packages/wheel/src/sync/client/client.ts#L108).
+Kind: type. Source: [packages/wheel/src/sync/client/client.ts:109](../../../packages/wheel/src/sync/client/client.ts#L109).
 
 The lifecycle of a mutation: pending -> confirmed | rejected | failed | orphaned (never limbo). `queued` = the TRANSPORT failed (couldn't reach the server); the entry keeps its optimistic state and retries when the connection returns — offline work is DEFERRED, never lost. `failed` = the mutation is BROKEN — invalid args (caught locally OR server-side), a handler that threw, or an id-stream mismatch — terminal, rolled back, never retried: retrying a poison mutation would break identically forever and block every mutation queued behind it. `pending` and `queued` are IN-FLIGHT; `settled` resolves to one of the FOUR terminal outcomes (the one error channel, see `mutate()`): | outcome (state) | when | rolled back? | retried? | |-----------------|-------------------------------------------------------|----------------------|----------| | confirmed | the server committed the write (`{ok:true}`) | no — it is now truth | — | | rejected | a business rule said no (`rejection()` in the handler)| yes, cleanly | never | | failed | the mutation is BROKEN — invalid args, a handler that | yes | never | | | threw, an id-stream mismatch. Terminal: a bug. | | | | orphaned | the row it edits vanished before replay (a peer | yes, cleanly | never | | | deleted it) — legitimate, not a bug. | | |
 
@@ -246,25 +246,25 @@ The guard → patch → capture-prior → self-inverse skeleton that patch-by-id
 
 ## `PeerPresenceFailure`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:195](../../../packages/wheel/src/sync/client/client.ts#L195).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:192](../../../packages/wheel/src/sync/client/client.ts#L192).
 
 One peer whose presence payload the reader's declaration REJECTED — surfaced, never silently dropped. A peer running an older schema shows up here so the caller (and the debug panel) can see "this peer's presence didn't validate" instead of an unexplained absence.
 
 ## `PeersResult`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:211](../../../packages/wheel/src/sync/client/client.ts#L211).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:208](../../../packages/wheel/src/sync/client/client.ts#L208).
 
 What `peers(decl)` answers: `valid` peers keyed by clientId, plus the `failures` whose payload the declaration rejected. Splitting them means a bad peer is a THING THE CALLER CAN SEE — the whole point of 4.4 — rather than a vanished entry.
 
 ## `PersistedOutboxEntry`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:36](../../../packages/wheel/src/sync/client/local-cache.ts#L36).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:35](../../../packages/wheel/src/sync/client/local-cache.ts#L35).
 
 A persisted pending mutation, replayable byte-for-byte.
 
 ## `PersistedSubscription`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:27](../../../packages/wheel/src/sync/client/local-cache.ts#L27).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:26](../../../packages/wheel/src/sync/client/local-cache.ts#L26).
 
 A persisted snapshot of one subscription's server truth.
 
@@ -312,7 +312,7 @@ A declared live query: named + typed params, target table, and optional client p
 
 ## `QueryHandle`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:170](../../../packages/wheel/src/sync/client/client.ts#L170).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:167](../../../packages/wheel/src/sync/client/client.ts#L167).
 
 A live subscription handle: current rows (server order + optimistic projection) and release().
 
@@ -426,15 +426,15 @@ The JSON WebSocket protocol. Increment only when one deployment cannot read the 
 
 ## `SyncClient`
 
-Kind: class. Source: [packages/wheel/src/sync/client/client.ts:243](../../../packages/wheel/src/sync/client/client.ts#L243).
+Kind: class. Source: [packages/wheel/src/sync/client/client.ts:242](../../../packages/wheel/src/sync/client/client.ts#L242).
 
-The client engine: server-truth cache + optimistic overlay, subscriptions deduped by canonical key, provenance on every write (see module doc).
+The client engine: transport and command lifecycle around one Wheel materializer.
 
 ## `SyncClientOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:219](../../../packages/wheel/src/sync/client/client.ts#L219).
+Kind: interface. Source: [packages/wheel/src/sync/client/client.ts:216](../../../packages/wheel/src/sync/client/client.ts#L216).
 
-Everything a SyncClient needs injected: transport, identity, clock, randomness.
+Transport, declarations, identity, time, randomness, and storage for one client.
 
 ## `SyncClientSocket`
 

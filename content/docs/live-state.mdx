@@ -158,7 +158,8 @@ The client is always local-first — the `localCache` is required, not an opt-in
 
 - **Offline mutations queue — never roll back.** A mutation whose send fails keeps its optimistic state, parks as `queued`, and flushes in order the moment the connection returns. The UI reads `client.queuedMutations()` for its "N unsaved changes" banner. The transport draws a hard line between "couldn't reach the server" (queue and retry — offline means *later*) and "the server said no" (roll back and drop — a validation rejection means *never*, and retrying it would jam every mutation queued behind it).
 - **Local durability failure rolls back.** The optimistic preview appears immediately, but the wire send waits for the outbox commit. If IndexedDB refuses that write, the preview is removed and the handle settles `failed` with `local_persistence_failed`. Required local-first durability never degrades silently to session-only state.
-- **The outbox survives reloads.** Every mutation is durably persisted (with its pre-generated id stream) before the send goes out. A fresh client on the same store replays survivors on connect — and replay is **exactly-once**: the server dedupes by mutation id (a unique constraint on the sync log), answering a duplicate with the original seq instead of applying twice.
+- **The outbox survives reloads.** Every command stores its calls, generated ids, and last optimistic output before the send. A fresh client restores that preview before confirmed rows load. Registered handlers replay when confirmed state arrives. The server dedupes by mutation id, so a resend returns the original sequence instead of applying twice.
+- **Acknowledgement is not release.** A successful response settles the caller, but the command stays in the outbox and materializer until the current connection sends its checkpoint. If the connection drops first, the next connection resends the same command.
 - **Boot hydrates from cache, instantly.** Subscriptions serve their last persisted rows immediately (marked `stale`, provenance cause `hydrate`), even with no server in sight. Stale subscriptions re-open automatically when the connection lands, and the wire snapshot replaces cached truth.
 - **The transport never gives up.** Initial connects and reconnects both retry forever with capped backoff + jitter, waking immediately on `online` / `visibilitychange`. Closing your laptop overnight does not kill the app.
 - **Backoff also paces sockets that die young.** A socket that opens and dies within one second is a **flap**. Consecutive flaps use the same capped backoff. A stable socket resets the streak.
@@ -198,10 +199,9 @@ application versions before it checks the exact row fingerprint.
 Some state should never be a row: cursors, focus, and typing state. Presence uses the same WebSocket in both directions. It has **no database, no history, and no undo**. It gets its own page: [Presence](#/presence).
 
 <Aside kind="note">
-  TanStack DB solves the same reactive-query model client-side, but it cannot carry wheel's
-  per-write provenance, and its ordering and handler models clash with wheel's declaration
-  rules. Wheel keeps its own client; the <code>LiveQueryView</code> interface keeps that choice
-  reversible.
+  Wheel owns the client materializer because pending commands must replay against confirmed rows,
+  replace their full write sets, and publish cross-table changes once. Application code still reads
+  through <code>SyncClient</code> and <code>LiveQueryView</code>.
 </Aside>
 
 ## Where a value came from

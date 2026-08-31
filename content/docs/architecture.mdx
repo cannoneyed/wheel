@@ -44,7 +44,7 @@ Why this shape:
 - **`wheel/auth` and `wheel/config` import nothing internal.** They own trust data and boot-time JSON, so nothing in Wheel has to exist for them to work.
 - **`wheel/router` builds on `core` and nothing else.** `RouterService` is a Service like any other, so the URL lands in the same registry as every atom. `wheel/vite` is the same one-edge shape, one layer out: it runs in your build and touches `core` only for the shared clock.
 - **`wheel/core` depends only on solid-js, immer, and XState.** Service primitives, the DI container, `connect()`/`view()`/providers, stubs, and registry recording live here. No client, database, or transport enters this layer.
-- **`wheel/sync` is renderer-free where it counts.** The `SyncClient` knows nothing about Solid; it exposes plain methods plus one change listener. That is why the whole engine runs headless in tests. `SyncService` and its `liveQuery` views are the thin reactive layer on top, and they depend only on `core`.
+- **`wheel/sync` is renderer-free where it counts.** The materializer owns confirmed rows, pending replay, query order, and the published view. `SyncClient` wraps it with transport and command lifecycle methods. Neither knows about Solid. `SyncService` and `liveQuery` form the thin reactive layer on top.
 - **`wheel/kit` needs `core` only, never `sync`.** The batteries (Keyboard, Focus, Dialog, Command Palette, Context Menu, Toasts) are local UI-state services — they are not synced data, so they sit beside `sync`, not above it.
 - **`wheel/sync/server` never reaches the browser.** It is the only surface that owns database drivers. A constraint test bans node builtins and DB drivers from every client-safe directory.
 

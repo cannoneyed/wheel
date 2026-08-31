@@ -22,6 +22,7 @@ import { logger } from 'wheel/core';
 
 import { TRACKER_APPLICATION_VERSION } from '../../sync-version';
 import { ROW_SCHEMA_FINGERPRINT } from '../../row-schema.generated';
+import { TRACKER_SYNC_MODULES } from '../sync/modules';
 
 let client: SyncClient | null = null;
 
@@ -87,6 +88,7 @@ export function trackerClient(): SyncClient {
     actor: `user:${currentActorId() || 'anonymous'}`,
     clock: systemClock,
     randomBytes: systemRandomBytes,
+    syncModules: TRACKER_SYNC_MODULES,
     localCache: new IndexedDbCache(
       'axle',
       createCacheScopes({ storeScope, rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT })

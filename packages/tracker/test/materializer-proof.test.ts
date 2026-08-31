@@ -1,8 +1,8 @@
 // @vitest-environment node
 /**
- * Phase 2 proof: run WheelMaterializer against Tracker's real issue, project,
- * aggregate, join-table, and grouped-update declarations. Production reads
- * remain on SyncClient until Phase 4.
+ * Run WheelMaterializer against Tracker's real issue, project, aggregate,
+ * join-table, and grouped-update declarations, then compare its public client
+ * boundary with direct materializer inputs.
  */
 import { describe, expect, test } from 'vitest';
 
@@ -35,6 +35,7 @@ import { ISSUES_DDL } from '../src/sync/issues.server';
 import { ACTIVITY_DDL } from '../src/sync/activity.server';
 import { INBOX_DDL } from '../src/sync/inbox.server';
 import { ProjectCountsRow, projectCounts, projectCountsAll } from '../src/sync/projects.sync';
+import * as projectsSync from '../src/sync/projects.sync';
 import {
   WheelMaterializer,
   type MaterializerCall,
@@ -544,6 +545,7 @@ describe('Tracker current-client differential', () => {
       actor: 'user:phase2-user',
       clock: fixedClock(NOW, 0),
       randomBytes: seededRandomBytes(22),
+      syncModules: [issuesSync, projectsSync],
       localCache: new MemoryCache()
     });
     const teamView = await client.subscribe(issuesByTeam, { teamId: TEAM_A });

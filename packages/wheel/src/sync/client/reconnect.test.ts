@@ -139,6 +139,7 @@ function makeClient(world: World, clientId: string, transport: SyncTransport, se
     actor: 'tester',
     clock: fixedClock(1_700_000_000_000, 1),
     randomBytes: seededRandomBytes(seed),
+    syncModules: [syncModule],
     localCache: new MemoryCache()
   });
 }
@@ -222,6 +223,7 @@ describe('stale flag across rebootstrap', () => {
       actor: 'tester',
       clock: fixedClock(1_700_000_000_000, 1),
       randomBytes: seededRandomBytes(51),
+      syncModules: [syncModule],
       localCache: cache
     });
     await seeder.subscribe(todosByList, { listId: 'l_1' });
@@ -238,6 +240,7 @@ describe('stale flag across rebootstrap', () => {
       actor: 'tester',
       clock: fixedClock(1_700_000_000_000, 1),
       randomBytes: seededRandomBytes(52),
+      syncModules: [syncModule],
       localCache: cache
     });
     const handle = await client.subscribe(todosByList, { listId: 'l_1' });

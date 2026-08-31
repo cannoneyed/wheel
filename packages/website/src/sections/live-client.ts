@@ -22,6 +22,7 @@ import { MemoryCache, SyncClient, systemClock, systemRandomBytes } from 'wheel/s
 
 import { createWorkerSyncTransport } from '../../../demos/src/shared/in-browser/worker-transport';
 import { withOfflineSwitch, type OfflineSwitch } from '../../../demos/src/shared/utils/offline-switch';
+import * as todosSync from '../../../demos/src/todos/sync/todos.sync';
 
 /** The worker engine the panes share. `todos` is the smallest complete one. */
 const ENGINE = 'todos';
@@ -63,6 +64,7 @@ export function livePeer(pane: string): LivePeer {
     actor: `user:${clientId}`,
     clock: systemClock,
     randomBytes: systemRandomBytes,
+    syncModules: [todosSync],
     localCache: new MemoryCache()
   });
   const peer: LivePeer = { client, control };

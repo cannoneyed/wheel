@@ -124,6 +124,7 @@ function makeClient(transport: SyncTransport, seed: number): SyncClient {
     actor: 'tester',
     clock: fixedClock(1_700_000_000_000, 1),
     randomBytes: seededRandomBytes(seed),
+    syncModules: [syncModule],
     localCache: new MemoryCache()
   });
 }

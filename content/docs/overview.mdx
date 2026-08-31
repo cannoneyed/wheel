@@ -43,7 +43,7 @@ Four properties drive every design decision:
     { id: 'comp', label: 'Component', sub: 'Solid.js', kind: 'component' },
     { id: 'connect', label: 'connect()', sub: 'the single way to access state', kind: 'component' },
     { id: 'service', label: 'Services', sub: 'owns fields, atoms, machines, actions', kind: 'service' },
-    { id: 'client', label: 'SyncClient', sub: 'optimistic overlay + rebase', kind: 'client' },
+    { id: 'client', label: 'SyncClient', sub: 'materializer + command lifecycle', kind: 'client' },
     { id: 'store', label: 'Local cache', sub: 'IndexedDB: cache + outbox', kind: 'store' },
     { id: 'transport', label: 'Transport', sub: 'one WebSocket', kind: 'client' },
     { id: 'server', label: 'SyncServer', sub: 'single writer, whole-row deltas', kind: 'server' },

@@ -23,6 +23,7 @@ const previewOnly = mutation({
   args: t.object({ itemId: t.string(), label: t.string() }),
   optimistic: (cache, args) => cache.update(items, args.itemId, { label: args.label })
 });
+const syncModule = { items, itemList, previewOnly };
 
 interface Harness {
   readonly client: SyncClient;
@@ -57,6 +58,7 @@ function harness(snapshot: Snapshot): Harness {
       actor: 'user:test',
       clock: fixedClock(1_700_000_000_000, 1),
       randomBytes: seededRandomBytes(9),
+      syncModules: [syncModule],
       localCache: new MemoryCache()
     }),
     push: (event) => onEvent(event),
@@ -181,5 +183,66 @@ describe('ordered deltas and checkpoints', () => {
     expect(testHarness.client.pendingMutations()).toBe(0);
     expect(testHarness.client.get(items, 'item_1')?.label).toBe('server');
     testHarness.client.close();
+  });
+
+  test('resends an acknowledged command after reconnect until the new generation checkpoints it', async () => {
+    const store = new MemoryCache();
+    let push: (event: ServerEvent) => void = () => {};
+    const requests: unknown[] = [];
+    const mutationResolvers: Array<(result: MutateResult) => void> = [];
+    const transport: SyncTransport = {
+      async connect(_clientId, listener) {
+        push = listener;
+      },
+      async subscribe() {
+        return {
+          subscriptionId: 'sub_generation',
+          query: itemList.name,
+          seq: 0,
+          rows: [{ id: 'item_1', label: 'server' }],
+          status: { kind: 'live' }
+        };
+      },
+      async unsubscribe() {},
+      async mutateGroup(request) {
+        requests.push(request);
+        return new Promise<MutateResult>((resolve) => mutationResolvers.push(resolve));
+      },
+      async setPresence() {},
+      close() {}
+    };
+    const client = new SyncClient({
+      transport,
+      clientId: 'generation_client',
+      actor: 'user:test',
+      clock: fixedClock(1_700_000_000_000, 1),
+      randomBytes: seededRandomBytes(10),
+      syncModules: [syncModule],
+      localCache: store
+    });
+    await client.subscribe(itemList, {});
+    push({ type: 'hello', clientId: 'generation_client' });
+
+    const handle = client.mutate(previewOnly, { itemId: 'item_1', label: 'optimistic' });
+    await drainMicrotasks();
+    mutationResolvers[0]?.({ ok: true, seq: 4 });
+    await expect(handle.settled).resolves.toMatchObject({ state: 'confirmed' });
+    expect(await store.loadOutbox()).toHaveLength(1);
+
+    client.setConnectionStatus('reconnecting');
+    push({ type: 'hello', clientId: 'generation_client' });
+    client.setConnectionStatus('connected');
+    await drainMicrotasks();
+    expect(requests).toHaveLength(2);
+
+    mutationResolvers[1]?.({ ok: true, seq: 1 });
+    await drainMicrotasks();
+    expect(await store.loadOutbox()).toHaveLength(1);
+    push({ type: 'checkpoint', seq: 1 });
+    await drainMicrotasks();
+
+    expect(await store.loadOutbox()).toHaveLength(0);
+    expect(client.get(items, 'item_1')?.label).toBe('server');
+    client.close();
   });
 });

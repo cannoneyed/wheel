@@ -221,6 +221,7 @@ export class World {
     readonly db: WorldDb,
     readonly server: SyncServer,
     private readonly seed: number,
+    private readonly syncModules: readonly object[],
     /** Release the database resources the World owns (no-op when the backend closes them on `server.close`). */
     private readonly disposeDb: () => Promise<void>
   ) {
@@ -253,7 +254,7 @@ export class World {
     });
     // The SqliteSyncBackend closes the shared driver on `server.close`, so the
     // World's own db-dispose is a no-op (closing twice would throw).
-    return new World(db, server, seed, () => Promise.resolve());
+    return new World(db, server, seed, options.syncModules, () => Promise.resolve());
   }
 
   /** Create (or fetch) a deterministic client with its own seeded ids. */
@@ -269,6 +270,7 @@ export class World {
       actor: options.actor ?? `user:${clientId}`,
       clock: fixedClock(WORLD_EPOCH + 1_000 * this.clientCounter, 1),
       randomBytes: seededRandomBytes(this.seed + this.clientCounter * 7919),
+      syncModules: this.syncModules,
       localCache: new MemoryCache()
     });
     await client.connect();
