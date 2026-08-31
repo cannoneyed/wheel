@@ -27,6 +27,9 @@ defmodule WheelSync.Workspace do
   def mutate_group(server, request, principal),
     do: GenServer.call(server, {:mutate_group, request, principal}, 30_000)
 
+  def external_write(server, options, callback),
+    do: GenServer.call(server, {:external_write, options, callback}, 30_000)
+
   def presence(server, pid, presence), do: GenServer.call(server, {:presence, pid, presence})
 
   @impl true
@@ -207,6 +210,17 @@ defmodule WheelSync.Workspace do
     end
   end
 
+  def handle_call({:external_write, options, callback}, _from, state) do
+    case apply_external_write(state, options, callback) do
+      {:committed, seq, touched, value} ->
+        state = state |> Map.put(:seq, seq) |> rerun_subscriptions(touched)
+        {:reply, {:ok, %{seq: seq, value: value}}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
   @impl true
   def handle_cast({:leave, pid}, state), do: {:noreply, remove_connection(state, pid)}
 
@@ -237,6 +251,48 @@ defmodule WheelSync.Workspace do
   rescue
     error in DBConnection.ConnectionError -> {:transient, Exception.message(error)}
     error in Postgrex.Error -> classify_postgres_error(error)
+  end
+
+  defp apply_external_write(state, options, callback) do
+    result =
+      Postgrex.transaction(state.names.postgres, fn connection ->
+        tx = WheelSync.Tx.open(connection, state.workspace_id)
+
+        try do
+          case callback.(tx) do
+            {:ok, value} ->
+              touched = validate_touched!(state, WheelSync.Tx.touched(tx))
+              seq = WheelSync.Storage.next_seq!(connection, state.workspace_id)
+
+              WheelSync.Storage.append_log!(connection, state.workspace_id, seq, %{
+                mutation_id: issue_id("external"),
+                name: Keyword.fetch!(options, :source),
+                touched: touched,
+                actor: Keyword.fetch!(options, :actor),
+                client_id: "server:external"
+              })
+
+              {:committed, seq, touched, value}
+
+            {:error, reason} ->
+              Postgrex.rollback(connection, reason)
+
+            other ->
+              Postgrex.rollback(connection, {:invalid_external_write_return, other})
+          end
+        after
+          WheelSync.Tx.close(tx)
+        end
+      end)
+
+    case result do
+      {:ok, outcome} -> outcome
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    error -> {:error, error}
+  catch
+    kind, reason -> {:error, {kind, reason}}
   end
 
   defp run_handlers(state, connection, request, principal) do
@@ -310,7 +366,22 @@ defmodule WheelSync.Workspace do
   end
 
   defp commit_handlers(state, tx, connection, request, principal) do
-    touched = WheelSync.Tx.touched(tx)
+    touched = validate_touched!(state, WheelSync.Tx.touched(tx), allow_empty: true)
+
+    seq = WheelSync.Storage.next_seq!(connection, state.workspace_id)
+
+    WheelSync.Storage.append_log!(connection, state.workspace_id, seq, %{
+      mutation_id: request["mutationId"],
+      name: request["calls"] |> Enum.map(& &1["name"]) |> Enum.join(","),
+      touched: touched,
+      actor: principal.actor,
+      client_id: request["clientId"]
+    })
+
+    {:committed, seq, touched}
+  end
+
+  defp validate_touched!(state, touched, options \\ []) do
     declared = Map.keys(state.registry.contract.tables) |> MapSet.new()
 
     case Enum.find(touched, &(not MapSet.member?(declared, &1))) do
@@ -323,18 +394,13 @@ defmodule WheelSync.Workspace do
           message: "Mutation touched undeclared table #{inspect(table)}."
     end
 
-    seq = WheelSync.Storage.next_seq!(connection, state.workspace_id)
+    if MapSet.size(touched) == 0 and not Keyword.get(options, :allow_empty, false) do
+      raise WheelSync.Error,
+        code: "empty_touched_tables",
+        message: "An external write must touch at least one declared table."
+    end
 
-    WheelSync.Storage.append_log!(
-      connection,
-      state.workspace_id,
-      seq,
-      request,
-      principal,
-      touched
-    )
-
-    {:committed, seq, touched}
+    touched
   end
 
   defp validate_mutation_group(registry, request) when is_map(request) do
@@ -455,58 +521,61 @@ defmodule WheelSync.Workspace do
   end
 
   defp rerun_subscriptions(state, touched) do
+    groups =
+      state.subscriptions
+      |> Enum.reject(fn {_id, subscription} ->
+        MapSet.disjoint?(subscription.rerun_on, touched)
+      end)
+      |> Enum.group_by(fn {_id, subscription} ->
+        {subscription.query, subscription.params, subscription.principal}
+      end)
+
     subscriptions =
-      Map.new(state.subscriptions, fn {id, subscription} ->
-        if MapSet.disjoint?(subscription.rerun_on, touched) do
-          {id, subscription}
-        else
-          case run_query(
-                 state,
-                 subscription.query,
-                 subscription.params,
-                 subscription.principal
-               ) do
-            {:ok, next_rows} ->
-              emit_delta(subscription, next_rows, state.seq)
-              emit_query_recovery(state, subscription)
-              {id, %{subscription | rows: next_rows, status: live_status()}}
+      Enum.reduce(groups, state.subscriptions, fn
+        {{query, params, principal}, group}, subscriptions ->
+          result = run_query(state, query, params, principal)
 
-            {:error, code, message} ->
-              status_kind = if subscription.status["kind"] == "error", do: "error", else: "stale"
-              status = failed_status(status_kind)
-
-              log_query_failure(
-                state,
-                subscription.query,
-                subscription.params,
-                subscription.id,
-                "rerun",
-                code,
-                message
-              )
-
-              emit_query_telemetry(
-                :failure,
-                state,
-                subscription.query,
-                subscription.params,
-                subscription.id,
-                status_kind
-              )
-
-              send(
-                subscription.pid,
-                {:wheel_event, query_status_event(subscription, state.seq, status)}
-              )
-
-              {id, %{subscription | status: status}}
-          end
-        end
+          Enum.reduce(group, subscriptions, fn {id, subscription}, subscriptions ->
+            Map.put(subscriptions, id, apply_query_result(state, subscription, result))
+          end)
       end)
 
     state = %{state | subscriptions: subscriptions}
     broadcast(state.connections, %{"type" => "checkpoint", "seq" => state.seq}, nil)
     state
+  end
+
+  defp apply_query_result(state, subscription, {:ok, next_rows}) do
+    emit_delta(subscription, next_rows, state.seq)
+    emit_query_recovery(state, subscription)
+    %{subscription | rows: next_rows, status: live_status()}
+  end
+
+  defp apply_query_result(state, subscription, {:error, code, message}) do
+    status_kind = if subscription.status["kind"] == "error", do: "error", else: "stale"
+    status = failed_status(status_kind)
+
+    log_query_failure(
+      state,
+      subscription.query,
+      subscription.params,
+      subscription.id,
+      "rerun",
+      code,
+      message
+    )
+
+    emit_query_telemetry(
+      :failure,
+      state,
+      subscription.query,
+      subscription.params,
+      subscription.id,
+      status_kind
+    )
+
+    send(subscription.pid, {:wheel_event, query_status_event(subscription, state.seq, status)})
+    %{subscription | status: status}
   end
 
   defp emit_delta(subscription, next_rows, seq) do

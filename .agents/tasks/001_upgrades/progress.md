@@ -24,7 +24,7 @@ on chat history.
 | 1B. Add atomic mutation groups | `L` | Complete | Client, TypeScript, Elixir, and shared wire gates passed |
 | 2. Build Tracker proof slice | `L` | Complete | Tracker proof and current-client differential gates passed |
 | 2B. Automate snapshot fingerprints | `L` | Complete | Local and Buildkite gates passed |
-| 3. Add Elixir grouping and external writes | `M` | Not started | PostgreSQL checks not run |
+| 3. Add Elixir grouping and external writes | `M` | Complete | PostgreSQL grouping and external-write checks passed |
 | 4. Move client state ownership | `L` | Not started | Ownership checks not run |
 | 5. Expand query and source contracts | `L` | Not started | Contract checks not run |
 | 6. Rename APIs and enforce boundary | `M` | Not started | Final local and CI checks not run |
@@ -152,12 +152,12 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 
 ### Phase 3
 
-- [ ] Prove one execution for each matching Elixir query group.
-- [ ] Prove principals cannot share grouped results.
-- [ ] Pass isolated group failure tests.
-- [ ] Pass external-write rollback tests.
-- [ ] Pass external-write log and delta tests.
-- [ ] Pass external-write checkpoint tests.
+- [x] Prove one execution for each matching Elixir query group.
+- [x] Prove principals cannot share grouped results.
+- [x] Pass isolated group failure tests.
+- [x] Pass external-write rollback tests.
+- [x] Pass external-write log and delta tests.
+- [x] Pass external-write checkpoint tests.
 
 ### Phase 4
 
@@ -231,10 +231,78 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-30 | 2B | Require the field in a new wire protocol | The repository removes obsolete paths, so new servers do not accept missing fingerprints or fall back to the old handshake. |
 | 2026-08-30 | 0B | Keep the materializer proof internal | The standalone core passed its gate, but production ownership moves only in Phase 4. |
 | 2026-08-30 | 2B | Use the built-in Web Crypto API | `node:crypto` broke browser worker bundles; `crypto.subtle` provides the same SHA-256 digest in Node, browsers, and Cloudflare without another dependency. |
+| 2026-08-30 | 3 | Group by native Elixir terms | Map and struct equality gives exact `{query, params, principal}` groups without a second canonical serializer. |
+| 2026-08-30 | 3 | Reuse `WheelSync.Tx` for external writes | The callback, touched tables, sequence, and log entry share one PostgreSQL transaction. |
+| 2026-08-30 | 3 | Require one touched table | An external callback cannot commit application rows without naming the declared tables that Wheel must rerun. |
 
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-30: Implement Phase 3
+
+**State:** Complete
+
+**Changes**
+
+- Grouped invalidated Elixir subscriptions by exact query, parameter, and principal terms.
+- Ran and validated each query group once, then diffed and emitted results for each subscriber.
+- Kept query failure status, telemetry, and recovery events per subscriber.
+- Added `WheelSync.external_write/3` and `WheelSync.external_write/4`.
+- Ran each external callback through the Workspace process with the existing `WheelSync.Tx`.
+- Committed application writes, touched tables, sequence, and log metadata in one PostgreSQL
+  transaction.
+- Reused the mutation rerun and checkpoint path after an external commit.
+- Generalized `WheelSync.Storage.append_log!/4` for client and external log entries.
+
+**Validation**
+
+- Tested the uncommitted worktree based on commit `967f541`.
+- Focused PostgreSQL workspace suite: 4 tests passed. Three subscribers caused two query runs:
+  one for the shared principal and one for the isolated principal.
+- `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55433/wheel_sync bun run
+  test:elixir`: 8 tests passed with no exclusions; Tracker compiled with warnings treated as
+  errors.
+- `bun run check:static`: passed lint, generation, type, package, and Cloudflare checks.
+- `bun run test:wire`: all 12 TypeScript SQLite fixtures passed.
+- One-shot Elixir PostgreSQL wire server on a free local port: all 12 shared fixtures passed.
+- `mix format --check-formatted` and `mix compile --warnings-as-errors`: passed.
+- `git diff --check`: passed.
+
+**Decisions**
+
+- Use native Elixir term equality for group keys. Validated parameter maps compare by value and
+  principal structs include actor, workspace, and session identity.
+- Require callbacks to return `{:ok, value}` to commit or `{:error, reason}` to roll back.
+- Require callbacks to call `WheelSync.Tx.touch!/2` for at least one declared table.
+- Use `external.write`, `system:external`, and `server:external` as default log metadata.
+
+**Blockers**
+
+- None.
+
+**Exit gate:** Passed. PostgreSQL proves one execution per exact query group, principal isolation,
+failure isolation, atomic external logging, rollback, delta delivery, and checkpoints.
+
+### 2026-08-30: Start Phase 3
+
+**State:** In progress
+
+**Changes**
+
+- Started Elixir query grouping and the atomic external-write path.
+
+**Validation**
+
+- Pending.
+
+**Decisions**
+
+- Pending.
+
+**Blockers**
+
+- PostgreSQL integration checks require `DATABASE_URL`.
 
 ### 2026-08-30: Implement Phase 2B
 

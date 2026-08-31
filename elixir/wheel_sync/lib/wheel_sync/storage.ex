@@ -68,7 +68,7 @@ defmodule WheelSync.Storage do
     seq
   end
 
-  def append_log!(connection, workspace_id, seq, request, principal, touched) do
+  def append_log!(connection, workspace_id, seq, entry) do
     Postgrex.query!(
       connection,
       """
@@ -79,11 +79,11 @@ defmodule WheelSync.Storage do
       [
         workspace_id,
         seq,
-        request["mutationId"],
-        request["calls"] |> Enum.map(& &1["name"]) |> Enum.join(","),
-        MapSet.to_list(touched),
-        principal.actor,
-        request["clientId"]
+        entry.mutation_id,
+        entry.name,
+        entry.touched |> MapSet.to_list() |> Enum.sort(),
+        entry.actor,
+        entry.client_id
       ]
     )
   end

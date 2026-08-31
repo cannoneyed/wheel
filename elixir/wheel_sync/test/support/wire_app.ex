@@ -30,7 +30,7 @@ defmodule WheelSync.Test.WidgetsAll do
     {
       """
       select id,
-             case when coalesce(
+             case when $2 or coalesce(
                (select fail from wire_query_control where workspace_id = $1),
                false
              ) then null else title end as title,
@@ -39,7 +39,7 @@ defmodule WheelSync.Test.WidgetsAll do
       where workspace_id = $1
       order by sort_order, id
       """,
-      [principal.workspace_id]
+      [principal.workspace_id, principal.actor == "user:query-failure"]
     }
   end
 end

@@ -6,6 +6,8 @@ defmodule WheelSync.PostgresWorkspaceTest do
   @workspace_a "wheel-sync-test-a"
   @workspace_b "wheel-sync-test-b"
   @workspace_query "wheel-sync-test-query"
+  @workspace_phase3 "wheel-sync-test-phase3"
+  @workspace_external_error "wheel-sync-test-external-error"
   @widget_id "widget_0190b62e-0000-7000-8000-000000000021"
   @mutation_id "m_0190b62e-0000-7000-8000-000000000021"
 
@@ -308,6 +310,145 @@ defmodule WheelSync.PostgresWorkspaceTest do
     cleanup(names.postgres)
   end
 
+  test "groups exact query terms and isolates a failed principal" do
+    options =
+      System.fetch_env!("DATABASE_URL")
+      |> WheelSync.Test.WireApp.options(0)
+      |> Keyword.put(:serve, false)
+      |> Keyword.put(:name, Module.concat(__MODULE__, Phase3Runtime))
+      |> Keyword.put(:supervisor_name, Module.concat(__MODULE__, Phase3Supervisor))
+
+    supervisor = start_supervised!({WheelSync.Supervisor, options})
+    names = WheelSync.Names.from_options(options)
+    cleanup(names.postgres)
+
+    on_exit(fn ->
+      :erlang.trace_pattern({WheelSync.Test.WidgetsAll, :sql, 2}, false, [])
+      if Process.alive?(supervisor), do: cleanup(names.postgres)
+    end)
+
+    {:ok, workspace} = WheelSync.Runtime.workspace(names.runtime, @workspace_phase3)
+    shared = principal(@workspace_phase3)
+    failed = %{shared | actor: "user:query-failure", session_id: "session:failed"}
+
+    {first, first_snapshot} = subscribe_process(workspace, shared, "client:first")
+    {second, second_snapshot} = subscribe_process(workspace, shared, "client:second")
+    {isolated, isolated_snapshot} = subscribe_process(workspace, failed, "client:isolated")
+
+    on_exit(fn ->
+      for pid <- [first, second, isolated], Process.alive?(pid), do: Process.exit(pid, :shutdown)
+    end)
+
+    assert first_snapshot["status"] == %{"kind" => "live"}
+    assert second_snapshot["status"] == %{"kind" => "live"}
+    assert isolated_snapshot["status"] == %{"kind" => "live"}
+
+    :erlang.trace_pattern({WheelSync.Test.WidgetsAll, :sql, 2}, true, [])
+    :erlang.trace(workspace, true, [:call])
+
+    assert {:ok, %{seq: 1, value: :inserted}} =
+             WheelSync.external_write(
+               names.runtime,
+               @workspace_phase3,
+               [source: "job:phase3", actor: "system:phase3"],
+               fn tx ->
+                 insert_widget(
+                   tx,
+                   @workspace_phase3,
+                   "widget_0190b62e-0000-7000-8000-000000000041",
+                   "External"
+                 )
+
+                 :ok = WheelSync.Tx.touch!(tx, "widgets")
+                 {:ok, :inserted}
+               end
+             )
+
+    assert_receive {:trace, ^workspace, :call, {WheelSync.Test.WidgetsAll, :sql, [%{}, ^shared]}}
+
+    assert_receive {:trace, ^workspace, :call, {WheelSync.Test.WidgetsAll, :sql, [%{}, ^failed]}}
+
+    refute_receive {:trace, ^workspace, :call, {WheelSync.Test.WidgetsAll, :sql, _}}, 50
+
+    for pid <- [first, second] do
+      assert_receive {:subscriber_event, ^pid, %{"type" => "delta", "delta" => %{"seq" => 1}}}
+
+      assert_receive {:subscriber_event, ^pid, %{"type" => "checkpoint", "seq" => 1}}
+    end
+
+    assert_receive {:subscriber_event, ^isolated,
+                    %{
+                      "type" => "query_status",
+                      "status" => %{"seq" => 1, "status" => %{"kind" => "stale"}}
+                    }}
+
+    assert_receive {:subscriber_event, ^isolated, %{"type" => "checkpoint", "seq" => 1}}
+
+    assert [[mutation_id, "job:phase3", ["widgets"], "system:phase3", "server:external"]] =
+             Postgrex.query!(
+               names.postgres,
+               """
+               select mutation_id, name, touched, actor, client_id
+               from wheel_sync_log
+               where workspace_id = $1 and seq = 1
+               """,
+               [@workspace_phase3]
+             ).rows
+
+    assert String.starts_with?(mutation_id, "external_")
+    cleanup(names.postgres)
+  end
+
+  test "an external write rollback leaves no application or log row" do
+    options =
+      System.fetch_env!("DATABASE_URL")
+      |> WheelSync.Test.WireApp.options(0)
+      |> Keyword.put(:serve, false)
+      |> Keyword.put(:name, Module.concat(__MODULE__, ExternalErrorRuntime))
+      |> Keyword.put(:supervisor_name, Module.concat(__MODULE__, ExternalErrorSupervisor))
+
+    supervisor = start_supervised!({WheelSync.Supervisor, options})
+    names = WheelSync.Names.from_options(options)
+    cleanup(names.postgres)
+
+    on_exit(fn ->
+      if Process.alive?(supervisor), do: cleanup(names.postgres)
+    end)
+
+    {:ok, workspace} = WheelSync.Runtime.workspace(names.runtime, @workspace_external_error)
+
+    assert {:error, :cancelled} =
+             WheelSync.external_write(names.runtime, @workspace_external_error, fn tx ->
+               insert_widget(
+                 tx,
+                 @workspace_external_error,
+                 "widget_0190b62e-0000-7000-8000-000000000042",
+                 "Rollback"
+               )
+
+               :ok = WheelSync.Tx.touch!(tx, "widgets")
+               {:error, :cancelled}
+             end)
+
+    assert [[0]] =
+             Postgrex.query!(
+               names.postgres,
+               "select count(*) from wire_widgets where workspace_id = $1",
+               [@workspace_external_error]
+             ).rows
+
+    assert [[0]] =
+             Postgrex.query!(
+               names.postgres,
+               "select count(*) from wheel_sync_log where workspace_id = $1",
+               [@workspace_external_error]
+             ).rows
+
+    assert WheelSync.Storage.current_seq(names.postgres, @workspace_external_error) == 0
+    assert Process.alive?(workspace)
+    cleanup(names.postgres)
+  end
+
   def handle_query_telemetry(event, measurements, metadata, test_pid) do
     send(test_pid, {:query_telemetry, event, measurements, metadata})
   end
@@ -320,8 +461,58 @@ defmodule WheelSync.PostgresWorkspaceTest do
     }
   end
 
+  defp subscribe_process(workspace, principal, client_id) do
+    parent = self()
+
+    pid =
+      spawn(fn ->
+        {:ok, []} =
+          WheelSync.Workspace.join(workspace, %{
+            pid: self(),
+            client_id: client_id,
+            owner_client_id: client_id,
+            principal: principal
+          })
+
+        {:ok, snapshot} =
+          WheelSync.Workspace.subscribe(workspace, self(), "widgets.all", %{})
+
+        send(parent, {:subscriber_ready, self(), snapshot})
+        relay_events(parent)
+      end)
+
+    assert_receive {:subscriber_ready, ^pid, snapshot}
+    {pid, snapshot}
+  end
+
+  defp relay_events(parent) do
+    receive do
+      {:wheel_event, event} ->
+        send(parent, {:subscriber_event, self(), event})
+        relay_events(parent)
+    end
+  end
+
+  defp insert_widget(tx, workspace_id, id, title) do
+    WheelSync.Tx.exec!(
+      tx,
+      """
+      insert into wire_widgets
+        (workspace_id, id, title, position, sort_order, active, note)
+      values ($1, $2, $3, 1, 1, true, null)
+      """,
+      [workspace_id, id, title]
+    )
+  end
+
   defp cleanup(postgres) do
-    for workspace_id <- [@workspace_a, @workspace_b, @workspace_query] do
+    for workspace_id <- [
+          @workspace_a,
+          @workspace_b,
+          @workspace_query,
+          @workspace_phase3,
+          @workspace_external_error
+        ] do
       Postgrex.query!(postgres, "delete from wire_widgets where workspace_id = $1", [workspace_id])
 
       Postgrex.query!(postgres, "delete from wire_query_control where workspace_id = $1", [
