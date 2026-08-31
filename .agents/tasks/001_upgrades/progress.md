@@ -23,7 +23,7 @@ on chat history.
 | 1. Correct protocol and servers | `M` | Complete | Both engines and shared protocol fixtures passed |
 | 1B. Add atomic mutation groups | `L` | Complete | Client, TypeScript, Elixir, and shared wire gates passed |
 | 2. Build Tracker proof slice | `L` | Complete | Tracker proof and current-client differential gates passed |
-| 2B. Automate snapshot fingerprints | `L` | In progress | Implementation and local browser proof passed; CI gates remain |
+| 2B. Automate snapshot fingerprints | `L` | Complete | Local and Buildkite gates passed |
 | 3. Add Elixir grouping and external writes | `M` | Not started | PostgreSQL checks not run |
 | 4. Move client state ownership | `L` | Not started | Ownership checks not run |
 | 5. Expand query and source contracts | `L` | Not started | Contract checks not run |
@@ -148,7 +148,7 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 - [x] Pass ordered-version precedence and terminal mismatch tests.
 - [x] Pass stale-snapshot retirement and outbox-survival tests.
 - [x] Pass the already-open client and one-reload guard tests.
-- [ ] Pass the focused browser contract-upgrade test in Buildkite.
+- [x] Pass the focused browser contract-upgrade test in Buildkite.
 
 ### Phase 3
 
@@ -230,6 +230,7 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-30 | 2B | Generate the fingerprint once | TypeScript writes the client and server artifacts; Elixir consumes the literal and cannot drift through a second hash implementation. |
 | 2026-08-30 | 2B | Require the field in a new wire protocol | The repository removes obsolete paths, so new servers do not accept missing fingerprints or fall back to the old handshake. |
 | 2026-08-30 | 0B | Keep the materializer proof internal | The standalone core passed its gate, but production ownership moves only in Phase 4. |
+| 2026-08-30 | 2B | Use the built-in Web Crypto API | `node:crypto` broke browser worker bundles; `crypto.subtle` provides the same SHA-256 digest in Node, browsers, and Cloudflare without another dependency. |
 
 ## Work log
 
@@ -237,7 +238,7 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 
 ### 2026-08-30: Implement Phase 2B
 
-**State:** In progress
+**State:** Complete
 
 **Changes**
 
@@ -262,6 +263,8 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 - Fixed Tracker's trusted Vite WebSocket proxy to rewrite both host and origin. This keeps the
   server's same-origin check valid behind the local HTTPS route.
 - Added the required excerpt labels to two Phase 1B examples found by the complete docs gate.
+- Replaced the Node-only SHA-256 call with the built-in Web Crypto API. Schema generation is now
+  async and browser bundles need no hash dependency.
 
 **Validation**
 
@@ -277,6 +280,11 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 - Cloudflare suite: 3 files and 27 tests passed.
 - Focused Tracker Chromium upgrade proof: 1 test passed in 2.3 seconds against the Solo SQLite
   server.
+- [Buildkite build 121](https://buildkite.com/cannoneyed/wheel/builds/121) passed the static,
+  unit, Cloudflare, website, SQLite browser, PostgreSQL/Elixir browser, component browser, demo
+  browser, and branch deployment gates for commit `b4f5c86`.
+- The package, release staging, nightly fuzz, and cleanup jobs did not run because their branch or
+  schedule conditions did not apply to this feature-branch build.
 - `git diff --check`: passed.
 
 **Decisions**
@@ -284,17 +292,17 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 - Keep each existing store identity unchanged so the first fingerprint release can retire the
   old `snapshots:v1` rows and find the existing outbox.
 - Compute the hash only in TypeScript. Elixir validates and consumes the generated literal.
+- Use `globalThis.crypto.subtle` so the public schema helpers work in Node, browsers, and
+  Cloudflare without a runtime hash dependency.
 - Treat a row mismatch as terminal. App code owns one asset reload through the shared guard.
 - Keep the proxy origin rewrite limited to the trusted Vite sync target.
 
 **Blockers**
 
-- The Solo `postgres` process is not trusted, so the local Elixir/PostgreSQL shared wire gate
-  could not start.
-- The required Buildkite browser and Elixir/PostgreSQL gates need a committed and pushed branch.
+- None.
 
-**Exit gate:** Pending the shared Elixir/PostgreSQL wire fixture and Buildkite. Implementation and
-all available local gates pass.
+**Exit gate:** Passed. Generated artifacts, cache behavior, shared TypeScript and Elixir fixtures,
+and the browser contract-upgrade proof pass on the feature branch.
 
 ### 2026-08-30: Start Phase 2B
 
