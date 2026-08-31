@@ -33,6 +33,7 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `require-tracked-service-fields`: mutable private service state uses `field()`.
 - `require-latest-async-task-wait`: latest-wins async boundaries use the token.
 - `invert-return-type`: mutation inverses have explicit return types.
+- `no-direct-materializer-writes`: production code reaches the materializer through `SyncClient`.
 - `no-snake-case-mismatch-in-prune`: row-image reads use database spelling.
 - `no-raw-sql-placeholders`: raw SQL does not use portable-fragment placeholder syntax.
 - `no-teardown-booleans`: sync client teardown uses `AbortSignal`.

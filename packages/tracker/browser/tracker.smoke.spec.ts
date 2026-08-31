@@ -19,7 +19,7 @@ async function seedPreviousContractCache(
       const mutationId = 'm_0190b62e-0000-7000-8000-00000000beef';
       const outboxKey = `${outboxScope}|${mutationId}`;
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('wheel:axle', 2);
+        const request = indexedDB.open('wheel:axle');
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
@@ -64,7 +64,7 @@ async function cacheRowsExist(
 ): Promise<{ readonly snapshot: boolean; readonly outbox: boolean }> {
   return page.evaluate(async ({ snapshotKey, outboxKey }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('wheel:axle', 2);
+      const request = indexedDB.open('wheel:axle');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
