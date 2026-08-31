@@ -15,4 +15,3 @@
 - Toast appears immediately in its final position. It never fades or slides in.
 - Timeout, action, close, and swipe dismissal may fade or slide out with shared exit tokens.
 - Reduced motion dismisses immediately. Forced colors preserves tone, action, close, and focus.
-- Browser proof covers queue updates, announcements, pause-resume, action, every dismissal, swipe, and repeated ids.

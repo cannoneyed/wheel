@@ -13,4 +13,3 @@
 - Custom rendering must preserve `group` semantics and a programmatic name.
 - Fieldset has no entry animation. Dynamic messages may use only the shared exit fade.
 - Forced colors preserve the group boundary and legend. Long legends wrap without covering controls.
-- Browser proof covers legend naming, disabled descendants, nested groups, form submission, and zoom.

@@ -10,6 +10,7 @@ The existing TypeScript SQLite and Durable Object engines remain supported. Appl
 - [Authentication](#authentication)
 - [Queries](#queries)
 - [Mutations](#mutations)
+- [External writes](#external-writes)
 - [Generated contracts](#generated-contracts)
 - [Test matrix](#test-matrix)
 
@@ -88,12 +89,20 @@ children = [
 | `migrations` | `[]` | Postgres DDL run before the endpoint starts. |
 | `pool_size` | `10` | Postgrex connection pool size. |
 | `serve` | `true` | Start the Bandit HTTP endpoint. |
+| `ip` | `{127, 0, 0, 1}` | Bandit bind address. |
 | `port` | `4001` | Bandit HTTP port. |
-| `application_version` | `1` | Current application API version. |
+| `application_version` | required | Current application API version. |
 | `minimum_client_version` | application version | Oldest accepted client version. |
-| `schema_version` | `1` | Schema version reported in hello frames. |
+| `schema_version` | required | Schema version reported in hello frames. |
+| `allowed_origins` | request origin | Exact browser origins accepted by the WebSocket endpoint. Set this behind a reverse proxy. |
+| `socket_timeout` | `60000` | Idle WebSocket timeout in milliseconds. |
 | `max_message_bytes` | `262144` | Maximum WebSocket frame size. |
 | `messages_per_minute` | `1200` | Per-connection message limit. |
+| `detailed_errors` | `false` | Include private handler details in development error frames. |
+
+The default origin check accepts the endpoint's own HTTP or HTTPS origin and omits default ports 80
+and 443. A reverse proxy changes the scheme or host visible to Bandit, so production deployments
+behind a proxy must set `allowed_origins` to the browser-facing origins.
 
 ## Authentication
 
@@ -105,7 +114,9 @@ defmodule MyApp.SyncAuthenticator do
 
   @impl true
   def authenticate(conn, _config) do
-    with [token] <- Plug.Conn.get_req_header(conn, "authorization"),
+    conn = Plug.Conn.fetch_cookies(conn)
+
+    with token when is_binary(token) <- conn.req_cookies["wheel_session"],
          {:ok, account} <- MyApp.Accounts.verify(token) do
       {:ok,
        %WheelSync.Principal{
@@ -119,6 +130,25 @@ defmodule MyApp.SyncAuthenticator do
   end
 end
 ```
+
+Native browser WebSockets send same-origin cookies during the upgrade. They cannot set an
+`Authorization` header.
+
+For a cross-origin connection, exchange the application session for a short-lived, one-use ticket
+and send it through the transport's `params` option:
+
+```ts
+import { createWebSocketTransport } from 'wheel/sync';
+
+const transport = createWebSocketTransport({
+  baseUrl: 'https://sync.example.com',
+  applicationVersion: 2,
+  rowSchemaFingerprint,
+  params: async () => ({ ticket: await issueSyncTicket() }),
+});
+```
+
+The authenticator reads the ticket from `conn.query_params["ticket"]` and consumes it once.
 
 Every application query and mutation must include `workspace_id` in its SQL. `wheel_sync_workspaces` and `wheel_sync_log` also scope their keys by workspace, so one Postgres database can serve multiple workspaces.
 
@@ -196,6 +226,36 @@ end
 Return `{:reject, code, message}` or raise `WheelSync.Rejection` for a business rejection. Other handler failures roll back and return `handler_error`. Connection loss, serialization failure, and deadlock failure remain retryable request errors.
 
 `WheelSync.Tx.touch!/2` declares each changed physical source table. After commit, the workspace process reruns subscriptions whose `dependsOn` list overlaps those tables and sends whole-row deltas with the full order.
+
+## External writes
+
+Use `WheelSync.external_write/3` or `WheelSync.external_write/4` when server code changes synced
+tables outside a Wheel mutation:
+
+```elixir
+WheelSync.external_write(
+  MyApp.Sync.Runtime,
+  workspace_id,
+  [source: "billing.import", actor: "system:billing"],
+  fn tx ->
+    WheelSync.Tx.exec!(
+      tx,
+      "update widgets set paid = true where workspace_id = $1 and invoice_id = $2",
+      [tx.workspace_id, invoice_id]
+    )
+
+    WheelSync.Tx.touch!(tx, "widgets")
+    {:ok, :updated}
+  end
+)
+```
+
+The callback runs in one Postgres transaction. It must return `{:ok, value}` or `{:error, reason}`
+and touch at least one declared dependency table. A successful write appends the durable sync-log
+row before commit, then wakes local and remote Wheel nodes.
+
+Raw SQL that does not use a Wheel mutation or `WheelSync.external_write` creates no sync-log row.
+Notifications and periodic recovery cannot discover that write.
 
 ## Generated contracts
 

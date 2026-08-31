@@ -27,7 +27,7 @@ export function AvatarFallback(componentProps: AvatarFallback.Props) {
 
   const delay = () => componentProps.delay ?? 0;
 
-  const { imageLoadingStatus, size, shape, status } = useAvatarRootContext();
+  const { imageLoadingStatus, size, shape } = useAvatarRootContext();
   const [delayPassed, setDelayPassed] = createSignal(delay() === 0);
   const timeout = createTimeout();
 
@@ -53,9 +53,6 @@ export function AvatarFallback(componentProps: AvatarFallback.Props) {
     get shape() {
       return shape();
     },
-    get status() {
-      return status();
-    },
   };
 
   const enabled = () => imageLoadingStatus() !== 'loaded' && (delay() === 0 || delayPassed());
@@ -65,7 +62,7 @@ export function AvatarFallback(componentProps: AvatarFallback.Props) {
     slot: 'avatar-fallback',
     state,
     props: [
-      () => ({ 'data-size': size(), 'data-shape': shape(), 'data-status': status() }),
+      () => ({ 'data-size': size(), 'data-shape': shape() }),
       elementProps as Record<string, any>,
     ],
     stateAttributesMapping: avatarStateAttributesMapping,

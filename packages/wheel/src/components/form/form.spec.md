@@ -14,4 +14,3 @@
 - Async submission exposes state to the caller but does not invent a second loading system.
 - Repeated submit is blocked only when the connected submit action is pending and non-interruptible.
 - Form does not animate validation content into view. Exit uses only shared motion tokens.
-- Browser proof covers keyboard submit, invalid focus, async submit, reset, external controls, and FormData values.

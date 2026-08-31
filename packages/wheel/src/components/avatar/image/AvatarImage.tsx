@@ -33,7 +33,7 @@ export function AvatarImage(componentProps: AvatarImage.Props) {
     'onLoadingStatusChange',
   ]);
 
-  const { setImageLoadingStatus, size, shape, status } = useAvatarRootContext();
+  const { setImageLoadingStatus, size, shape } = useAvatarRootContext();
 
   const imageLoadingStatus = createImageLoadingStatus(
     () => componentProps.src as string | undefined,
@@ -82,9 +82,6 @@ export function AvatarImage(componentProps: AvatarImage.Props) {
     get shape() {
       return shape();
     },
-    get status() {
-      return status();
-    },
     get transitionStatus() {
       return transitionStatus();
     },
@@ -98,7 +95,7 @@ export function AvatarImage(componentProps: AvatarImage.Props) {
       imageRef = el;
     },
     props: [
-      () => ({ 'data-size': size(), 'data-shape': shape(), 'data-status': status() }),
+      () => ({ 'data-size': size(), 'data-shape': shape() }),
       elementProps as Record<string, any>,
     ],
     stateAttributesMapping,

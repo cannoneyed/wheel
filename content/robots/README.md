@@ -10,6 +10,7 @@ Read the smallest topic that answers the task. Follow source links when exact si
 - [Getting started](getting-started.md) - run the repository and assemble one feature.
 - [Project layout](project-layout.md) - required files, compiler settings, and boundaries.
 - [Walkthrough](walkthrough.md) - one synced feature from declaration to browser.
+- [Upgrade from 0.1 to 0.2](upgrading.md) - breaking names, local data, protocol, and server changes.
 
 ## Build application state and UI
 

@@ -15,6 +15,7 @@ import type { BaseUIComponentProps } from '../internals/types';
  */
 export function CheckboxListItem(componentProps: CheckboxListItem.Props): JSX.Element {
   const [local, elementProps] = splitProps(componentProps, [
+    'as',
     'checked',
     'class',
     'defaultChecked',
@@ -124,7 +125,7 @@ export interface CheckboxListItemState {
 }
 
 export interface CheckboxListItemProps
-  extends Omit<BaseUIComponentProps<'label', CheckboxListItemState>, 'children'> {
+  extends Omit<BaseUIComponentProps<'label', CheckboxListItemState>, 'children' | 'asChild'> {
   /** Primary visible and accessible label. */
   label: JSX.Element;
   /** Supporting text linked to the Checkbox. */

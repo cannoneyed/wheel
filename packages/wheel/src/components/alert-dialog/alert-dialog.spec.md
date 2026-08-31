@@ -15,4 +15,3 @@
 - Standard and destructive treatments change action emphasis, not dialog semantics.
 - Entry is immediate. Backdrop and Popup never fade, slide, or scale in.
 - Close may use the shared 100 ms fade-out. State, focus restoration, and action completion do not wait for the fade.
-- Browser proof covers focus choice, trapping, dismissal policy, async confirm, nested layers, and repeated open-close cycles.

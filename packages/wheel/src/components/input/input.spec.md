@@ -14,4 +14,3 @@
 - Clear actions have an accessible name, clear once, and return focus to Input.
 - Input does not animate into view. Border and background state transitions use shared short tokens.
 - Forced colors preserve the boundary, caret, selection, placeholder, and invalid state.
-- Browser proof covers typing, selection, clear, password reveal, autofill-safe type changes, reset, and all constraints.

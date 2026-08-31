@@ -78,7 +78,7 @@ Build a stable schema document from the same declarations and bindings the TypeS
 
 ## `createSyncServer`
 
-Kind: function. Source: [packages/wheel/src/sync/server/engine.ts:1205](../../../packages/wheel/src/sync/server/engine.ts#L1205).
+Kind: function. Source: [packages/wheel/src/sync/server/engine.ts:1207](../../../packages/wheel/src/sync/server/engine.ts#L1207).
 
 Boot the engine: registry cross-check, writer lease, backend install (sync log + tracking), external-change feed, then the writer loop.
 

@@ -42,6 +42,7 @@ const flakyTodos = query({
   name: 'todos.flaky', params: t.object({ listId: t.string() }), into: todos });
 let addHandlerRuns = 0;
 let flakyQueryFails = false;
+let flakySubscribeFails = false;
 
 const syncModule = {
   todos,
@@ -94,6 +95,10 @@ const servers = {
           'select id, list_id as "listId", text, done from todos where list_id = ? order by sort_rank, id',
           [params.listId]
         ) as Promise<Array<typeof TodoRow._output>>;
+      },
+      subscribe() {
+        if (flakySubscribeFails) throw new Error('fixture subscribe failed');
+        return () => {};
       }
     }
   }),
@@ -155,6 +160,7 @@ async function mutate(name: string, args: unknown, generated: string[] = []) {
 beforeEach(async () => {
   addHandlerRuns = 0;
   flakyQueryFails = false;
+  flakySubscribeFails = false;
   vi.spyOn(console, 'error').mockImplementation(() => {});
   driver = betterSqlite3Driver(':memory:');
   db = {
@@ -211,6 +217,22 @@ describe('subscribe + snapshot', () => {
     await expect(
       connection.subscribe('todos.byList', { listId: 'l_1', extra: true })
     ).rejects.toThrow(/outside its JSON Schema contract/);
+  });
+
+  test('a failed source subscription leaves no connection state', async () => {
+    const connection = connect();
+    flakySubscribeFails = true;
+
+    await expect(connection.subscribe('todos.flaky', { listId: 'l_1' })).rejects.toThrow(
+      'fixture subscribe failed'
+    );
+    expect(connection.state().subscriptions).toEqual([]);
+
+    flakySubscribeFails = false;
+    await expect(connection.subscribe('todos.flaky', { listId: 'l_1' })).resolves.toMatchObject({
+      query: 'todos.flaky'
+    });
+    expect(connection.state().subscriptions).toHaveLength(1);
   });
 
   test('a hibernated connection restores subscription ids, baselines, and presence', async () => {

@@ -14,4 +14,3 @@
 - Panel content appears immediately when opened. It never fades, slides, or scales in.
 - Closing may use the shared 100 ms exit-only motion while the Panel remains mounted.
 - Reduced motion removes the exit transition. Forced colors preserve focus and boundaries.
-- Browser proof covers repeated pointer and keyboard cycles, controlled state, nested panels, and focus retention.

@@ -236,7 +236,7 @@ export class WheelMaterializer {
     return collectionMap(this.#confirmed, collectionName).get(id);
   }
 
-  /** Current state for a command removed during replay or explicitly settled. */
+  /** Current state for a pending command or a command removed during replay. */
   commandState(mutationId: string): MaterializerCommandResult | undefined {
     if (this.#pending.some((command) => command.mutationId === mutationId)) return { state: 'pending' };
     return this.#outcomes.get(mutationId);
@@ -361,7 +361,7 @@ export class WheelMaterializer {
     this.#confirmed = nextConfirmed;
     this.#scopes = nextScopes;
     this.#pending = built.pending;
-    for (const mutationId of settled) this.#outcomes.set(mutationId, { state: 'confirmed' });
+    for (const mutationId of settled) this.#outcomes.delete(mutationId);
     this.#recordBuildOutcomes(built);
     this.#publish(built.view);
   }
@@ -374,18 +374,15 @@ export class WheelMaterializer {
     if (command.calls.length === 0) return { state: 'confirmed' };
     if (command.calls.length > 128) {
       const result = { state: 'failed', message: 'A mutation group may contain at most 128 members.' } as const;
-      this.#outcomes.set(command.mutationId, result);
       return result;
     }
-    if (this.#pending.some((pending) => pending.mutationId === command.mutationId) || this.#outcomes.has(command.mutationId)) {
+    if (this.#pending.some((pending) => pending.mutationId === command.mutationId)) {
       const result = { state: 'failed', message: `Duplicate materializer command "${command.mutationId}".` } as const;
-      this.#outcomes.set(command.mutationId, result);
       return result;
     }
 
     const prepared = this.#prepareCalls(command.calls);
     if (!Array.isArray(prepared)) {
-      this.#outcomes.set(command.mutationId, prepared);
       return prepared;
     }
 
@@ -399,7 +396,6 @@ export class WheelMaterializer {
             state: 'failed',
             message: `Mutation "${call.mutation.name}" is not invertible in this state.`
           } as const;
-          this.#outcomes.set(command.mutationId, result);
           return result;
         }
         if (inverse) inverses.unshift(inverse);
@@ -410,7 +406,6 @@ export class WheelMaterializer {
       const result = error instanceof OrphanedError
         ? ({ state: 'orphaned', message: error.message } as const)
         : ({ state: 'failed', message: String((error as Error)?.message ?? error) } as const);
-      this.#outcomes.set(command.mutationId, result);
       return result;
     }
 
@@ -431,7 +426,6 @@ export class WheelMaterializer {
       );
       this.#pending = withoutFailed.pending;
       this.#recordBuildOutcomes(withoutFailed);
-      this.#outcomes.set(command.mutationId, ownFailure);
       this.#publish(withoutFailed.view);
       return ownFailure;
     }
@@ -447,7 +441,7 @@ export class WheelMaterializer {
     if (command.calls.length > 128) {
       return { state: 'failed', message: 'A mutation group may contain at most 128 members.' };
     }
-    if (this.#pending.some((pending) => pending.mutationId === command.mutationId) || this.#outcomes.has(command.mutationId)) {
+    if (this.#pending.some((pending) => pending.mutationId === command.mutationId)) {
       return { state: 'failed', message: `Duplicate materializer command "${command.mutationId}".` };
     }
     const prepared = this.#prepareCalls(command.calls);
@@ -467,8 +461,8 @@ export class WheelMaterializer {
     return this.commandState(command.mutationId) ?? { state: 'failed', message: 'Command disappeared during restore.' };
   }
 
-  /** Remove a rejected, failed, or orphaned command and publish the surviving replay. */
-  removeCommand(mutationId: string, state: 'rejected' | 'failed' | 'orphaned'): boolean {
+  /** Remove a terminal command and publish the surviving replay. */
+  removeCommand(mutationId: string): boolean {
     if (!this.#pending.some((command) => command.mutationId === mutationId)) return false;
     const built = this.#build(
       this.#confirmed,
@@ -476,7 +470,7 @@ export class WheelMaterializer {
       this.#pending.filter((command) => command.mutationId !== mutationId)
     );
     this.#pending = built.pending;
-    this.#outcomes.set(mutationId, { state });
+    this.#outcomes.delete(mutationId);
     this.#recordBuildOutcomes(built);
     this.#publish(built.view);
     return true;

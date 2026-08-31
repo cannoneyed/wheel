@@ -1197,10 +1197,7 @@ export class SyncClient {
     if (index >= 0) {
       this.pending.splice(index, 1);
     }
-    this.materializer.removeCommand(
-      entry.mutationId,
-      cause === 'orphaned' ? 'orphaned' : entry.state === 'failed' ? 'failed' : 'rejected'
-    );
+    this.materializer.removeCommand(entry.mutationId);
     for (const write of writes) {
       this.provenance.record({
         at: this.options.clock.now(),

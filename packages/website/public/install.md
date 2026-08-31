@@ -12,7 +12,7 @@ Full documentation: https://wheel.dev/docs/
 ## 1. Install
 
 ```sh
-bun add wheel@npm:@cannoneyed/wheel@0.1.0 solid-js
+bun add wheel@npm:@cannoneyed/wheel@0.2.0 solid-js
 ```
 
 `wheel` is the local npm alias for `@cannoneyed/wheel`. Keep all imports under

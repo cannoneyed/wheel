@@ -26,6 +26,8 @@ limited to Phase 7A. Phase sizes use Phase 1 as the `M` reference.
 - [Phase 5: Expand query and source contracts](#phase-5-expand-query-and-source-contracts)
 - [Phase 6: Rename APIs and enforce the boundary](#phase-6-rename-apis-and-enforce-the-boundary)
 - [Phase 7A: Add tracked multi-node invalidation](#phase-7a-add-tracked-multi-node-invalidation)
+- [0.2 release cleanup](#02-release-cleanup)
+- [Post-0.2 roadmap: Complete the Astryx component library](#post-02-roadmap-complete-the-astryx-component-library)
 - [Final validation](#final-validation)
 
 ## Delivery rules
@@ -35,7 +37,7 @@ limited to Phase 7A. Phase sizes use Phase 1 as the `M` reference.
 3. Run the phase checks and record the command, environment, and result.
 4. Resolve every failed exit condition before starting the next phase.
 5. Run browser checks in Buildkite unless local browser work is needed to debug that phase.
-6. Keep the full CI path below two minutes.
+6. Keep the full CI path near two minutes. Treat two to three minutes as healthy while coverage grows.
 7. Remove replaced code. Do not add compatibility aliases or fallback paths.
 8. Add a lint rule in the same phase when static analysis can prevent a new failure.
 
@@ -610,6 +612,45 @@ shared query caches, multiple-database coordination, or an event-history API.
 Two-node PostgreSQL integration tests pass for live delivery, periodic recovery, listener restart,
 interleaved commits, source invalidation, and duplicate suppression. TypeScript, lint, unit, and
 Elixir checks pass.
+
+## 0.2 release cleanup
+
+**Size:** `M`
+
+Close the gaps found by the final 0.1-to-0.2 review before publishing the release.
+
+### Changes
+
+1. Remove component exports that have no component-specific behavior. Keep their behavior drafts.
+2. Derive catalog and browser-test counts from the shipped fixtures.
+3. Correct component composition, async action, and trusted-HTML contracts.
+4. Bound materializer command results and clean up failed server subscriptions.
+5. Correct default Elixir origin checks and document proxy, browser-auth, and external-write use.
+6. Set package versions to 0.2.0 and publish one upgrade guide for breaking changes.
+
+### Validation
+
+- Static, generated-file, type, package, unit, backend, wire, docs, and Elixir checks pass locally.
+- Buildkite runs browser, Cloudflare, package, and PostgreSQL checks after the cleanup is pushed.
+- The published package contains no Astryx placeholder entry.
+
+### Exit gate
+
+Local checks and the next Buildkite build pass. The upgrade guide names every breaking client,
+cache, protocol, and Elixir deployment change.
+
+## Post-0.2 roadmap: Complete the Astryx component library
+
+The specifications in
+[`packages/wheel/src/components/astryx`](../../../packages/wheel/src/components/astryx/README.md)
+are design drafts. The generated wrappers were removed from 0.2 because they exposed names without
+their specified behavior.
+
+Implement the roadmap by component family. Each family needs dedicated source, unit behavior tests,
+a working catalog example, and browser coverage for keyboard and accessibility behavior before it
+enters `wheel/components` or a deep package entry.
+
+This work is outside the 0.2 release.
 
 ## Final validation
 

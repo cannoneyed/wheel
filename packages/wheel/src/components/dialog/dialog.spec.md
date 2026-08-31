@@ -15,4 +15,3 @@
 - Adaptive presentation may use Drawer on small screens only when the semantic role and focus contract remain unchanged.
 - Entry is immediate. Backdrop and Popup never fade, scale, or slide in.
 - Close may fade out for 100 ms. Focus and open state update without waiting for visual exit.
-- Browser proof covers modal and non-modal use, nested layers, forms, long content, responsive layout, and repeated opening.

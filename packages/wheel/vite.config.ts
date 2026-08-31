@@ -11,7 +11,6 @@ const buildStamp = wheelSourceStamp(packageRoot);
 const componentFamilies = [
   'accordion',
   'alert-dialog',
-  'astryx',
   'autocomplete',
   'avatar',
   'button',

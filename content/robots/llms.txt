@@ -10,6 +10,7 @@ Use `README.md` as the primary index. Source declarations and tests override pro
 - [Getting started](getting-started.md): Repository setup and one feature's required files.
 - [Project layout](project-layout.md): Directories, compiler settings, CSS, identity, and root mounts.
 - [Walkthrough](walkthrough.md): Synced todo feature, file by file.
+- [Upgrade from 0.1 to 0.2](upgrading.md): Breaking names, local data, protocol, and server changes.
 
 ## Application state and UI
 

@@ -237,7 +237,9 @@ export class SyncServer {
     // re-run watchers on the writer loop, like externalWrite. Current SQLite
     // backends do not fire this feed.
     this.releaseExternal = this.backend.onExternalChange((touched) => {
-      void this.externalWrite({ tables: [...touched], source: 'backend:external' });
+      void this.externalWrite({ tables: [...touched], source: 'backend:external' }).catch((error) => {
+        logger.error('wheel: backend external change failed', { touched: [...touched] }, error);
+      });
     });
   }
 
@@ -450,7 +452,6 @@ export class SyncServer {
       }
       subscription.lastRows = rows;
       subscription.lastSeq = this.lastSeq;
-      connection.addSubscription(subscription);
       // Push-based invalidation: the handler signals "may have changed"; the
       // engine coalesces onto the writer loop and re-runs + diffs there.
       if (binding.handler.subscribe) {
@@ -460,6 +461,7 @@ export class SyncServer {
           connection.principal
         );
       }
+      connection.addSubscription(subscription);
       return {
         subscriptionId: subscription.id,
         query: queryName,

@@ -14,4 +14,3 @@
 - Overflow moves excess tabs into Tab Menu without changing their value, order, or selected state.
 - Selection and Panel content appear immediately. Indicator may move with shared state motion, never entry motion.
 - Forced colors preserves selected state and focus independent of the Indicator color.
-- Browser proof covers both activation modes, every key, RTL, controlled selection, overflow, deletion, and focus restoration.

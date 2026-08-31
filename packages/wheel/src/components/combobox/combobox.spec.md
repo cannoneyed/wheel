@@ -16,4 +16,3 @@
 - Disabled and read-only state cover input, trigger, clear, chips, and options.
 - Select, close, and reopen sequences work repeatedly for pointer, keyboard, and touch input.
 - Popup entry is immediate. Exit uses the shared 100 ms fade-out and never blocks focus restoration.
-- Browser proof covers every input mode, async races, virtualization, mobile touch, collision, form reset, and repeated use.

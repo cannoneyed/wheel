@@ -14,4 +14,3 @@
 - Active-route and open-panel states remain visually distinct.
 - Entry is immediate. Old content may fade out for 100 ms while new content appears without entry motion.
 - Forced colors preserves links, current route, open Trigger, Indicator, and focus.
-- Browser proof covers pointer intent, every key, route links, reanchoring, resize, collision, touch, RTL, and repeated use.

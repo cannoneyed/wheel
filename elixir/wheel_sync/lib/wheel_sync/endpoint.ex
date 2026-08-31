@@ -63,7 +63,7 @@ defmodule WheelSync.Endpoint do
         :ok
 
       [origin | _] ->
-        expected = "#{conn.scheme}://#{conn.host}:#{conn.port}"
+        expected = request_origin(conn)
 
         if origin == expected,
           do: :ok,
@@ -81,6 +81,11 @@ defmodule WheelSync.Endpoint do
           do: :ok,
           else: {:error, 403, "origin_forbidden", "This WebSocket origin is not allowed."}
     end
+  end
+
+  defp request_origin(%{scheme: scheme, host: host, port: port}) do
+    suffix = if {scheme, port} in [{:http, 80}, {:https, 443}], do: "", else: ":#{port}"
+    "#{scheme}://#{host}#{suffix}"
   end
 
   defp authenticate(conn, config) do

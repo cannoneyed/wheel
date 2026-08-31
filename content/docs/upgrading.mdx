@@ -1,0 +1,83 @@
+---
+title: Upgrade from 0.1 to 0.2
+---
+
+# Upgrade from 0.1 to 0.2
+
+Wheel 0.2 replaces client materialization, adds atomic mutation groups, and upgrades the sync
+protocol. It does not preserve the 0.1 declaration names or local outbox format.
+
+## Install 0.2
+
+```bash
+bun add wheel@npm:@cannoneyed/wheel@0.2.0 solid-js
+```
+
+Keep the `wheel` alias. Existing imports such as `wheel/core` and `wheel/sync` remain unchanged.
+
+## Rename tables to collections
+
+Replace `table` with `collection` and `TableDecl` with `CollectionDecl`:
+
+```ts
+// Excerpt: rename the 0.1 table declaration and type.
+import { collection, type CollectionDecl } from 'wheel/sync';
+
+export const todos = collection({
+  name: 'todos',
+  type: TodoRow,
+  key: (row) => row.id,
+});
+```
+
+Generated schema contracts use `collections` instead of `tables`. Wheel provides no compatibility
+aliases for the old names.
+
+## Regenerate contracts
+
+Wheel 0.2 uses schema specification version 4. Regenerate every application contract and its row
+fingerprint with the repository scripts used by that application:
+
+```bash
+bun run schema:wire
+bun run schema:tracker
+bun run row-schema
+```
+
+Commit the generated JSON contract and TypeScript fingerprint together. The client and server
+reject a connection when their fingerprints differ.
+
+## Update the sync deployment
+
+Protocol version 3 adds query status events, checkpoints for unchanged commits, complete query
+order, and atomic mutation groups. Deploy compatible clients and servers as one release. Use the
+application-version handshake to reject an old client before it subscribes.
+
+`mutateGroup()` sends existing mutation declarations as one command. The server validates every
+member before running handlers, commits one transaction, and creates one undo entry. A group has a
+maximum of 128 members.
+
+## Drain 0.1 offline writes
+
+> **Data loss:** Wheel 0.2 deletes version-2 IndexedDB outbox entries. Those entries do not contain
+> the optimistic preview required by the 0.2 materializer and cannot be replayed safely.
+
+Before deploying 0.2, reconnect active 0.1 clients and wait for their pending mutations to settle.
+Then deploy the 0.2 client. Cached query snapshots retire automatically when the generated row
+fingerprint changes.
+
+## Update Elixir servers
+
+The Elixir backend speaks protocol version 3 and requires `application_version` and
+`schema_version`. Configure `allowed_origins` when Bandit runs behind a reverse proxy. Browser
+authentication uses same-origin cookies or a short-lived query ticket, not an `Authorization`
+header.
+
+Use `WheelSync.external_write` for server-side changes to synced tables. Raw SQL without a Wheel
+sync-log row does not trigger client invalidation.
+
+## Multi-node scope
+
+Wheel 0.2 Elixir nodes use Postgres notifications to wake peers and the durable sync log to recover
+missed notifications. The release does not capture untracked SQL through WAL, coordinate presence
+between nodes, or share query caches.

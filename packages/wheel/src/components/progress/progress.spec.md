@@ -12,4 +12,3 @@
 - Indeterminate motion stops under reduced motion and keeps a static visible indicator.
 - Direction follows text direction where progress has directional meaning.
 - Forced colors preserves track and indicator separation.
-- Browser proof covers determinate, indeterminate, clamp, live changes, labels, reduced motion, and themes.

@@ -14,4 +14,3 @@
 - Required state is satisfied only by a selected enabled value and reaches native form validation.
 - Status messages describe the whole group and connect through `aria-describedby`.
 - Selection appears immediately. No indicator or row fades in.
-- Browser proof covers roving focus, RTL, controlled state, rich rows, constraints, reset, and form submission.

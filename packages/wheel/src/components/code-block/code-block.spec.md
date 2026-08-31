@@ -30,9 +30,3 @@ Code Block presents source text with design-system spacing, syntax tokens, and o
 - `Code` forwards native `code` attributes, refs, data attributes, and ARIA attributes.
 - A highlighter must escape source text before placing token markup in `highlightedHtml`.
 - Copy actions, filenames, captions, and language selectors remain separate components composed around Code Block.
-
-## Proof
-
-- Unit tests cover plain source, token markup, accessible labels, stable identities, language metadata, wrapping, and inline Code.
-- Browser tests prove TypeScript tokens in usage examples, example code, prop types, prop defaults, and Markdown specifications.
-- Catalog fixtures show block, wrapped, and inline forms in light, dark, and custom themes.

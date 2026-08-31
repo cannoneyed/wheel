@@ -43,7 +43,6 @@ import ToggleDemo from './component-demos/toggle';
 import ToggleGroupDemo from './component-demos/toggle-group';
 import ToolbarDemo from './component-demos/toolbar';
 import TooltipDemo from './component-demos/tooltip';
-import { ASTRYX_COMPONENT_FIXTURES } from './astryx-component-fixtures';
 
 export type ComponentGroup =
   | 'Actions'
@@ -117,10 +116,7 @@ const CURRENT_COMPONENT_FIXTURES: readonly ComponentFixture[] = [
   { name: 'Tooltip', slug: 'tooltip', group: 'Overlays', family: 'Anchored surfaces', familyOrder: 2, summary: 'Shows a short label on focus or hover.', component: TooltipDemo },
 ];
 
-export const COMPONENT_FIXTURES: readonly ComponentFixture[] = [
-  ...CURRENT_COMPONENT_FIXTURES,
-  ...ASTRYX_COMPONENT_FIXTURES,
-];
+export const COMPONENT_FIXTURES: readonly ComponentFixture[] = CURRENT_COMPONENT_FIXTURES;
 
 export const COMPONENT_GROUPS: readonly ComponentGroup[] = [
   'Actions',

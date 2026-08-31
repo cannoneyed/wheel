@@ -136,6 +136,8 @@ export function renderElement<State extends Record<string, any>>(
 
     delete out.children;
     delete out.ref;
+    delete out.as;
+    delete out.asChild;
 
     // Upstream defaults: `<button>` is always type="button", `<img>` gets alt="".
     const tag = resolveTag();

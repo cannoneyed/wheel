@@ -14,4 +14,3 @@
 - ScrollArea never traps keyboard focus. Viewport is focusable only when native overflow needs a keyboard target.
 - Scrollbars appear immediately when needed and use only exit fade when auto-hiding.
 - Reduced motion removes auto-hide fades. Forced colors preserves track, thumb, and focus visibility.
-- Browser proof uses real overflow geometry for drag, track press, touch, RTL, resize, nested areas, and both axes.

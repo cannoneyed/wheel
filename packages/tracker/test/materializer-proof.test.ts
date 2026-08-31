@@ -269,7 +269,7 @@ describe('Tracker materializer multi-collection actions', () => {
     });
 
     expect(observed).toHaveLength(2);
-    expect(materializer.commandState('create_phase2')).toEqual({ state: 'confirmed' });
+    expect(materializer.commandState('create_phase2')).toBeUndefined();
     expect(materializer.get(issues, issueId)).toEqual(confirmed);
     expect(materializer.rows(issueLabels)).toEqual(links);
   });
@@ -381,7 +381,7 @@ describe('Tracker grouped updates', () => {
       settledCommandIds: ['group_phase2']
     });
     expect(publications).toBe(2);
-    expect(materializer.commandState('group_phase2')).toEqual({ state: 'confirmed' });
+    expect(materializer.commandState('group_phase2')).toBeUndefined();
     expect(materializer.pendingCommandIds()).toEqual([]);
 
     expect(materializer.enqueue({
@@ -409,7 +409,7 @@ describe('Tracker grouped updates', () => {
       settledCommandIds: ['undo_phase2']
     });
     expect(publications).toBe(4);
-    expect(materializer.commandState('undo_phase2')).toEqual({ state: 'confirmed' });
+    expect(materializer.commandState('undo_phase2')).toBeUndefined();
     expect(materializer.pendingCommandIds()).toEqual([]);
   });
 
@@ -664,7 +664,7 @@ describe('Tracker current-client differential', () => {
       rejection: { kind: 'rejection', code: 'conflict', message: 'peer won' }
     });
     expect((await handle.settled).state).toBe('rejected');
-    materializer.removeCommand('diff_phase2', 'rejected');
+    materializer.removeCommand('diff_phase2');
     expectParity();
     expect(client.get(issues, shared.id)).toEqual(peer);
 

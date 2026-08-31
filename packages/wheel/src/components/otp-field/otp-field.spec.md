@@ -15,4 +15,3 @@
 - Disabled blocks focus and changes. Read-only remains selectable but does not expose the secret through extra labels.
 - Completion fires once per transition into a complete valid code and may fire again after the value becomes incomplete.
 - Entry is immediate. Caret state may blink unless reduced motion requests a static caret.
-- Browser proof covers typing, paste, autofill-shaped input, deletion, invalid text, completion, reset, and mobile attributes.

@@ -12,4 +12,3 @@
 - Value changes move the indicator with the shared state-motion token and do not delay updates.
 - Initial render shows the final value immediately and never grows in from zero.
 - Reduced motion applies the new width immediately. Forced colors preserves track and indicator contrast.
-- Browser proof covers clamping, formatted values, semantic ranges, direction, zoom, and live value changes.

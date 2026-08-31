@@ -373,9 +373,9 @@ describe('Wheel materializer server batches', () => {
     });
     expect(materializer.get(items, 'item_1')?.label).toBe('local');
 
-    expect(materializer.removeCommand('edit_1', 'rejected')).toBe(true);
+    expect(materializer.removeCommand('edit_1')).toBe(true);
 
-    expect(materializer.commandState('edit_1')?.state).toBe('rejected');
+    expect(materializer.commandState('edit_1')).toBeUndefined();
     expect(materializer.get(items, 'item_1')?.label).toBe('remote');
   });
 });
@@ -798,7 +798,7 @@ describe('current client differential', () => {
       rejection: { kind: 'rejection', code: 'conflict', message: 'peer won' }
     });
     expect((await clientMutation.settled).state).toBe('rejected');
-    materializer.removeCommand('edit_1', 'rejected');
+    materializer.removeCommand('edit_1');
 
     expect(client.rows(items)).toEqual(materializer.rows(items));
     expect(handle.rows()).toEqual(materializer.queryRows(itemsByTeam, { teamId: 'A' }));

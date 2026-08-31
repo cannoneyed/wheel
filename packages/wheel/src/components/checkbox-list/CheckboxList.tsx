@@ -22,6 +22,7 @@ const stateAttributesMapping: StateAttributesMapping<CheckboxListState> = {
 export function CheckboxList(componentProps: CheckboxList.Props): JSX.Element {
   const [local, elementProps] = splitProps(componentProps, [
     'allValues',
+    'as',
     'children',
     'class',
     'defaultValue',
@@ -143,7 +144,7 @@ export interface CheckboxListState {
 }
 
 export interface CheckboxListProps
-  extends Omit<BaseUIComponentProps<'div', CheckboxListState>, 'children'> {
+  extends Omit<BaseUIComponentProps<'div', CheckboxListState>, 'children' | 'asChild'> {
   /** Visible field label. */
   label: JSX.Element;
   /** Supporting text linked to the group. */

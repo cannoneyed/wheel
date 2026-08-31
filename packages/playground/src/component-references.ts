@@ -8,14 +8,12 @@ import { CHECKBOX_REFERENCE } from './checkbox-reference';
 import { CODE_BLOCK_REFERENCE } from './code-block-reference';
 import { ICON_BUTTON_REFERENCE } from './icon-button-reference';
 import { CURRENT_COMPONENT_REFERENCES } from './current-component-references';
-import { ASTRYX_COMPONENT_REFERENCES } from './astryx-component-references';
 import { SELECT_REFERENCE } from './select-reference';
 import { TOGGLE_GROUP_REFERENCE } from './toggle-group-reference';
 import { TOGGLE_REFERENCE } from './toggle-reference';
 
 export const COMPONENT_REFERENCES: Readonly<Record<string, ComponentReferenceDefinition>> = {
   ...CURRENT_COMPONENT_REFERENCES,
-  ...ASTRYX_COMPONENT_REFERENCES,
   button: BUTTON_REFERENCE,
   'button-group': BUTTON_GROUP_REFERENCE,
   checkbox: CHECKBOX_REFERENCE,

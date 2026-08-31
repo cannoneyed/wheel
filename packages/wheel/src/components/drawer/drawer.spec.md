@@ -15,4 +15,3 @@
 - Entry is immediate at the final open position. Drawer never slides in.
 - Close and swipe dismissal may slide and fade out with shared exit tokens.
 - Reduced motion dismisses immediately. Forced colors preserves Backdrop boundary, handle, and focus.
-- Browser proof covers all sides, touch and mouse swipe, nested scroll, resize, focus, layers, and repeated openings.

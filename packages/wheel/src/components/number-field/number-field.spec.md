@@ -15,4 +15,3 @@
 - Disabled blocks every part. Read-only permits selection but blocks typing, buttons, wheel, and scrubbing.
 - Wheel changes are opt-in and occur only while Input is focused.
 - Entry is immediate. Scrub and press feedback use shared state motion; no part fades in.
-- Browser proof covers repeat, scrub, keyboard, locale, bounds, decimals, reset, and repeated controlled changes.

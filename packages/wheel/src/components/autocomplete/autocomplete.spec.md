@@ -15,4 +15,3 @@
 - Disabled blocks input and selection. Read-only permits selection and copy but never opens suggestions.
 - Selecting, closing, and reopening supports a different pointer or keyboard result every time.
 - Popup entry is immediate. Close uses only the shared 100 ms fade-out.
-- Browser proof covers local and async filtering, stale requests, every key, mobile pointer use, collision, and repeated selection.
