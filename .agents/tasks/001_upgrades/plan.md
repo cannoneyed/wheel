@@ -7,7 +7,7 @@ validation in [`progress.md`](progress.md) before the next phase starts.
 Stages 1 through 6 from the report, the atomic mutation-group requirement in
 [`issue_batch_mutations.md`](issue_batch_mutations.md), and the automatic snapshot fingerprint
 requirement in [`wheel-version.md`](wheel-version.md) are in scope. Multi-node invalidation remains
-deferred unless its scope changes. Phase sizes use Phase 1 as the `M` reference.
+limited to Phase 7A. Phase sizes use Phase 1 as the `M` reference.
 
 ## Contents
 
@@ -25,7 +25,7 @@ deferred unless its scope changes. Phase sizes use Phase 1 as the `M` reference.
 - [Phase 4: Move client state ownership](#phase-4-move-client-state-ownership)
 - [Phase 5: Expand query and source contracts](#phase-5-expand-query-and-source-contracts)
 - [Phase 6: Rename APIs and enforce the boundary](#phase-6-rename-apis-and-enforce-the-boundary)
-- [Phase 7: Add multi-node invalidation](#phase-7-add-multi-node-invalidation)
+- [Phase 7A: Add tracked multi-node invalidation](#phase-7a-add-tracked-multi-node-invalidation)
 - [Final validation](#final-validation)
 
 ## Delivery rules
@@ -569,31 +569,47 @@ Apply the final public naming and enforce the internal materializer write bounda
 No compatibility alias remains. Published types, generated contracts, docs, and package output
 use collection terms and the documented materializer boundary.
 
-## Phase 7: Add multi-node invalidation
+## Phase 7A: Add tracked multi-node invalidation
 
-**Size:** `L`, deferred
+**Size:** `M`
 
-Start this phase only when multi-node support enters the active scope.
+Multiple Elixir supervisors that share one PostgreSQL database converge after every change already
+recorded in `wheel_sync_log`. PostgreSQL notifications wake each node. The log remains the durable
+source when a notification is lost.
 
 ### Changes
 
-1. Send PostgreSQL `LISTEN/NOTIFY` after commit.
-2. Read unseen log rows by sequence on every node.
-3. Catch up during startup, reconnect, and a periodic check.
-4. Ignore sequences already applied by the local node.
-5. Add database-native change capture only when uncontrolled writers remain.
+1. Start one `Postgrex.Notifications` connection per supervisor and listen on one fixed channel.
+2. Call `pg_notify` in the transaction that appends the sync-log row. PostgreSQL sends the
+   notification only after commit.
+3. Route notifications with a SHA-256 workspace key so payload size does not depend on workspace
+   id length.
+4. Read log rows after the local workspace sequence on notification, local commit, subscription,
+   listener restart, and a periodic check.
+5. Coalesce missed rows into one rerun at the highest sequence. Current PostgreSQL state cannot
+   reproduce intermediate row states from earlier log entries.
+6. Union touched collections, rerun each affected SQL query group once, and rerun each affected
+   source query group once.
+7. Ignore notifications when no newer log row exists.
+
+Phase 7A does not capture raw SQL writes that lack a sync-log row. It does not add PostgreSQL
+triggers, WAL consumption, logical replication, cross-node presence, global client ownership,
+shared query caches, multiple-database coordination, or an event-history API.
 
 ### Validation
 
 - Two supervisors receive one committed change.
 - A missed notification is recovered from the mutation log.
-- Restart catch-up applies every unseen sequence once.
-- Local notifications do not duplicate already applied events.
+- Listener restart catches up at the highest unseen sequence.
+- A local commit cannot skip an earlier unseen remote sequence.
+- Source invalidation reaches matching subscriptions on both supervisors.
+- Duplicate notifications do not rerun queries or emit events.
 
 ### Exit gate
 
-Two-node PostgreSQL integration tests pass for live delivery, missed notifications, and restart
-catch-up.
+Two-node PostgreSQL integration tests pass for live delivery, periodic recovery, listener restart,
+interleaved commits, source invalidation, and duplicate suppression. TypeScript, lint, unit, and
+Elixir checks pass.
 
 ## Final validation
 

@@ -27,8 +27,8 @@ on chat history.
 | 3. Add Elixir grouping and external writes | `M` | Complete | PostgreSQL grouping and external-write checks passed |
 | 4. Move client state ownership | `L` | Complete | Materializer ownership and local behavior gates passed |
 | 5. Expand query and source contracts | `L` | Complete | Shared dependencies and callback-source gates passed |
-| 6. Rename APIs and enforce boundary | `M` | In progress | All checks passed; CI duration gate remains |
-| 7. Add multi-node invalidation | `L` | Deferred | Scope not active |
+| 6. Rename APIs and enforce boundary | `M` | Blocked | Functional checks passed; CI duration exceeds two minutes |
+| 7A. Add tracked multi-node invalidation | `M` | In progress | Local gates pass; Buildkite remains |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`. Only
 one phase may be `In progress`.
@@ -43,7 +43,8 @@ one phase may be `In progress`.
   Wheel owns the generic guarantee; the editor library owns its Tiptap integration test.
 - Automatic snapshot fingerprints from [`wheel-version.md`](wheel-version.md) are active. Ordered
   application versions remain the rolling compatibility mechanism.
-- Multi-node invalidation is deferred. Change Phase 7 to `Not started` when it enters scope.
+- Phase 7A covers tracked changes shared through one PostgreSQL database. Raw SQL capture,
+  cross-node presence, and global client ownership remain outside the release scope.
 - No phase preserves replaced APIs through aliases or fallback paths.
 
 ## Baseline
@@ -192,13 +193,17 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 - [x] Pass Buildkite browser checks for SQLite and PostgreSQL.
 - [ ] Confirm CI completes in less than two minutes.
 
-### Phase 7
+### Phase 7A
 
-- [ ] Activate the phase scope.
-- [ ] Pass two-supervisor live delivery tests.
-- [ ] Pass missed-notification recovery tests.
-- [ ] Pass restart catch-up tests.
-- [ ] Pass duplicate suppression tests.
+- [x] Activate tracked multi-node invalidation.
+- [x] Pass two-supervisor live delivery tests.
+- [x] Pass missed-notification recovery tests.
+- [x] Pass listener-restart catch-up tests.
+- [x] Pass an interleaved remote and local commit test.
+- [x] Pass multi-node source invalidation tests.
+- [x] Pass duplicate suppression tests.
+- [x] Pass full local static, type, unit, and Elixir gates.
+- [ ] Pass Buildkite PostgreSQL and browser gates.
 
 ## Decision log
 
@@ -246,10 +251,60 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-31 | 6 | Replace table declarations with collection declarations | Collection describes both stored rows and derived query results. The old `virtual` flag duplicated data already present in query dependencies. |
 | 2026-08-31 | 6 | Derive physical sources from `dependsOn` | The union of query dependencies is the exact set of storage tables that need backend tracking. Push-only queries use an empty list. |
 | 2026-08-31 | 6 | Restrict materializer imports with ESLint | Package exports already hide the module from consumers. The rule also stops production source files in this repository from bypassing `SyncClient`. |
+| 2026-08-31 | 7A | Use the sync log as delivery authority | `LISTEN/NOTIFY` can lose messages during disconnects. Every node reads unseen committed rows before publishing. |
+| 2026-08-31 | 7A | Catch up after every local commit | A local commit can receive sequence N while an earlier remote sequence remains unseen. Log catch-up prevents that sequence from being skipped. |
+| 2026-08-31 | 7A | Coalesce missed rows at the highest sequence | PostgreSQL exposes current rows, not historical query results. One rerun at the highest sequence gives the client an honest state watermark. |
+| 2026-08-31 | 7A | Keep raw SQL capture outside 0.2.0 | Controlled writers already append the log in their transaction. Triggers or WAL add operational cost without a current consumer. |
 
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-31: Implement Phase 7A
+
+**State:** In progress
+
+**Worktree**
+
+- Branch `wheel-upgrades`, based on commit `c831179`.
+- Existing changes to `AGENTS.md`, `wheel-version.md`, and `wheel-upgrades-report.md` remain outside
+  this phase.
+
+**Changes**
+
+- Added one `Postgrex.Notifications` connection and one change listener per Wheel supervisor.
+- Added transaction-bound `pg_notify` calls for every mutation, external write, and source log row.
+- Routed notifications to local workspace processes with a SHA-256 key.
+- Added catch-up after notifications, commits, subscriptions, listener starts, and a periodic timer.
+- Coalesced unseen log rows at their highest sequence and unioned their touched collections.
+- Added focused tests for two supervisors, missed notifications, listener restart, interleaved
+  commits, source invalidation, and duplicate suppression.
+
+**Validation**
+
+| Command or build | Environment | Result |
+|---|---|---|
+| `mix test --exclude postgres --warnings-as-errors` | Local Elixir without `DATABASE_URL` | Passed: 5 tests; 10 PostgreSQL tests excluded |
+| `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55433/wheel_sync mix test --warnings-as-errors` | Solo-managed PostgreSQL 17 | Passed: 15 tests |
+| `mix format --check-formatted` | Local Elixir | Passed |
+| `bun run check:static` | Local worktree | Passed: lint, generated contracts, type checks, service checks, Cloudflare types, and package validation |
+| `bun run test` | Local worktree | Passed: 155 component files with 1,882 tests and 26 existing skips; 105 node files with 819 tests |
+| `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55433/wheel_sync bun run test:elixir` | Solo-managed PostgreSQL 17 | Passed: 15 tests; Tracker compiled with warnings treated as errors |
+| `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55433/wheel_sync mix test test/multi_node_test.exs --warnings-as-errors --repeat-until-failure 10` | Solo-managed PostgreSQL 17 | Passed: 11 runs and 55 tests |
+
+**Decisions**
+
+- Use `LISTEN/NOTIFY` as a wake-up signal and `wheel_sync_log` as the delivery authority.
+- Use a fixed 30-second periodic fallback. Workspaces without subscriptions skip the poll.
+- Emit one delta and checkpoint at the highest missed sequence because current rows cannot recreate
+  each intermediate database state.
+- Keep triggers, WAL capture, presence relay, and global connection ownership outside Phase 7A.
+
+**Blockers**
+
+- Buildkite remains.
+
+**Exit gate:** Pending. Local checks pass; Buildkite validation remains.
 
 ### 2026-08-31: Implement Phase 6
 

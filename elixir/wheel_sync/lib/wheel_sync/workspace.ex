@@ -5,6 +5,8 @@ defmodule WheelSync.Workspace do
 
   @mutation_id ~r/^m_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
   @id ~r/^[A-Za-z][A-Za-z0-9_-]*_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  # ponytail: fixed fallback; add an option when a deployment needs a different recovery window.
+  @catch_up_interval_ms 30_000
 
   def start_link(options) do
     names = Keyword.fetch!(options, :names)
@@ -36,6 +38,15 @@ defmodule WheelSync.Workspace do
   def init(options) do
     names = Keyword.fetch!(options, :names)
     workspace_id = Keyword.fetch!(options, :workspace_id)
+
+    {:ok, _owner} =
+      Registry.register(
+        names.workspace_registry,
+        {:change, WheelSync.Storage.notification_key(workspace_id)},
+        nil
+      )
+
+    Process.send_after(self(), :wheel_sync_periodic_catch_up, @catch_up_interval_ms)
 
     {:ok,
      %{
@@ -87,6 +98,8 @@ defmodule WheelSync.Workspace do
   end
 
   def handle_call({:subscribe, pid, query_name, params}, _from, state) do
+    state = catch_up(state)
+
     with {:ok, connection} <- fetch_connection(state, pid),
          {:ok, query_spec} <-
            fetch_named(state.registry.contract.queries, query_name, "unknown_query"),
@@ -185,13 +198,12 @@ defmodule WheelSync.Workspace do
     case validate_mutation_group(state.registry, request) do
       :ok ->
         case apply_mutation_group(state, request, principal) do
-          {:committed, seq, touched} ->
-            state = %{state | seq: seq}
-            state = rerun_subscriptions(state, touched)
+          {:committed, seq} ->
+            state = catch_up(state)
             {:reply, {:ok, %{"ok" => true, "seq" => seq}}, state}
 
           {:duplicate, seq} ->
-            {:reply, {:ok, %{"ok" => true, "seq" => seq}}, state}
+            {:reply, {:ok, %{"ok" => true, "seq" => seq}}, catch_up(state)}
 
           {:rejection, code, message} ->
             value = %{
@@ -225,9 +237,8 @@ defmodule WheelSync.Workspace do
 
   def handle_call({:external_write, options, callback}, _from, state) do
     case apply_external_write(state, options, callback) do
-      {:committed, seq, touched, value} ->
-        state = state |> Map.put(:seq, seq) |> rerun_subscriptions(touched)
-        {:reply, {:ok, %{seq: seq, value: value}}, state}
+      {:committed, seq, value} ->
+        {:reply, {:ok, %{seq: seq, value: value}}, catch_up(state)}
 
       {:error, reason} ->
         {:reply, {:error, reason}, state}
@@ -244,10 +255,8 @@ defmodule WheelSync.Workspace do
   def handle_info({:source_invalidate, source_key}, state) do
     if Map.has_key?(state.sources, source_key) do
       case record_source_invalidation(state, source_key) do
-        {:ok, seq} ->
-          state = state |> Map.put(:seq, seq) |> rerun_source(source_key)
-          broadcast(state.connections, %{"type" => "checkpoint", "seq" => seq}, nil)
-          {:noreply, state}
+        :ok ->
+          {:noreply, catch_up(state)}
 
         {:error, reason} ->
           Logger.error(
@@ -260,6 +269,14 @@ defmodule WheelSync.Workspace do
     else
       {:noreply, state}
     end
+  end
+
+  def handle_info(:wheel_sync_catch_up, state), do: {:noreply, catch_up(state)}
+
+  def handle_info(:wheel_sync_periodic_catch_up, state) do
+    state = if map_size(state.subscriptions) == 0, do: state, else: catch_up(state)
+    Process.send_after(self(), :wheel_sync_periodic_catch_up, @catch_up_interval_ms)
+    {:noreply, state}
   end
 
   @impl true
@@ -312,7 +329,7 @@ defmodule WheelSync.Workspace do
                 client_id: "server:external"
               })
 
-              {:committed, seq, touched, value}
+              {:committed, seq, value}
 
             {:error, reason} ->
               Postgrex.rollback(connection, reason)
@@ -418,7 +435,7 @@ defmodule WheelSync.Workspace do
       client_id: request["clientId"]
     })
 
-    {:committed, seq, touched}
+    {:committed, seq}
   end
 
   defp validate_touched!(state, touched, options \\ []) do
@@ -610,9 +627,7 @@ defmodule WheelSync.Workspace do
           end)
       end)
 
-    state = %{state | subscriptions: subscriptions}
-    broadcast(state.connections, %{"type" => "checkpoint", "seq" => state.seq}, nil)
-    state
+    %{state | subscriptions: subscriptions}
   end
 
   defp apply_query_result(state, subscription, {:ok, next_rows}) do
@@ -835,7 +850,7 @@ defmodule WheelSync.Workspace do
 
            seq
          end) do
-      {:ok, seq} -> {:ok, seq}
+      {:ok, _seq} -> :ok
       {:error, reason} -> {:error, reason}
     end
   rescue
@@ -868,6 +883,47 @@ defmodule WheelSync.Workspace do
     else
       state
     end
+  end
+
+  defp catch_up(state) do
+    case WheelSync.Storage.changes_after(state.names.postgres, state.workspace_id, state.seq) do
+      [] ->
+        state
+
+      changes ->
+        seq = changes |> List.last() |> Map.fetch!(:seq)
+
+        touched =
+          Enum.reduce(changes, MapSet.new(), fn change, touched ->
+            Enum.reduce(change.touched, touched, &MapSet.put(&2, &1))
+          end)
+
+        source_queries =
+          for %{client_id: "server:source", name: "source:" <> query} <- changes,
+              into: MapSet.new(),
+              do: query
+
+        state = state |> Map.put(:seq, seq) |> rerun_subscriptions(touched)
+
+        state =
+          Enum.reduce(state.sources, state, fn
+            {{query, _params, _principal} = source_key, _source}, state ->
+              if MapSet.member?(source_queries, query),
+                do: rerun_source(state, source_key),
+                else: state
+          end)
+
+        broadcast(state.connections, %{"type" => "checkpoint", "seq" => seq}, nil)
+        state
+    end
+  rescue
+    error ->
+      Logger.error(
+        "wheel: catch-up failed workspace=#{inspect(state.workspace_id)} " <>
+          "seq=#{state.seq} error=#{Exception.message(error)}"
+      )
+
+      state
   end
 
   defp remove_connection(state, pid) do
