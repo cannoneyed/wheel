@@ -84,6 +84,7 @@ export {
 export {
   WHEEL_SCHEMA_SPEC_VERSION,
   createSchemaSpec,
+  fingerprintSnapshotRows,
   stringifySchemaSpec,
   type SchemaSpecKey,
   type SchemaSpecMutation,
@@ -92,3 +93,8 @@ export {
   type SchemaSpecTable,
   type WheelSchemaSpec
 } from './schema-spec';
+export {
+  ROW_SCHEMA_FINGERPRINT_PREFIX,
+  validateRowSchemaFingerprint,
+  type RowSchemaFingerprint
+} from '../row-schema';

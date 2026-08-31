@@ -21,6 +21,10 @@
  */
 
 import type { Row } from './cache';
+import {
+  validateRowSchemaFingerprint,
+  type RowSchemaFingerprint
+} from '../row-schema';
 
 /** A persisted snapshot of one subscription's server truth. */
 export interface PersistedSubscription {
@@ -109,6 +113,25 @@ export interface CacheScopes {
   readonly outbox: string;
   /** True for a dead scope this app owns; its rows are deleted at open. */
   readonly retires: (scope: string) => boolean;
+}
+
+/** Build the standard split scopes for cached rows and durable pending commands. */
+export function createCacheScopes(options: {
+  readonly storeScope: string;
+  readonly rowSchemaFingerprint: RowSchemaFingerprint | string;
+}): CacheScopes {
+  if (options.storeScope === '') {
+    throw new TypeError('storeScope must be non-empty.');
+  }
+  const fingerprint = validateRowSchemaFingerprint(options.rowSchemaFingerprint);
+  const prefix = `${options.storeScope}|`;
+  const snapshots = `${prefix}snapshots:${fingerprint}`;
+  const outbox = `${prefix}outbox`;
+  return Object.freeze({
+    snapshots,
+    outbox,
+    retires: (scope: string) => scope.startsWith(prefix) && scope !== snapshots && scope !== outbox
+  });
 }
 
 /** IndexedDB-backed store for browsers. One database per storeName. */

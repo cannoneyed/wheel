@@ -4,9 +4,10 @@ This plan turns the findings in [`wheel-upgrades-report.md`](../../../wheel-upgr
 and the Phase 0 client proof into gated phases. Each phase keeps Wheel working and records its
 validation in [`progress.md`](progress.md) before the next phase starts.
 
-Stages 1 through 6 from the report and the atomic mutation-group requirement in
-[`issue_batch_mutations.md`](issue_batch_mutations.md) are in scope. Multi-node invalidation
-remains deferred unless its scope changes. Phase sizes use Phase 1 as the `M` reference.
+Stages 1 through 6 from the report, the atomic mutation-group requirement in
+[`issue_batch_mutations.md`](issue_batch_mutations.md), and the automatic snapshot fingerprint
+requirement in [`wheel-version.md`](wheel-version.md) are in scope. Multi-node invalidation remains
+deferred unless its scope changes. Phase sizes use Phase 1 as the `M` reference.
 
 ## Contents
 
@@ -19,6 +20,7 @@ remains deferred unless its scope changes. Phase sizes use Phase 1 as the `M` re
 - [Phase 1: Correct the protocol and server engines](#phase-1-correct-the-protocol-and-server-engines)
 - [Phase 1B: Add atomic mutation groups](#phase-1b-add-atomic-mutation-groups)
 - [Phase 2: Build the Tracker proof slice](#phase-2-build-the-tracker-proof-slice)
+- [Phase 2B: Automate snapshot fingerprints](#phase-2b-automate-snapshot-fingerprints)
 - [Phase 3: Add Elixir grouping and external writes](#phase-3-add-elixir-grouping-and-external-writes)
 - [Phase 4: Move client state ownership](#phase-4-move-client-state-ownership)
 - [Phase 5: Expand query and source contracts](#phase-5-expand-query-and-source-contracts)
@@ -76,6 +78,8 @@ These choices define the Phase 0B proof and later client work.
 | Group atomicity | Validate every inverse, apply, persist, send, commit, publish, settle, and undo a group as one command. |
 | Reads | Application reads use the published effective view. Replay reads use a temporary working view. |
 | Provenance | Keep the bounded Wheel provenance log beside the materializer, not inside row values. |
+| Snapshot identity | Generate an exact cached-row fingerprint and keep the mutation outbox outside that scope. |
+| Release compatibility | Keep ordered application versions separate from the exact snapshot fingerprint. |
 | Pushdown | Add only allowlisted mappings for named queries after the client migration. |
 | Compatibility | Rename and remove old APIs without aliases. |
 
@@ -349,6 +353,82 @@ not add generic query pushdown.
 
 The Tracker slice passes differential tests and the atomic publication proof under real query
 shapes.
+
+## Phase 2B: Automate snapshot fingerprints
+
+**Size:** `L`, using Phase 1 as the `M` reference
+
+Generate an exact identity for cached subscription rows. Keep ordered application versions for
+rolling compatibility and keep the durable mutation outbox stable across row-contract changes.
+
+Wheel already splits snapshot and outbox scopes in `IndexedDbCache`. Its cache tests prove that a
+manual fingerprint retires snapshots without removing pending mutations. The missing work is
+fingerprint generation, client artifacts, runtime negotiation, and the standard scope helper.
+
+### Fingerprint contract
+
+The canonical fingerprint input contains:
+
+- Every table name, current `virtual` value, JSON Schema, and ordered row-key rule.
+- Every query name and its `into` table.
+
+The query mapping is required because a query can keep its name while changing which table owns
+its cached rows. Query parameter schemas, mutation argument schemas, invalidation hints, and
+presence do not change cached row interpretation and stay outside this fingerprint.
+
+The schema-specific canonicalizer sorts tables and queries by name, recursively sorts object
+keys, and sorts set-valued JSON Schema arrays such as `required`. It preserves arrays whose order
+changes meaning, including composite key fields and tuple items. SHA-256 over the canonical UTF-8
+document produces a lowercase value prefixed with `wheel-rows-sha256:`.
+
+Only Wheel's TypeScript contract generator computes the hash. Generated JSON and a small
+browser-safe TypeScript module carry the same literal value. Elixir loads and validates that
+literal from the generated contract instead of implementing a second canonicalizer.
+
+### Changes
+
+1. Add `rowSchemaFingerprint` to the generated schema specification and bump its format version.
+2. Generate a small client module containing the fingerprint beside each checked-in contract.
+3. Make generation checks fail when either artifact is stale.
+4. Add `createCacheScopes({ storeScope, rowSchemaFingerprint })` to produce the snapshot scope,
+   stable outbox scope, and application-owned retirement predicate.
+5. Replace manual application-version snapshot scopes in Tracker, demos, and getting-started
+   examples with the generated fingerprint and helper.
+6. Require the fingerprint in `createWebSocketTransport`, `SyncSocketHandshake`,
+   `SyncSocketServer`, Cloudflare, and the Elixir runtime.
+7. Bump the wire protocol and require the new handshake field. Do not accept a missing field or
+   add a protocol fallback.
+8. Compare protocol and ordered application versions before comparing the fingerprint.
+9. Return terminal `row_schema_mismatch` details containing both non-secret fingerprints before
+   any subscription starts.
+10. Stop reconnecting after a fingerprint mismatch. Update application reload handlers to reload
+    once for a new server fingerprint and surface a persistent mismatch without a reload loop.
+11. Store the fingerprint in hibernation attachments and close restored sockets when their
+    deployment fingerprint differs.
+12. Update the cache, transport, contract, Elixir, and generated-contract documentation.
+
+### Validation
+
+- Declaration and object insertion order do not change the fingerprint.
+- A table name, row field, required field, `virtual` value, key rule, or query `into` change does.
+- A mutation argument, query parameter, invalidation hint, or presence-only change does not.
+- Generated client and server artifacts contain the same fingerprint.
+- TypeScript and Elixir consume the same shared fixture value.
+- A new fingerprint loads no old snapshots and retires only application-owned snapshot scopes.
+- The stable outbox survives the fingerprint change and replays through normal validation.
+- Protocol, `server_updating`, and `client_outdated` results take precedence over
+  `row_schema_mismatch`.
+- Neither server starts a subscription before the fingerprint check passes.
+- An already-open old client reloads once, then connects with the new fingerprint.
+- An inconsistent deployment stops reconnecting and does not create a reload loop.
+- A browser upgrade test proves that contract-A rows never materialize under contract B while a
+  queued mutation survives.
+
+### Exit gate
+
+Generated artifacts, cache tests, shared TypeScript and Elixir wire fixtures, and the focused
+browser upgrade test pass. Phase 4 cannot start until applications use generated snapshot scopes
+and an old open client cannot subscribe under a different row contract.
 
 ## Phase 3: Add Elixir grouping and external writes
 

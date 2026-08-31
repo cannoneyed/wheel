@@ -15,6 +15,7 @@ import {
   type SyncSocketVersionMismatchReason
 } from '../socket-protocol';
 import type { MutateGroupRequest, MutateResult, Snapshot } from '../protocol';
+import { validateRowSchemaFingerprint, type RowSchemaFingerprint } from '../row-schema';
 import type { SyncConnection, SyncConnectionState, SyncServer } from './engine';
 import { SyncServerError } from './errors';
 
@@ -40,6 +41,7 @@ export interface SyncSocketHandshake {
   readonly principal: AuthPrincipal;
   readonly clientProtocol: number;
   readonly clientApplicationVersion: number;
+  readonly clientRowSchemaFingerprint: string;
 }
 
 /** Operation and request identity attached to server-side error reports. */
@@ -58,6 +60,8 @@ export interface SyncSocketServerOptions {
   readonly minimumClientVersion?: number;
   /** Applied Durable Object SQLite schema version, reported in hello frames. */
   readonly schemaVersion: number;
+  /** Exact generated identity of cached row declarations. */
+  readonly rowSchemaFingerprint: RowSchemaFingerprint | string;
   readonly maxMessageBytes?: number;
   /** Maximum JSON size kept in a hibernation attachment. Defaults below Cloudflare's 16 KiB limit. */
   readonly maxAttachmentBytes?: number;
@@ -74,9 +78,10 @@ interface RateState {
 }
 
 interface SyncSocketAttachment {
-  readonly attachmentVersion: 1;
+  readonly attachmentVersion: 2;
   readonly applicationVersion: number;
   readonly schemaVersion: number;
+  readonly rowSchemaFingerprint: string;
   readonly ownerClientId: string;
   readonly connection: SyncConnectionState;
   readonly rate: RateState;
@@ -152,12 +157,13 @@ function parseRequest(raw: string): SyncSocketRequest {
 }
 
 function parseAttachment(value: unknown): SyncSocketAttachment {
-  if (!isRecord(value) || value.attachmentVersion !== 1) {
+  if (!isRecord(value) || value.attachmentVersion !== 2) {
     throw new TypeError('WebSocket attachment has an unsupported format.');
   }
   if (
     !Number.isSafeInteger(value.applicationVersion) ||
     !Number.isSafeInteger(value.schemaVersion) ||
+    typeof value.rowSchemaFingerprint !== 'string' ||
     typeof value.ownerClientId !== 'string' ||
     value.ownerClientId === '' ||
     !isRecord(value.connection) ||
@@ -207,6 +213,7 @@ export class SyncSocketServer {
   private readonly applicationVersion: number;
   private readonly minimumClientVersion: number;
   private readonly schemaVersion: number;
+  private readonly rowSchemaFingerprint: RowSchemaFingerprint;
   private readonly maxMessageBytes: number;
   private readonly maxAttachmentBytes: number;
   private readonly messagesPerMinute: number;
@@ -225,6 +232,7 @@ export class SyncSocketServer {
       throw new TypeError('minimumClientVersion must not exceed applicationVersion.');
     }
     this.schemaVersion = positiveInteger(options.schemaVersion, 'schemaVersion');
+    this.rowSchemaFingerprint = validateRowSchemaFingerprint(options.rowSchemaFingerprint);
     this.maxMessageBytes = positiveInteger(options.maxMessageBytes ?? 256 * 1024, 'maxMessageBytes');
     this.maxAttachmentBytes = positiveInteger(
       options.maxAttachmentBytes ?? DEFAULT_ATTACHMENT_LIMIT_BYTES,
@@ -268,7 +276,9 @@ export class SyncSocketServer {
       serverProtocol: SYNC_PROTOCOL_VERSION,
       clientApplicationVersion: handshake.clientApplicationVersion,
       serverApplicationVersion: this.applicationVersion,
-      minimumClientVersion: this.minimumClientVersion
+      minimumClientVersion: this.minimumClientVersion,
+      clientRowSchemaFingerprint: handshake.clientRowSchemaFingerprint,
+      serverRowSchemaFingerprint: this.rowSchemaFingerprint
     });
     socket.close(CLOSE_VERSION, reason);
   }
@@ -277,14 +287,18 @@ export class SyncSocketServer {
     if (handshake.clientProtocol !== SYNC_PROTOCOL_VERSION) return 'protocol_mismatch';
     if (handshake.clientApplicationVersion > this.applicationVersion) return 'server_updating';
     if (handshake.clientApplicationVersion < this.minimumClientVersion) return 'client_outdated';
+    if (handshake.clientRowSchemaFingerprint !== this.rowSchemaFingerprint) {
+      return 'row_schema_mismatch';
+    }
     return null;
   }
 
   private attachment(record: SessionRecord, ownerClientId: string): SyncSocketAttachment {
     return {
-      attachmentVersion: 1,
+      attachmentVersion: 2,
       applicationVersion: this.applicationVersion,
       schemaVersion: this.schemaVersion,
+      rowSchemaFingerprint: this.rowSchemaFingerprint,
       ownerClientId,
       connection: record.connection.state(),
       rate: record.rate
@@ -353,7 +367,8 @@ export class SyncSocketServer {
         type: 'hello',
         connectionId,
         applicationVersion: this.applicationVersion,
-        schemaVersion: this.schemaVersion
+        schemaVersion: this.schemaVersion,
+        rowSchemaFingerprint: this.rowSchemaFingerprint
       });
     } catch (error) {
       this.report(error, { operation: 'accept' });
@@ -373,7 +388,8 @@ export class SyncSocketServer {
         const attachment = parseAttachment(socket.getAttachment());
         if (
           attachment.applicationVersion !== this.applicationVersion ||
-          attachment.schemaVersion !== this.schemaVersion
+          attachment.schemaVersion !== this.schemaVersion ||
+          attachment.rowSchemaFingerprint !== this.rowSchemaFingerprint
         ) {
           socket.close(1012, 'deployment_changed');
           continue;
@@ -567,8 +583,22 @@ export async function authenticateSyncSocket(
   if (!Number.isSafeInteger(clientProtocol) || !Number.isSafeInteger(clientApplicationVersion)) {
     return jsonError(400, 'invalid_version', 'protocol and version must be integers.');
   }
+  const clientRowSchemaFingerprint = url.searchParams.get('rowSchemaFingerprint') ?? '';
+  if (clientRowSchemaFingerprint.length > 128) {
+    return jsonError(
+      400,
+      'invalid_row_schema_fingerprint',
+      'rowSchemaFingerprint must contain 128 characters or fewer.'
+    );
+  }
   return {
     ok: true,
-    handshake: { ownerClientId, principal, clientProtocol, clientApplicationVersion }
+    handshake: {
+      ownerClientId,
+      principal,
+      clientProtocol,
+      clientApplicationVersion,
+      clientRowSchemaFingerprint
+    }
   };
 }

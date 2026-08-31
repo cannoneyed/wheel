@@ -62,6 +62,7 @@ stamp: (_ctx, _args, row) => ({ version: row.version + 1 })
 Use `mutateGroup()` when one action needs several existing mutations and one undo step:
 
 ```ts
+// Excerpt: two existing mutations become one undoable command.
 this.mutateGroup([
   { mutation: updateTodo, args: { todoId: firstId, patch: { done: true } } },
   { mutation: updateTodo, args: { todoId: secondId, patch: { done: true } } }

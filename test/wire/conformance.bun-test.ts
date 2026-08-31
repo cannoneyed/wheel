@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:tes
 import type { SyncSocketMessage } from '../../packages/wheel/src/sync';
 import expectedFixture from './fixtures/expected.json';
 import requestFixture from './fixtures/requests.json';
+import { ROW_SCHEMA_FINGERPRINT } from './fixtures/row-schema.generated';
 import {
   WIRE_APPLICATION_VERSION,
   WIRE_MINIMUM_CLIENT_VERSION,
@@ -36,13 +37,23 @@ class Inbox {
   static open(
     baseUrl: string,
     client: string,
-    options: { version?: number; protocol?: number; actor?: string; session?: string } = {}
+    options: {
+      version?: number;
+      protocol?: number;
+      rowSchemaFingerprint?: string;
+      actor?: string;
+      session?: string;
+    } = {}
   ): Promise<Inbox> {
     const url = new URL('/sync/websocket', baseUrl);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     url.searchParams.set('client', client);
-    url.searchParams.set('protocol', String(options.protocol ?? 2));
+    url.searchParams.set('protocol', String(options.protocol ?? 3));
     url.searchParams.set('version', String(options.version ?? WIRE_APPLICATION_VERSION));
+    url.searchParams.set(
+      'rowSchemaFingerprint',
+      options.rowSchemaFingerprint ?? ROW_SCHEMA_FINGERPRINT
+    );
     url.searchParams.set('actor', options.actor ?? 'user:wire');
     url.searchParams.set('session', options.session ?? `session:${client}`);
     return new Promise((resolve, reject) => {
@@ -181,14 +192,16 @@ afterAll(async () => {
 });
 
 describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScript SQLite'})`, () => {
-  test('hello and all three rolling-version mismatch reasons', async () => {
+  test('hello and all four rolling-version mismatch reasons', async () => {
+    const mismatchedFingerprint = `wheel-rows-sha256:${'0'.repeat(64)}`;
     const current = await Inbox.open(baseUrl, 'current');
     const hello = await current.next((message) => message.type === 'hello');
     expect(hello).toMatchObject({
-      protocol: 2,
+      protocol: 3,
       type: 'hello',
       applicationVersion: WIRE_APPLICATION_VERSION,
-      schemaVersion: 1
+      schemaVersion: 1,
+      rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
     });
     if (hello.type !== 'hello') throw new Error('Expected hello');
     expect(
@@ -201,17 +214,34 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     ).toBeDefined();
     current.close();
 
-    const newer = await Inbox.open(baseUrl, 'newer', { version: WIRE_APPLICATION_VERSION + 1 });
+    const newer = await Inbox.open(baseUrl, 'newer', {
+      version: WIRE_APPLICATION_VERSION + 1,
+      rowSchemaFingerprint: mismatchedFingerprint
+    });
     expect(await newer.next((message) => message.type === 'version_mismatch')).toMatchObject({
       reason: 'server_updating'
     });
-    const older = await Inbox.open(baseUrl, 'older', { version: WIRE_MINIMUM_CLIENT_VERSION - 1 });
+    const older = await Inbox.open(baseUrl, 'older', {
+      version: WIRE_MINIMUM_CLIENT_VERSION - 1,
+      rowSchemaFingerprint: mismatchedFingerprint
+    });
     expect(await older.next((message) => message.type === 'version_mismatch')).toMatchObject({
       reason: 'client_outdated'
     });
-    const protocol = await Inbox.open(baseUrl, 'protocol', { protocol: 3 });
+    const protocol = await Inbox.open(baseUrl, 'protocol', {
+      protocol: 4,
+      rowSchemaFingerprint: mismatchedFingerprint
+    });
     expect(await protocol.next((message) => message.type === 'version_mismatch')).toMatchObject({
       reason: 'protocol_mismatch'
+    });
+    const rowSchema = await Inbox.open(baseUrl, 'row-schema', {
+      rowSchemaFingerprint: mismatchedFingerprint
+    });
+    expect(await rowSchema.next((message) => message.type === 'version_mismatch')).toMatchObject({
+      reason: 'row_schema_mismatch',
+      clientRowSchemaFingerprint: mismatchedFingerprint,
+      serverRowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
     });
   });
 
@@ -227,13 +257,13 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
       fill(expectedFixture.emptySnapshot, { subscriptionId: response.value.subscriptionId })
     );
     inbox.send({
-      protocol: 2,
+      protocol: 3,
       type: 'unsubscribe',
       requestId: 'unsubscribe',
       subscriptionId: response.value.subscriptionId
     });
     expect(await inbox.response('unsubscribe')).toEqual({
-      protocol: 2,
+      protocol: 3,
       type: 'response',
       requestId: 'unsubscribe',
       ok: true,
@@ -330,7 +360,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     const subscriptionId = await subscribe(inbox);
     const widgetId = 'widget_0190b62e-0000-7000-8000-000000000020';
     const group = {
-      protocol: 2,
+      protocol: 3,
       type: 'mutateGroup',
       requestId: 'group-create',
       command: {
@@ -574,7 +604,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     await Promise.all([inbox.response('create-alpha'), inbox.next(deltaFor(subscriptionId, 1))]);
 
     const rejected = {
-      protocol: 2,
+      protocol: 3,
       type: 'mutateGroup',
       requestId: 'reject',
       command: {

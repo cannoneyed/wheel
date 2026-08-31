@@ -1,6 +1,7 @@
 {
-  "schemaSpecVersion": 1,
-  "protocolVersion": 2,
+  "schemaSpecVersion": 2,
+  "protocolVersion": 3,
+  "rowSchemaFingerprint": "wheel-rows-sha256:56e3a6ac33e2aef1e12fe570f996472a9b713d1c974578d01746001cd76e3ae0",
   "tables": [
     {
       "name": "activity",

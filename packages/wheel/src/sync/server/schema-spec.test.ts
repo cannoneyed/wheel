@@ -4,7 +4,12 @@ import { mutation, presence, query, table } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from './serve';
-import { createSchemaSpec, stringifySchemaSpec } from './schema-spec';
+import {
+  createSchemaSpec,
+  fingerprintSnapshotRows,
+  stringifySchemaSpec,
+  type WheelSchemaSpec
+} from './schema-spec';
 
 function fixture() {
   const memberships = table({
@@ -39,8 +44,9 @@ describe('createSchemaSpec', () => {
     const { syncModule, servers } = fixture();
     const spec = createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
     expect(spec).toMatchObject({
-      schemaSpecVersion: 1,
-      protocolVersion: 2,
+      schemaSpecVersion: 2,
+      protocolVersion: 3,
+      rowSchemaFingerprint: expect.stringMatching(/^wheel-rows-sha256:[0-9a-f]{64}$/),
       tables: [
         {
           name: 'memberships',
@@ -60,6 +66,95 @@ describe('createSchemaSpec', () => {
       required: ['orgId', 'userId', 'role']
     });
     expect(stringifySchemaSpec(spec).endsWith('\n')).toBe(true);
+  });
+
+  test('fingerprints cached row shape, identity, and query ownership only', () => {
+    const { syncModule, servers } = fixture();
+    const spec = createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
+    const original = spec.rowSchemaFingerprint;
+    const table = spec.tables[0]!;
+    const query = spec.queries[0]!;
+    const schema = table.jsonSchema as Record<string, unknown>;
+    const properties = schema.properties as Record<string, unknown>;
+    const required = schema.required as string[];
+
+    const reordered: WheelSchemaSpec = {
+      ...spec,
+      tables: [
+        {
+          ...table,
+          jsonSchema: {
+            ...Object.fromEntries(Object.entries(schema).reverse()),
+            properties: Object.fromEntries(Object.entries(properties).reverse()),
+            required: [...required].reverse()
+          }
+        }
+      ]
+    };
+    expect(fingerprintSnapshotRows(reordered)).toBe(original);
+
+    const archiveTable = { ...table, name: 'memberships_archive' };
+    const archiveQuery = { ...query, name: 'memberships.archive', into: archiveTable.name };
+    const twoContracts = { tables: [table, archiveTable], queries: [query, archiveQuery] };
+    expect(
+      fingerprintSnapshotRows({
+        tables: [...twoContracts.tables].reverse(),
+        queries: [...twoContracts.queries].reverse()
+      })
+    ).toBe(fingerprintSnapshotRows(twoContracts));
+
+    const unrelated = {
+      ...spec,
+      queries: [{ ...query, paramsSchema: { type: 'string' }, rerunOn: ['other'] }],
+      mutations: [{ name: 'memberships.changed', argsSchema: { type: 'string' } }],
+      presence: { name: 'changed', stateSchema: { type: 'string' } }
+    };
+    expect(fingerprintSnapshotRows(unrelated)).toBe(original);
+
+    const withField = {
+      ...spec,
+      tables: [
+        {
+          ...table,
+          jsonSchema: {
+            ...schema,
+            properties: { ...properties, tag: { type: 'string' } },
+            required: [...required, 'tag']
+          }
+        }
+      ]
+    };
+    expect(fingerprintSnapshotRows(withField)).not.toBe(original);
+    expect(
+      fingerprintSnapshotRows({
+        ...spec,
+        tables: [{ ...table, name: 'renamed_memberships' }]
+      })
+    ).not.toBe(original);
+    expect(
+      fingerprintSnapshotRows({
+        ...spec,
+        tables: [{ ...table, jsonSchema: { ...schema, required: required.slice(0, -1) } }]
+      })
+    ).not.toBe(original);
+    expect(
+      fingerprintSnapshotRows({
+        ...spec,
+        tables: [{ ...table, key: { ...table.key, fields: [...table.key.fields].reverse() } }]
+      })
+    ).not.toBe(original);
+    expect(
+      fingerprintSnapshotRows({
+        ...spec,
+        tables: [{ ...table, key: { ...table.key, separator: '|' } }]
+      })
+    ).not.toBe(original);
+    expect(
+      fingerprintSnapshotRows({ ...spec, tables: [{ ...table, virtual: !table.virtual }] })
+    ).not.toBe(original);
+    expect(
+      fingerprintSnapshotRows({ ...spec, queries: [{ ...query, into: 'other_table' }] })
+    ).not.toBe(original);
   });
 
   test('fails on Zod parse behavior that plain JSON Schema cannot reproduce', () => {

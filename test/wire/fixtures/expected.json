@@ -1,6 +1,6 @@
 {
   "emptySnapshot": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "response",
     "requestId": "subscribe",
     "ok": true,
@@ -13,7 +13,7 @@
     }
   },
   "alphaDelta": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "event",
     "event": {
       "type": "delta",

@@ -42,6 +42,7 @@ import { GRAPH_SCHEMA } from './src/graph/sync/graph.server';
 import * as sequencerSync from './src/sequencer/sync/sequencer.sync';
 import * as sequencerServer from './src/sequencer/sync/sequencer.server';
 import { SEQUENCER_SCHEMA } from './src/sequencer/sync/sequencer.server';
+import { ROW_SCHEMA_FINGERPRINTS } from './src/shared/row-schema.generated';
 
 // PORT is how portless (and any other supervisor) assigns a free port;
 // the literal is the fallback for a plain `bun run demos:server`.
@@ -77,7 +78,8 @@ async function bootEngine(
   prefix: string,
   syncModule: object,
   servers: object,
-  schema: { create: string[]; seed: string[] }
+  schema: { create: string[]; seed: string[] },
+  rowSchemaFingerprint: string
 ): Promise<DemoEngine> {
   // ONE bun:sqlite :memory: driver, shared: create + seed the tables on it,
   // then hand the same driver to the engine (a :memory: db is per-connection).
@@ -98,6 +100,7 @@ async function bootEngine(
     server: live,
     applicationVersion: DEMO_APPLICATION_VERSION,
     schemaVersion: 1,
+    rowSchemaFingerprint,
     detailedErrors: true
   });
   return {
@@ -114,12 +117,24 @@ async function bootEngine(
 
 /** Boot thunks by prefix — kept so `__reset` can rebuild an engine from scratch. */
 const BOOTS: Record<string, () => Promise<DemoEngine>> = {
-  '/sync/todos': () => bootEngine('/sync/todos', todosSync, todosServer, TODOS_SCHEMA),
-  '/sync/kanban': () => bootEngine('/sync/kanban', kanbanSync, kanbanServer, KANBAN_SCHEMA),
-  '/sync/editor': () => bootEngine('/sync/editor', editorSync, editorServer, EDITOR_SCHEMA),
-  '/sync/sheet': () => bootEngine('/sync/sheet', sheetSync, sheetServer, SHEET_SCHEMA),
-  '/sync/graph': () => bootEngine('/sync/graph', graphSync, graphServer, GRAPH_SCHEMA),
-  '/sync/sequencer': () => bootEngine('/sync/sequencer', sequencerSync, sequencerServer, SEQUENCER_SCHEMA)
+  '/sync/todos': () =>
+    bootEngine('/sync/todos', todosSync, todosServer, TODOS_SCHEMA, ROW_SCHEMA_FINGERPRINTS.todos),
+  '/sync/kanban': () =>
+    bootEngine('/sync/kanban', kanbanSync, kanbanServer, KANBAN_SCHEMA, ROW_SCHEMA_FINGERPRINTS.kanban),
+  '/sync/editor': () =>
+    bootEngine('/sync/editor', editorSync, editorServer, EDITOR_SCHEMA, ROW_SCHEMA_FINGERPRINTS.editor),
+  '/sync/sheet': () =>
+    bootEngine('/sync/sheet', sheetSync, sheetServer, SHEET_SCHEMA, ROW_SCHEMA_FINGERPRINTS.sheet),
+  '/sync/graph': () =>
+    bootEngine('/sync/graph', graphSync, graphServer, GRAPH_SCHEMA, ROW_SCHEMA_FINGERPRINTS.graph),
+  '/sync/sequencer': () =>
+    bootEngine(
+      '/sync/sequencer',
+      sequencerSync,
+      sequencerServer,
+      SEQUENCER_SCHEMA,
+      ROW_SCHEMA_FINGERPRINTS.sequencer
+    )
 };
 
 const engines = new Map<string, DemoEngine>();

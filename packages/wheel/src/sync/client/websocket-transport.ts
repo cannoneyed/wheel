@@ -18,6 +18,7 @@ import {
   type SyncSocketVersionMismatchReason
 } from '../socket-protocol';
 import type { MutateGroupRequest, MutateResult, ServerEvent, Snapshot } from '../protocol';
+import { validateRowSchemaFingerprint, type RowSchemaFingerprint } from '../row-schema';
 import { TransientSyncError, type SyncConnectionStatus, type SyncTransport } from './transport';
 
 const BACKOFF_BASE_MS = 250;
@@ -61,6 +62,8 @@ export interface SyncVersionMismatch {
   readonly clientApplicationVersion: number;
   readonly serverApplicationVersion: number;
   readonly minimumClientVersion: number;
+  readonly clientRowSchemaFingerprint: string;
+  readonly serverRowSchemaFingerprint: string;
 }
 
 /** Browser WebSocket address, versions, lifecycle hooks, and test seams. */
@@ -69,6 +72,8 @@ export interface WebSocketTransportOptions {
   readonly baseUrl: string;
   /** Monotonic application API version sent during every handshake. */
   readonly applicationVersion: number;
+  /** Exact generated identity of cached row declarations. */
+  readonly rowSchemaFingerprint: RowSchemaFingerprint | string;
   /** Non-secret query parameters used by demo authentication or a one-use ticket. */
   readonly params?:
     | Record<string, string>
@@ -100,6 +105,8 @@ class SocketResponseError extends Error {
   }
 }
 
+class RowSchemaMismatchError extends Error {}
+
 function positiveInteger(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value < 1) {
     throw new TypeError(`${name} must be a positive integer.`);
@@ -107,7 +114,12 @@ function positiveInteger(value: number, name: string): number {
   return value;
 }
 
-function socketUrl(baseUrl: string, clientId: string, applicationVersion: number): URL {
+function socketUrl(
+  baseUrl: string,
+  clientId: string,
+  applicationVersion: number,
+  rowSchemaFingerprint: RowSchemaFingerprint
+): URL {
   const fallback = 'http://localhost/';
   const href = (globalThis as { location?: { href?: string } }).location?.href ?? fallback;
   const base = baseUrl.replace(/\/$/, '');
@@ -116,6 +128,7 @@ function socketUrl(baseUrl: string, clientId: string, applicationVersion: number
   url.searchParams.set('client', clientId);
   url.searchParams.set('protocol', String(SYNC_PROTOCOL_VERSION));
   url.searchParams.set('version', String(applicationVersion));
+  url.searchParams.set('rowSchemaFingerprint', rowSchemaFingerprint);
   return url;
 }
 
@@ -129,6 +142,7 @@ async function messageText(data: unknown): Promise<string> {
 /** Create the browser transport used by Cloudflare and Bun WebSocket servers. */
 export function createWebSocketTransport(options: WebSocketTransportOptions): SyncTransport {
   const applicationVersion = positiveInteger(options.applicationVersion, 'applicationVersion');
+  const rowSchemaFingerprint = validateRowSchemaFingerprint(options.rowSchemaFingerprint);
   const defer = options.defer ?? systemDefer;
   const random01 = options.random01 ?? systemRandom01;
   const createSocket =
@@ -192,7 +206,12 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
   eventTarget.addEventListener?.('online', handleOnline);
 
   const buildUrl = async (clientId: string): Promise<string> => {
-    const url = socketUrl(options.baseUrl, clientId, applicationVersion);
+    const url = socketUrl(
+      options.baseUrl,
+      clientId,
+      applicationVersion,
+      rowSchemaFingerprint
+    );
     const configured =
       typeof options.params === 'function' ? await options.params() : options.params;
     for (const [name, value] of Object.entries(configured ?? {})) {
@@ -297,10 +316,13 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
         }
       }, { once: true });
       socket.addEventListener('close', () => {
+        const message = mismatch
+          ? `sync version mismatch: ${mismatch.reason}`
+          : 'sync WebSocket closed before hello';
         finishSocket(
-          new TransientSyncError(
-            mismatch ? `sync version mismatch: ${mismatch.reason}` : 'sync WebSocket closed before hello'
-          )
+          mismatch?.reason === 'row_schema_mismatch'
+            ? new RowSchemaMismatchError(message)
+            : new TransientSyncError(message)
         );
       }, { once: true });
       signal.addEventListener(
@@ -341,7 +363,8 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
             wake: attachWake,
             waitFirst: flapStreak > 0,
             startAttempt: Math.max(0, flapStreak - 1),
-            onFailure: ({ attempt }) => {
+            onFailure: ({ attempt, error }) => {
+              if (error instanceof RowSchemaMismatchError) return 'stop';
               if (!reportedOffline && attempt + 1 >= OFFLINE_AFTER_ATTEMPTS) {
                 reportedOffline = true;
                 options.onStatus?.('offline');
@@ -367,6 +390,10 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
       }
     } catch (error) {
       if (isAbortError(error) || signal.aborted) return;
+      if (error instanceof RowSchemaMismatchError) {
+        options.onStatus?.('offline');
+        return;
+      }
       logger.error('wheel: sync WebSocket loop crashed', error);
       options.onStatus?.('offline');
     }

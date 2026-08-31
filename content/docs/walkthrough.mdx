@@ -66,6 +66,12 @@ The IndexedDB scope is stable in `localStorage`, so cached rows and the durable 
 
 Using one new random id for both jobs would abandon the previous cache after each reload. The split preserves local-first continuity: the cache and outbox outlive the page, the wire id does not.
 
+The checked-in `row-schema.generated.ts` comes from the same sync declarations and server bindings
+that boot the server. Run `bun run row-schema:docs` after changing either input. CI runs the matching
+check command and rejects a stale file. The generated fingerprint scopes cached snapshots and
+cross-checks the browser and server during the WebSocket handshake. It does not replace the ordered
+application version.
+
 Create `client.ts`:
 
 <CodeExample example={clientSource} />

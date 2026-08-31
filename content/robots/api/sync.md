@@ -12,7 +12,7 @@ Read-only view of the effective client state — what invert() captures old valu
 
 ## `CacheScopes`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:105](../../../packages/wheel/src/sync/client/local-cache.ts#L105).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:109](../../../packages/wheel/src/sync/client/local-cache.ts#L109).
 
 The two persistence scopes, split on purpose. Snapshots are row-shaped, so their scope carries the app's row-schema fingerprint: a schema change retires them and the client re-bootstraps — that is the designed invalidation. The outbox holds mutations (name + args, replayed and deduped by the server), which no schema fingerprint invalidates: scoping them by the fingerprint silently abandoned every pending write that straddled a schema change (found 2026-08-10). `retires` names the scopes this app owns and no longer serves; the cache deletes their rows at open, because a scope nothing will ever read again otherwise grows the store — and the boot-time getAll over it — forever. It must answer false for every scope a DIFFERENT app in the same store still serves.
 
@@ -28,15 +28,27 @@ Kind: interface. Source: [packages/wheel/src/core/runtime-defaults.ts:16](../../
 
 Injected wall clock — real time in production, a fixed/stepping clock in tests.
 
+## `createCacheScopes`
+
+Kind: function. Source: [packages/wheel/src/sync/client/local-cache.ts:119](../../../packages/wheel/src/sync/client/local-cache.ts#L119).
+
+Build the standard split scopes for cached rows and durable pending commands.
+
 ## `createIdGen`
 
 Kind: function. Source: [packages/wheel/src/sync/ids.ts:50](../../../packages/wheel/src/sync/ids.ts#L50).
 
 UUIDv7 generator over an injected clock and randomness source. Within one millisecond, a 12-bit counter in rand_a keeps ids monotonic; the counter resets when the clock advances.
 
+## `createRowSchemaReloadGuard`
+
+Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:17](../../../packages/wheel/src/sync/row-schema.ts#L17).
+
+Allow one asset reload for each new server row contract.
+
 ## `createWebSocketTransport`
 
-Kind: function. Source: [packages/wheel/src/sync/client/websocket-transport.ts:130](../../../packages/wheel/src/sync/client/websocket-transport.ts#L130).
+Kind: function. Source: [packages/wheel/src/sync/client/websocket-transport.ts:143](../../../packages/wheel/src/sync/client/websocket-transport.ts#L143).
 
 Create the browser transport used by Cloudflare and Bun WebSocket servers.
 
@@ -72,7 +84,7 @@ Injected id source (prefixed UUIDv7s) - deterministic in World, real randomness 
 
 ## `IndexedDbCache`
 
-Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:115](../../../packages/wheel/src/sync/client/local-cache.ts#L115).
+Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:138](../../../packages/wheel/src/sync/client/local-cache.ts#L138).
 
 IndexedDB-backed store for browsers. One database per storeName.
 
@@ -126,13 +138,13 @@ Live rows + status for one (query, params) subscription.
 
 ## `LocalCache`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:51](../../../packages/wheel/src/sync/client/local-cache.ts#L51).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:55](../../../packages/wheel/src/sync/client/local-cache.ts#L55).
 
 Storage contract. Implementations: IndexedDbCache (browser), MemoryCache (tests/SSR). All methods are async and must never throw for missing keys — absence is `undefined`/`[]`.
 
 ## `MemoryCache`
 
-Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:62](../../../packages/wheel/src/sync/client/local-cache.ts#L62).
+Kind: class. Source: [packages/wheel/src/sync/client/local-cache.ts:66](../../../packages/wheel/src/sync/client/local-cache.ts#L66).
 
 In-memory cache: tests, SSR, and environments without IndexedDB.
 
@@ -246,13 +258,13 @@ What `peers(decl)` answers: `valid` peers keyed by clientId, plus the `failures`
 
 ## `PersistedOutboxEntry`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:35](../../../packages/wheel/src/sync/client/local-cache.ts#L35).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:39](../../../packages/wheel/src/sync/client/local-cache.ts#L39).
 
 A persisted pending mutation, replayable byte-for-byte.
 
 ## `PersistedSubscription`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:26](../../../packages/wheel/src/sync/client/local-cache.ts#L26).
+Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:30](../../../packages/wheel/src/sync/client/local-cache.ts#L30).
 
 A persisted snapshot of one subscription's server truth.
 
@@ -340,6 +352,12 @@ Kind: class. Source: [packages/wheel/src/sync/declarations.ts:366](../../../pack
 
 The throwable carrier for a typed MutationRejection - thrown server-side by rejection(), never crosses the wire as an exception.
 
+## `ROW_SCHEMA_FINGERPRINT_PREFIX`
+
+Kind: value. Source: [packages/wheel/src/sync/row-schema.ts:2](../../../packages/wheel/src/sync/row-schema.ts#L2).
+
+Prefix and digest format shared by generated contracts, caches, and transports.
+
 ## `RowDelta`
 
 Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:22](../../../packages/wheel/src/sync/protocol.ts#L22).
@@ -351,6 +369,18 @@ The wire unit of change: whole-row puts + id deletes + the full ordered id list 
 Kind: type. Source: [packages/wheel/src/sync/schema.ts:17](../../../packages/wheel/src/sync/schema.ts#L17).
 
 A row schema must produce a plain JSON object.
+
+## `RowSchemaFingerprint`
+
+Kind: type. Source: [packages/wheel/src/sync/row-schema.ts:7](../../../packages/wheel/src/sync/row-schema.ts#L7).
+
+Exact identity of the declarations that control cached subscription rows.
+
+## `RowSchemaReloadStorage`
+
+Kind: interface. Source: [packages/wheel/src/sync/row-schema.ts:10](../../../packages/wheel/src/sync/row-schema.ts#L10).
+
+Minimal browser storage surface used by the reload-loop guard.
 
 ## `RowValidationError`
 
@@ -414,7 +444,7 @@ Everything a SyncClient needs injected: transport, identity, clock, randomness.
 
 ## `SyncClientSocket`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/websocket-transport.ts:40](../../../packages/wheel/src/sync/client/websocket-transport.ts#L40).
+Kind: interface. Source: [packages/wheel/src/sync/client/websocket-transport.ts:41](../../../packages/wheel/src/sync/client/websocket-transport.ts#L41).
 
 Browser WebSocket subset used by the transport and by deterministic tests.
 
@@ -450,7 +480,7 @@ Stable server error returned for one request without closing a healthy socket.
 
 ## `SyncSocketMessage`
 
-Kind: type. Source: [packages/wheel/src/sync/socket-protocol.ts:46](../../../packages/wheel/src/sync/socket-protocol.ts#L46).
+Kind: type. Source: [packages/wheel/src/sync/socket-protocol.ts:47](../../../packages/wheel/src/sync/socket-protocol.ts#L47).
 
 Messages emitted by the sync server.
 
@@ -474,7 +504,7 @@ The client's view of the wire: in-process for World, WebSocket for browsers.
 
 ## `SyncVersionMismatch`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/websocket-transport.ts:57](../../../packages/wheel/src/sync/client/websocket-transport.ts#L57).
+Kind: interface. Source: [packages/wheel/src/sync/client/websocket-transport.ts:58](../../../packages/wheel/src/sync/client/websocket-transport.ts#L58).
 
 Client and server versions returned when the server refuses a connection.
 
@@ -532,9 +562,15 @@ Kind: function. Source: [packages/wheel/src/sync/schema.ts:138](../../../package
 
 Validate one row against a schema, throwing an error that names the source declaration and the offending columns. Used at the server boundary before any row is emitted, so no invalid row ever reaches a client.
 
+## `validateRowSchemaFingerprint`
+
+Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:39](../../../packages/wheel/src/sync/row-schema.ts#L39).
+
+Validate a generated row fingerprint at a public configuration boundary.
+
 ## `WebSocketTransportOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/websocket-transport.ts:67](../../../packages/wheel/src/sync/client/websocket-transport.ts#L67).
+Kind: interface. Source: [packages/wheel/src/sync/client/websocket-transport.ts:70](../../../packages/wheel/src/sync/client/websocket-transport.ts#L70).
 
 Browser WebSocket address, versions, lifecycle hooks, and test seams.
 

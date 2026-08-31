@@ -7,6 +7,9 @@ import {
   type SyncClientSocket
 } from './websocket-transport';
 
+const ROW_SCHEMA_FINGERPRINT = `wheel-rows-sha256:${'a'.repeat(64)}` as const;
+const OTHER_ROW_SCHEMA_FINGERPRINT = `wheel-rows-sha256:${'b'.repeat(64)}` as const;
+
 class FakeEventTarget implements SyncClientEventTarget {
   private readonly listeners = new Map<string, Set<() => void>>();
 
@@ -72,11 +75,12 @@ class FakeSocket implements SyncClientSocket {
 
 function hello(applicationVersion = 3): SyncSocketMessage {
   return {
-    protocol: 2,
+    protocol: 3,
     type: 'hello',
     connectionId: 'conn_test',
     applicationVersion,
-    schemaVersion: 7
+    schemaVersion: 7,
+    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
   };
 }
 
@@ -92,6 +96,7 @@ async function connectTransport(options: {
   const transport = createWebSocketTransport({
     baseUrl: 'https://sync.test/api/',
     applicationVersion: 3,
+    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
     params: { ticket: 'one-use' },
     createSocket(url) {
       urls.push(url);
@@ -117,13 +122,13 @@ describe('createWebSocketTransport', () => {
   test('uses one versioned socket for requests, responses, and server events', async () => {
     const { transport, socket, urls, events } = await connectTransport();
     expect(urls[0]).toBe(
-      'wss://sync.test/api/sync/websocket?client=client+test&protocol=2&version=3&ticket=one-use'
+      `wss://sync.test/api/sync/websocket?client=client+test&protocol=3&version=3&rowSchemaFingerprint=${encodeURIComponent(ROW_SCHEMA_FINGERPRINT)}&ticket=one-use`
     );
 
     const subscribed = transport.subscribe('ignored', 'todos.all', { owner: 'me' });
     const subscribe = JSON.parse(socket.sent[0]!) as { requestId: string };
     socket.serverMessage({
-      protocol: 2,
+      protocol: 3,
       type: 'response',
       requestId: subscribe.requestId,
       ok: true,
@@ -138,7 +143,7 @@ describe('createWebSocketTransport', () => {
     await expect(subscribed).resolves.toMatchObject({ subscriptionId: 'sub_1', seq: 4 });
 
     socket.serverMessage({
-      protocol: 2,
+      protocol: 3,
       type: 'event',
       event: {
         type: 'delta',
@@ -168,7 +173,7 @@ describe('createWebSocketTransport', () => {
     const terminal = transport.mutateGroup(mutation);
     const terminalRequest = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
     socket.serverMessage({
-      protocol: 2,
+      protocol: 3,
       type: 'response',
       requestId: terminalRequest.requestId,
       ok: false,
@@ -182,7 +187,7 @@ describe('createWebSocketTransport', () => {
     const retryable = transport.mutateGroup(mutation);
     const retryableRequest = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
     socket.serverMessage({
-      protocol: 2,
+      protocol: 3,
       type: 'response',
       requestId: retryableRequest.requestId,
       ok: false,
@@ -198,6 +203,7 @@ describe('createWebSocketTransport', () => {
     const transport = createWebSocketTransport({
       baseUrl: 'https://sync.test',
       applicationVersion: 3,
+      rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
       createSocket() {
         const socket = new FakeSocket();
         sockets.push(socket);
@@ -210,14 +216,16 @@ describe('createWebSocketTransport', () => {
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
     sockets[0]!.open();
     sockets[0]!.serverMessage({
-      protocol: 2,
+      protocol: 3,
       type: 'version_mismatch',
       reason: 'client_outdated',
-      clientProtocol: 2,
-      serverProtocol: 2,
+      clientProtocol: 3,
+      serverProtocol: 3,
       clientApplicationVersion: 3,
       serverApplicationVersion: 4,
-      minimumClientVersion: 4
+      minimumClientVersion: 4,
+      clientRowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
+      serverRowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
     });
     sockets[0]!.close(4410, 'client_outdated');
     await vi.waitFor(() => expect(mismatches).toEqual(['client_outdated']));
@@ -231,6 +239,7 @@ describe('createWebSocketTransport', () => {
     const transport = createWebSocketTransport({
       baseUrl: 'https://sync.test',
       applicationVersion: 3,
+      rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
       createSocket() {
         const socket = new FakeSocket();
         sockets.push(socket);
@@ -245,14 +254,16 @@ describe('createWebSocketTransport', () => {
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
     sockets[0]!.open();
     sockets[0]!.serverMessage({
-      protocol: 2,
+      protocol: 3,
       type: 'version_mismatch',
       reason: 'protocol_mismatch',
-      clientProtocol: 2,
-      serverProtocol: 1,
+      clientProtocol: 3,
+      serverProtocol: 2,
       clientApplicationVersion: 3,
       serverApplicationVersion: 3,
-      minimumClientVersion: 2
+      minimumClientVersion: 2,
+      clientRowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
+      serverRowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
     });
     sockets[0]!.close(4410, 'protocol_mismatch');
     await vi.waitFor(() => expect(incompatible).toBe(true));
@@ -264,6 +275,46 @@ describe('createWebSocketTransport', () => {
         calls: [{ name: 'todos.add', args: {}, ids: [] }]
       })
     ).resolves.toMatchObject({ ok: false, error: { code: 'server_too_old' } });
+    transport.close('client-test');
+    await connecting;
+  });
+
+  test('reports a row mismatch once and stops reconnecting', async () => {
+    const sockets: FakeSocket[] = [];
+    const statuses: string[] = [];
+    const mismatches: string[] = [];
+    const transport = createWebSocketTransport({
+      baseUrl: 'https://sync.test',
+      applicationVersion: 3,
+      rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
+      createSocket() {
+        const socket = new FakeSocket();
+        sockets.push(socket);
+        return socket;
+      },
+      onStatus: (status) => statuses.push(status),
+      onVersionMismatch: (message) => mismatches.push(message.reason),
+      random01: () => 0.5
+    });
+    const connecting = transport.connect('client-test', () => {});
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    sockets[0]!.open();
+    sockets[0]!.serverMessage({
+      protocol: 3,
+      type: 'version_mismatch',
+      reason: 'row_schema_mismatch',
+      clientProtocol: 3,
+      serverProtocol: 3,
+      clientApplicationVersion: 3,
+      serverApplicationVersion: 3,
+      minimumClientVersion: 2,
+      clientRowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
+      serverRowSchemaFingerprint: OTHER_ROW_SCHEMA_FINGERPRINT
+    });
+    await vi.waitFor(() => expect(mismatches).toEqual(['row_schema_mismatch']));
+    sockets[0]!.close(4410, 'row_schema_mismatch');
+    await vi.waitFor(() => expect(statuses.at(-1)).toBe('offline'));
+    expect(sockets).toHaveLength(1);
     transport.close('client-test');
     await connecting;
   });

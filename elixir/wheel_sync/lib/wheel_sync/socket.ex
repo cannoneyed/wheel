@@ -2,20 +2,31 @@ defmodule WheelSync.Socket do
   @moduledoc false
   @behaviour WebSock
 
-  @protocol 2
+  @protocol 3
 
   @impl true
   def init(handshake) do
     config = WheelSync.Runtime.config(handshake.runtime)
     application_version = Map.fetch!(config, :application_version)
     minimum_client_version = Map.get(config, :minimum_client_version, application_version)
+    row_schema_fingerprint = Map.fetch!(config, :row_schema_fingerprint)
 
     mismatch =
       cond do
-        handshake.client_protocol != @protocol -> "protocol_mismatch"
-        handshake.client_application_version > application_version -> "server_updating"
-        handshake.client_application_version < minimum_client_version -> "client_outdated"
-        true -> nil
+        handshake.client_protocol != @protocol ->
+          "protocol_mismatch"
+
+        handshake.client_application_version > application_version ->
+          "server_updating"
+
+        handshake.client_application_version < minimum_client_version ->
+          "client_outdated"
+
+        handshake.client_row_schema_fingerprint != row_schema_fingerprint ->
+          "row_schema_mismatch"
+
+        true ->
+          nil
       end
 
     if mismatch do
@@ -27,7 +38,9 @@ defmodule WheelSync.Socket do
         "serverProtocol" => @protocol,
         "clientApplicationVersion" => handshake.client_application_version,
         "serverApplicationVersion" => application_version,
-        "minimumClientVersion" => minimum_client_version
+        "minimumClientVersion" => minimum_client_version,
+        "clientRowSchemaFingerprint" => handshake.client_row_schema_fingerprint,
+        "serverRowSchemaFingerprint" => row_schema_fingerprint
       }
 
       {:stop, :normal, {4410, mismatch}, {:text, encode(frame)}, handshake}
@@ -51,7 +64,8 @@ defmodule WheelSync.Socket do
         "type" => "hello",
         "connectionId" => connection_id,
         "applicationVersion" => application_version,
-        "schemaVersion" => Map.fetch!(config, :schema_version)
+        "schemaVersion" => Map.fetch!(config, :schema_version),
+        "rowSchemaFingerprint" => row_schema_fingerprint
       }
 
       stream_hello = event(%{"type" => "hello", "clientId" => connection_id})

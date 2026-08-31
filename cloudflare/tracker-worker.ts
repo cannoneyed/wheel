@@ -30,6 +30,7 @@ import {
 import {
   TRACKER_MIGRATIONS
 } from '../packages/tracker/server/schema';
+import { ROW_SCHEMA_FINGERPRINT } from '../packages/tracker/row-schema.generated';
 
 const WORKSPACE_NAME = 'axle-demo';
 const ROLLOVER_INTERVAL_MS = 10 * 60 * 1_000;
@@ -122,6 +123,7 @@ export class TrackerWorkspace extends DurableObject<TrackerWorkerEnv> {
       applicationVersion: TRACKER_APPLICATION_VERSION,
       minimumClientVersion: TRACKER_MINIMUM_CLIENT_VERSION,
       schemaVersion: migration.toVersion,
+      rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
       maxMessageBytes: DEMO_CONFIG.maxBodyBytes,
       messagesPerMinute: DEMO_CONFIG.requestsPerMinute,
       detailedErrors: true

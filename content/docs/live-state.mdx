@@ -107,6 +107,7 @@ The exact outcome table, the wire envelopes that produce each one, and the three
 `mutateGroup()` runs existing mutation declarations as one user action:
 
 ```ts
+// Excerpt: one user action becomes one atomic command.
 return this.mutateGroup([
   { mutation: issueUpdate, args: { issueId: firstId, patch: { status: 'done' } } },
   { mutation: issueUpdate, args: { issueId: secondId, patch: { status: 'done' } } },
@@ -165,6 +166,32 @@ The client is always local-first — the `localCache` is required, not an opt-in
 - **A reconnect lands on the first try.** The server allows one WebSocket per principal and client id. A newer socket closes the older socket. Mint the client id once per page load. Do not store it in `sessionStorage`, because duplicated tabs can copy it.
 
 All of this is tested end to end in `client/outbox.test.ts` against a real in-process server — offline queue, crash-replay, exactly-once, and stale-then-refresh.
+
+### Snapshot identity is not an application version
+
+Cached rows need an exact shape match. Release compatibility needs an ordered range. Wheel keeps
+these checks separate.
+
+`bun run row-schema` generates a `wheel-rows-sha256:…` value from table row schemas, row keys,
+and query-to-table mappings. Pass that value to both WebSocket runtimes. Use it with
+`createCacheScopes()` for IndexedDB:
+
+```ts
+// Excerpt: generated row identity scopes snapshots but not pending mutations.
+const scopes = createCacheScopes({
+  storeScope,
+  rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
+});
+const localCache = new IndexedDbCache('my-app', scopes);
+```
+
+The snapshot scope includes the generated fingerprint. A changed row contract retires old
+snapshots before hydration. The outbox scope includes only the stable store identity, so pending
+mutations survive and follow the normal replay rules.
+
+Keep `applicationVersion` and `minimumClientVersion`. Change them when client and server behavior
+becomes incompatible, even if row shapes stay the same. The WebSocket checks protocol and ordered
+application versions before it checks the exact row fingerprint.
 
 ## The presence channel
 

@@ -93,9 +93,17 @@ export { ProvenanceLog, type ProvenanceEntry, type WriteCause } from './client/p
 export {
   MemoryCache,
   IndexedDbCache,
+  createCacheScopes,
   type CacheScopes,
   type LocalCache,
   type PersistedOutboxEntry,
   type PersistedSubscription
 } from './client/local-cache';
+export {
+  ROW_SCHEMA_FINGERPRINT_PREFIX,
+  createRowSchemaReloadGuard,
+  validateRowSchemaFingerprint,
+  type RowSchemaFingerprint,
+  type RowSchemaReloadStorage
+} from './row-schema';
 export { SyncService, type LiveQueryFor, type LiveQueryView, type QueryStatus } from './sync-service';

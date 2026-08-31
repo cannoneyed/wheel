@@ -50,11 +50,23 @@ export default defineConfig({
     // cannot reach (portless 502s). Bind IPv4 explicitly.
     host: process.env.HOST || '127.0.0.1',
     // The engine serves /sync/* (renamed from /live/* in 011 phase 2).
-    proxy: { '/sync/': { target: SYNC_ORIGIN, changeOrigin: false, ws: true } }
+    proxy: {
+      '/sync/': {
+        target: SYNC_ORIGIN,
+        changeOrigin: true,
+        ws: true,
+        // The browser uses the app origin. The internal HTTP hop may use a
+        // different scheme or port, so present the trusted proxy target as
+        // the WebSocket origin for the server's same-origin check.
+        rewriteWsOrigin: true
+      }
+    }
   },
   preview: {
     port: Number(process.env.PORT) || 4798,
     host: process.env.HOST || '127.0.0.1',
-    proxy: { '/sync/': { target: SYNC_ORIGIN, changeOrigin: false, ws: true } }
+    proxy: {
+      '/sync/': { target: SYNC_ORIGIN, changeOrigin: true, ws: true, rewriteWsOrigin: true }
+    }
   }
 });

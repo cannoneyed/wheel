@@ -6,19 +6,19 @@ Import only from `wheel/sync/server`. The linked declarations are the source of 
 
 ## `authenticateSyncSocket`
 
-Kind: function. Source: [packages/wheel/src/sync/server/socket.ts:540](../../../packages/wheel/src/sync/server/socket.ts#L540).
+Kind: function. Source: [packages/wheel/src/sync/server/socket.ts:556](../../../packages/wheel/src/sync/server/socket.ts#L556).
 
 Authenticate and validate the HTTP request before its WebSocket upgrade.
 
 ## `AuthenticateSyncSocketOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:518](../../../packages/wheel/src/sync/server/socket.ts#L518).
+Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:534](../../../packages/wheel/src/sync/server/socket.ts#L534).
 
 Trust policy used before a runtime accepts a WebSocket upgrade.
 
 ## `AuthenticateSyncSocketResult`
 
-Kind: type. Source: [packages/wheel/src/sync/server/socket.ts:525](../../../packages/wheel/src/sync/server/socket.ts#L525).
+Kind: type. Source: [packages/wheel/src/sync/server/socket.ts:541](../../../packages/wheel/src/sync/server/socket.ts#L541).
 
 Authenticated handshake data or the HTTP response that refuses the upgrade.
 
@@ -90,7 +90,7 @@ Compile a fragment for SQLite. This is the only writer of placeholder syntax in 
 
 ## `createSchemaSpec`
 
-Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:80](../../../packages/wheel/src/sync/server/schema-spec.ts#L80).
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:127](../../../packages/wheel/src/sync/server/schema-spec.ts#L127).
 
 Build a stable schema document from the same declarations and bindings the TypeScript engine boots.
 
@@ -117,6 +117,12 @@ The JSON row shape that crosses the wire. Both client and engine speak it.
 Kind: interface. Source: [packages/wheel/src/sync/server/sync-backend.ts:80](../../../packages/wheel/src/sync/server/sync-backend.ts#L80).
 
 One sync-log record for a change the engine DID NOT author — an external write (legacy store / CLI / job) or a push-source invalidation minting ordering only. The engine supplies the fields it owns (a fresh deterministic mutationId, the wall clock, provenance strings); the backend appends the row and returns its seq. `touched` may be empty (push sources mint a seq without re-triggering watchers — the engine does its own diff).
+
+## `fingerprintSnapshotRows`
+
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:76](../../../packages/wheel/src/sync/server/schema-spec.ts#L76).
+
+Hash only the declarations that control cached row shape, identity, and ownership.
 
 ## `MutateCallRequest`
 
@@ -190,39 +196,51 @@ Kind: class. Source: [packages/wheel/src/sync/server/registry.ts:11](../../../pa
 
 Boot-time failure listing every registry problem at once (duplicates, unimplemented declarations, orphan bindings, bad rerun hints) with declaration sites.
 
+## `ROW_SCHEMA_FINGERPRINT_PREFIX`
+
+Kind: value. Source: [packages/wheel/src/sync/row-schema.ts:2](../../../packages/wheel/src/sync/row-schema.ts#L2).
+
+Prefix and digest format shared by generated contracts, caches, and transports.
+
 ## `RowDelta`
 
 Kind: interface. Source: [packages/wheel/src/sync/protocol.ts:22](../../../packages/wheel/src/sync/protocol.ts#L22).
 
 The wire unit of change: whole-row puts + id deletes + the full ordered id list (idempotent by construction).
 
+## `RowSchemaFingerprint`
+
+Kind: type. Source: [packages/wheel/src/sync/row-schema.ts:7](../../../packages/wheel/src/sync/row-schema.ts#L7).
+
+Exact identity of the declarations that control cached subscription rows.
+
 ## `SchemaSpecKey`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:10](../../../packages/wheel/src/sync/server/schema-spec.ts#L10).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:15](../../../packages/wheel/src/sync/server/schema-spec.ts#L15).
 
 Serializable row-key rule shared by sync engines in every language.
 
 ## `SchemaSpecMutation`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:32](../../../packages/wheel/src/sync/server/schema-spec.ts#L32).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:37](../../../packages/wheel/src/sync/server/schema-spec.ts#L37).
 
 One mutation's language-neutral argument shape.
 
 ## `SchemaSpecPresence`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:38](../../../packages/wheel/src/sync/server/schema-spec.ts#L38).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:43](../../../packages/wheel/src/sync/server/schema-spec.ts#L43).
 
 Optional application presence shape used to check server registration.
 
 ## `SchemaSpecQuery`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:24](../../../packages/wheel/src/sync/server/schema-spec.ts#L24).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:29](../../../packages/wheel/src/sync/server/schema-spec.ts#L29).
 
 One query's input shape, output table, and invalidation hints.
 
 ## `SchemaSpecTable`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:16](../../../packages/wheel/src/sync/server/schema-spec.ts#L16).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:21](../../../packages/wheel/src/sync/server/schema-spec.ts#L21).
 
 One table's wire row shape, identity rule, and storage kind.
 
@@ -318,7 +336,7 @@ The standard SQLite handler: a sql`` fragment plus table-level re-run hints. ser
 
 ## `stringifySchemaSpec`
 
-Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:136](../../../packages/wheel/src/sync/server/schema-spec.ts#L136).
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:184](../../../packages/wheel/src/sync/server/schema-spec.ts#L184).
 
 Canonical checked-in artifact form.
 
@@ -390,31 +408,31 @@ Standard server options with one Node/Bun backend source.
 
 ## `SyncServerSocket`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:30](../../../packages/wheel/src/sync/server/socket.ts#L30).
+Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:31](../../../packages/wheel/src/sync/server/socket.ts#L31).
 
 WebSocket operations used by the runtime-neutral session server.
 
 ## `SyncSocketErrorContext`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:46](../../../packages/wheel/src/sync/server/socket.ts#L46).
+Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:48](../../../packages/wheel/src/sync/server/socket.ts#L48).
 
 Operation and request identity attached to server-side error reports.
 
 ## `SyncSocketHandshake`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:38](../../../packages/wheel/src/sync/server/socket.ts#L38).
+Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:39](../../../packages/wheel/src/sync/server/socket.ts#L39).
 
 Data established by the authenticated HTTP upgrade request.
 
 ## `SyncSocketServer`
 
-Kind: class. Source: [packages/wheel/src/sync/server/socket.ts:206](../../../packages/wheel/src/sync/server/socket.ts#L206).
+Kind: class. Source: [packages/wheel/src/sync/server/socket.ts:212](../../../packages/wheel/src/sync/server/socket.ts#L212).
 
 One SyncServer exposed as authenticated request/reply operations on WebSockets.
 
 ## `SyncSocketServerOptions`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:53](../../../packages/wheel/src/sync/server/socket.ts#L53).
+Kind: interface. Source: [packages/wheel/src/sync/server/socket.ts:55](../../../packages/wheel/src/sync/server/socket.ts#L55).
 
 Version policy, limits, engine, and observability for one WebSocket server.
 
@@ -424,14 +442,20 @@ Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:140](../../..
 
 One live-query descriptor that can rebuild its in-memory comparison baseline after hibernation.
 
+## `validateRowSchemaFingerprint`
+
+Kind: function. Source: [packages/wheel/src/sync/row-schema.ts:39](../../../packages/wheel/src/sync/row-schema.ts#L39).
+
+Validate a generated row fingerprint at a public configuration boundary.
+
 ## `WHEEL_SCHEMA_SPEC_VERSION`
 
-Kind: value. Source: [packages/wheel/src/sync/server/schema-spec.ts:7](../../../packages/wheel/src/sync/server/schema-spec.ts#L7).
+Kind: value. Source: [packages/wheel/src/sync/server/schema-spec.ts:10](../../../packages/wheel/src/sync/server/schema-spec.ts#L10).
 
 Version of the generated document shape. Independent from the wire version.
 
 ## `WheelSchemaSpec`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:44](../../../packages/wheel/src/sync/server/schema-spec.ts#L44).
+Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:49](../../../packages/wheel/src/sync/server/schema-spec.ts#L49).
 
 Complete language-neutral application contract consumed by external sync engines.

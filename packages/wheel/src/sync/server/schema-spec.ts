@@ -1,10 +1,15 @@
+import { createHash } from 'node:crypto';
+
 import type { TableDecl } from '../declarations';
+import { ROW_SCHEMA_FINGERPRINT_PREFIX, type RowSchemaFingerprint } from '../row-schema';
 import { toContractJsonSchema, type JsonSchema } from '../schema';
 import { SYNC_PROTOCOL_VERSION } from '../socket-protocol';
 import { buildRegistry } from './registry';
 
 /** Version of the generated document shape. Independent from the wire version. */
-export const WHEEL_SCHEMA_SPEC_VERSION = 1 as const;
+export const WHEEL_SCHEMA_SPEC_VERSION = 2 as const;
+
+const SET_LIKE_SCHEMA_ARRAYS = new Set(['allOf', 'anyOf', 'enum', 'oneOf', 'required', 'type']);
 
 /** Serializable row-key rule shared by sync engines in every language. */
 export interface SchemaSpecKey {
@@ -44,10 +49,52 @@ export interface SchemaSpecPresence {
 export interface WheelSchemaSpec {
   readonly schemaSpecVersion: typeof WHEEL_SCHEMA_SPEC_VERSION;
   readonly protocolVersion: typeof SYNC_PROTOCOL_VERSION;
+  readonly rowSchemaFingerprint: RowSchemaFingerprint;
   readonly tables: readonly SchemaSpecTable[];
   readonly queries: readonly SchemaSpecQuery[];
   readonly mutations: readonly SchemaSpecMutation[];
   readonly presence: SchemaSpecPresence | null;
+}
+
+function canonicalJson(value: unknown, parentKey?: string): unknown {
+  if (Array.isArray(value)) {
+    const entries = value.map((entry) => canonicalJson(entry));
+    if (parentKey && SET_LIKE_SCHEMA_ARRAYS.has(parentKey)) {
+      entries.sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+    }
+    return entries;
+  }
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, canonicalJson(entry, key)])
+  );
+}
+
+/** Hash only the declarations that control cached row shape, identity, and ownership. */
+export function fingerprintSnapshotRows(spec: {
+  readonly tables: readonly SchemaSpecTable[];
+  readonly queries: readonly Pick<SchemaSpecQuery, 'name' | 'into'>[];
+}): RowSchemaFingerprint {
+  const input = {
+    tables: [...spec.tables]
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((table) => ({
+        name: table.name,
+        virtual: table.virtual,
+        jsonSchema: canonicalJson(table.jsonSchema),
+        key: {
+          fields: [...table.key.fields],
+          separator: table.key.separator
+        }
+      })),
+    queries: [...spec.queries]
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((query) => ({ name: query.name, into: query.into }))
+  };
+  const canonical = JSON.stringify(canonicalJson(input));
+  return `${ROW_SCHEMA_FINGERPRINT_PREFIX}${createHash('sha256').update(canonical, 'utf8').digest('hex')}`;
 }
 
 function assertKeySchema(table: TableDecl, jsonSchema: JsonSchema): void {
@@ -125,6 +172,7 @@ export function createSchemaSpec(options: {
   return {
     schemaSpecVersion: WHEEL_SCHEMA_SPEC_VERSION,
     protocolVersion: SYNC_PROTOCOL_VERSION,
+    rowSchemaFingerprint: fingerprintSnapshotRows({ tables, queries }),
     tables,
     queries,
     mutations,

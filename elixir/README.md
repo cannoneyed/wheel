@@ -1,6 +1,6 @@
 # Elixir sync backend
 
-`wheel_sync` serves Wheel protocol v2 over WebSocket with Elixir and Postgres. The TypeScript client connects without an adapter or client change.
+`wheel_sync` serves Wheel protocol v3 over WebSocket with Elixir and Postgres. The TypeScript client connects without an adapter or client change.
 
 The existing TypeScript SQLite and Durable Object engines remain supported. Applications choose a server by changing the `/sync/websocket` target.
 
@@ -184,14 +184,25 @@ Regenerate and check the wire and Tracker contracts with:
 ```bash
 bun run schema:wire
 bun run schema:tracker
+bun run row-schema
 bun run seed:tracker
 
 bun run schema:wire:check
 bun run schema:tracker:check
+bun run row-schema:check
 bun run seed:tracker:check
 ```
 
-The Elixir registry fails startup when query or mutation names differ from the generated contract. It also rejects duplicate handlers and `rerunOn` entries that name undeclared tables.
+The schema contract contains the generated `rowSchemaFingerprint`. TypeScript computes it from
+table row schemas, row keys, and query-to-table mappings. Elixir loads the literal from the JSON
+contract and rejects a missing or malformed value. It does not implement a second hash algorithm.
+
+The browser imports the matching generated TypeScript literal. Both runtimes compare it during the
+WebSocket handshake before any subscription starts. Ordered application versions still control
+release compatibility. The exact fingerprint only controls cached-row identity.
+
+The Elixir registry fails startup when query or mutation names differ from the generated contract.
+It also rejects duplicate handlers and `rerunOn` entries that name undeclared tables.
 
 ## Test matrix
 

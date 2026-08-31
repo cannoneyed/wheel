@@ -1,13 +1,13 @@
 {
   "subscribe": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "subscribe",
     "requestId": "subscribe",
     "query": "widgets.all",
     "params": {}
   },
   "createAlpha": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "create-alpha",
     "command": {
@@ -30,7 +30,7 @@
     }
   },
   "createBeta": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "create-beta",
     "command": {
@@ -53,7 +53,7 @@
     }
   },
   "moveBetaFirst": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "move-beta",
     "command": {
@@ -72,7 +72,7 @@
     }
   },
   "reorderBetaFirst": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "reorder-beta",
     "command": {
@@ -91,7 +91,7 @@
     }
   },
   "deleteAlpha": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "delete-alpha",
     "command": {
@@ -109,7 +109,7 @@
     }
   },
   "pair": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "pair",
     "command": {
@@ -131,7 +131,7 @@
     }
   },
   "touchAlpha": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "touch-alpha",
     "command": {
@@ -149,7 +149,7 @@
     }
   },
   "noop": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "noop",
     "command": {
@@ -165,7 +165,7 @@
     }
   },
   "breakQuery": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "break-query",
     "command": {
@@ -181,7 +181,7 @@
     }
   },
   "recoverQuery": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "mutateGroup",
     "requestId": "recover-query",
     "command": {
@@ -197,7 +197,7 @@
     }
   },
   "presence": {
-    "protocol": 2,
+    "protocol": 3,
     "type": "presence",
     "requestId": "presence",
     "state": {

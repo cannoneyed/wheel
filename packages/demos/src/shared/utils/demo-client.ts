@@ -26,15 +26,18 @@ import {
   IndexedDbCache,
   MemoryCache,
   SyncClient,
+  createCacheScopes,
+  createRowSchemaReloadGuard,
   createWebSocketTransport,
   systemClock,
   systemRandomBytes,
-  type CacheScopes,
   type SyncTransport
 } from 'wheel/sync';
+import { logger } from 'wheel/core';
 
 import { createWorkerSyncTransport, inBrowserSyncEnabled } from '../in-browser/worker-transport';
 import { withSimulatedLatency } from './simulated-latency';
+import { ROW_SCHEMA_FINGERPRINTS } from '../row-schema.generated';
 
 const clients = new Map<string, SyncClient>();
 const DEMO_APPLICATION_VERSION = 1;
@@ -49,15 +52,10 @@ function stableStoreScope(demo: string): string {
   return id;
 }
 
-/** Keep outbox edits across deploys, but retire row snapshots when their schema changes. */
-function demoCacheScopes(store: string): CacheScopes {
-  const snapshots = `${store}|snapshots:v${DEMO_APPLICATION_VERSION}`;
-  const outbox = `${store}|outbox`;
-  return {
-    snapshots,
-    outbox,
-    retires: (scope) => scope.startsWith(`${store}|`) && scope !== snapshots && scope !== outbox
-  };
+function rowSchemaFingerprint(demo: string): string {
+  const fingerprint = ROW_SCHEMA_FINGERPRINTS[demo as keyof typeof ROW_SCHEMA_FINGERPRINTS];
+  if (!fingerprint) throw new Error(`Demo ${JSON.stringify(demo)} has no generated row fingerprint.`);
+  return fingerprint;
 }
 
 /** Get (or boot) the singleton client for one demo. */
@@ -68,6 +66,11 @@ export function demoClient(demo: string): SyncClient {
   }
   // Fresh wire id per page load — never persisted (module doc: WIRE ID).
   const clientId = `web_${crypto.randomUUID().slice(0, 8)}`;
+  const fingerprint = rowSchemaFingerprint(demo);
+  const rowSchemaReload = createRowSchemaReloadGuard(
+    sessionStorage,
+    `wheel-demos.${demo}.rowSchemaReload`
+  );
   // In-browser mode swaps the HTTP wire for the in-page sync worker (WASM
   // SQLite, see ../in-browser/) — a SharedWorker where supported, so every
   // tab talks to ONE engine and tabs stay in sync. The engine still dies
@@ -86,14 +89,25 @@ export function demoClient(demo: string): SyncClient {
         // proxy would send a page navigation to the sync server.
         baseUrl: `/sync/${demo}`,
         applicationVersion: DEMO_APPLICATION_VERSION,
+        rowSchemaFingerprint: fingerprint,
         params: {
           demoActor: `user:${clientId}`,
           demoSession: clientId
         },
         onReconnect: () => void client!.rebootstrap(),
-        onStatus: (status) => client!.setConnectionStatus(status),
-        onVersionMismatch: ({ reason }) => {
+        onStatus: (status) => {
+          if (status === 'connected') rowSchemaReload.clear();
+          client!.setConnectionStatus(status);
+        },
+        onVersionMismatch: (mismatch) => {
+          const { reason } = mismatch;
           if (reason === 'server_updating') return;
+          if (reason === 'row_schema_mismatch') {
+            if (!rowSchemaReload.shouldReload(mismatch.serverRowSchemaFingerprint)) {
+              logger.error('Demo assets and sync server have different row contracts.', mismatch);
+              return;
+            }
+          }
           // wheel-raw-location: incompatible client code requires a full asset reload.
           location.reload();
         }
@@ -107,7 +121,13 @@ export function demoClient(demo: string): SyncClient {
     randomBytes: systemRandomBytes,
     localCache: inBrowser
       ? new MemoryCache()
-      : new IndexedDbCache('wheel-demos', demoCacheScopes(`${demo}|${stableStoreScope(demo)}`))
+      : new IndexedDbCache(
+          'wheel-demos',
+          createCacheScopes({
+            storeScope: `${demo}|${stableStoreScope(demo)}`,
+            rowSchemaFingerprint: fingerprint
+          })
+        )
   });
   clients.set(demo, client);
   return client;

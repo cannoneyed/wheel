@@ -23,6 +23,7 @@ on chat history.
 | 1. Correct protocol and servers | `M` | Complete | Both engines and shared protocol fixtures passed |
 | 1B. Add atomic mutation groups | `L` | Complete | Client, TypeScript, Elixir, and shared wire gates passed |
 | 2. Build Tracker proof slice | `L` | Complete | Tracker proof and current-client differential gates passed |
+| 2B. Automate snapshot fingerprints | `L` | In progress | Implementation and local browser proof passed; CI gates remain |
 | 3. Add Elixir grouping and external writes | `M` | Not started | PostgreSQL checks not run |
 | 4. Move client state ownership | `L` | Not started | Ownership checks not run |
 | 5. Expand query and source contracts | `L` | Not started | Contract checks not run |
@@ -40,6 +41,8 @@ one phase may be `In progress`.
   use its own focused materializer and will not copy TanStack source.
 - Atomic mutation groups from [`issue_batch_mutations.md`](issue_batch_mutations.md) are active.
   Wheel owns the generic guarantee; the editor library owns its Tiptap integration test.
+- Automatic snapshot fingerprints from [`wheel-version.md`](wheel-version.md) are active. Ordered
+  application versions remain the rolling compatibility mechanism.
 - Multi-node invalidation is deferred. Change Phase 7 to `Not started` when it enters scope.
 - No phase preserves replaced APIs through aliases or fallback paths.
 
@@ -134,6 +137,19 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 - [x] Pass current-client and materializer differential tests.
 - [x] Confirm no intermediate query result is observable.
 
+### Phase 2B
+
+- [x] Generate one canonical cached-row fingerprint from the schema contract.
+- [x] Include table contracts and query-to-table mappings in the fingerprint input.
+- [x] Generate matching server JSON and browser-safe TypeScript artifacts.
+- [x] Add the standard cache-scope helper and preserve the outbox scope.
+- [x] Replace manual snapshot version scopes in Tracker, demos, and examples.
+- [x] Require the fingerprint in TypeScript, Cloudflare, and Elixir handshakes.
+- [x] Pass ordered-version precedence and terminal mismatch tests.
+- [x] Pass stale-snapshot retirement and outbox-survival tests.
+- [x] Pass the already-open client and one-reload guard tests.
+- [ ] Pass the focused browser contract-upgrade test in Buildkite.
+
 ### Phase 3
 
 - [ ] Prove one execution for each matching Elixir query group.
@@ -209,11 +225,136 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-30 | 1B | Classify replay orphans by server sequence | A matching sequence came from the command itself; an earlier sequence came from a peer delete. |
 | 2026-08-30 | 2 | Preserve confirmed query order | The materializer sorts only when optimistic writes affect a scope; untouched rows keep the server order. |
 | 2026-08-30 | 2 | Publish undo and redo through the command path | `mutateCommand` already publishes the optimistic result, so `undo` and `redo` must not notify again. |
+| 2026-08-30 | 2B | Separate snapshot identity from release compatibility | Exact row-contract identity retires unsafe cache data; ordered versions still express accepted client releases. |
+| 2026-08-30 | 2B | Include query-to-table mappings | A query can keep its name while changing the table that owns and validates its cached rows. |
+| 2026-08-30 | 2B | Generate the fingerprint once | TypeScript writes the client and server artifacts; Elixir consumes the literal and cannot drift through a second hash implementation. |
+| 2026-08-30 | 2B | Require the field in a new wire protocol | The repository removes obsolete paths, so new servers do not accept missing fingerprints or fall back to the old handshake. |
 | 2026-08-30 | 0B | Keep the materializer proof internal | The standalone core passed its gate, but production ownership moves only in Phase 4. |
 
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-30: Implement Phase 2B
+
+**State:** In progress
+
+**Changes**
+
+- Added a canonical SHA-256 fingerprint over table names, virtual state, JSON Schemas, ordered row
+  keys, and query-to-table mappings.
+- Added the fingerprint to schema specification version 2 and generated browser-safe TypeScript
+  literals for the wire fixture, Tracker, all demos, and the getting-started example.
+- Added stale-artifact checks to the static gate.
+- Added `createCacheScopes()` so snapshots use the exact fingerprint while existing outbox scopes
+  remain stable.
+- Added `createRowSchemaReloadGuard()` so apps reload once for each new server fingerprint and
+  stop a persistent mismatch loop.
+- Bumped the sync protocol to version 3 and required the fingerprint in TypeScript, Cloudflare,
+  and Elixir handshakes.
+- Added terminal `row_schema_mismatch` frames with both fingerprints after protocol and ordered
+  application-version checks.
+- Stored the fingerprint in Cloudflare hibernation attachments and refused restored sockets from
+  another row contract.
+- Updated Tracker, demos, getting-started, public guides, Elixir setup, and generated API docs.
+- Added a real IndexedDB browser proof. It retires a versioned snapshot, preserves a queued
+  mutation, reconnects, and observes the normal replay.
+- Fixed Tracker's trusted Vite WebSocket proxy to rewrite both host and origin. This keeps the
+  server's same-origin check valid behind the local HTTPS route.
+- Added the required excerpt labels to two Phase 1B examples found by the complete docs gate.
+
+**Validation**
+
+- `bun run check:static`: passed lint, schema and fingerprint generation checks, generated docs,
+  type checks, service checks, Cloudflare types, and package validation.
+- Component unit suite: 155 files passed; 1,882 tests passed and 26 skipped.
+- Node unit suite: 105 files and 810 tests passed with no type errors.
+- Docs suite: 4 files and 255 tests passed.
+- SQLite backend suite: all 16 tests passed.
+- TypeScript SQLite shared wire suite: all 12 fixtures passed.
+- `bun run test:elixir`: 6 tests passed; 2 PostgreSQL tests were excluded because no database was
+  available. The Tracker Elixir application compiled with warnings treated as errors.
+- Cloudflare suite: 3 files and 27 tests passed.
+- Focused Tracker Chromium upgrade proof: 1 test passed in 2.3 seconds against the Solo SQLite
+  server.
+- `git diff --check`: passed.
+
+**Decisions**
+
+- Keep each existing store identity unchanged so the first fingerprint release can retire the
+  old `snapshots:v1` rows and find the existing outbox.
+- Compute the hash only in TypeScript. Elixir validates and consumes the generated literal.
+- Treat a row mismatch as terminal. App code owns one asset reload through the shared guard.
+- Keep the proxy origin rewrite limited to the trusted Vite sync target.
+
+**Blockers**
+
+- The Solo `postgres` process is not trusted, so the local Elixir/PostgreSQL shared wire gate
+  could not start.
+- The required Buildkite browser and Elixir/PostgreSQL gates need a committed and pushed branch.
+
+**Exit gate:** Pending the shared Elixir/PostgreSQL wire fixture and Buildkite. Implementation and
+all available local gates pass.
+
+### 2026-08-30: Start Phase 2B
+
+**State:** In progress
+
+**Changes**
+
+- Started canonical fingerprint generation, cache-scope helpers, protocol negotiation, and
+  cross-runtime validation.
+
+**Validation**
+
+- Pending.
+
+**Decisions**
+
+- Keep the implementation order from the phase plan: generation, cache scopes, handshake, then
+  application and browser checks.
+
+**Blockers**
+
+- None.
+
+**Exit gate:** Pending.
+
+### 2026-08-30: Add Phase 2B snapshot fingerprints
+
+**State:** Ready
+
+**Changes**
+
+- Reviewed the automatic snapshot fingerprint proposal against the schema generator, browser
+  cache, TypeScript socket server, Cloudflare attachments, and Elixir endpoint.
+- Confirmed that Wheel already separates snapshot and outbox scopes and supports ordered release
+  versions.
+- Confirmed that Wheel does not generate a row fingerprint, negotiate it, or provide the standard
+  cache-scope helper.
+- Added Phase 2B before production materializer ownership moves in Phase 4.
+- Added query-to-table mappings to the fingerprint input because they control cached row
+  ownership and validation.
+- Chose one TypeScript generator for both browser and external-server artifacts.
+
+**Validation**
+
+- Planning document links and Markdown structure checked locally.
+- No code tests run because this entry changes the rollout plan only.
+
+**Decisions**
+
+- Keep ordered application versions for compatibility ranges.
+- Use the generated fingerprint only for exact cached-row identity and handshake equality.
+- Bump the schema specification and wire protocol without a missing-field fallback.
+- Gate Phase 4 on generated cache scopes and cross-runtime mismatch tests.
+
+**Blockers**
+
+- None.
+
+**Exit gate:** The proposal is accepted with the query-mapping and single-generator refinements.
+Phase 2B is ready to start.
 
 ### 2026-08-30: Complete Phase 2
 

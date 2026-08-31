@@ -27,13 +27,15 @@ defmodule WheelSync.Endpoint do
          :ok <- allow_origin(conn, Map.get(config, :allowed_origins)),
          {:ok, principal} <- authenticate(conn, config),
          {:ok, owner_client_id} <- client_id(conn),
-         {:ok, client_protocol, client_application_version} <- versions(conn) do
+         {:ok, client_protocol, client_application_version, client_row_schema_fingerprint} <-
+           versions(conn) do
       state = %{
         runtime: runtime,
         owner_client_id: owner_client_id,
         principal: principal,
         client_protocol: client_protocol,
-        client_application_version: client_application_version
+        client_application_version: client_application_version,
+        client_row_schema_fingerprint: client_row_schema_fingerprint
       }
 
       WebSockAdapter.upgrade(conn, WheelSync.Socket, state,
@@ -109,7 +111,13 @@ defmodule WheelSync.Endpoint do
   defp versions(conn) do
     with {:ok, protocol} <- integer_param(conn.query_params["protocol"]),
          {:ok, version} <- integer_param(conn.query_params["version"]) do
-      {:ok, protocol, version}
+      fingerprint = conn.query_params["rowSchemaFingerprint"] || ""
+
+      if byte_size(fingerprint) <= 128,
+        do: {:ok, protocol, version, fingerprint},
+        else:
+          {:error, 400, "invalid_row_schema_fingerprint",
+           "rowSchemaFingerprint must contain 128 characters or fewer."}
     else
       _ -> {:error, 400, "invalid_version", "protocol and version must be integers."}
     end

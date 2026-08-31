@@ -1,6 +1,7 @@
 {
-  "schemaSpecVersion": 1,
-  "protocolVersion": 2,
+  "schemaSpecVersion": 2,
+  "protocolVersion": 3,
+  "rowSchemaFingerprint": "wheel-rows-sha256:c936ea18af5d38b628233140a14465732219d8eb54931db18357bce7664ef854",
   "tables": [
     {
       "name": "widgets",
