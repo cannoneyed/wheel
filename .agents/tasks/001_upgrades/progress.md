@@ -29,7 +29,7 @@ on chat history.
 | 5. Expand query and source contracts | `L` | Complete | Shared dependencies and callback-source gates passed |
 | 6. Rename APIs and enforce boundary | `M` | Complete | Functional checks passed; CI remains within the two-to-three-minute target |
 | 7A. Add tracked multi-node invalidation | `M` | Complete | Local and Buildkite gates passed |
-| 0.2 release cleanup | `M` | In progress | Local gates passed; Buildkite awaits a push |
+| 0.2 release cleanup | `M` | Complete | Local gates and Buildkite build 136 passed |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`. Only
 one phase may be `In progress`.
@@ -263,7 +263,7 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 
 ### 2026-08-31: Harden the 0.2 release
 
-**State:** In progress
+**State:** Complete
 
 **Worktree**
 
@@ -295,6 +295,7 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 | `mix test test/endpoint_test.exs` | Local Elixir | Passed: 4 origin and proxy tests |
 | `mix format --check-formatted` | Local Elixir | Passed |
 | `git diff --check` | Local worktree | Passed |
+| [Buildkite build 136](https://buildkite.com/cannoneyed/wheel/builds/136) | Hosted CI | Passed all required jobs in 2 minutes 43 seconds |
 
 **Decisions**
 
@@ -305,9 +306,9 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 
 **Blockers**
 
-- Push the cleanup and pass Buildkite before marking the release gate complete.
+- None.
 
-**Exit gate:** Pending. All local checks pass; hosted checks await a push.
+**Exit gate:** Passed. Local and hosted checks pass.
 
 ### 2026-08-31: Implement Phase 7A
 
