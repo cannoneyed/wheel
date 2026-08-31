@@ -1069,6 +1069,7 @@ export class SyncClient {
     if (this.flushing) {
       return;
     }
+    const generation = this.connectionGeneration;
     this.flushing = true;
     void (async () => {
       try {
@@ -1089,6 +1090,7 @@ export class SyncClient {
         }
       } finally {
         this.flushing = false;
+        if (generation !== this.connectionGeneration) this.flushQueued();
       }
     })();
   }

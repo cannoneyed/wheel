@@ -245,4 +245,60 @@ describe('ordered deltas and checkpoints', () => {
     expect(client.get(items, 'item_1')?.label).toBe('server');
     client.close();
   });
+
+  test('retries an outbox flush that crosses the server hello', async () => {
+    const store = new MemoryCache();
+    await store.appendOutbox({
+      mutationId: 'm_hello_race',
+      calls: [{ mutation: previewOnly.name, args: { itemId: 'item_1', label: 'queued' }, ids: [] }],
+      preview: [{ collection: items.name, rowId: 'item_1', value: { id: 'item_1', label: 'queued' } }],
+      enqueuedAt: 1
+    });
+    let push: (event: ServerEvent) => void = () => {};
+    const mutationResolvers: Array<(result: MutateResult) => void> = [];
+    const transport: SyncTransport = {
+      async connect(_clientId, listener) {
+        push = listener;
+      },
+      async subscribe() {
+        return {
+          subscriptionId: 'sub_hello_race',
+          query: itemList.name,
+          seq: 0,
+          rows: [{ id: 'item_1', label: 'server' }],
+          status: { kind: 'live' }
+        };
+      },
+      async unsubscribe() {},
+      async mutateGroup() {
+        return new Promise<MutateResult>((resolve) => mutationResolvers.push(resolve));
+      },
+      async setPresence() {},
+      close() {}
+    };
+    const client = new SyncClient({
+      transport,
+      clientId: 'hello_race_client',
+      actor: 'user:test',
+      clock: fixedClock(1_700_000_000_000, 1),
+      randomBytes: seededRandomBytes(11),
+      syncModules: [syncModule],
+      localCache: store
+    });
+
+    await client.subscribe(itemList, {});
+    await drainMicrotasks();
+    expect(mutationResolvers).toHaveLength(1);
+
+    push({ type: 'hello', clientId: 'hello_race_client' });
+    mutationResolvers[0]?.({ ok: true, seq: 1 });
+    await drainMicrotasks();
+    expect(mutationResolvers).toHaveLength(2);
+
+    mutationResolvers[1]?.({ ok: true, seq: 1 });
+    push({ type: 'checkpoint', seq: 1 });
+    await drainMicrotasks();
+    expect(await store.loadOutbox()).toHaveLength(0);
+    client.close();
+  });
 });
