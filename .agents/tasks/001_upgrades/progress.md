@@ -28,7 +28,7 @@ on chat history.
 | 4. Move client state ownership | `L` | Complete | Materializer ownership and local behavior gates passed |
 | 5. Expand query and source contracts | `L` | Complete | Shared dependencies and callback-source gates passed |
 | 6. Rename APIs and enforce boundary | `M` | Blocked | Functional checks passed; CI duration exceeds two minutes |
-| 7A. Add tracked multi-node invalidation | `M` | In progress | Local gates pass; Buildkite remains |
+| 7A. Add tracked multi-node invalidation | `M` | Complete | Local and Buildkite gates passed |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`. Only
 one phase may be `In progress`.
@@ -203,7 +203,7 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 - [x] Pass multi-node source invalidation tests.
 - [x] Pass duplicate suppression tests.
 - [x] Pass full local static, type, unit, and Elixir gates.
-- [ ] Pass Buildkite PostgreSQL and browser gates.
+- [x] Pass Buildkite PostgreSQL and browser gates.
 
 ## Decision log
 
@@ -262,7 +262,7 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 
 ### 2026-08-31: Implement Phase 7A
 
-**State:** In progress
+**State:** Complete
 
 **Worktree**
 
@@ -291,6 +291,7 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 | `bun run test` | Local worktree | Passed: 155 component files with 1,882 tests and 26 existing skips; 105 node files with 819 tests |
 | `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55433/wheel_sync bun run test:elixir` | Solo-managed PostgreSQL 17 | Passed: 15 tests; Tracker compiled with warnings treated as errors |
 | `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55433/wheel_sync mix test test/multi_node_test.exs --warnings-as-errors --repeat-until-failure 10` | Solo-managed PostgreSQL 17 | Passed: 11 runs and 55 tests |
+| [Buildkite build 134](https://buildkite.com/cannoneyed/wheel/builds/134) | Hosted CI | Passed all required jobs in 2 minutes 28 seconds from build start; 17 seconds faster than build 133 |
 
 **Decisions**
 
@@ -302,9 +303,9 @@ Add new entries at the top of this section. Keep prior entries unchanged.
 
 **Blockers**
 
-- Buildkite remains.
+- None for Phase 7A. The existing repository-wide two-minute CI target remains tracked by Phase 6.
 
-**Exit gate:** Pending. Local checks pass; Buildkite validation remains.
+**Exit gate:** Passed. Local and Buildkite checks pass.
 
 ### 2026-08-31: Implement Phase 6
 
