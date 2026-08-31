@@ -45,6 +45,13 @@ async function seedPreviousContractCache(
               ids: []
             }
           ],
+          preview: [
+            {
+              collection: 'teams',
+              rowId: teamRow.id,
+              value: { ...teamRow, name: queuedName }
+            }
+          ],
           enqueuedAt: Date.now()
         });
         transaction.oncomplete = () => resolve();
