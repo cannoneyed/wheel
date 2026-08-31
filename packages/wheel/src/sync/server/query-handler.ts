@@ -6,7 +6,7 @@
  * diffs every result, mints seq, emits idempotent whole-row deltas, and
  * validates rows against the query's schema. A handler answers only two
  * questions: "what are this query's rows right now?" and "when might that
- * answer have changed?" — the second via table hints (`rerunOn`), a push
+ * answer have changed?" — the second via declaration dependencies, a push
  * callback (`subscribe`), or both.
  */
 import type { SqlFragment } from '../sql';
@@ -53,7 +53,7 @@ export interface RowImage {
 }
 
 /**
- * A query backend. `SqlQueryHandler` supplies SQLite SQL and table hints.
+ * A query backend. `SqlQueryHandler` supplies SQLite SQL.
  * Custom handlers can bridge another live source through `subscribe`.
  */
 export interface QueryHandler<
@@ -67,8 +67,6 @@ export interface QueryHandler<
    * every row is validated against the query's schema by the engine.
    */
   run(params: Params, ctx: QueryHandlerCtx): Promise<readonly Row[]>;
-  /** Hint-based invalidation: re-run + diff when any of these tables is touched. */
-  readonly rerunOn?: readonly string[];
   /**
    * Push-based invalidation: call `invalidate()` whenever the result MAY have
    * changed. Cheap and coalescing — the engine enqueues one re-run+diff on
@@ -84,7 +82,7 @@ export interface QueryHandler<
   readonly sql?: (params: Params, principal: AuthPrincipal) => SqlFragment;
   /**
    * Tier-1 pruning (opt-in, requires `createSyncServer({ rowImages: true })`):
-   * when a rerunOn hint matches, the re-run is SKIPPED unless some touched
+   * when a declared dependency matches, the re-run is SKIPPED unless some touched
    * row image passes this predicate. Images are raw table-shaped (old AND
    * new checked by the caller passing each image once) — never the projected
    * client row. Purely an optimization: absent images (external writes, WAL,
@@ -94,32 +92,25 @@ export interface QueryHandler<
 }
 
 /**
- * The standard SQLite handler: a sql`` fragment plus table-level re-run hints.
+ * The standard SQLite handler: a sql`` fragment.
  *
  *   serveQuery({ query: cardList, handler: SqlQueryHandler({
- *     sql: () => sql`select ... from cards order by position`,
- *     rerunOn: ['cards']
+ *     sql: () => sql`select ... from cards order by position`
  *   })})
  *
- * The `serveQuery({ query, sql, rerunOn })` sugar desugars to exactly this.
+ * The `serveQuery({ query, sql })` sugar desugars to exactly this.
  */
 export function SqlQueryHandler<
   Params extends Record<string, unknown>,
   Row extends Record<string, unknown>
 >(options: {
   sql: (params: Params, principal: AuthPrincipal) => SqlFragment;
-  /** Table names whose committed writes re-run + diff this query. Coarse on purpose (see the tradeoffs doc's invalidation ladder). */
-  rerunOn: readonly string[];
   /** Optional Tier-1 pruning predicate over raw row images (see QueryHandler.prune). */
   prune?: (image: RowImage, params: Params, principal: AuthPrincipal) => boolean;
 }): QueryHandler<Params, Row> {
-  if (options.rerunOn.length === 0) {
-    throw new Error('SqlQueryHandler: rerunOn must name at least one table.');
-  }
   return {
     kind: 'sqlite',
     sql: options.sql,
-    rerunOn: options.rerunOn,
     prune: options.prune,
     async run(params, ctx) {
       return (await ctx.query(options.sql(params, ctx.principal))) as Row[];

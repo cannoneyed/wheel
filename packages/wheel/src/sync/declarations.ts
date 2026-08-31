@@ -36,7 +36,7 @@ export interface TableDecl<Row extends Record<string, unknown> = Record<string, 
   readonly key: (row: Row) => string;
   /** Serializable equivalent of `key`, consumed by non-TypeScript sync engines. */
   readonly keySpec: TableKeySpec;
-  /** True for derived tables: no physical table, no touch trigger; queries into it re-run via their watch lists. */
+  /** True for derived tables: no physical table or touch trigger; queries into it re-run through declared dependencies. */
   readonly virtual: boolean;
   readonly declSite: string;
 }
@@ -90,7 +90,7 @@ export function table<Schema extends t.ZodType<Record<string, unknown>>>(options
   /**
    * Derived table: the name maps to no physical table (a second row contract
    * over an existing one, or a join). The engine installs no touch trigger;
-   * queries into it re-run purely through their watch lists.
+   * queries into it re-run through their declared physical dependencies.
    */
   virtual?: boolean;
 }): TableDecl<Infer<Schema>> {
@@ -215,7 +215,7 @@ export interface QueryProjection<Params extends Record<string, unknown>, Row ext
   readonly sort?: (a: Row, b: Row) => number;
 }
 
-/** A declared live query: named + typed params, target table, and optional client projection. SQL lives in the *.server.ts binding. */
+/** A declared live query: named + typed params, target table, dependencies, and optional client projection. SQL lives in the *.server.ts binding. */
 export interface QueryDecl<
   Params extends Record<string, unknown> = Record<string, unknown>,
   Row extends Record<string, unknown> = Record<string, unknown>
@@ -224,6 +224,8 @@ export interface QueryDecl<
   readonly name: string;
   readonly params: t.ZodType<Params>;
   readonly into: TableDecl<Row>;
+  /** Physical tables whose committed writes may change this query's answer. */
+  readonly dependsOn: readonly string[];
   readonly projection?: QueryProjection<Params, Row>;
   readonly declSite: string;
 }
@@ -233,6 +235,8 @@ export function query<ParamsSchema extends t.ZodType<Record<string, unknown>>, R
   name: string;
   params: ParamsSchema;
   into: TableDecl<Row>;
+  /** Defaults to `into` for physical tables. Virtual tables must declare their physical dependencies, or `[]` for a push-only source. */
+  dependsOn?: readonly string[];
   projection?: QueryProjection<Infer<ParamsSchema>, Row>;
 }): QueryDecl<Infer<ParamsSchema>, Row> {
   if (!OPERATION_NAME.test(options.name)) {
@@ -244,11 +248,24 @@ export function query<ParamsSchema extends t.ZodType<Record<string, unknown>>, R
       `Invalid query name ${JSON.stringify(options.name)}: namespace "${namespace}" must equal target table "${options.into.name}".`
     );
   }
+  if (options.into.virtual && options.dependsOn === undefined) {
+    throw new Error(
+      `Query ${JSON.stringify(options.name)} targets virtual table ${JSON.stringify(options.into.name)} and must declare dependsOn (use [] for a push-only source).`
+    );
+  }
+  const dependsOn = [...(options.dependsOn ?? [options.into.name])];
+  if (dependsOn.some((table) => !TABLE_NAME.test(table))) {
+    throw new Error(`Query ${JSON.stringify(options.name)} declares an invalid dependsOn table name.`);
+  }
+  if (new Set(dependsOn).size !== dependsOn.length) {
+    throw new Error(`Query ${JSON.stringify(options.name)} declares a duplicate dependsOn table.`);
+  }
   return {
     kind: 'query',
     name: options.name,
     params: options.params as unknown as t.ZodType<Infer<ParamsSchema>>,
     into: options.into,
+    dependsOn: Object.freeze(dependsOn),
     projection: options.projection as unknown as QueryProjection<Infer<ParamsSchema>, Row> | undefined,
     declSite: captureDeclSite()
   };

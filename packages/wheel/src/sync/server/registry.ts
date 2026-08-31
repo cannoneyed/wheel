@@ -2,12 +2,12 @@
  * The registry collects declarations from sync modules (*.sync.ts) and cross-checks
  * them against server bindings at boot. Everything fails
  * loudly at startup, never at request time: duplicate names, declarations
- * without implementations, orphan implementations, rerun hints on undeclared
+ * without implementations, orphan implementations, dependencies on undeclared
  * tables.
  */
 import type { MutationDecl, PresenceDecl, QueryDecl, TableDecl } from '../declarations';
 
-/** Boot-time failure listing every registry problem at once (duplicates, unimplemented declarations, orphan bindings, bad rerun hints) with declaration sites. */
+/** Boot-time failure listing every registry problem at once (duplicates, unimplemented declarations, orphan bindings, bad dependencies) with declaration sites. */
 export class RegistryError extends Error {
   constructor(public readonly problems: string[]) {
     super(`Wheel registry is invalid:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`);
@@ -81,12 +81,19 @@ export function collectDeclarations(syncModules: object[]): SyncDeclarations {
     );
   }
 
-  // Queries can only target declared tables.
+  // Queries can only target or depend on declared tables.
   for (const decl of queries.values()) {
     if (!tables.has(decl.into.name)) {
       problems.push(
         `Query "${decl.name}" (${decl.declSite}) targets table "${decl.into.name}", which is not exported by any syncModule.`
       );
+    }
+    for (const dependency of decl.dependsOn) {
+      if (!tables.has(dependency)) {
+        problems.push(
+          `Query "${decl.name}" (${decl.declSite}) depends on table "${dependency}", which is not exported by any syncModule.`
+        );
+      }
     }
   }
 
@@ -103,7 +110,7 @@ export interface ServerBindingLike {
   readonly declSite: string;
   readonly query?: QueryDecl;
   readonly mutation?: MutationDecl;
-  readonly handler?: { readonly rerunOn?: readonly string[]; readonly subscribe?: unknown };
+  readonly handler?: { readonly subscribe?: unknown };
 }
 
 /** The cross-checked pairing of syncModule declarations with their server bindings - what the engine executes against. */
@@ -115,7 +122,7 @@ export interface Registry extends SyncDeclarations {
 /**
  * Boot-time cross-check of syncModules against server bindings. Every query and
  * mutation must have exactly one implementation; no implementation may exist
- * without a declaration; rerun hints must name declared tables.
+ * without a declaration.
  */
 export function buildRegistry(options: { syncModules: object[]; servers: object[] }): Registry {
   const declarations = collectDeclarations(options.syncModules);
@@ -165,13 +172,6 @@ export function buildRegistry(options: { syncModules: object[]; servers: object[
       continue;
     }
     map.set(binding.name, binding);
-    for (const hinted of binding.handler?.rerunOn ?? []) {
-      if (!declarations.tables.has(hinted)) {
-        problems.push(
-          `${label} "${binding.name}" (${binding.declSite}) reruns on table "${hinted}", which is not declared in any syncModule.`
-        );
-      }
-    }
   }
 
   for (const decl of declarations.queries.values()) {

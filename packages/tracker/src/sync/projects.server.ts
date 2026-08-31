@@ -1,7 +1,7 @@
 /**
  * Server bindings for projects. The `project_counts` virtual query is the
  * first physical-table-free handler: its SQL derives rows from issues +
- * workflow_states, and invalidation comes purely from the watch list.
+ * workflow_states, and invalidation comes from the shared dependency list.
  */
 import { sql } from 'wheel/sync';
 import { serveMutation, serveQuery } from 'wheel/sync/server/cloudflare';
@@ -31,11 +31,10 @@ export const projectsAllServer = serveQuery({
   sql: () =>
     sql`select id, name, description, status_kind as "statusKind",
                lead_id as "leadId", target_date as "targetDate", position
-        from projects order by position, id`,
-  rerunOn: ['projects']
+        from projects order by position, id`
 });
 
-/** project_counts.all — derived progress per project (virtual; watch list only). */
+/** project_counts.all — derived progress per project (virtual; declared dependencies only). */
 export const projectCountsAllServer = serveQuery({
   query: projectCountsAll,
   sql: () =>
@@ -46,8 +45,7 @@ export const projectCountsAllServer = serveQuery({
         join workflow_states ws on ws.id = i.state_id
         where i.project_id is not null and i.archived_at is null
         group by i.project_id
-        order by i.project_id`,
-  rerunOn: ['issues', 'workflow_states']
+        order by i.project_id`
 });
 
 /** projects.create — upsert (redo replay may see the row). */

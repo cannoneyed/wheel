@@ -14,11 +14,11 @@ A **virtual table** is a synced row contract with no physical table behind it. A
 
 ## Declare one
 
-Pass `virtual: true` to `table()`. The engine installs no physical table and no touch trigger, so queries `into` it re-run only through their `rerunOn` hints:
+Pass `virtual: true` to `table()`. The engine installs no physical table or touch trigger. Each query into it must declare `dependsOn` with its physical source tables, or `[]` for a push-only source:
 
 <CodeExample example={virtualTablesSource} region="declaration" />
 
-The server binding is ordinary SQL that produces the derived rows. `rerunOn` names the **real** tables the SQL reads:
+The server binding is ordinary SQL that produces the derived rows. The shared query declaration owns the dependency list, so TypeScript and Elixir read the same data:
 
 <CodeExample example={virtualTablesSource} region="binding" />
 
@@ -31,22 +31,22 @@ The server binding is ordinary SQL that produces the derived rows. `rerunOn` nam
 
 ## Push channels
 
-`rerunOn` covers writes the engine authored. When something outside the engine changes a derived query's answer — a background reindex, a foreign write — a hand-built `QueryHandler` adds a **push channel** through `subscribe`. The tracker's full-text search uses both:
+`dependsOn` covers writes the engine authored. When something outside the engine changes a derived query's answer — a background reindex, a foreign write — a hand-built `QueryHandler` adds a **push channel** through `subscribe`. The tracker's full-text search uses both:
 
 <CodeExample example={virtualTablesSource} region="push" />
 
 ## Invalidation channels
 
-A handler must offer at least one channel. `serveQuery` throws at boot when a handler offers neither, so a query that can never update cannot ship by accident.
+A query must offer at least one channel. `serveQuery` throws at boot when `dependsOn` is empty and the handler has no `subscribe`, so a query that can never update cannot ship by accident.
 
 | Channel | Declared with | Re-runs the query when |
 | --- | --- | --- |
-| Table hint | `rerunOn: ['issues']` | The engine writes one of the named tables |
+| Table dependency | `dependsOn: ['issues']` on `query()` | The engine writes one of the named tables |
 | Push | `subscribe(params, invalidate)` | Your code calls `invalidate()` |
 
 ## When a delta reaches clients
 
-`rerunOn` decides when to **re-check**. The diff decides whether clients hear anything. A re-run that produces the same rows emits nothing, so a coarse table hint costs wasted server re-runs — never a spurious client update.
+`dependsOn` decides when to **re-check**. The diff decides whether clients hear anything. A re-run that produces the same rows emits nothing, so a coarse dependency costs wasted server re-runs — never a spurious client update.
 
 ## Next
 

@@ -4,7 +4,7 @@
  * `server.externalWrite`) creates successors and moves unfinished issues —
  * there are no client mutations here at all. Clients only subscribe:
  * `cycles.byTeam` for the rows, `cycleStats.byTeam` for the VIRTUAL per-cycle
- * progress (scope/started/completed), recomputed through its watch list
+ * progress (scope/started/completed), recomputed through its dependencies
  * whenever issues or cycles change.
  */
 import { query, t, table, type Infer } from 'wheel/sync';
@@ -58,7 +58,8 @@ export const cyclesByTeam = query({
 export const cycleStatsByTeam = query({
   name: 'cycle_stats.byTeam',
   params: t.object({ teamId: t.string() }),
-  into: cycleStats
+  into: cycleStats,
+  dependsOn: ['cycles', 'issues', 'workflow_states']
 });
 
 /** Cycle type alias. */

@@ -124,7 +124,7 @@ Every application query and mutation must include `workspace_id` in its SQL. `wh
 
 ## Queries
 
-A query returns Postgres SQL and parameters. The generated contract supplies its parameter schema, output table, row key, and `rerunOn` list.
+A query uses either the Postgres SQL fast path or a general callback. The generated contract supplies its parameter schema, output table, row key, and `dependsOn` list.
 
 ```elixir
 defmodule MyApp.Queries.WidgetsAll do
@@ -144,6 +144,26 @@ end
 ```
 
 Rows pass through the generated JSON Schema before they reach the socket. Duplicate keys, missing key fields, non-JSON values, and undeclared fields reject the query result.
+
+Use `run/2` when the rows come from another source. Add `subscribe/3` when that source can push invalidations:
+
+```elixir
+defmodule MyApp.Queries.Search do
+  @behaviour WheelSync.Query
+
+  def name, do: "search_results.all"
+
+  def run(params, principal) do
+    MyApp.Search.results(principal.workspace_id, params["query"])
+  end
+
+  def subscribe(params, invalidate, principal) do
+    MyApp.Search.subscribe(principal.workspace_id, params["query"], invalidate)
+  end
+end
+```
+
+`subscribe/3` returns a zero-argument cleanup function. The workspace starts one source for each exact query, parameter, and principal group. It calls cleanup after the last matching subscription closes. Each pushed invalidation enters the workspace loop, receives a sequence and log row, re-runs the callback, emits any delta or status change, and ends with a checkpoint.
 
 ## Mutations
 
@@ -175,7 +195,7 @@ end
 
 Return `{:reject, code, message}` or raise `WheelSync.Rejection` for a business rejection. Other handler failures roll back and return `handler_error`. Connection loss, serialization failure, and deadlock failure remain retryable request errors.
 
-`WheelSync.Tx.touch!/2` declares each changed contract table. After commit, the workspace process reruns subscriptions whose `rerunOn` list overlaps those tables and sends whole-row deltas with the full order.
+`WheelSync.Tx.touch!/2` declares each changed contract table. After commit, the workspace process reruns subscriptions whose `dependsOn` list overlaps those tables and sends whole-row deltas with the full order.
 
 ## Generated contracts
 
@@ -202,7 +222,7 @@ WebSocket handshake before any subscription starts. Ordered application versions
 release compatibility. The exact fingerprint only controls cached-row identity.
 
 The Elixir registry fails startup when query or mutation names differ from the generated contract.
-It also rejects duplicate handlers and `rerunOn` entries that name undeclared tables.
+It also rejects duplicate handlers, undeclared dependencies, query modules without exactly one of `sql/2` or `run/2`, and queries with no invalidation channel.
 
 ## Test matrix
 

@@ -90,7 +90,6 @@ Use `sql` tagged-template fragments for statements with values. `compileSql()` w
 // Excerpt: query values use SQL tagged-template fragments.
 serveQuery({
   query: openIssues,
-  rerunOn: ['issues'],
   sql: (params) => sql`
     select id, title from issues
     where team_id = ${params.teamId} and archived_at is null

@@ -59,8 +59,7 @@ const servers = {
     sql: (params) => sql`
       select id, list_id as "listId", text, done, position
       from todos where list_id = ${params.listId}
-      order by position`,
-    rerunOn: ['todos']
+      order by position`
   }),
   addTodoServer: serveMutation({
     mutation: addTodo,

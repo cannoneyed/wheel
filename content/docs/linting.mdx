@@ -153,7 +153,7 @@ Some rules are about runtime shape, not syntax. Those run as tests (`constraints
 <Aside kind="note">
   <strong>Sync parity is executable.</strong> <code>expectMutationParity</code> compares the
   immediate optimistic value with settled server truth. <code>expectQueryInvalidation</code>
-  compares SQLite's observed read tables with <code>rerunOn</code>. The registry separately
+  compares SQLite's observed read tables with <code>dependsOn</code>. The registry separately
   rejects server bindings that recreate a same-name declaration instead of importing the exact
   sync-module declaration.
 </Aside>

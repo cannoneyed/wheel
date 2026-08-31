@@ -22,6 +22,20 @@ export const widgetsAll = query({
   into: widgets
 });
 
+export const sourceWidgets = table({
+  name: 'source_widgets',
+  type: WidgetRow,
+  key: (row) => row.id,
+  virtual: true
+});
+
+export const sourceWidgetsAll = query({
+  name: 'source_widgets.all',
+  params: t.object({}),
+  into: sourceWidgets,
+  dependsOn: []
+});
+
 export const widgetCreate = mutation({
   name: 'widgets.create',
   args: t.object({
@@ -85,6 +99,8 @@ export const widgetFail = mutation({
 export const WIRE_SYNC_MODULE = {
   widgets,
   widgetsAll,
+  sourceWidgets,
+  sourceWidgetsAll,
   widgetCreate,
   widgetMove,
   widgetReorder,
@@ -106,8 +122,19 @@ export const WIRE_SERVERS = {
         case when (select fail from query_control where id = 1) = 1 then null else title end as title,
         position, active, note
         from widgets
-        order by sort_order, id`,
-    rerunOn: ['widgets']
+        order by sort_order, id`
+  }),
+  sourceWidgetsAllServer: serveQuery({
+    query: sourceWidgetsAll,
+    handler: {
+      kind: 'fixture-source',
+      async run(_params, context) {
+        return context.query(sql`select id, title, position, active, note from widgets order by id`);
+      },
+      subscribe() {
+        return () => {};
+      }
+    }
   }),
   widgetCreateServer: serveMutation({
     mutation: widgetCreate,

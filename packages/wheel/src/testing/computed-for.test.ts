@@ -48,8 +48,7 @@ const syncModule = { items, itemList, renameItem };
 const serverModule = {
   itemListServer: serveQuery({
     query: itemList,
-    sql: () => sql`select id, label from items order by id`,
-    rerunOn: ['items']
+    sql: () => sql`select id, label from items order by id`
   }),
   renameItemServer: serveMutation({
     mutation: renameItem,

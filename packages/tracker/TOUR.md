@@ -249,12 +249,12 @@ swallow) are the written brief for the framework's future `machine()` primitive.
 
 Three tables in Axle have no physical existence. `project_counts`, `cycle_stats`, and
 `search_results` are **virtual**: their queries compute rows (a `GROUP BY` over issues, a
-`ts_rank` over text) and re-run purely through watch lists. Complete an issue and a project
+`ts_rank` over text) and re-run through declared dependencies. Complete an issue and a project
 progress bar updates on every client — no table written, no trigger fired, just a query
 whose answer changed.
 
 Search goes further: it's a fully hand-built `QueryHandler` (no sugar) with *two*
-invalidation channels — table hints for engine writes, and a push channel
+invalidation channels — declared dependencies for engine writes, and a push channel
 (`searchInvalidation.notify()`) for changes the engine can't see. The push channel's first
 real exercise found a genuine engine bug: push-triggered reruns emitted deltas at a stale
 sequence number that every client silently discarded. The engine now mints an audit-logged

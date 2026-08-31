@@ -80,7 +80,7 @@ These choices define the Phase 0B proof and later client work.
 | Provenance | Keep the bounded Wheel provenance log beside the materializer, not inside row values. |
 | Snapshot identity | Generate an exact cached-row fingerprint and keep the mutation outbox outside that scope. |
 | Release compatibility | Keep ordered application versions separate from the exact snapshot fingerprint. |
-| Pushdown | Add only allowlisted mappings for named queries after the client migration. |
+| Query expressions | Keep named queries explicit. Do not add expression pushdown without a real consumer. |
 | Compatibility | Rename and remove old APIs without aliases. |
 
 ## Atomic mutation groups
@@ -516,8 +516,10 @@ Make query dependencies shared data and route non-SQL invalidation through the W
 4. Add a fast SQL path and a general callback path to the Elixir query behavior.
 5. Add optional source invalidation subscription and last-subscriber cleanup.
 6. Mint sequence and log entries when source invalidation enters the Workspace loop.
-7. Add an allowlisted mapper for safe named query shapes.
-8. Keep unsupported expressions local and mark their scope as partial.
+
+Query-expression pushdown is no longer part of this phase. Phase 0A removed the TanStack adapter,
+and Wheel has no local expression API to map. An allowlist now would be unused public surface.
+Named queries remain the explicit boundary until a concrete consumer requires another shape.
 
 ### Validation
 
@@ -525,7 +527,6 @@ Make query dependencies shared data and route non-SQL invalidation through the W
 - The dependency auditor rejects missing or inconsistent dependencies.
 - A fake source starts once and cleans up after its last matching subscription.
 - Source invalidation uses the normal sequence, delta, status, and checkpoint path.
-- Pushdown tests cover every supported and rejected expression shape.
 
 ### Exit gate
 

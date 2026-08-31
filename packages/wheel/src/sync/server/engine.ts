@@ -84,13 +84,13 @@ const formatRerun = (rerun: RerunStats): string =>
         .map((entry) => `${entry.query}=${entry.rows}r${entry.subscribers > 1 ? `x${entry.subscribers}` : ''}`)
         .join(', ')})`;
 
-/** One row of the /sync/_debug/subscriptions table: params, watch list, row count, run stats. */
+/** One row of the /sync/_debug/subscriptions table: params, dependencies, row count, run stats. */
 export interface SubscriptionDebugInfo {
   readonly id: string;
   readonly clientId: string;
   readonly query: string;
   readonly params: unknown;
-  readonly rerunOn: readonly string[];
+  readonly dependsOn: readonly string[];
   readonly handlerKind: string;
   readonly rows: number;
   readonly lastSeq: number;
@@ -884,7 +884,8 @@ export class SyncServer {
     for (const connection of this.connections.values()) {
       for (const subscription of connection.subscriptions()) {
         const handler = subscription.binding.handler;
-        if (!handler.rerunOn?.some((table) => touchedSet.has(table))) {
+        const dependencies = subscription.binding.query.dependsOn;
+        if (!dependencies.some((table) => touchedSet.has(table))) {
           continue;
         }
         // Tier-1 pruning: with row images available and a prune predicate on
@@ -894,7 +895,7 @@ export class SyncServer {
         if (handler.prune && Array.isArray(images)) {
           const relevant = images.some(
             (image) =>
-              handler.rerunOn!.includes(image.t) &&
+              dependencies.includes(image.t) &&
               handler.prune!(image, subscription.params, subscription.principal)
           );
           if (!relevant) {
@@ -1054,7 +1055,7 @@ export class SyncServer {
     }
   }
 
-  /** Every live subscription with params, rerun hints, handler kind, and run stats. */
+  /** Every live subscription with params, dependencies, handler kind, and run stats. */
   debugSubscriptions(): SubscriptionDebugInfo[] {
     const infos: SubscriptionDebugInfo[] = [];
     for (const connection of this.connections.values()) {
@@ -1064,7 +1065,7 @@ export class SyncServer {
           clientId: subscription.clientId,
           query: subscription.binding.name,
           params: subscription.params,
-          rerunOn: subscription.binding.handler.rerunOn ?? [],
+          dependsOn: subscription.binding.query.dependsOn,
           handlerKind: subscription.binding.handler.kind,
           rows: subscription.lastRows.size,
           lastSeq: subscription.lastSeq,

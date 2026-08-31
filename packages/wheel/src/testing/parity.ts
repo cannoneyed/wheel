@@ -76,7 +76,7 @@ function sqlAliases(text: string): Map<string, string> {
   return aliases;
 }
 
-/** Inputs for a SQLite World query-read vs `rerunOn` assertion. */
+/** Inputs for a SQLite World query-read vs `dependsOn` assertion. */
 export interface QueryInvalidationOptions<
   Params extends Record<string, unknown>,
   Row extends Record<string, unknown>
@@ -89,7 +89,7 @@ export interface QueryInvalidationOptions<
 
 /**
  * Ask SQLite which tables a query plan reads, then compare that set with the
- * handler's invalidation hints. This catches a query that reads a table but
+ * declaration's dependencies. This catches a query that reads a table but
  * can never be re-run when that table changes.
  */
 export async function expectQueryInvalidation<
@@ -97,7 +97,7 @@ export async function expectQueryInvalidation<
   Row extends Record<string, unknown>
 >(
   options: QueryInvalidationOptions<Params, Row>
-): Promise<{ reads: readonly string[]; rerunOn: readonly string[] }> {
+): Promise<{ reads: readonly string[]; dependsOn: readonly string[] }> {
   const sql = options.binding.handler.sql;
   if (!sql) {
     throw new Error(
@@ -131,12 +131,12 @@ export async function expectQueryInvalidation<
     if (table) reads.add(table);
   }
   const observed = [...reads].sort();
-  const rerunOn = [...new Set(options.binding.handler.rerunOn ?? [])].sort();
-  if (canonicalParams(observed) !== canonicalParams(rerunOn)) {
+  const dependsOn = [...new Set(options.binding.query.dependsOn)].sort();
+  if (canonicalParams(observed) !== canonicalParams(dependsOn)) {
     throw new Error(
       `Query invalidation mismatch for "${options.binding.name}". ` +
-        `SQLite reads [${observed.join(', ')}], but rerunOn is [${rerunOn.join(', ')}].`
+        `SQLite reads [${observed.join(', ')}], but dependsOn is [${dependsOn.join(', ')}].`
     );
   }
-  return { reads: observed, rerunOn };
+  return { reads: observed, dependsOn };
 }

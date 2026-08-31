@@ -11,36 +11,36 @@ import { mutation, query, table } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from './serve';
-import { SqlQueryHandler, type QueryHandler } from './query-handler';
+import type { QueryHandler } from './query-handler';
 import { createSyncServer } from './node-engine';
 import { betterSqlite3Driver } from './backends/sqlite-driver';
 
 const NoteRow = t.object({ id: t.string(), text: t.string() });
 const notes = table({ name: 'notes', type: NoteRow, key: (row) => row.id });
 const notesAll = query({ name: 'notes.all', params: t.object({}), into: notes });
+const sourceNotes = table({ name: 'source_notes', type: NoteRow, key: (row) => row.id, virtual: true });
+const sourceNotesAll = query({
+  name: 'source_notes.all', params: t.object({}), into: sourceNotes, dependsOn: []
+});
 
 describe('serveQuery forms', () => {
-  test('sugar desugars to a SqlQueryHandler with rerunOn hints', () => {
+  test('sugar desugars to a SqlQueryHandler while dependencies stay on the query', () => {
     const binding = serveQuery({
       query: notesAll,
-      sql: () => sql`select id, text from notes`,
-      rerunOn: ['notes']
+      sql: () => sql`select id, text from notes`
     });
     expect(binding.handler.kind).toBe('sqlite');
-    expect(binding.handler.rerunOn).toEqual(['notes']);
+    expect(binding.query.dependsOn).toEqual(['notes']);
     expect(binding.handler.sql).toBeDefined();
   });
 
   test('a handler with no invalidation channel is refused at declaration time', () => {
     expect(() =>
       serveQuery({
-        query: notesAll,
+        query: sourceNotesAll,
         handler: { kind: 'broken', run: async () => [] }
       })
-    ).toThrow(/rerunOn table hints and\/or a subscribe channel/);
-    expect(() => SqlQueryHandler({ sql: () => sql`select 1`, rerunOn: [] })).toThrow(
-      /at least one table/
-    );
+    ).toThrow(/declare dependsOn tables and\/or.*subscribe channel/);
   });
 });
 

@@ -18,7 +18,8 @@ export const projectCounts = table({
 export const projectCountsAll = query({
   name: 'project_counts.all',
   params: t.object({}),
-  into: projectCounts
+  into: projectCounts,
+  dependsOn: ['projects', 'issues']
 });
 // #endregion declaration
 
@@ -38,8 +39,7 @@ export const projectCountsServer = serveQuery({
     from projects p
     left join issues i on i.project_id = p.id
     group by p.id
-  `,
-  rerunOn: ['projects', 'issues']
+  `
 });
 // #endregion binding
 
@@ -57,7 +57,8 @@ const searchResults = table({
 const searchQuery = query({
   name: 'search_results.all',
   params: t.object({ q: t.string() }),
-  into: searchResults
+  into: searchResults,
+  dependsOn: ['issues', 'comments']
 });
 const listeners = new Set<() => void>();
 
@@ -66,7 +67,6 @@ export const searchHandler: QueryHandler<
   t.infer<typeof SearchResult>
 > = {
   kind: 'search',
-  rerunOn: ['issues', 'comments'],
   subscribe(_params, invalidate) {
     listeners.add(invalidate);
     return () => listeners.delete(invalidate);

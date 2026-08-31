@@ -44,6 +44,91 @@ defmodule WheelSync.Test.WidgetsAll do
   end
 end
 
+defmodule WheelSync.Test.SourceWidgetsAll do
+  @behaviour WheelSync.Query
+
+  @store WheelSync.Test.SourceWidgetsStore
+
+  @impl true
+  def name, do: "source_widgets.all"
+
+  @impl true
+  def run(_params, _principal) do
+    ensure_store!()
+
+    Agent.get(@store, fn
+      %{error: nil, rows: rows} -> rows
+      %{error: {code, message}} -> {:error, code, message}
+    end)
+  end
+
+  @impl true
+  def subscribe(_params, invalidate, _principal) do
+    ensure_store!()
+    token = make_ref()
+
+    Agent.update(@store, fn state ->
+      %{state | listeners: Map.put(state.listeners, token, invalidate), starts: state.starts + 1}
+    end)
+
+    fn ->
+      if Process.whereis(@store) do
+        Agent.update(@store, fn state ->
+          %{
+            state
+            | listeners: Map.delete(state.listeners, token),
+              cleanups: state.cleanups + 1
+          }
+        end)
+      end
+    end
+  end
+
+  def reset(rows \\ []) do
+    ensure_store!()
+
+    Agent.update(@store, fn _ ->
+      %{rows: rows, error: nil, listeners: %{}, starts: 0, cleanups: 0}
+    end)
+  end
+
+  def put_rows(rows) do
+    ensure_store!()
+    Agent.update(@store, &%{&1 | rows: rows, error: nil})
+  end
+
+  def fail(code, message) do
+    ensure_store!()
+    Agent.update(@store, &%{&1 | error: {code, message}})
+  end
+
+  def invalidate do
+    ensure_store!()
+    listeners = Agent.get(@store, &Map.values(&1.listeners))
+    Enum.each(listeners, & &1.())
+  end
+
+  def stats do
+    ensure_store!()
+    Agent.get(@store, &Map.take(&1, [:starts, :cleanups]))
+  end
+
+  def stop do
+    if Process.whereis(@store), do: Agent.stop(@store)
+  end
+
+  defp ensure_store! do
+    if Process.whereis(@store) == nil do
+      case Agent.start(fn -> %{rows: [], error: nil, listeners: %{}, starts: 0, cleanups: 0} end,
+             name: @store
+           ) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+    end
+  end
+end
+
 defmodule WheelSync.Test.WidgetCreate do
   @behaviour WheelSync.Mutation
 
@@ -288,7 +373,7 @@ defmodule WheelSync.Test.WireApp do
       detailed_errors: true,
       schema_path: schema_path(),
       authenticator: WheelSync.Test.WireAuthenticator,
-      queries: [WheelSync.Test.WidgetsAll],
+      queries: [WheelSync.Test.WidgetsAll, WheelSync.Test.SourceWidgetsAll],
       mutations: [
         WheelSync.Test.WidgetCreate,
         WheelSync.Test.WidgetMove,

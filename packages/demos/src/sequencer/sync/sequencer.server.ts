@@ -169,21 +169,18 @@ export const SEQUENCER_SCHEMA = {
 
 export const trackListServer = serveQuery({
   query: trackList,
-  sql: () => sql`select id, name, voice, gain, position from tracks order by position`,
-  rerunOn: ['tracks']
+  sql: () => sql`select id, name, voice, gain, position from tracks order by position`
 });
 
 export const stepListServer = serveQuery({
   query: stepList,
   sql: () => sql`select id, track_id as "trackId", "index" as "index", "on" as "on", velocity
-                 from steps order by track_id, "index"`,
-  rerunOn: ['steps']
+                 from steps order by track_id, "index"`
 });
 
 export const transportServer = serveQuery({
   query: transportQuery,
-  sql: () => sql`select id, bpm from transport order by id`,
-  rerunOn: ['transport']
+  sql: () => sql`select id, bpm from transport order by id`
 });
 
 export const toggleStepServer = serveMutation({

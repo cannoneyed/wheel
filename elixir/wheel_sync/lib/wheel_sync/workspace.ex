@@ -45,7 +45,8 @@ defmodule WheelSync.Workspace do
        seq: WheelSync.Storage.current_seq(names.postgres, workspace_id),
        connections: %{},
        owners: %{},
-       subscriptions: %{}
+       subscriptions: %{},
+       sources: %{}
      }}
   end
 
@@ -128,7 +129,8 @@ defmodule WheelSync.Workspace do
         principal: connection.principal,
         rows: rows,
         status: status,
-        rerun_on: MapSet.new(query_spec["rerunOn"])
+        depends_on: MapSet.new(query_spec["dependsOn"]),
+        source_key: nil
       }
 
       snapshot = %{
@@ -139,21 +141,32 @@ defmodule WheelSync.Workspace do
         "status" => status
       }
 
-      {:reply, {:ok, snapshot},
-       %{state | subscriptions: Map.put(state.subscriptions, subscription_id, subscription)}}
+      case attach_source(state, subscription) do
+        {:ok, state, subscription} ->
+          {:reply, {:ok, snapshot},
+           %{state | subscriptions: Map.put(state.subscriptions, subscription_id, subscription)}}
+
+        {:error, code, message} ->
+          {:reply, {:error, code, message}, state}
+      end
     else
       {:error, code, message} -> {:reply, {:error, code, message}, state}
     end
   end
 
   def handle_call({:unsubscribe, pid, subscription_id}, _from, state) do
-    subscriptions =
+    state =
       case Map.get(state.subscriptions, subscription_id) do
-        %{pid: ^pid} -> Map.delete(state.subscriptions, subscription_id)
-        _ -> state.subscriptions
+        %{pid: ^pid} = subscription ->
+          state
+          |> Map.put(:subscriptions, Map.delete(state.subscriptions, subscription_id))
+          |> detach_source(subscription)
+
+        _ ->
+          state
       end
 
-    {:reply, :ok, %{state | subscriptions: subscriptions}}
+    {:reply, :ok, state}
   end
 
   def handle_call({:presence, pid, presence}, _from, state) do
@@ -227,6 +240,33 @@ defmodule WheelSync.Workspace do
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state),
     do: {:noreply, remove_connection(state, pid)}
+
+  def handle_info({:source_invalidate, source_key}, state) do
+    if Map.has_key?(state.sources, source_key) do
+      case record_source_invalidation(state, source_key) do
+        {:ok, seq} ->
+          state = state |> Map.put(:seq, seq) |> rerun_source(source_key)
+          broadcast(state.connections, %{"type" => "checkpoint", "seq" => seq}, nil)
+          {:noreply, state}
+
+        {:error, reason} ->
+          Logger.error(
+            "wheel: source invalidation failed workspace=#{inspect(state.workspace_id)} " <>
+              "source=#{inspect(source_key)} error=#{inspect(reason)}"
+          )
+
+          {:noreply, state}
+      end
+    else
+      {:noreply, state}
+    end
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    Enum.each(state.sources, fn {_key, source} -> run_cleanup(source.cleanup) end)
+    :ok
+  end
 
   defp apply_mutation_group(state, request, principal) do
     result =
@@ -467,6 +507,18 @@ defmodule WheelSync.Workspace do
     table = Map.fetch!(state.registry.contract.tables, query_spec["into"])
 
     try do
+      case query_rows(state, module, params, principal) do
+        {:ok, rows} -> {:ok, key_rows!(query_name, table, rows)}
+        {:error, code, message} -> {:error, code, message}
+      end
+    rescue
+      error in WheelSync.Error -> {:error, error.code, error.message}
+      error -> {:error, "query_error", Exception.message(error)}
+    end
+  end
+
+  defp query_rows(state, module, params, principal) do
+    if function_exported?(module, :sql, 2) do
       {sql, sql_params} = module.sql(params, principal)
 
       rows =
@@ -474,10 +526,23 @@ defmodule WheelSync.Workspace do
         |> Postgrex.query!(sql, sql_params)
         |> WheelSync.Storage.rows()
 
-      {:ok, key_rows!(query_name, table, rows)}
-    rescue
-      error in WheelSync.Error -> {:error, error.code, error.message}
-      error -> {:error, "query_error", Exception.message(error)}
+      {:ok, rows}
+    else
+      case module.run(params, principal) do
+        rows when is_list(rows) ->
+          {:ok, rows}
+
+        {:ok, rows} when is_list(rows) ->
+          {:ok, rows}
+
+        {:error, code, message} when is_binary(code) and is_binary(message) ->
+          {:error, code, message}
+
+        other ->
+          raise WheelSync.Error,
+            code: "query_error",
+            message: "Query callback returned #{inspect(other)} instead of rows."
+      end
     end
   end
 
@@ -524,7 +589,7 @@ defmodule WheelSync.Workspace do
     groups =
       state.subscriptions
       |> Enum.reject(fn {_id, subscription} ->
-        MapSet.disjoint?(subscription.rerun_on, touched)
+        MapSet.disjoint?(subscription.depends_on, touched)
       end)
       |> Enum.group_by(fn {_id, subscription} ->
         {subscription.query, subscription.params, subscription.principal}
@@ -671,6 +736,135 @@ defmodule WheelSync.Workspace do
     )
   end
 
+  defp attach_source(state, subscription) do
+    module = Map.fetch!(state.registry.queries, subscription.query)
+
+    if function_exported?(module, :subscribe, 3) do
+      source_key = {subscription.query, subscription.params, subscription.principal}
+
+      case Map.get(state.sources, source_key) do
+        nil ->
+          workspace = self()
+
+          cleanup =
+            module.subscribe(
+              subscription.params,
+              fn ->
+                send(workspace, {:source_invalidate, source_key})
+              end,
+              subscription.principal
+            )
+
+          unless is_function(cleanup, 0) do
+            raise "query subscribe/3 must return a zero-argument cleanup function"
+          end
+
+          source = %{
+            subscription_ids: MapSet.new([subscription.id]),
+            cleanup: cleanup
+          }
+
+          {:ok, %{state | sources: Map.put(state.sources, source_key, source)},
+           %{subscription | source_key: source_key}}
+
+        source ->
+          source = %{
+            source
+            | subscription_ids: MapSet.put(source.subscription_ids, subscription.id)
+          }
+
+          {:ok, %{state | sources: Map.put(state.sources, source_key, source)},
+           %{subscription | source_key: source_key}}
+      end
+    else
+      {:ok, state, subscription}
+    end
+  rescue
+    error -> {:error, "query_source_error", Exception.message(error)}
+  catch
+    kind, reason -> {:error, "query_source_error", Exception.format_banner(kind, reason)}
+  end
+
+  defp detach_source(state, %{source_key: nil}), do: state
+
+  defp detach_source(state, subscription) do
+    case Map.get(state.sources, subscription.source_key) do
+      nil ->
+        state
+
+      source ->
+        subscription_ids = MapSet.delete(source.subscription_ids, subscription.id)
+
+        if MapSet.size(subscription_ids) == 0 do
+          run_cleanup(source.cleanup)
+          %{state | sources: Map.delete(state.sources, subscription.source_key)}
+        else
+          source = %{source | subscription_ids: subscription_ids}
+          %{state | sources: Map.put(state.sources, subscription.source_key, source)}
+        end
+    end
+  end
+
+  defp run_cleanup(cleanup) do
+    cleanup.()
+  rescue
+    error -> Logger.error("wheel: query source cleanup failed error=#{inspect(error)}")
+  catch
+    kind, reason ->
+      Logger.error(
+        "wheel: query source cleanup failed error=#{Exception.format_banner(kind, reason)}"
+      )
+  end
+
+  defp record_source_invalidation(state, {query, _params, _principal}) do
+    case Postgrex.transaction(state.names.postgres, fn connection ->
+           seq = WheelSync.Storage.next_seq!(connection, state.workspace_id)
+
+           WheelSync.Storage.append_log!(connection, state.workspace_id, seq, %{
+             mutation_id: issue_id("source"),
+             name: "source:" <> query,
+             touched: MapSet.new(),
+             actor: "system:query-source",
+             client_id: "server:source"
+           })
+
+           seq
+         end) do
+      {:ok, seq} -> {:ok, seq}
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    error -> {:error, error}
+  catch
+    kind, reason -> {:error, {kind, reason}}
+  end
+
+  defp rerun_source(state, source_key) do
+    source = Map.fetch!(state.sources, source_key)
+
+    subscription =
+      Enum.find_value(source.subscription_ids, fn id -> Map.get(state.subscriptions, id) end)
+
+    if subscription do
+      result = run_query(state, subscription.query, subscription.params, subscription.principal)
+
+      subscriptions =
+        Enum.reduce(source.subscription_ids, state.subscriptions, fn id, subscriptions ->
+          case Map.get(subscriptions, id) do
+            nil ->
+              subscriptions
+
+            subscription ->
+              Map.put(subscriptions, id, apply_query_result(state, subscription, result))
+          end
+        end)
+
+      %{state | subscriptions: subscriptions}
+    else
+      state
+    end
+  end
+
   defp remove_connection(state, pid) do
     case Map.pop(state.connections, pid) do
       {nil, _connections} ->
@@ -685,11 +879,18 @@ defmodule WheelSync.Workspace do
           )
         end
 
+        removed_subscriptions =
+          state.subscriptions
+          |> Map.values()
+          |> Enum.filter(&(&1.pid == pid))
+
         subscriptions =
           Map.reject(state.subscriptions, fn {_id, subscription} -> subscription.pid == pid end)
 
         owners = Map.reject(state.owners, fn {_owner, owner_pid} -> owner_pid == pid end)
-        %{state | connections: connections, subscriptions: subscriptions, owners: owners}
+
+        state = %{state | connections: connections, subscriptions: subscriptions, owners: owners}
+        Enum.reduce(removed_subscriptions, state, &detach_source(&2, &1))
     end
   end
 

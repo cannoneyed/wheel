@@ -37,8 +37,7 @@ export const TODOS_SCHEMA = {
 
 export const todoListServer = serveQuery({
   query: todoList,
-  sql: () => sql`select id, text, done, position from todos order by position`,
-  rerunOn: ['todos']
+  sql: () => sql`select id, text, done, position from todos order by position`
 });
 
 export const addTodoServer = serveMutation({

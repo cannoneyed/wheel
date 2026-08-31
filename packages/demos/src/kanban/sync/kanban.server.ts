@@ -29,8 +29,7 @@ export const KANBAN_SCHEMA = {
 
 export const cardListServer = serveQuery({
   query: cardList,
-  sql: () => sql`select id, title, tag, column_id as "columnId", position from cards order by position`,
-  rerunOn: ['cards']
+  sql: () => sql`select id, title, tag, column_id as "columnId", position from cards order by position`
 });
 
 export const addCardServer = serveMutation({

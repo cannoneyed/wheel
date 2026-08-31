@@ -2,7 +2,7 @@
  * Projects sync module. Projects are workspace-level (issues from any
  * team can join one). Progress comes from `project_counts` — a VIRTUAL table:
  * no physical table, no touch trigger; its query re-runs purely through its
- * watch list (`issues`, `workflow_states`), which is the engine's derived-
+ * dependencies (`issues`, `workflow_states`), which is the engine's derived-
  * table seam getting its first real consumer.
  */
 import { mutation, patchMutation, query, t, table, type Infer, type InverseSpec } from 'wheel/sync';
@@ -53,7 +53,8 @@ export const projectsAll = query({
 export const projectCountsAll = query({
   name: 'project_counts.all',
   params: t.object({}),
-  into: projectCounts
+  into: projectCounts,
+  dependsOn: ['issues', 'workflow_states']
 });
 
 /** The editable project fields (shared by update's patch). */

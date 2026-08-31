@@ -39,13 +39,11 @@ const syncModule = { alphas, alphaList, betas, betaList, renameAlpha };
 const serverModule = {
   alphaListServer: serveQuery({
     query: alphaList,
-    sql: () => sql`select id, label from alphas order by id`,
-    rerunOn: ['alphas']
+    sql: () => sql`select id, label from alphas order by id`
   }),
   betaListServer: serveQuery({
     query: betaList,
-    sql: () => sql`select id, label from betas order by id`,
-    rerunOn: ['betas']
+    sql: () => sql`select id, label from betas order by id`
   }),
   renameAlphaServer: serveMutation({
     mutation: renameAlpha,

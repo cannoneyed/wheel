@@ -7,6 +7,7 @@ defmodule WheelSync.PostgresWorkspaceTest do
   @workspace_b "wheel-sync-test-b"
   @workspace_query "wheel-sync-test-query"
   @workspace_phase3 "wheel-sync-test-phase3"
+  @workspace_source "wheel-sync-test-source"
   @workspace_external_error "wheel-sync-test-external-error"
   @widget_id "widget_0190b62e-0000-7000-8000-000000000021"
   @mutation_id "m_0190b62e-0000-7000-8000-000000000021"
@@ -449,6 +450,103 @@ defmodule WheelSync.PostgresWorkspaceTest do
     cleanup(names.postgres)
   end
 
+  test "callback queries share their source and sequence invalidations" do
+    options =
+      System.fetch_env!("DATABASE_URL")
+      |> WheelSync.Test.WireApp.options(0)
+      |> Keyword.put(:serve, false)
+      |> Keyword.put(:name, Module.concat(__MODULE__, SourceRuntime))
+      |> Keyword.put(:supervisor_name, Module.concat(__MODULE__, SourceSupervisor))
+
+    supervisor = start_supervised!({WheelSync.Supervisor, options})
+    names = WheelSync.Names.from_options(options)
+    cleanup(names.postgres)
+    WheelSync.Test.SourceWidgetsAll.reset([source_widget("Before")])
+
+    on_exit(fn ->
+      WheelSync.Test.SourceWidgetsAll.stop()
+      if Process.alive?(supervisor), do: cleanup(names.postgres)
+    end)
+
+    {:ok, workspace} = WheelSync.Runtime.workspace(names.runtime, @workspace_source)
+    principal = principal(@workspace_source)
+
+    {first, first_snapshot} =
+      subscribe_process(workspace, principal, "client:source-first", "source_widgets.all")
+
+    {second, second_snapshot} =
+      subscribe_process(workspace, principal, "client:source-second", "source_widgets.all")
+
+    assert Enum.map(first_snapshot["rows"], & &1["title"]) == ["Before"]
+    assert second_snapshot["rows"] == first_snapshot["rows"]
+    assert WheelSync.Test.SourceWidgetsAll.stats() == %{starts: 1, cleanups: 0}
+
+    WheelSync.Test.SourceWidgetsAll.put_rows([source_widget("After")])
+    WheelSync.Test.SourceWidgetsAll.invalidate()
+
+    for pid <- [first, second] do
+      assert_receive {:subscriber_event, ^pid,
+                      %{
+                        "type" => "delta",
+                        "delta" => %{"seq" => 1, "puts" => [%{"title" => "After"}]}
+                      }}
+
+      assert_receive {:subscriber_event, ^pid, %{"type" => "checkpoint", "seq" => 1}}
+    end
+
+    WheelSync.Test.SourceWidgetsAll.fail("source_down", "fixture source failed")
+    WheelSync.Test.SourceWidgetsAll.invalidate()
+
+    for pid <- [first, second] do
+      assert_receive {:subscriber_event, ^pid,
+                      %{
+                        "type" => "query_status",
+                        "status" => %{"seq" => 2, "status" => %{"kind" => "stale"}}
+                      }}
+
+      assert_receive {:subscriber_event, ^pid, %{"type" => "checkpoint", "seq" => 2}}
+    end
+
+    WheelSync.Test.SourceWidgetsAll.put_rows([source_widget("After")])
+    WheelSync.Test.SourceWidgetsAll.invalidate()
+
+    for pid <- [first, second] do
+      assert_receive {:subscriber_event, ^pid,
+                      %{
+                        "type" => "query_status",
+                        "status" => %{"seq" => 3, "status" => %{"kind" => "live"}}
+                      }}
+
+      assert_receive {:subscriber_event, ^pid, %{"type" => "checkpoint", "seq" => 3}}
+    end
+
+    assert [
+             [1, "source:source_widgets.all", [], "system:query-source", "server:source"],
+             [2, "source:source_widgets.all", [], "system:query-source", "server:source"],
+             [3, "source:source_widgets.all", [], "system:query-source", "server:source"]
+           ] =
+             Postgrex.query!(
+               names.postgres,
+               """
+               select seq, name, touched, actor, client_id
+               from wheel_sync_log
+               where workspace_id = $1
+               order by seq
+               """,
+               [@workspace_source]
+             ).rows
+
+    send(first, {:unsubscribe, first_snapshot["subscriptionId"]})
+    assert_receive {:subscriber_unsubscribed, ^first, :ok}
+    assert WheelSync.Test.SourceWidgetsAll.stats() == %{starts: 1, cleanups: 0}
+
+    send(second, {:unsubscribe, second_snapshot["subscriptionId"]})
+    assert_receive {:subscriber_unsubscribed, ^second, :ok}
+    assert WheelSync.Test.SourceWidgetsAll.stats() == %{starts: 1, cleanups: 1}
+    assert WheelSync.Storage.current_seq(names.postgres, @workspace_source) == 3
+    cleanup(names.postgres)
+  end
+
   def handle_query_telemetry(event, measurements, metadata, test_pid) do
     send(test_pid, {:query_telemetry, event, measurements, metadata})
   end
@@ -461,7 +559,7 @@ defmodule WheelSync.PostgresWorkspaceTest do
     }
   end
 
-  defp subscribe_process(workspace, principal, client_id) do
+  defp subscribe_process(workspace, principal, client_id, query \\ "widgets.all") do
     parent = self()
 
     pid =
@@ -475,21 +573,26 @@ defmodule WheelSync.PostgresWorkspaceTest do
           })
 
         {:ok, snapshot} =
-          WheelSync.Workspace.subscribe(workspace, self(), "widgets.all", %{})
+          WheelSync.Workspace.subscribe(workspace, self(), query, %{})
 
         send(parent, {:subscriber_ready, self(), snapshot})
-        relay_events(parent)
+        relay_events(parent, workspace)
       end)
 
     assert_receive {:subscriber_ready, ^pid, snapshot}
     {pid, snapshot}
   end
 
-  defp relay_events(parent) do
+  defp relay_events(parent, workspace) do
     receive do
       {:wheel_event, event} ->
         send(parent, {:subscriber_event, self(), event})
-        relay_events(parent)
+        relay_events(parent, workspace)
+
+      {:unsubscribe, subscription_id} ->
+        result = WheelSync.Workspace.unsubscribe(workspace, self(), subscription_id)
+        send(parent, {:subscriber_unsubscribed, self(), result})
+        relay_events(parent, workspace)
     end
   end
 
@@ -505,12 +608,23 @@ defmodule WheelSync.PostgresWorkspaceTest do
     )
   end
 
+  defp source_widget(title) do
+    %{
+      "id" => "widget_0190b62e-0000-7000-8000-000000000051",
+      "title" => title,
+      "position" => 1.0,
+      "active" => true,
+      "note" => nil
+    }
+  end
+
   defp cleanup(postgres) do
     for workspace_id <- [
           @workspace_a,
           @workspace_b,
           @workspace_query,
           @workspace_phase3,
+          @workspace_source,
           @workspace_external_error
         ] do
       Postgrex.query!(postgres, "delete from wire_widgets where workspace_id = $1", [workspace_id])

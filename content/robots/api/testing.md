@@ -26,7 +26,7 @@ Capture the optimistic result immediately, settle the real engine, and fail if a
 
 Kind: function. Source: [packages/wheel/src/testing/parity.ts:95](../../../packages/wheel/src/testing/parity.ts#L95).
 
-Ask SQLite which tables a query plan reads, then compare that set with the handler's invalidation hints. This catches a query that reads a table but can never be re-run when that table changes.
+Ask SQLite which tables a query plan reads, then compare that set with the declaration's dependencies. This catches a query that reads a table but can never be re-run when that table changes.
 
 ## `fixedClock`
 
@@ -44,7 +44,7 @@ Inputs for one optimistic → authoritative parity assertion.
 
 Kind: interface. Source: [packages/wheel/src/testing/parity.ts:80](../../../packages/wheel/src/testing/parity.ts#L80).
 
-Inputs for a SQLite World query-read vs `rerunOn` assertion.
+Inputs for a SQLite World query-read vs `dependsOn` assertion.
 
 ## `replayFixture`
 

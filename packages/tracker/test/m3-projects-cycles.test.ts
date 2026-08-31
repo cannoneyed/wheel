@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Projects & cycles: virtual tables recompute through watch lists, the
+ * Projects & cycles: virtual tables recompute through declared dependencies, the
  * rollover job's externalWrite reaches subscribed clients, and project flows
  * (create/assign/delete-unassigns) converge. Written without any
  * subscription polling — settle() covers lazy subscribes.

@@ -31,8 +31,7 @@ function fixture() {
   const servers = {
     allServer: serveQuery({
       query: all,
-      sql: () => sql`select org_id, user_id, role from memberships`,
-      rerunOn: ['memberships']
+      sql: () => sql`select org_id, user_id, role from memberships`
     }),
     addServer: serveMutation({ mutation: add, handler: async () => {} })
   };
@@ -40,11 +39,11 @@ function fixture() {
 }
 
 describe('createSchemaSpec', () => {
-  test('emits schemas, composite keys, rerun hints, and presence', async () => {
+  test('emits schemas, composite keys, query dependencies, and presence', async () => {
     const { syncModule, servers } = fixture();
     const spec = await createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
     expect(spec).toMatchObject({
-      schemaSpecVersion: 2,
+      schemaSpecVersion: 3,
       protocolVersion: 3,
       rowSchemaFingerprint: expect.stringMatching(/^wheel-rows-sha256:[0-9a-f]{64}$/),
       tables: [
@@ -55,7 +54,7 @@ describe('createSchemaSpec', () => {
         }
       ],
       queries: [
-        { name: 'memberships.all', into: 'memberships', rerunOn: ['memberships'] }
+        { name: 'memberships.all', into: 'memberships', dependsOn: ['memberships'] }
       ],
       mutations: [{ name: 'memberships.add' }],
       presence: { name: 'cursors' }
@@ -105,7 +104,7 @@ describe('createSchemaSpec', () => {
 
     const unrelated = {
       ...spec,
-      queries: [{ ...query, paramsSchema: { type: 'string' }, rerunOn: ['other'] }],
+      queries: [{ ...query, paramsSchema: { type: 'string' }, dependsOn: ['other'] }],
       mutations: [{ name: 'memberships.changed', argsSchema: { type: 'string' } }],
       presence: { name: 'changed', stateSchema: { type: 'string' } }
     };

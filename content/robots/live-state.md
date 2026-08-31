@@ -53,7 +53,7 @@ Shared declaration modules import from `wheel/sync`. Server binding modules impo
 
 ## Subscription invalidation
 
-`rerunOn` and handler `subscribe()` decide when to re-check. Row diff decides whether a client event exists. Coarse invalidation affects server work, not client correctness.
+Query `dependsOn` and handler `subscribe()` decide when to re-check. Row diff decides whether a client event exists. Coarse invalidation affects server work, not client correctness.
 
 ## Provenance
 

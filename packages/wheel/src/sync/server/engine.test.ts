@@ -62,38 +62,32 @@ const syncModule = {
 const servers = {
   todosByListServer: serveQuery({
   query: todosByList,
-    sql: (params) => sql`select id, list_id as "listId", text, done from todos where list_id = ${params.listId} order by sort_rank, id`,
-    rerunOn: ['todos']
+    sql: (params) => sql`select id, list_id as "listId", text, done from todos where list_id = ${params.listId} order by sort_rank, id`
   }),
   notesAllServer: serveQuery({
   query: notesAll,
-    sql: () => sql`select id, body from notes order by id`,
-    rerunOn: ['notes']
+    sql: () => sql`select id, body from notes order by id`
   }),
   driftedServer: serveQuery({
   query: driftedQuery,
     // Deliberately forgets `as "listId"` — the boundary net must catch this.
-    sql: () => sql`select id, list_id, text, done from todos order by id`,
-    rerunOn: ['todos']
+    sql: () => sql`select id, list_id, text, done from todos order by id`
   }),
   duplicateTodosServer: serveQuery({
     query: duplicateTodos,
     sql: () => sql`
       select id, list_id as "listId", text, done from todos
       union all
-      select id, list_id as "listId", text, done from todos`,
-    rerunOn: ['todos']
+      select id, list_id as "listId", text, done from todos`
   }),
   brokenTodosServer: serveQuery({
     query: brokenTodos,
-    sql: () => sql`select id, list_id as "listId", text, done from missing_todos`,
-    rerunOn: ['todos']
+    sql: () => sql`select id, list_id as "listId", text, done from missing_todos`
   }),
   flakyTodosServer: serveQuery({
     query: flakyTodos,
     handler: {
       kind: 'test-flaky',
-      rerunOn: ['todos'],
       async run(params, ctx) {
         if (flakyQueryFails) throw new Error('fixture query failed with private detail');
         return ctx.query(
@@ -642,7 +636,7 @@ describe('debug surface', () => {
     await connection.subscribe('todos.byList', { listId: 'l_1' });
     await mutate('todos.add', { listId: 'l_1', text: 'x' }, [ids.newId('todo')]);
     const [info] = server.debugSubscriptions();
-    expect(info).toMatchObject({ clientId: 'web_1', query: 'todos.byList', rows: 1, rerunOn: ['todos'] });
+    expect(info).toMatchObject({ clientId: 'web_1', query: 'todos.byList', rows: 1, dependsOn: ['todos'] });
     expect(info.runs).toBeGreaterThanOrEqual(2); // snapshot + rerun
     expect(info.lastSeq).toBe(server.seq());
   });

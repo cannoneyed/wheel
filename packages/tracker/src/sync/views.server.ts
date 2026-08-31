@@ -23,8 +23,7 @@ export const viewsByTeamServer = serveQuery({
     sql`select id, team_id as "teamId", name, creator_id as "creatorId",
                filters, display, created_at as "createdAt"
         from views where team_id = ${params.teamId}
-        order by created_at, id`,
-  rerunOn: ['views']
+        order by created_at, id`
 });
 
 /** views.create — upsert (restore path replays). */

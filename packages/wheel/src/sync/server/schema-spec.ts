@@ -5,7 +5,7 @@ import { SYNC_PROTOCOL_VERSION } from '../socket-protocol';
 import { buildRegistry } from './registry';
 
 /** Version of the generated document shape. Independent from the wire version. */
-export const WHEEL_SCHEMA_SPEC_VERSION = 2 as const;
+export const WHEEL_SCHEMA_SPEC_VERSION = 3 as const;
 
 const SET_LIKE_SCHEMA_ARRAYS = new Set(['allOf', 'anyOf', 'enum', 'oneOf', 'required', 'type']);
 
@@ -23,12 +23,12 @@ export interface SchemaSpecTable {
   readonly key: SchemaSpecKey;
 }
 
-/** One query's input shape, output table, and invalidation hints. */
+/** One query's input shape, output table, and physical dependencies. */
 export interface SchemaSpecQuery {
   readonly name: string;
   readonly into: string;
   readonly paramsSchema: JsonSchema;
-  readonly rerunOn: readonly string[];
+  readonly dependsOn: readonly string[];
 }
 
 /** One mutation's language-neutral argument shape. */
@@ -148,12 +148,11 @@ export async function createSchemaSpec(options: {
     .sort((a, b) => a.name.localeCompare(b.name));
   const queries = [...registry.queries.values()]
     .map((query): SchemaSpecQuery => {
-      const binding = registry.queryBindings.get(query.name);
       return {
         name: query.name,
         into: query.into.name,
         paramsSchema: toContractJsonSchema(`Query "${query.name}" params`, query.params),
-        rerunOn: [...(binding?.handler?.rerunOn ?? [])].sort()
+        dependsOn: [...query.dependsOn].sort()
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

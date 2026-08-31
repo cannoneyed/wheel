@@ -70,8 +70,7 @@ const syncModule = { items, itemList, setLabel, rejectLabel, failLabel, permanen
 const servers = {
   itemListServer: serveQuery({
     query: itemList,
-    sql: () => sql`select id, label from items order by id`,
-    rerunOn: ['items']
+    sql: () => sql`select id, label from items order by id`
   }),
   setLabelServer: serveMutation({
     mutation: setLabel,

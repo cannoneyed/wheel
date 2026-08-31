@@ -18,8 +18,7 @@ export const todoListServer = serveQuery({
     select id, text, done, position
     from todos
     order by position
-  `,
-  rerunOn: ['todos']
+  `
 });
 
 export const addTodoServer = serveMutation({

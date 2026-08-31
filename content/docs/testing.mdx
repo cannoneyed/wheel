@@ -85,7 +85,7 @@ A violation throws an `InvariantViolation` naming the seed and step, so you repl
 
 <CodeExample example={testingSource} region="contracts" />
 
-`expectQueryInvalidation` asks SQLite's query planner which physical tables an SQL-backed query actually reads, then compares that set with the query's declared `rerunOn`. A table the SQL reads but `rerunOn` omits is a subscription that silently goes stale. The checked function above calls it too — same file, with the typed server binding and `{}` parameters.
+`expectQueryInvalidation` asks SQLite's query planner which physical tables an SQL-backed query actually reads, then compares that set with the query's declared `dependsOn`. A table the SQL reads but `dependsOn` omits is a subscription that silently goes stale. The checked function above calls it too — same file, with the typed server binding and `{}` parameters.
 
 The registry also requires a server binding to reference the exact query or mutation declaration exported by the sync module. Recreating a same-name declaration no longer passes startup checks.
 

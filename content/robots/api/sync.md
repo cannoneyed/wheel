@@ -168,13 +168,13 @@ A mutation's typed outcome. THE DOCTRINE: anything the engine COMPUTES — succe
 
 ## `mutation`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:275](../../../packages/wheel/src/sync/declarations.ts#L275).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:292](../../../packages/wheel/src/sync/declarations.ts#L292).
 
 Declare a mutation (sync-side). The server handler binds to it by name in *.server.ts.
 
 ## `MutationCall`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:269](../../../packages/wheel/src/sync/declarations.ts#L269).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:286](../../../packages/wheel/src/sync/declarations.ts#L286).
 
 One existing mutation declaration and its arguments inside an atomic command.
 
@@ -186,7 +186,7 @@ Deterministic context available to optimistic handlers (and replayed on the serv
 
 ## `MutationDecl`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:258](../../../packages/wheel/src/sync/declarations.ts#L258).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:275](../../../packages/wheel/src/sync/declarations.ts#L275).
 
 A declared write: named + typed args and the optimistic handler that previews it client-side.
 
@@ -210,7 +210,7 @@ The audit record of one mutation attempt, including its rejection/error if any.
 
 ## `MutationRejection`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:359](../../../packages/wheel/src/sync/declarations.ts#L359).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:376](../../../packages/wheel/src/sync/declarations.ts#L376).
 
 Typed rejection — a value that crosses the wire, not an exception class.
 
@@ -228,19 +228,19 @@ The optimistic handlers' entire write vocabulary: rows are frozen values; `updat
 
 ## `orphan`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:414](../../../packages/wheel/src/sync/declarations.ts#L414).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:431](../../../packages/wheel/src/sync/declarations.ts#L431).
 
 Throw this from an optimistic handler when a row it reads is missing on replay — `if (!cache.get(issues, id)) throw orphan('issue ' + id + ' is gone')`. Signals a legitimate row-is-gone, not a bug: the client settles the mutation `orphaned` and rolls it back cleanly, instead of `failed`. Reserve it for genuine row-gone guards; let real invariant violations throw normally so they surface as `failed` with the original error.
 
 ## `OrphanedError`
 
-Kind: class. Source: [packages/wheel/src/sync/declarations.ts:397](../../../packages/wheel/src/sync/declarations.ts#L397).
+Kind: class. Source: [packages/wheel/src/sync/declarations.ts:414](../../../packages/wheel/src/sync/declarations.ts#L414).
 
 The typed signal an optimistic handler throws when the row it depends on is gone — deleted by a peer's confirmed delta before this pending mutation replayed. It means "there is nothing left for me to edit," NOT "I have a bug." The client treats it as the ONE legitimate reason to abandon a replaying optimistic mutation: the entry settles `orphaned` (terminal, cleanly rolled back), never `failed`. Why a dedicated class instead of a bare `Error`: rebase() must tell "the row vanished" apart from "the handler crashed (typo, null deref)". A bare throw used to be swallowed as `orphaned`, so a real bug silently rolled the mutation back with no error to paste. Now only an `OrphanedError` takes the orphaned path; every other throw settles the mutation `failed` and logs.
 
 ## `patchMutation`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:318](../../../packages/wheel/src/sync/declarations.ts#L318).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:335](../../../packages/wheel/src/sync/declarations.ts#L335).
 
 The guard → patch → capture-prior → self-inverse skeleton that patch-by-id mutations copy verbatim. It read-guards the row (orphans if a peer deleted it first), applies the caller's partial patch, and makes the mutation ITS OWN inverse by replaying the prior values of exactly the fields the patch touched: export const projectUpdate = patchMutation({ name: 'projects.update', args: t.object({ projectId: t.string(), patch: ProjectPatch }), table: projects, id: (args) => args.projectId, description: 'edit project' }); `stamp` contributes server-mirroring fields the patch does not carry and the inverse must NOT restore — they are re-derived on every apply (undo included): stamp: (ctx) => ({ updatedAt: ctx.now() }) // issues.update stamp: (_ctx, _args, row) => ({ version: row.version + 1 }) Reserved for the `{ id, patch }` shape only. The odd cases — flat args (`{ commentId, body }`), multi-row writes, creates/deletes, mutations that skip rather than orphan on a missing row — stay hand-written.
 
@@ -300,7 +300,7 @@ The capped ring buffer of writes that explain() answers from - bounded retention
 
 ## `query`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:232](../../../packages/wheel/src/sync/declarations.ts#L232).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:234](../../../packages/wheel/src/sync/declarations.ts#L234).
 
 Declare a live query (sync-side). The optional projection decides where optimistic rows appear before the server confirms.
 
@@ -308,7 +308,7 @@ Declare a live query (sync-side). The optional projection decides where optimist
 
 Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:219](../../../packages/wheel/src/sync/declarations.ts#L219).
 
-A declared live query: named + typed params, target table, and optional client projection. SQL lives in the *.server.ts binding.
+A declared live query: named + typed params, target table, dependencies, and optional client projection. SQL lives in the *.server.ts binding.
 
 ## `QueryHandle`
 
@@ -342,13 +342,13 @@ Injected randomness source backing id generation — seeded in tests, crypto in 
 
 ## `rejection`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:379](../../../packages/wheel/src/sync/declarations.ts#L379).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:396](../../../packages/wheel/src/sync/declarations.ts#L396).
 
 `throw rejection('forbidden', ...)` in a server handler → typed rejection to the client. A NOUN on purpose: it BUILDS a value, it does not act. Written without `throw` — `rejection('forbidden', 'no')` on its own line — it reads as plainly inert, which is exactly the mistake the old verb form `reject(...)` hid ("reject" looks like it did something; forgetting `throw` guarded nothing).
 
 ## `RejectionError`
 
-Kind: class. Source: [packages/wheel/src/sync/declarations.ts:366](../../../packages/wheel/src/sync/declarations.ts#L366).
+Kind: class. Source: [packages/wheel/src/sync/declarations.ts:383](../../../packages/wheel/src/sync/declarations.ts#L383).
 
 The throwable carrier for a typed MutationRejection - thrown server-side by rejection(), never crosses the wire as an exception.
 

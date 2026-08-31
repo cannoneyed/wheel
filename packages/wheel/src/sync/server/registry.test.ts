@@ -17,7 +17,7 @@ const makeSyncModule = () => {
 
 const makeServers = (syncModule: ReturnType<typeof makeSyncModule>) => ({
   byListServer: serveQuery({
-  query: syncModule.byList, sql: (p) => sql`select * from todos where list_id = ${p.listId}`, rerunOn: ['todos'] }),
+  query: syncModule.byList, sql: (p) => sql`select * from todos where list_id = ${p.listId}` }),
   addServer: serveMutation({
   mutation: syncModule.add,
   handler: async () => {}
@@ -114,17 +114,22 @@ describe('buildRegistry cross-check', () => {
     );
   });
 
-  test('a rerun hint naming an undeclared table fails startup', () => {
+  test('a query dependency naming an undeclared table fails startup', () => {
     const syncModule = makeSyncModule();
+    const invalidQuery = query({
+      name: 'todos.invalid', params: t.object({}), into: syncModule.todos, dependsOn: ['nope']
+    });
     const servers = {
       byListServer: serveQuery({
-  query: syncModule.byList, sql: () => sql`select 1`, rerunOn: ['nope'] }),
+  query: invalidQuery, sql: () => sql`select 1` }),
       addServer: serveMutation({
   mutation: syncModule.add,
   handler: async () => {}
 })
     };
-    expect(() => buildRegistry({ syncModules: [syncModule], servers: [servers] })).toThrow(/reruns on table "nope"/);
+    expect(() => buildRegistry({ syncModules: [{ ...syncModule, invalidQuery }], servers: [servers] })).toThrow(
+      /depends on table "nope"/
+    );
   });
 
   test('registry errors name declaration sites so agents can grep', () => {
@@ -149,9 +154,27 @@ describe('declaration validation', () => {
   name: 'also bad', args: t.object({}) })).toThrow(/Invalid mutation name/);
   });
 
-  test('serveQuery requires at least one watched table', () => {
-    const syncModule = makeSyncModule();
+  test('virtual queries require explicit, unique dependencies', () => {
+    const rows = table({ name: 'source_rows', type: Row, key: (row) => row.id, virtual: true });
+    expect(() => query({ name: 'source_rows.all', params: t.object({}), into: rows })).toThrow(
+      /must declare dependsOn/
+    );
+    expect(() =>
+      query({
+        name: 'source_rows.all',
+        params: t.object({}),
+        into: rows,
+        dependsOn: ['todos', 'todos']
+      })
+    ).toThrow(/duplicate dependsOn/);
+  });
+
+  test('serveQuery requires an invalidation channel', () => {
+    const sourceRows = table({ name: 'source_rows', type: Row, key: (row) => row.id, virtual: true });
+    const sourceQuery = query({
+      name: 'source_rows.all', params: t.object({}), into: sourceRows, dependsOn: []
+    });
     expect(() => serveQuery({
-  query: syncModule.byList, sql: () => sql`select 1`, rerunOn: [] })).toThrow(/at least one table/);
+  query: sourceQuery, sql: () => sql`select 1` })).toThrow(/declare dependsOn tables/);
   });
 });

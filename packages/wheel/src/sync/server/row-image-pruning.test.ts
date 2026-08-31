@@ -30,7 +30,6 @@ const servers = {
     query: todosByList,
     handler: SqlQueryHandler({
       sql: (params) => sql`select id, list_id as "listId", text from todos where list_id = ${params.listId} order by id`,
-      rerunOn: ['todos'],
       // Raw table shape (snake_case) — deliberately not the projected row.
       prune: (image, params) =>
         image.o?.list_id === params.listId || image.n?.list_id === params.listId

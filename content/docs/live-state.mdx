@@ -25,7 +25,7 @@ You declare tables, queries, and mutations once, in a **sync module** (`todos.sy
 
 <CodeExample example={todosSyncSource} />
 
-The server side binds each declaration in `todos.server.ts` — SQL plus **re-run hints**. The SQL targets your backend's dialect (SQLite for the reference apps):
+The server side binds each declaration in `todos.server.ts` to SQL. The SQL targets your backend's dialect (SQLite for the reference apps):
 
 ```ts
 // Excerpt: todoList is imported from the checked sync module above.
@@ -34,17 +34,16 @@ import { serveQuery } from 'wheel/sync/server';
 
 export const todoListServer = serveQuery({
   query: todoList,
-  sql: () => sql`select id, title, done, position from todos order by position`,
-  rerunOn: ['todos']
+  sql: () => sql`select id, title, done, position from todos order by position`
 });
 ```
 
-`rerunOn` is a hint, not the subscription (see "How a delta reaches a client" below).
+The shared `query()` declaration owns `dependsOn`. A physical query defaults to its target table. A virtual query lists its physical sources or uses `[]` for a push-only source.
 
-The `{ sql, rerunOn }` pair above is sugar. Underneath it builds a **query handler** — an object
+The `sql` form above is sugar. Underneath it builds a **query handler** — an object
 that knows how to produce this query's rows and how to tell the engine they changed. Pass your own
 with `handler:` instead, and the rows need not come from the database at all: an
-incrementally-maintained view, a reactive store that pushes changes instead of taking table hints,
+incrementally-maintained view, a reactive store that pushes changes instead of table dependencies,
 or an HTTP source. The wire protocol, the diffing, and the client stay exactly the same.
 [Virtual tables](#/virtual-tables) walks through writing one.
 
@@ -130,14 +129,14 @@ larger groups instead of splitting their transaction.
 
 ## How a delta reaches a client
 
-A common misreading: `rerunOn: ['todos']` looks like "the subscription is the table." It isn't. The pipeline for every committed write:
+A common misreading: `dependsOn: ['todos']` looks like "the subscription is the table." It isn't. The pipeline for every committed write:
 
 <Diagram
   direction="LR"
   nodes={[
     { id: 'write', label: 'Write commits', kind: 'server' },
     { id: 'touched', label: 'Touched tables', sub: 'noted by triggers', kind: 'store' },
-    { id: 'rerun', label: 'Re-run', sub: 'queries whose rerunOn intersects', kind: 'server' },
+    { id: 'rerun', label: 'Re-run', sub: 'queries whose dependsOn intersects', kind: 'server' },
     { id: 'diff', label: 'Diff', sub: 'vs. last result', kind: 'server' },
     { id: 'delta', label: 'Delta', sub: 'ONLY if rows changed', kind: 'client' }
   ]}
@@ -147,10 +146,10 @@ A common misreading: `rerunOn: ['todos']` looks like "the subscription is the ta
     { from: 'rerun', to: 'diff' },
     { from: 'diff', to: 'delta' }
   ]}
-  caption="rerunOn decides when to re-CHECK; the diff decides whether clients hear anything."
+  caption="dependsOn decides when to re-CHECK; the diff decides whether clients hear anything."
 />
 
-So the client-observable contract is query-level: **a subscription hears about a query exactly when that query's rows change** — an irrelevant write to the same table re-runs the SQL, diffs to nothing, and emits nothing ("an unchanged re-run emits nothing" is a passing engine test). The table hint only costs wasted server re-runs, which is a server-CPU concern, not a correctness one — and push-based handlers (`QueryHandler.subscribe`) skip hints entirely. Finer invalidation tiers (row-predicate pruning, incremental view maintenance) are known escalation paths; the coarse hint trades server CPU for a design with no query language to maintain.
+So the client-observable contract is query-level: **a subscription hears about a query exactly when that query's rows change** — an irrelevant write to the same dependency re-runs the SQL, diffs to nothing, and emits nothing ("an unchanged re-run emits nothing" is a passing engine test). A coarse dependency only costs wasted server re-runs, which is a server-CPU concern, not a correctness one. Push-based handlers (`QueryHandler.subscribe`) can use an empty dependency list. Finer invalidation tiers (row-predicate pruning, incremental view maintenance) are known escalation paths; coarse dependencies trade server CPU for a design with no query language to maintain.
 
 ## Going offline
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 /**
  * Inbox / search / views tests: notification fan-out (+@mentions, one-undo mark-all), the
- * custom search handler (table hints AND the push channel), saved views,
+ * custom search handler (declared dependencies AND the push channel), saved views,
  * favorites, split-view scope isolation, and the headless shortcut map.
  */
 import { describe, expect, test } from 'vitest';
@@ -173,7 +173,7 @@ describe('inbox / search / views / favorites / split', () => {
     await world.settle();
     expect(handle.rows().length).toBe(0);
 
-    // Channel 1 — table hints: an engine mutation touching `issues` re-runs the search.
+    // Channel 1 — dependencies: an engine mutation touching `issues` re-runs the search.
     const target = ada.issues.issuesIn(TEAM, TODO_STATE)[0];
     ada.issues.update(target.id, { title: `Investigate the ${needle} regression` });
     await world.settle();

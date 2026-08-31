@@ -33,7 +33,7 @@ Paused clients do not block `settle()`.
 ## Contract helpers
 
 - `expectMutationParity()` compares immediate optimistic membership and order with settled server truth.
-- `expectQueryInvalidation()` asks SQLite which tables SQL reads and compares them with `rerunOn`.
+- `expectQueryInvalidation()` asks SQLite which tables SQL reads and compares them with `dependsOn`.
 
 ## Simulation
 

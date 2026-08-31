@@ -97,14 +97,12 @@ export const GRAPH_SCHEMA = {
 export const nodeListServer = serveQuery({
   query: nodeList,
   sql: () => sql`select id, label, "group" as "group", pin_x as "pinX", pin_y as "pinY"
-                 from nodes order by id`,
-  rerunOn: ['nodes']
+                 from nodes order by id`
 });
 
 export const edgeListServer = serveQuery({
   query: edgeListQuery,
-  sql: () => sql`select id, from_id as "from", to_id as "to" from edges order by id`,
-  rerunOn: ['edges']
+  sql: () => sql`select id, from_id as "from", to_id as "to" from edges order by id`
 });
 
 export const addNodeServer = serveMutation({

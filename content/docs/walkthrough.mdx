@@ -45,7 +45,7 @@ Create `todos.server.ts`:
   <strong>Test the mirror.</strong> <code>expectMutationParity</code> compares immediate
   optimistic membership and order with confirmed server truth.
   <code>expectQueryInvalidation</code> compares each query's SQL reads with
-  <code>rerunOn</code>.
+  <code>dependsOn</code>.
 </Aside>
 
 ## 3. Boot the authenticated server (`server.ts`)

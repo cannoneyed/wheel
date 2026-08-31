@@ -19,14 +19,14 @@ Queries can target the virtual table. Their server handler computes rows from ph
 
 ## Invalidation
 
-Virtual table queries update only through handler invalidation channels:
+Virtual table queries update only through declared invalidation channels:
 
-- `rerunOn`: engine-authored writes to physical tables.
+- `dependsOn` on `query()`: engine-authored writes to physical tables.
 - `subscribe(params, invalidate)`: application push source.
 
-At least one channel is required. A handler can use both.
+At least one channel is required. A query can use both.
 
-`rerunOn` decides when to execute. Row diff decides whether to emit. An unchanged derived result emits no client event.
+`dependsOn` decides when to execute. Row diff decides whether to emit. An unchanged derived result emits no client event.
 
 ## Optimistic behavior
 

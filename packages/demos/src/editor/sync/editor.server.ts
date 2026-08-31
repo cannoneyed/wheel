@@ -40,8 +40,7 @@ export const EDITOR_SCHEMA = {
 export const blockListServer = serveQuery({
   query: blockList,
   sql: () => sql`select id, kind, text, checked, language, position, version
-                 from blocks order by position, id`,
-  rerunOn: ['blocks']
+                 from blocks order by position, id`
 });
 
 /** Shared: authoritative insert position (mirrors insertPosition in editor.sync.ts). */

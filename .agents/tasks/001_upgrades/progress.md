@@ -26,8 +26,8 @@ on chat history.
 | 2B. Automate snapshot fingerprints | `L` | Complete | Local and Buildkite gates passed |
 | 3. Add Elixir grouping and external writes | `M` | Complete | PostgreSQL grouping and external-write checks passed |
 | 4. Move client state ownership | `L` | Complete | Materializer ownership and local behavior gates passed |
-| 5. Expand query and source contracts | `L` | Not started | Contract checks not run |
-| 6. Rename APIs and enforce boundary | `M` | Not started | Final local and CI checks not run |
+| 5. Expand query and source contracts | `L` | Complete | Shared dependencies and callback-source gates passed |
+| 6. Rename APIs and enforce boundary | `M` | Ready | Final local and CI checks not run |
 | 7. Add multi-node invalidation | `L` | Deferred | Scope not active |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`. Only
@@ -173,12 +173,12 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 
 ### Phase 5
 
-- [ ] Pass schema contract fixtures against TypeScript and Elixir.
-- [ ] Pass the query dependency auditor.
-- [ ] Pass external source start and cleanup tests.
-- [ ] Pass source invalidation protocol tests.
-- [ ] Pass supported and rejected pushdown tests.
-- [ ] Confirm each dependency list has one owner.
+- [x] Pass schema contract fixtures against TypeScript and Elixir without PostgreSQL.
+- [x] Pass the query dependency auditor.
+- [x] Pass external source start and cleanup tests with PostgreSQL.
+- [x] Pass source invalidation protocol tests with PostgreSQL.
+- [x] Remove obsolete expression-pushdown scope after the TanStack adapter was rejected.
+- [x] Confirm each dependency list has one owner.
 
 ### Phase 6
 
@@ -239,10 +239,84 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-31 | 4 | Persist each command's optimistic preview | A reload can show pending work before confirmed subscriptions finish loading. |
 | 2026-08-31 | 4 | Release durable commands only after a current-generation checkpoint | An acknowledgement alone can race a disconnect before the server publishes authoritative query state. |
 | 2026-08-31 | 4 | Keep provenance in `SyncClient` | Provenance describes transport and lifecycle causes; the materializer only owns row computation and publication. |
+| 2026-08-31 | 5 | Put `dependsOn` on the shared query declaration | TypeScript, generated contracts, and Elixir now read one dependency list. |
+| 2026-08-31 | 5 | Keep dependencies as validated table names | String names avoid cross-module import cycles, and both registries reject undeclared names at startup. |
+| 2026-08-31 | 5 | Do not add expression pushdown | Phase 0A removed the TanStack adapter, and Wheel has no expression consumer. A mapper would be unused public surface. |
+| 2026-08-31 | 5 | Sequence source invalidations before reruns | External source deltas and status changes must share the normal workspace order and checkpoint path. |
 
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-31: Complete Phase 5
+
+**State:** Complete
+
+**Worktree**
+
+- Branch `wheel-upgrades`, based on commit `e531e2d`, with Phase 5 changes not yet committed.
+- Existing changes to `AGENTS.md`, `wheel-version.md`, and `wheel-upgrades-report.md` remain outside
+  this phase.
+
+**Changes**
+
+- Added `dependsOn` to shared query declarations. Physical queries default to their target table;
+  virtual queries must name physical dependencies or use `[]` for a push-only source.
+- Removed `rerunOn` from TypeScript server bindings and query handlers.
+- Generated `dependsOn` in schema specification version 3 and updated both checked-in contracts.
+- Moved TypeScript reruns, diagnostics, and SQLite dependency audits to the shared declaration.
+- Added Elixir `run/2` callback queries beside the existing `sql/2` fast path.
+- Added optional Elixir `subscribe/3` sources grouped by exact query, parameters, and principal.
+- Started one source per exact group and ran its cleanup after the last matching subscription.
+- Routed source invalidations through the Workspace loop. Each invalidation now receives a sequence
+  and log row before any delta or status event, followed by a checkpoint.
+- Added a shared wire-contract source fixture and PostgreSQL coverage for callback rows, shared
+  source lifetime, changed and unchanged results, stale/live status, logs, and checkpoints.
+- Updated TypeScript, Elixir, Tracker, examples, public guides, and generated API docs.
+- Removed the planned expression-pushdown mapper. Phase 0A removed its TanStack consumer, so the
+  mapper would have been unused public surface.
+
+**Validation**
+
+- `bun run check:static`: passed lint, generated schema and fingerprint checks, generated docs,
+  type checks, service checks, Cloudflare types, and package validation.
+- `bun run test`: 155 component files passed with 1,882 tests passed and 26 existing skips; 105
+  node files passed with 815 tests passed and no type errors.
+- Final focused dependency, handler, schema, and World tests: 4 files and 32 tests passed with no
+  type errors.
+- Docs tests: 4 files and 255 tests passed.
+- SQLite backend tests: 16 passed.
+- TypeScript SQLite wire tests: 12 passed.
+- Cloudflare tests: 3 files and 27 tests passed.
+- Elixir PostgreSQL suite: 10 tests passed with no exclusions against the Solo-managed Postgres 17
+  process. The source test covered one start, last-subscriber cleanup, sequences 1 through 3,
+  deltas, stale/live status, source log rows, and checkpoints.
+- `mix test --exclude postgres --warnings-as-errors`: 10 tests passed with 5 PostgreSQL exclusions
+  after the managed database was stopped. `bun run test:elixir` also compiled the Tracker Elixir
+  application with warnings treated as errors.
+- `git diff --check`: passed.
+- Browser tests were not run locally. Phase 5 changes no browser behavior, and the repository guide
+  reserves full browser suites for Buildkite after a push.
+
+**Decisions**
+
+- Keep dependency names as strings in the shared declaration. Both registries validate them, and
+  strings avoid cross-module imports between sync modules.
+- Require virtual queries to declare dependencies explicitly because their target has no physical
+  invalidation source.
+- Keep SQL and callback execution as the only Elixir query paths.
+- Use exact native Elixir terms for source grouping, matching Phase 3 query grouping.
+- Record every source invalidation before rerunning, including no-op and failed reruns.
+- Keep named queries explicit until a real expression consumer exists.
+
+**Blockers**
+
+- None.
+
+**Exit gate**
+
+- Passed. One declaration owns each dependency list, and SQL and external callbacks use the same
+  snapshot, delta, status, sequence, and checkpoint protocol.
 
 ### 2026-08-31: Complete Phase 4
 

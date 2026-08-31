@@ -28,7 +28,7 @@ Use `coerceParams`, `coerceRows`, and `coerceValue` at a driver boundary to norm
 
 ## Query handler
 
-`QueryHandler` can replace SQL sugar. It returns current rows from any source and invalidates through table hints, a push subscription, or both.
+`QueryHandler` can replace SQL sugar. It returns current rows from any source. The shared query declaration owns table dependencies, and the handler may add a push subscription.
 
 ## External writes
 

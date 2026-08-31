@@ -4,7 +4,7 @@ defmodule WheelSync.Contract do
   def load!(path) do
     spec = path |> File.read!() |> Jason.decode!()
 
-    unless spec["schemaSpecVersion"] == 2 do
+    unless spec["schemaSpecVersion"] == 3 do
       raise ArgumentError, "unsupported wheel schema spec version"
     end
 

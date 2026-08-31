@@ -1,8 +1,54 @@
 {
-  "schemaSpecVersion": 2,
+  "schemaSpecVersion": 3,
   "protocolVersion": 3,
-  "rowSchemaFingerprint": "wheel-rows-sha256:c936ea18af5d38b628233140a14465732219d8eb54931db18357bce7664ef854",
+  "rowSchemaFingerprint": "wheel-rows-sha256:fb6281996d6cb4de5c3535589563aa5958d5e7a6581cdfc25589534a38826519",
   "tables": [
+    {
+      "name": "source_widgets",
+      "virtual": true,
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "position",
+          "active",
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
     {
       "name": "widgets",
       "virtual": false,
@@ -52,6 +98,17 @@
   ],
   "queries": [
     {
+      "name": "source_widgets.all",
+      "into": "source_widgets",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": []
+    },
+    {
       "name": "widgets.all",
       "into": "widgets",
       "paramsSchema": {
@@ -60,7 +117,7 @@
         "properties": {},
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "widgets"
       ]
     }

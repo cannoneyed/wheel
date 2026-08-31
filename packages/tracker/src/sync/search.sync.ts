@@ -28,7 +28,8 @@ export const searchResults = table({
 export const searchQuery = query({
   name: 'search_results.results',
   params: t.object({ q: t.string() }),
-  into: searchResults
+  into: searchResults,
+  dependsOn: ['issues', 'comments']
 });
 
 /** Search-hit alias. */

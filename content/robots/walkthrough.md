@@ -5,7 +5,7 @@ Human page: [Walkthrough](../docs/walkthrough.mdx).
 The checked todo example implements one complete sync path. Read these files in order.
 
 1. [`todos.sync.ts`](../../packages/docs/examples/getting-started/todos.sync.ts) declares the row schema, table, query, mutation, optimistic handler, and projection.
-2. [`todos.server.ts`](../../packages/docs/examples/getting-started/todos.server.ts) binds SQL, invalidation hints, and the authoritative mutation.
+2. [`todos.server.ts`](../../packages/docs/examples/getting-started/todos.server.ts) binds SQL and the authoritative mutation.
 3. [`server.ts`](../../packages/docs/examples/getting-started/server.ts) applies DDL, creates the SQLite server, and exposes authenticated HTTP routes.
 4. [`client.ts`](../../packages/docs/examples/getting-started/client.ts) separates cache scope, wire id, and actor identity.
 5. [`todo-service.ts`](../../packages/docs/examples/getting-started/todo-service.ts) owns one query and its mutations.
@@ -36,4 +36,4 @@ The checked todo example implements one complete sync path. Read these files in 
 - Compile the example files with `bun run typecheck`.
 - Apply app lint rules with `bun run lint`.
 - Use `expectMutationParity` for optimistic and authoritative equivalence.
-- Use `expectQueryInvalidation` for SQL read tables and `rerunOn` parity.
+- Use `expectQueryInvalidation` for SQL read tables and `dependsOn` parity.

@@ -42,9 +42,9 @@ One validated member ready to run inside a backend-owned transaction.
 
 ## `buildRegistry`
 
-Kind: function. Source: [packages/wheel/src/sync/server/registry.ts:120](../../../packages/wheel/src/sync/server/registry.ts#L120).
+Kind: function. Source: [packages/wheel/src/sync/server/registry.ts:127](../../../packages/wheel/src/sync/server/registry.ts#L127).
 
-Boot-time cross-check of syncModules against server bindings. Every query and mutation must have exactly one implementation; no implementation may exist without a declaration; rerun hints must name declared tables.
+Boot-time cross-check of syncModules against server bindings. Every query and mutation must have exactly one implementation; no implementation may exist without a declaration.
 
 ## `CloudflareSyncBackend`
 
@@ -78,7 +78,7 @@ Build a stable schema document from the same declarations and bindings the TypeS
 
 ## `createSyncServer`
 
-Kind: function. Source: [packages/wheel/src/sync/server/engine.ts:1211](../../../packages/wheel/src/sync/server/engine.ts#L1211).
+Kind: function. Source: [packages/wheel/src/sync/server/engine.ts:1212](../../../packages/wheel/src/sync/server/engine.ts#L1212).
 
 Boot the engine: registry cross-check, writer lease, backend install (sync log + tracking), external-change feed, then the writer loop.
 
@@ -168,7 +168,7 @@ The server RAN (or definitively refused) this mutation and it broke — a bug, n
 
 ## `MutationHandler`
 
-Kind: type. Source: [packages/wheel/src/sync/server/serve.ts:95](../../../packages/wheel/src/sync/server/serve.ts#L95).
+Kind: type. Source: [packages/wheel/src/sync/server/serve.ts:93](../../../packages/wheel/src/sync/server/serve.ts#L93).
 
 The authoritative write: runs inside the mutation transaction with the deterministic ctx.
 
@@ -176,7 +176,7 @@ The authoritative write: runs inside the mutation transaction with the determini
 
 Kind: interface. Source: [packages/wheel/src/sync/server/query-handler.ts:59](../../../packages/wheel/src/sync/server/query-handler.ts#L59).
 
-A query backend. `SqlQueryHandler` supplies SQLite SQL and table hints. Custom handlers can bridge another live source through `subscribe`.
+A query backend. `SqlQueryHandler` supplies SQLite SQL. Custom handlers can bridge another live source through `subscribe`.
 
 ## `QueryHandlerCtx`
 
@@ -198,7 +198,7 @@ A query source: a raw sql`` fragment (the compiled { text, params } payload).
 
 ## `Registry`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:110](../../../packages/wheel/src/sync/server/registry.ts#L110).
+Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:117](../../../packages/wheel/src/sync/server/registry.ts#L117).
 
 The cross-checked pairing of syncModule declarations with their server bindings - what the engine executes against.
 
@@ -206,7 +206,7 @@ The cross-checked pairing of syncModule declarations with their server bindings 
 
 Kind: class. Source: [packages/wheel/src/sync/server/registry.ts:11](../../../packages/wheel/src/sync/server/registry.ts#L11).
 
-Boot-time failure listing every registry problem at once (duplicates, unimplemented declarations, orphan bindings, bad rerun hints) with declaration sites.
+Boot-time failure listing every registry problem at once (duplicates, unimplemented declarations, orphan bindings, bad dependencies) with declaration sites.
 
 ## `ROW_SCHEMA_FINGERPRINT_PREFIX`
 
@@ -254,7 +254,7 @@ Optional application presence shape used to check server registration.
 
 Kind: interface. Source: [packages/wheel/src/sync/server/schema-spec.ts:27](../../../packages/wheel/src/sync/server/schema-spec.ts#L27).
 
-One query's input shape, output table, and invalidation hints.
+One query's input shape, output table, and physical dependencies.
 
 ## `SchemaSpecTable`
 
@@ -264,13 +264,13 @@ One table's wire row shape, identity rule, and storage kind.
 
 ## `serveMutation`
 
-Kind: function. Source: [packages/wheel/src/sync/server/serve.ts:111](../../../packages/wheel/src/sync/server/serve.ts#L111).
+Kind: function. Source: [packages/wheel/src/sync/server/serve.ts:109](../../../packages/wheel/src/sync/server/serve.ts#L109).
 
 Bind the server handler to a sync module mutation declaration (*.server.ts side).
 
 ## `ServeMutationBinding`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/serve.ts:102](../../../packages/wheel/src/sync/server/serve.ts#L102).
+Kind: interface. Source: [packages/wheel/src/sync/server/serve.ts:100](../../../packages/wheel/src/sync/server/serve.ts#L100).
 
 A mutation declaration bound to its authoritative handler.
 
@@ -278,7 +278,7 @@ A mutation declaration bound to its authoritative handler.
 
 Kind: function. Source: [packages/wheel/src/sync/server/serve.ts:63](../../../packages/wheel/src/sync/server/serve.ts#L63).
 
-Bind a query declaration to its backend (*.server.ts side). Two forms: // Sugar — the standard SQLite case: serveQuery({ query, sql: (p) => sql`...`, rerunOn: ['cards'] }) // Explicit — any QueryHandler (the backend escape hatch): serveQuery({ query, handler: SqlQueryHandler({ sql, rerunOn }) }) A handler must offer at least one invalidation channel: `rerunOn` table hints (re-run + diff when a table is touched) and/or push-based `subscribe` (backends with native reactivity).
+Bind a query declaration to its backend (*.server.ts side). Two forms: // Sugar — the standard SQLite case: serveQuery({ query, sql: (p) => sql`...` }) // Explicit — any QueryHandler (the backend escape hatch): serveQuery({ query, handler: SqlQueryHandler({ sql }) }) A query must offer at least one invalidation channel: declared table dependencies (re-run + diff when a table is touched) and/or push-based `subscribe` (backends with native reactivity).
 
 ## `ServeQueryBinding`
 
@@ -288,7 +288,7 @@ A query declaration bound to its backend handler - the server half of the split-
 
 ## `ServerBindingLike`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:100](../../../packages/wheel/src/sync/server/registry.ts#L100).
+Kind: interface. Source: [packages/wheel/src/sync/server/registry.ts:107](../../../packages/wheel/src/sync/server/registry.ts#L107).
 
 Minimal shape of a server binding, as produced by serveQuery/serveMutation.
 
@@ -318,13 +318,13 @@ A subscription's bootstrap payload: full rows at a known seq.
 
 ## `SqlQueryHandler`
 
-Kind: function. Source: [packages/wheel/src/sync/server/query-handler.ts:106](../../../packages/wheel/src/sync/server/query-handler.ts#L106).
+Kind: function. Source: [packages/wheel/src/sync/server/query-handler.ts:103](../../../packages/wheel/src/sync/server/query-handler.ts#L103).
 
-The standard SQLite handler: a sql`` fragment plus table-level re-run hints. serveQuery({ query: cardList, handler: SqlQueryHandler({ sql: () => sql`select ... from cards order by position`, rerunOn: ['cards'] })}) The `serveQuery({ query, sql, rerunOn })` sugar desugars to exactly this.
+The standard SQLite handler: a sql`` fragment. serveQuery({ query: cardList, handler: SqlQueryHandler({ sql: () => sql`select ... from cards order by position` })}) The `serveQuery({ query, sql })` sugar desugars to exactly this.
 
 ## `stringifySchemaSpec`
 
-Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:189](../../../packages/wheel/src/sync/server/schema-spec.ts#L189).
+Kind: function. Source: [packages/wheel/src/sync/server/schema-spec.ts:188](../../../packages/wheel/src/sync/server/schema-spec.ts#L188).
 
 Canonical checked-in artifact form.
 
@@ -332,7 +332,7 @@ Canonical checked-in artifact form.
 
 Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:88](../../../packages/wheel/src/sync/server/engine.ts#L88).
 
-One row of the /sync/_debug/subscriptions table: params, watch list, row count, run stats.
+One row of the /sync/_debug/subscriptions table: params, dependencies, row count, run stats.
 
 ## `SyncBackend`
 

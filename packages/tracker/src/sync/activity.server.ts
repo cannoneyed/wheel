@@ -30,7 +30,6 @@ export const activityByIssueServer = serveQuery({
                  created_at as "createdAt"
           from activity where issue_id = ${params.issueId}
           order by created_at desc, id desc limit 50`,
-    rerunOn: ['activity'],
     prune: (image, params) =>
       (image.n?.issue_id ?? image.o?.issue_id) === params.issueId
   })

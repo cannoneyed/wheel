@@ -48,8 +48,7 @@ const syncModule = { probes, probeList, probeAdd, probeBoom, probeJson };
 const serverModule = {
   probeListServer: serveQuery({
     query: probeList,
-    sql: () => sql`select id, label from probes order by id`,
-    rerunOn: ['probes']
+    sql: () => sql`select id, label from probes order by id`
   }),
   probeAddServer: serveMutation({
     mutation: probeAdd,
