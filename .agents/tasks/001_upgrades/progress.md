@@ -27,7 +27,7 @@ on chat history.
 | 3. Add Elixir grouping and external writes | `M` | Complete | PostgreSQL grouping and external-write checks passed |
 | 4. Move client state ownership | `L` | Complete | Materializer ownership and local behavior gates passed |
 | 5. Expand query and source contracts | `L` | Complete | Shared dependencies and callback-source gates passed |
-| 6. Rename APIs and enforce boundary | `M` | In progress | Local implementation passed; Buildkite gates pending |
+| 6. Rename APIs and enforce boundary | `M` | In progress | All checks passed; CI duration gate remains |
 | 7. Add multi-node invalidation | `L` | Deferred | Scope not active |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`. Only
@@ -188,8 +188,8 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 - [x] Pass `bun run typecheck` locally.
 - [x] Pass `bun run lint` locally.
 - [x] Pass `bun run test` locally.
-- [ ] Pass backend, package, and Cloudflare checks in Buildkite.
-- [ ] Pass Buildkite browser checks for SQLite and PostgreSQL.
+- [x] Pass backend, package, and Cloudflare checks in Buildkite.
+- [x] Pass Buildkite browser checks for SQLite and PostgreSQL.
 - [ ] Confirm CI completes in less than two minutes.
 
 ### Phase 7
@@ -303,13 +303,17 @@ Add new entries at the top of this section. Keep prior entries unchanged.
   removed stale virtual-table wording and renamed the remaining Elixir collection-contract locals.
 - The post-audit checks passed lint, the 10 Elixir unit tests, Tracker compilation, and 47 focused
   declaration, schema, query-handler, and lint-rule tests.
+- The focused SQLite browser contract-upgrade test passed after fixing an outbox retry race across
+  server connection generations.
+- [Buildkite build 132](https://buildkite.com/cannoneyed/wheel/builds/132) passed static, unit,
+  backend, package, Cloudflare, and SQLite and PostgreSQL browser jobs. The full build took 157
+  seconds.
 - `git diff --check` passed.
-- Browser and PostgreSQL matrix checks were not run locally. Buildkite owns those gates.
 
 **Gate**
 
-- Local implementation is complete. Phase 6 remains in progress until the branch is committed,
-  pushed, and the required Buildkite checks pass in less than two minutes.
+- Phase 6 remains in progress because build 132 exceeded the two-minute CI limit. All functional
+  gates passed.
 
 ### 2026-08-31: Complete Phase 5
 
