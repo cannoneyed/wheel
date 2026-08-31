@@ -46,6 +46,7 @@ import requireLatestAsyncTaskWait from './rules/require-latest-async-task-wait.m
 import requireTrackedServiceFields from './rules/require-tracked-service-fields.mjs';
 import noDevModeShow from './rules/no-dev-mode-show.mjs';
 import noDirectiveOnComponent from './rules/no-directive-on-component.mjs';
+import noDirectMaterializerWrites from './rules/no-direct-materializer-writes.mjs';
 
 export default {
   meta: { name: 'wheel' },
@@ -88,6 +89,7 @@ export default {
     'require-latest-async-task-wait': requireLatestAsyncTaskWait,
     'require-tracked-service-fields': requireTrackedServiceFields,
     'no-dev-mode-show': noDevModeShow,
-    'no-directive-on-component': noDirectiveOnComponent
+    'no-directive-on-component': noDirectiveOnComponent,
+    'no-direct-materializer-writes': noDirectMaterializerWrites
   }
 };

@@ -369,14 +369,14 @@ fingerprint generation, client artifacts, runtime negotiation, and the standard 
 
 The canonical fingerprint input contains:
 
-- Every table name, current `virtual` value, JSON Schema, and ordered row-key rule.
-- Every query name and its `into` table.
+- Every collection name, JSON Schema, and ordered row-key rule.
+- Every query name and its `into` collection.
 
-The query mapping is required because a query can keep its name while changing which table owns
+The query mapping is required because a query can keep its name while changing which collection owns
 its cached rows. Query parameter schemas, mutation argument schemas, invalidation hints, and
 presence do not change cached row interpretation and stay outside this fingerprint.
 
-The schema-specific canonicalizer sorts tables and queries by name, recursively sorts object
+The schema-specific canonicalizer sorts collections and queries by name, recursively sorts object
 keys, and sorts set-valued JSON Schema arrays such as `required`. It preserves arrays whose order
 changes meaning, including composite key fields and tuple items. SHA-256 over the canonical UTF-8
 document produces a lowercase value prefixed with `wheel-rows-sha256:`.
@@ -410,7 +410,7 @@ literal from the generated contract instead of implementing a second canonicaliz
 ### Validation
 
 - Declaration and object insertion order do not change the fingerprint.
-- A table name, row field, required field, `virtual` value, key rule, or query `into` change does.
+- A collection name, row field, required field, key rule, or query `into` change does.
 - A mutation argument, query parameter, invalidation hint, or presence-only change does not.
 - Generated client and server artifacts contain the same fingerprint.
 - TypeScript and Elixir consume the same shared fixture value.

@@ -422,7 +422,11 @@ defmodule WheelSync.Workspace do
   end
 
   defp validate_touched!(state, touched, options \\ []) do
-    declared = Map.keys(state.registry.contract.tables) |> MapSet.new()
+    declared =
+      state.registry.contract.queries
+      |> Map.values()
+      |> Enum.flat_map(& &1["dependsOn"])
+      |> MapSet.new()
 
     case Enum.find(touched, &(not MapSet.member?(declared, &1))) do
       nil ->
@@ -504,11 +508,11 @@ defmodule WheelSync.Workspace do
   defp run_query(state, query_name, params, principal) do
     module = Map.fetch!(state.registry.queries, query_name)
     query_spec = Map.fetch!(state.registry.contract.queries, query_name)
-    table = Map.fetch!(state.registry.contract.tables, query_spec["into"])
+    collection = Map.fetch!(state.registry.contract.collections, query_spec["into"])
 
     try do
       case query_rows(state, module, params, principal) do
-        {:ok, rows} -> {:ok, key_rows!(query_name, table, rows)}
+        {:ok, rows} -> {:ok, key_rows!(query_name, collection, rows)}
         {:error, code, message} -> {:error, code, message}
       end
     rescue
@@ -546,20 +550,21 @@ defmodule WheelSync.Workspace do
     end
   end
 
-  defp key_rows!(query_name, table, rows) do
+  defp key_rows!(query_name, collection, rows) do
     Enum.reduce(rows, {[], MapSet.new()}, fn row, {keyed, keys} ->
-      case WheelSync.Contract.validate(table["validator"], row) do
+      case WheelSync.Contract.validate(collection["validator"], row) do
         :ok ->
           :ok
 
         {:error, _} ->
           raise WheelSync.Error,
             code: "invalid_row",
-            message: "Query #{inspect(query_name)} returned a row outside its table contract."
+            message:
+              "Query #{inspect(query_name)} returned a row outside its collection contract."
       end
 
       key =
-        table["key"]["fields"]
+        collection["key"]["fields"]
         |> Enum.map(fn field ->
           case row[field] do
             value when is_binary(value) ->
@@ -571,7 +576,7 @@ defmodule WheelSync.Workspace do
                 message: "Query row key field #{inspect(field)} must be a string."
           end
         end)
-        |> Enum.join(table["key"]["separator"])
+        |> Enum.join(collection["key"]["separator"])
 
       if MapSet.member?(keys, key) do
         raise WheelSync.Error,

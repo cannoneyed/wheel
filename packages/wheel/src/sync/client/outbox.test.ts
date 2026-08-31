@@ -11,7 +11,7 @@
  */
 import { describe, expect, test, vi } from 'vitest';
 
-import { mutation, query, table } from '../declarations';
+import { mutation, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from '../server/serve';
@@ -28,7 +28,7 @@ const TodoRow = t.object({
   done: t.boolean(),
   position: t.number()
 });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 const todosByList = query({
   name: 'todos.byList',
   params: t.object({ listId: t.string() }),
@@ -216,7 +216,7 @@ describe('outbox replay across reloads', () => {
       ],
       preview: [
         {
-          table: todos.name,
+          collection: todos.name,
           rowId: 'todo_reload_preview',
           value: {
             id: 'todo_reload_preview',

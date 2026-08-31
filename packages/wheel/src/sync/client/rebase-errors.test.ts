@@ -18,12 +18,12 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
-import { mutation, orphan, query, sql, t, table } from '../index';
+import { mutation, orphan, query, sql, t, collection } from '../index';
 import { serveMutation, serveQuery } from '../server/index';
 import { World } from '../../testing/world';
 
 const ProbeRow = t.object({ id: t.string(), label: t.string() });
-const probes = table({ name: 'probes', type: ProbeRow, key: (row) => row.id });
+const probes = collection({ name: 'probes', type: ProbeRow, key: (row) => row.id });
 const probeList = query({
   name: 'probes.list',
   params: t.object({}),

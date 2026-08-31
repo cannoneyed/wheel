@@ -56,7 +56,7 @@ export async function runSimulation() {
     seed: 42,
     steps: 500,
     clientCount: 3,
-    tables: [todosSync.todos],
+    collections: [todosSync.todos],
     prepare: async (client) => {
       await client.subscribe(todosSync.todoList, {});
     },

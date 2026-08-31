@@ -28,7 +28,7 @@ Read the smallest topic that answers the task. Follow source links when exact si
 - [Live state](live-state.md) - declarations, optimistic writes, rebase, offline replay, and provenance.
 - [Server](server.md) - backends, drivers, SQL dialect ownership, and server lifecycle.
 - [Server handlers](server-advanced.md) - migrations, handlers, invalidation, ids, and external writes.
-- [Virtual tables](virtual-tables.md) - derived rows and push invalidation.
+- [Derived collections](derived-collections.md) - derived rows and push invalidation.
 - [Presence](presence.md) - typed ephemeral peer state.
 - [Undo and redo](undo.md) - inverse mutations and patch helpers.
 

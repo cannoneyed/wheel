@@ -2,22 +2,22 @@
  * Wheel-owned client state materialization.
  *
  * The materializer keeps confirmed query state separate from pending commands.
- * Each rebuild replays complete commands on private table forks, derives query
+ * Each rebuild replays complete commands on private collection forks, derives query
  * results, and publishes one final view.
  */
 import { canonicalParams } from '../../core/params';
 import {
   OrphanedError,
-  validateTableKey,
+  validateCollectionKey,
   type CacheReader,
   type InverseSpec,
   type MutationDecl,
   type QueryDecl,
-  type TableDecl
+  type CollectionDecl
 } from '../declarations';
 import { jsonParseIsIdentity, validateJsonValue, validateRow } from '../schema';
 import type { SyncQueryStatus } from '../protocol';
-import { cloneTables, freezeRow, OverlayCache, tableMap, type RecordedWrite, type Row, type Tables } from './cache';
+import { cloneCollections, freezeRow, OverlayCache, collectionMap, type RecordedWrite, type Row, type Collections } from './cache';
 
 type AnyMutationDecl = MutationDecl<any>;
 type AnyQueryDecl = QueryDecl<any, any>;
@@ -71,7 +71,7 @@ export interface MaterializerCommandResult {
 /** One public notification emitted after a complete view has replaced the prior view. */
 export interface MaterializerPublication {
   readonly revision: number;
-  readonly changedTables: ReadonlySet<string>;
+  readonly changedCollections: ReadonlySet<string>;
 }
 
 interface PreparedCall {
@@ -100,10 +100,10 @@ interface QueryScope {
 
 interface PublishedView {
   readonly revision: number;
-  readonly tables: Tables;
+  readonly collections: Collections;
   readonly queryRows: ReadonlyMap<string, readonly Row[]>;
   readonly queryStatuses: ReadonlyMap<string, MaterializerQueryStatus>;
-  readonly queryTables: ReadonlyMap<string, string>;
+  readonly queryCollections: ReadonlyMap<string, string>;
 }
 
 interface BuildResult {
@@ -117,10 +117,10 @@ export function materializerQueryKey(query: AnyQueryDecl, params: Record<string,
   return `${query.name}|${canonicalParams(params)}`;
 }
 
-function tableReader(tables: Tables): CacheReader {
+function collectionReader(collections: Collections): CacheReader {
   return {
-    get: (table, id) => tableMap(tables, table.name).get(id) as never,
-    list: (table) => [...tableMap(tables, table.name).values()] as never
+    get: (collection, id) => collectionMap(collections, collection.name).get(id) as never,
+    list: (collection) => [...collectionMap(collections, collection.name).values()] as never
   };
 }
 
@@ -154,15 +154,15 @@ function mapEqual(left: ReadonlyMap<string, Row> | undefined, right: ReadonlyMap
 export class WheelMaterializer {
   readonly #listeners = new Set<(publication: MaterializerPublication) => void>();
   readonly #outcomes = new Map<string, MaterializerCommandResult>();
-  #confirmed: Tables = new Map();
+  #confirmed: Collections = new Map();
   #scopes = new Map<string, QueryScope>();
   #pending: readonly PendingCommand[] = [];
   #view: PublishedView = {
     revision: 0,
-    tables: new Map(),
+    collections: new Map(),
     queryRows: new Map(),
     queryStatuses: new Map(),
-    queryTables: new Map()
+    queryCollections: new Map()
   };
 
   constructor(
@@ -186,20 +186,20 @@ export class WheelMaterializer {
   }
 
   /** Read one row from the current effective view. */
-  get<RowT extends Row>(table: TableDecl<RowT>, id: string): RowT | undefined {
-    return tableMap(this.#view.tables, table.name).get(id) as RowT | undefined;
+  get<RowT extends Row>(collection: CollectionDecl<RowT>, id: string): RowT | undefined {
+    return collectionMap(this.#view.collections, collection.name).get(id) as RowT | undefined;
   }
 
-  /** Read every pooled row of one table from the current effective view. */
-  rows<RowT extends Row>(table: TableDecl<RowT>): readonly RowT[] {
-    return [...tableMap(this.#view.tables, table.name).values()] as RowT[];
+  /** Read every pooled row of one collection from the current effective view. */
+  rows<RowT extends Row>(collection: CollectionDecl<RowT>): readonly RowT[] {
+    return [...collectionMap(this.#view.collections, collection.name).values()] as RowT[];
   }
 
-  /** Every effective table for diagnostics. */
-  tablesDebug(): Array<{ table: string; rows: readonly Row[] }> {
-    return [...this.#view.tables.entries()]
-      .map(([table, rows]) => ({ table, rows: [...rows.values()] as readonly Row[] }))
-      .sort((left, right) => left.table.localeCompare(right.table));
+  /** Every effective collection for diagnostics. */
+  collectionsDebug(): Array<{ collection: string; rows: readonly Row[] }> {
+    return [...this.#view.collections.entries()]
+      .map(([collection, rows]) => ({ collection, rows: [...rows.values()] as readonly Row[] }))
+      .sort((left, right) => left.collection.localeCompare(right.collection));
   }
 
   /** Read the current effective rows for one declared query scope. */
@@ -227,13 +227,13 @@ export class WheelMaterializer {
   confirmedQueryRows(query: AnyQueryDecl, params: Record<string, unknown>): readonly Row[] {
     const scope = this.#scopes.get(materializerQueryKey(query, params));
     if (!scope) return [];
-    const rows = tableMap(this.#confirmed, query.into.name);
+    const rows = collectionMap(this.#confirmed, query.into.name);
     return scope.order.map((id) => rows.get(id)).filter((row): row is Row => row !== undefined);
   }
 
   /** Read one confirmed row for rollback provenance. */
-  confirmedGet(tableName: string, id: string): Row | undefined {
-    return tableMap(this.#confirmed, tableName).get(id);
+  confirmedGet(collectionName: string, id: string): Row | undefined {
+    return collectionMap(this.#confirmed, collectionName).get(id);
   }
 
   /** Current state for a command removed during replay or explicitly settled. */
@@ -278,7 +278,7 @@ export class WheelMaterializer {
    * Query updates contain complete final order but may contain delta-only puts.
    */
   applyServerBatch(batch: MaterializerServerBatch): void {
-    const nextConfirmed = cloneTables(this.#confirmed);
+    const nextConfirmed = cloneCollections(this.#confirmed);
     const nextScopes = new Map(this.#scopes);
     const pruneCandidates = new Map<string, Set<string>>();
     const seenScopes = new Set<string>();
@@ -309,28 +309,28 @@ export class WheelMaterializer {
         }
       }
 
-      const table = update.query.into;
-      const tableRows = tableMap(nextConfirmed, table.name);
+      const collection = update.query.into;
+      const collectionRows = collectionMap(nextConfirmed, collection.name);
       const putKeys = new Set<string>();
       for (const [index, raw] of (update.puts ?? []).entries()) {
         const row = freezeRow({
-          ...validateRow(`materializer query ${update.query.name}`, table.schema, raw)
+          ...validateRow(`materializer query ${update.query.name}`, collection.schema, raw)
         });
-        const id = validateTableKey(table, row, `Materializer query "${update.query.name}" put ${index}`);
+        const id = validateCollectionKey(collection, row, `Materializer query "${update.query.name}" put ${index}`);
         if (putKeys.has(id)) {
           throw new Error(`Materializer query "${update.query.name}" has duplicate put key "${id}".`);
         }
         putKeys.add(id);
-        tableRows.set(id, row);
+        collectionRows.set(id, row);
       }
 
-      const candidates = pruneCandidates.get(table.name) ?? new Set<string>();
+      const candidates = pruneCandidates.get(collection.name) ?? new Set<string>();
       for (const id of deletes) candidates.add(id);
       const previous = nextScopes.get(key);
       for (const id of previous?.order ?? []) {
         if (!orderSet.has(id)) candidates.add(id);
       }
-      pruneCandidates.set(table.name, candidates);
+      pruneCandidates.set(collection.name, candidates);
       nextScopes.set(key, {
         key,
         query: update.query,
@@ -341,7 +341,7 @@ export class WheelMaterializer {
     }
 
     for (const scope of nextScopes.values()) {
-      const rows = tableMap(nextConfirmed, scope.query.into.name);
+      const rows = collectionMap(nextConfirmed, scope.query.into.name);
       for (const id of scope.order) {
         if (!rows.has(id)) {
           throw new Error(`Materializer query "${scope.query.name}" order references missing row "${id}".`);
@@ -389,11 +389,11 @@ export class WheelMaterializer {
       return prepared;
     }
 
-    const preflight = cloneTables(this.#view.tables);
+    const preflight = cloneCollections(this.#view.collections);
     const inverses: InverseSpec[] = [];
     try {
       for (const [index, call] of prepared.entries()) {
-        const inverse = call.mutation.invert?.(tableReader(preflight), call.args) ?? null;
+        const inverse = call.mutation.invert?.(collectionReader(preflight), call.args) ?? null;
         if (command.requireUndo && inverse === null) {
           const result = {
             state: 'failed',
@@ -487,7 +487,7 @@ export class WheelMaterializer {
     const key = materializerQueryKey(query, params);
     const released = this.#scopes.get(key);
     if (!released) return false;
-    const nextConfirmed = cloneTables(this.#confirmed);
+    const nextConfirmed = cloneCollections(this.#confirmed);
     const nextScopes = new Map(this.#scopes);
     nextScopes.delete(key);
     this.#pruneUnclaimed(
@@ -531,11 +531,11 @@ export class WheelMaterializer {
   }
 
   #applyCall(
-    tables: Tables,
+    collections: Collections,
     call: PreparedCall,
     generateId?: (prefix: string) => string
   ): { readonly writes: readonly RecordedWrite[]; readonly ids: readonly string[] } {
-    const overlay = new OverlayCache(tables);
+    const overlay = new OverlayCache(collections);
     let nextId = 0;
     const generatedIds: string[] = [];
     call.mutation.optimistic?.(overlay, call.args, {
@@ -568,31 +568,31 @@ export class WheelMaterializer {
   }
 
   #build(
-    confirmed: Tables,
+    confirmed: Collections,
     scopes: ReadonlyMap<string, QueryScope>,
     pending: readonly PendingCommand[],
     activatePreviews = true
   ): BuildResult {
-    let working = cloneTables(confirmed);
+    let working = cloneCollections(confirmed);
     const surviving: PendingCommand[] = [];
     const outcomes: Array<[string, MaterializerCommandResult]> = [];
     const touched = new Map<string, Set<string>>();
 
     for (const command of pending) {
-      const commandFork = cloneTables(working);
+      const commandFork = cloneCollections(working);
       const writes: RecordedWrite[] = [];
       if (command.preview && !activatePreviews) {
         for (const write of command.preview) {
-          const rows = tableMap(commandFork, write.table);
+          const rows = collectionMap(commandFork, write.collection);
           if (write.value === undefined) rows.delete(write.rowId);
           else rows.set(write.rowId, freezeRow({ ...write.value }));
           writes.push(write);
         }
         working = commandFork;
         for (const write of writes) {
-          const ids = touched.get(write.table) ?? new Set<string>();
+          const ids = touched.get(write.collection) ?? new Set<string>();
           ids.add(write.rowId);
-          touched.set(write.table, ids);
+          touched.set(write.collection, ids);
         }
         surviving.push({ ...command, writes: Object.freeze(writes) });
         continue;
@@ -609,14 +609,14 @@ export class WheelMaterializer {
           outcome
         ]);
         if (command.preview) {
-          const previewFork = cloneTables(working);
+          const previewFork = cloneCollections(working);
           for (const write of command.preview) {
-            const rows = tableMap(previewFork, write.table);
+            const rows = collectionMap(previewFork, write.collection);
             if (write.value === undefined) rows.delete(write.rowId);
             else rows.set(write.rowId, freezeRow({ ...write.value }));
-            const ids = touched.get(write.table) ?? new Set<string>();
+            const ids = touched.get(write.collection) ?? new Set<string>();
             ids.add(write.rowId);
-            touched.set(write.table, ids);
+            touched.set(write.collection, ids);
           }
           working = previewFork;
           surviving.push(command);
@@ -629,18 +629,18 @@ export class WheelMaterializer {
       }
       working = commandFork;
       for (const write of writes) {
-        const ids = touched.get(write.table) ?? new Set<string>();
+        const ids = touched.get(write.collection) ?? new Set<string>();
         ids.add(write.rowId);
-        touched.set(write.table, ids);
+        touched.set(write.collection, ids);
       }
       surviving.push({ ...command, preview: undefined, writes: Object.freeze(writes) });
     }
 
     const queryRows = new Map<string, readonly Row[]>();
     const queryStatuses = new Map<string, MaterializerQueryStatus>();
-    const queryTables = new Map<string, string>();
+    const queryCollections = new Map<string, string>();
     for (const scope of scopes.values()) {
-      const rows = tableMap(working, scope.query.into.name);
+      const rows = collectionMap(working, scope.query.into.name);
       const ids = scope.order.filter((id) => rows.has(id));
       let hasProjectedWrites = false;
       if (scope.query.projection) {
@@ -661,16 +661,16 @@ export class WheelMaterializer {
       if (hasProjectedWrites && scope.query.projection?.sort) result.sort(scope.query.projection.sort);
       queryRows.set(scope.key, Object.freeze(result));
       queryStatuses.set(scope.key, scope.status);
-      queryTables.set(scope.key, scope.query.into.name);
+      queryCollections.set(scope.key, scope.query.into.name);
     }
 
     return {
       view: {
         revision: this.#view.revision + 1,
-        tables: working,
+        collections: working,
         queryRows,
         queryStatuses,
-        queryTables
+        queryCollections
       },
       pending: Object.freeze(surviving),
       outcomes
@@ -678,29 +678,29 @@ export class WheelMaterializer {
   }
 
   #pruneUnclaimed(
-    tables: Tables,
+    collections: Collections,
     scopes: ReadonlyMap<string, QueryScope>,
     candidates: ReadonlyMap<string, ReadonlySet<string>>
   ): void {
-    for (const [tableName, ids] of candidates) {
+    for (const [collectionName, ids] of candidates) {
       const claimed = new Set<string>();
       for (const scope of scopes.values()) {
-        if (scope.query.into.name === tableName) {
+        if (scope.query.into.name === collectionName) {
           for (const id of scope.order) claimed.add(id);
         }
       }
-      const rows = tableMap(tables, tableName);
+      const rows = collectionMap(collections, collectionName);
       for (const id of ids) {
         if (!claimed.has(id)) rows.delete(id);
       }
     }
   }
 
-  #changedTables(next: PublishedView): Set<string> {
+  #changedCollections(next: PublishedView): Set<string> {
     const changed = new Set<string>();
-    const tableNames = new Set([...this.#view.tables.keys(), ...next.tables.keys()]);
-    for (const tableName of tableNames) {
-      if (!mapEqual(this.#view.tables.get(tableName), next.tables.get(tableName))) changed.add(tableName);
+    const collectionNames = new Set([...this.#view.collections.keys(), ...next.collections.keys()]);
+    for (const collectionName of collectionNames) {
+      if (!mapEqual(this.#view.collections.get(collectionName), next.collections.get(collectionName))) changed.add(collectionName);
     }
     const queryKeys = new Set([...this.#view.queryRows.keys(), ...next.queryRows.keys()]);
     for (const key of queryKeys) {
@@ -708,19 +708,19 @@ export class WheelMaterializer {
         !rowsEqual(this.#view.queryRows.get(key), next.queryRows.get(key)) ||
         !statusEqual(this.#view.queryStatuses.get(key), next.queryStatuses.get(key))
       ) {
-        const tableName = next.queryTables.get(key) ?? this.#view.queryTables.get(key);
-        if (tableName) changed.add(tableName);
+        const collectionName = next.queryCollections.get(key) ?? this.#view.queryCollections.get(key);
+        if (collectionName) changed.add(collectionName);
       }
     }
     return changed;
   }
 
   #publish(next: PublishedView): void {
-    const changedTables = this.#changedTables(next);
+    const changedCollections = this.#changedCollections(next);
     this.#view = next;
     const publication: MaterializerPublication = {
       revision: next.revision,
-      changedTables
+      changedCollections
     };
     for (const listener of this.#listeners) listener(publication);
   }

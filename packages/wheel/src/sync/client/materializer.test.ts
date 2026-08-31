@@ -11,7 +11,7 @@ import {
   mutation,
   orphan,
   query,
-  table,
+  collection,
   type InverseSpec,
   type MutationDecl,
   type QueryDecl
@@ -38,9 +38,9 @@ const ItemRow = t.object({
 const LinkRow = t.object({ id: t.string(), itemId: t.string(), label: t.string() });
 const AuditRow = t.object({ id: t.string(), message: t.string() });
 
-const items = table({ name: 'items', type: ItemRow, key: (row) => row.id });
-const links = table({ name: 'links', type: LinkRow, key: (row) => row.id });
-const audits = table({ name: 'audits', type: AuditRow, key: (row) => row.id });
+const items = collection({ name: 'items', type: ItemRow, key: (row) => row.id });
+const links = collection({ name: 'links', type: LinkRow, key: (row) => row.id });
+const audits = collection({ name: 'audits', type: AuditRow, key: (row) => row.id });
 
 const itemsByTeam = query({
   name: 'items.byTeam',
@@ -244,7 +244,7 @@ describe('Wheel materializer server batches', () => {
         rows: labels(materializer.queryRows(itemsByTeam, { teamId: 'A' })),
         status: materializer.queryStatus(itemsByTeam, { teamId: 'A' })?.kind
       });
-      expect(publication.changedTables).toEqual(new Set(['items']));
+      expect(publication.changedCollections).toEqual(new Set(['items']));
     });
 
     materializer.applyServerBatch({
@@ -389,7 +389,7 @@ describe('Wheel materializer command replay', () => {
         calls: [call(moveItem, { itemId: 'item_1', teamId: 'B' })],
         requireUndo: false
       },
-      [{ table: items.name, rowId: 'item_1', value: seedItem('item_1', 'B', 'from-A') }]
+      [{ collection: items.name, rowId: 'item_1', value: seedItem('item_1', 'B', 'from-A') }]
     )).toEqual({ state: 'pending' });
     expect(materializer.get(items, 'item_1')).toEqual(seedItem('item_1', 'B', 'from-A'));
 
@@ -404,7 +404,7 @@ describe('Wheel materializer command replay', () => {
 
     expect(materializer.get(items, 'item_1')).toEqual(seedItem('item_1', 'B', 'from-C'));
     expect(materializer.commandWrites('restored_move')).toEqual([
-      { table: items.name, rowId: 'item_1', value: seedItem('item_1', 'B', 'from-C') }
+      { collection: items.name, rowId: 'item_1', value: seedItem('item_1', 'B', 'from-C') }
     ]);
   });
 
@@ -420,8 +420,8 @@ describe('Wheel materializer command replay', () => {
         requireUndo: false
       },
       [
-        { table: items.name, rowId: 'item_1', value: seedItem('item_1', 'A', 'edited item') },
-        { table: audits.name, rowId: 'audit_1', value: { id: 'audit_1', message: 'edited audit' } }
+        { collection: items.name, rowId: 'item_1', value: seedItem('item_1', 'A', 'edited item') },
+        { collection: audits.name, rowId: 'audit_1', value: { id: 'audit_1', message: 'edited audit' } }
       ]
     );
 
@@ -485,7 +485,7 @@ describe('Wheel materializer command replay', () => {
       observed.push({
         item: materializer.get(items, 'item_1')?.label,
         audits: materializer.rows(audits).length,
-        changed: [...publication.changedTables].sort()
+        changed: [...publication.changedCollections].sort()
       });
     });
 

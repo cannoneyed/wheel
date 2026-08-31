@@ -42,7 +42,7 @@ export interface PersistedOutboxEntry {
   }[];
   /** Last published optimistic output. `null` is a delete. */
   readonly preview: readonly {
-    readonly table: string;
+    readonly collection: string;
     readonly rowId: string;
     readonly value: Row | null;
   }[];

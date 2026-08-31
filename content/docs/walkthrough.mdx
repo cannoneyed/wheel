@@ -25,13 +25,13 @@ Everything from Wheel comes through a documented [public subpath](#/import-map).
 
 ## 1. Declare synced data (`todos.sync.ts`)
 
-The sync module declares the tables, queries, and mutations. Both the client and the server import it. Its optimistic handlers are the client's immediate guess; the server handlers in the next file are authoritative.
+The sync module declares the collections, queries, and mutations. Both the client and the server import it. Its optimistic handlers are the client's immediate guess; the server handlers in the next file are authoritative.
 
 Create `todos.sync.ts`:
 
 <CodeExample example={todosSyncSource} />
 
-Queries must use the result table's namespace. Mutation namespaces organize operations but do not claim a complete write set. The exact rules are in [Names and errors](#/reference).
+Queries must use the result collection's namespace. Mutation namespaces organize operations but do not claim a complete write set. The exact rules are in [Names and errors](#/reference).
 
 ## 2. Bind server behavior (`todos.server.ts`)
 

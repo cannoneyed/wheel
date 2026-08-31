@@ -50,7 +50,7 @@ Inputs for a SQLite World query-read vs `dependsOn` assertion.
 
 Kind: function. Source: [packages/wheel/src/testing/simulate.ts:194](../../../packages/wheel/src/testing/simulate.ts#L194).
 
-Re-run a fixture's seed and fail loudly if any table's final rows differ.
+Re-run a fixture's seed and fail loudly if any collection's final rows differ.
 
 ## `ReplayFixture`
 

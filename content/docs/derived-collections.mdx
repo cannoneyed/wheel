@@ -1,39 +1,38 @@
 ---
-title: Virtual Tables
+title: Derived Collections
 ---
 
 import { Aside } from '@docs/components/Aside';
 import { CodeExample } from '@docs/components/CodeExample';
-import virtualTablesSource from '@docs/examples/virtual-tables/virtual-tables.ts?example';
+import derivedCollectionsSource from '@docs/examples/derived-collections/derived-collections.ts?example';
 
-# Virtual tables
+# Derived collections
 
-Counts, ranks, and join results sync as rows even though no table stores them.
+Counts, ranks, and join results sync as rows even when no table stores them.
 
-A **virtual table** is a synced row contract with no physical table behind it. A server query computes its rows, and that query re-runs only through the invalidation channels you declare. Complete an issue and every client's project-progress bar updates: no table written, no trigger fired, only a query whose answer changed.
+A **derived collection** is a synced row contract with no matching storage table. A server query computes its rows. The query re-runs through its declared invalidation channels. Complete an issue and every client's progress bar updates: no count table, no count trigger, only a query whose answer changed.
 
 ## Declare one
 
-Pass `virtual: true` to `table()`. The engine installs no physical table or touch trigger. Each query into it must declare `dependsOn` with its physical source tables, or `[]` for a push-only source:
+Declare the row contract with `collection()`. Its query names physical source tables in `dependsOn`, or uses `[]` for a push-only source. Wheel derives the set of physical tables from every query's `dependsOn`; it does not need a second flag:
 
-<CodeExample example={virtualTablesSource} region="declaration" />
+<CodeExample example={derivedCollectionsSource} region="declaration" />
 
 The server binding is ordinary SQL that produces the derived rows. The shared query declaration owns the dependency list, so TypeScript and Elixir read the same data:
 
-<CodeExample example={virtualTablesSource} region="binding" />
+<CodeExample example={derivedCollectionsSource} region="binding" />
 
 <Aside kind="note">
-  A virtual table has no optimistic layer — its rows appear only on server confirmation, which is
-  the point: a count or a rank is the server's arithmetic, not the client's guess. The optimistic
-  write to the <em>source</em> table (the issue you completed) is what feels instant; the derived
-  count catches up one round trip later.
+  Do not write server-owned derived values from optimistic handlers. A count or rank is the
+  server's arithmetic. Optimistically update the source collection instead; the derived value
+  catches up after the server computes it.
 </Aside>
 
 ## Push channels
 
 `dependsOn` covers writes the engine authored. When something outside the engine changes a derived query's answer — a background reindex, a foreign write — a hand-built `QueryHandler` adds a **push channel** through `subscribe`. The tracker's full-text search uses both:
 
-<CodeExample example={virtualTablesSource} region="push" />
+<CodeExample example={derivedCollectionsSource} region="push" />
 
 ## Invalidation channels
 
@@ -41,7 +40,7 @@ A query must offer at least one channel. `serveQuery` throws at boot when `depen
 
 | Channel | Declared with | Re-runs the query when |
 | --- | --- | --- |
-| Table dependency | `dependsOn: ['issues']` on `query()` | The engine writes one of the named tables |
+| Physical dependency | `dependsOn: ['issues']` on `query()` | The engine writes one of the named tables |
 | Push | `subscribe(params, invalidate)` | Your code calls `invalidate()` |
 
 ## When a delta reaches clients

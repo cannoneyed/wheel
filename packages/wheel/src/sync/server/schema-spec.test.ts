@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { mutation, presence, query, table } from '../declarations';
+import { mutation, presence, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from './serve';
@@ -12,7 +12,7 @@ import {
 } from './schema-spec';
 
 function fixture() {
-  const memberships = table({
+  const memberships = collection({
     name: 'memberships',
     type: t.object({ orgId: t.string(), userId: t.string(), role: t.string() }),
     key: (row) => `${row.orgId}:${row.userId}`,
@@ -43,13 +43,12 @@ describe('createSchemaSpec', () => {
     const { syncModule, servers } = fixture();
     const spec = await createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
     expect(spec).toMatchObject({
-      schemaSpecVersion: 3,
+      schemaSpecVersion: 4,
       protocolVersion: 3,
       rowSchemaFingerprint: expect.stringMatching(/^wheel-rows-sha256:[0-9a-f]{64}$/),
-      tables: [
+      collections: [
         {
           name: 'memberships',
-          virtual: false,
           key: { fields: ['orgId', 'userId'], separator: ':' }
         }
       ],
@@ -59,7 +58,7 @@ describe('createSchemaSpec', () => {
       mutations: [{ name: 'memberships.add' }],
       presence: { name: 'cursors' }
     });
-    expect(spec.tables[0]!.jsonSchema).toMatchObject({
+    expect(spec.collections[0]!.jsonSchema).toMatchObject({
       type: 'object',
       additionalProperties: false,
       required: ['orgId', 'userId', 'role']
@@ -71,17 +70,17 @@ describe('createSchemaSpec', () => {
     const { syncModule, servers } = fixture();
     const spec = await createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
     const original = spec.rowSchemaFingerprint;
-    const table = spec.tables[0]!;
+    const collection = spec.collections[0]!;
     const query = spec.queries[0]!;
-    const schema = table.jsonSchema as Record<string, unknown>;
+    const schema = collection.jsonSchema as Record<string, unknown>;
     const properties = schema.properties as Record<string, unknown>;
     const required = schema.required as string[];
 
     const reordered: WheelSchemaSpec = {
       ...spec,
-      tables: [
+      collections: [
         {
-          ...table,
+          ...collection,
           jsonSchema: {
             ...Object.fromEntries(Object.entries(schema).reverse()),
             properties: Object.fromEntries(Object.entries(properties).reverse()),
@@ -92,12 +91,12 @@ describe('createSchemaSpec', () => {
     };
     await expect(fingerprintSnapshotRows(reordered)).resolves.toBe(original);
 
-    const archiveTable = { ...table, name: 'memberships_archive' };
-    const archiveQuery = { ...query, name: 'memberships.archive', into: archiveTable.name };
-    const twoContracts = { tables: [table, archiveTable], queries: [query, archiveQuery] };
+    const archiveCollection = { ...collection, name: 'memberships_archive' };
+    const archiveQuery = { ...query, name: 'memberships.archive', into: archiveCollection.name };
+    const twoContracts = { collections: [collection, archiveCollection], queries: [query, archiveQuery] };
     expect(
       await fingerprintSnapshotRows({
-        tables: [...twoContracts.tables].reverse(),
+        collections: [...twoContracts.collections].reverse(),
         queries: [...twoContracts.queries].reverse()
       })
     ).toBe(await fingerprintSnapshotRows(twoContracts));
@@ -112,9 +111,9 @@ describe('createSchemaSpec', () => {
 
     const withField = {
       ...spec,
-      tables: [
+      collections: [
         {
-          ...table,
+          ...collection,
           jsonSchema: {
             ...schema,
             properties: { ...properties, tag: { type: 'string' } },
@@ -127,29 +126,26 @@ describe('createSchemaSpec', () => {
     await expect(
       fingerprintSnapshotRows({
         ...spec,
-        tables: [{ ...table, name: 'renamed_memberships' }]
+        collections: [{ ...collection, name: 'renamed_memberships' }]
       })
     ).resolves.not.toBe(original);
     await expect(
       fingerprintSnapshotRows({
         ...spec,
-        tables: [{ ...table, jsonSchema: { ...schema, required: required.slice(0, -1) } }]
+        collections: [{ ...collection, jsonSchema: { ...schema, required: required.slice(0, -1) } }]
       })
     ).resolves.not.toBe(original);
     await expect(
       fingerprintSnapshotRows({
         ...spec,
-        tables: [{ ...table, key: { ...table.key, fields: [...table.key.fields].reverse() } }]
+        collections: [{ ...collection, key: { ...collection.key, fields: [...collection.key.fields].reverse() } }]
       })
     ).resolves.not.toBe(original);
     await expect(
       fingerprintSnapshotRows({
         ...spec,
-        tables: [{ ...table, key: { ...table.key, separator: '|' } }]
+        collections: [{ ...collection, key: { ...collection.key, separator: '|' } }]
       })
-    ).resolves.not.toBe(original);
-    await expect(
-      fingerprintSnapshotRows({ ...spec, tables: [{ ...table, virtual: !table.virtual }] })
     ).resolves.not.toBe(original);
     await expect(
       fingerprintSnapshotRows({ ...spec, queries: [{ ...query, into: 'other_table' }] })
@@ -173,7 +169,7 @@ describe('createSchemaSpec', () => {
 
   test('fails when key metadata does not name required string fields', async () => {
     const { syncModule, servers } = fixture();
-    const invalid = table({
+    const invalid = collection({
       name: 'invalid_keys',
       type: t.object({ id: t.number() }),
       key: (row) => String(row.id),

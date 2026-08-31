@@ -6,7 +6,7 @@ import { sql } from 'wheel/sync';
 import { serveQuery } from 'wheel/sync/server/cloudflare';
 import { cycleStatsByTeam, cyclesByTeam } from './cycles.sync';
 
-/** DDL for the cycles table (cycle_stats is virtual — no DDL). */
+/** DDL for the cycles table (`cycle_stats` has no matching table). */
 export const CYCLES_DDL = [
   `create table if not exists cycles (
      id text primary key,
@@ -26,7 +26,7 @@ export const cyclesByTeamServer = serveQuery({
         order by number desc, id`
 });
 
-/** cycle_stats.byTeam — derived progress per cycle (virtual; declared dependencies only). */
+/** cycle_stats.byTeam — derived progress per cycle through declared dependencies. */
 export const cycleStatsByTeamServer = serveQuery({
   query: cycleStatsByTeam,
   sql: (params) =>

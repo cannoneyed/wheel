@@ -47,13 +47,13 @@
  * state-machine latches, not teardown flags, and say so where they live.
  */
 import {
-  validateTableKey,
+  validateCollectionKey,
   type MutationCall,
   type MutationDecl,
   type MutationRejection,
   type PresenceDecl,
   type QueryDecl,
-  type TableDecl
+  type CollectionDecl
 } from '../declarations';
 import { canonicalParams } from '../../core/params';
 import {
@@ -258,15 +258,15 @@ export class SyncClient {
   private readonly pending: OptimisticEntry[] = [];
   private readonly mutationLog = new Map<string, MutationInfo[]>();
   private readonly provenance: ProvenanceLog;
-  private readonly listeners = new Set<(changedTables?: ReadonlySet<string>) => void>();
+  private readonly listeners = new Set<(changedCollections?: ReadonlySet<string>) => void>();
   /**
-   * Tables whose effective rows moved since the last notify. Marked where
+   * Collections whose effective rows moved since the last notify. Marked where
    * rows change (deltas, bootstraps, optimistic writes, rollbacks, drops)
-   * and flushed to listeners, so a consumer can invalidate per table
+   * and flushed to listeners, so a consumer can invalidate per collection
    * instead of re-deriving the world on every change. `changedAll` is the
    * conservative flag for changes with unknown scope (reconnect bootstrap).
    */
-  private readonly changedTables = new Set<string>();
+  private readonly changedCollections = new Set<string>();
   private changedAll = false;
   private readonly idGen: IdGen;
   private lastSeq = 0;
@@ -301,8 +301,8 @@ export class SyncClient {
       now: () => options.clock.now(),
       retainReplayFailures: true
     });
-    this.materializer.onPublish(({ changedTables }) => {
-      for (const table of changedTables) this.markChanged(table);
+    this.materializer.onPublish(({ changedCollections }) => {
+      for (const collection of changedCollections) this.markChanged(collection);
     });
     this.provenance = new ProvenanceLog(options.provenanceCapacity);
     this.outboxRestore = this.restoreOutbox();
@@ -348,7 +348,7 @@ export class SyncClient {
   /**
    * The transport-level connection status — what the "sync offline" UI reads.
    * While disconnected the cache keeps serving last-known server truth (base
-   * tables are only replaced by a successful re-bootstrap), so consumers can
+   * collections are only replaced by a successful re-bootstrap), so consumers can
    * honestly render stale data with a warning instead of empty lists.
    */
   connectionStatus(): SyncConnectionStatus {
@@ -461,11 +461,11 @@ export class SyncClient {
 
   /**
    * Subscribe to every state change (deltas, optimistic writes, presence).
-   * The listener receives the tables whose effective rows moved: an empty
+   * The listener receives the collections whose effective rows moved: an empty
    * set for data-free changes (status, mutation lifecycle, presence),
    * `undefined` when the scope is unknown (assume everything).
    */
-  onChange(listener: (changedTables?: ReadonlySet<string>) => void): () => void {
+  onChange(listener: (changedCollections?: ReadonlySet<string>) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
@@ -628,7 +628,7 @@ export class SyncClient {
       const id = query.into.key(row);
       this.provenance.record({
         at: this.options.clock.now(),
-        table: query.into.name,
+        collection: query.into.name,
         rowId: id,
         value: row,
         cause: { kind: 'hydrate', seq: persisted.seq }
@@ -788,13 +788,13 @@ export class SyncClient {
   }
 
   /** One row from the effective view (server truth + optimistic overlay). */
-  get<RowT extends Row>(table: TableDecl<RowT>, id: string): RowT | undefined {
-    return this.materializer.get(table, id);
+  get<RowT extends Row>(collection: CollectionDecl<RowT>, id: string): RowT | undefined {
+    return this.materializer.get(collection, id);
   }
 
-  /** All pooled rows of a table from the effective view. */
-  rows<RowT extends Row>(table: TableDecl<RowT>): readonly RowT[] {
-    return this.materializer.rows(table);
+  /** All pooled rows of a collection from the effective view. */
+  rows<RowT extends Row>(collection: CollectionDecl<RowT>): readonly RowT[] {
+    return this.materializer.rows(collection);
   }
 
   // ── mutations ──────────────────────────────────────────────────────────
@@ -936,7 +936,7 @@ export class SyncClient {
     for (const write of writes) {
       this.provenance.record({
         at: this.options.clock.now(),
-        table: write.table,
+        collection: write.collection,
         rowId: write.rowId,
         value: write.value,
         cause: { kind: 'optimistic', mutationId, mutations }
@@ -954,7 +954,7 @@ export class SyncClient {
             ids: call.ids
           })),
           preview: writes.map((write) => ({
-            table: write.table,
+            collection: write.collection,
             rowId: write.rowId,
             value: write.value ?? null
           })),
@@ -1113,23 +1113,23 @@ export class SyncClient {
         }
         calls.push({ decl, args: call.args, ids: call.ids });
       }
-      const preview = [] as Array<{ table: string; rowId: string; value: Row | undefined }>;
+      const preview = [] as Array<{ collection: string; rowId: string; value: Row | undefined }>;
       if (!invalid) {
         for (const write of persisted.preview) {
-          const table = this.declarations.tables.get(write.table);
-          if (!table) {
-            invalid = `No client table declaration is registered for "${write.table}".`;
+          const collection = this.declarations.collections.get(write.collection);
+          if (!collection) {
+            invalid = `No client collection declaration is registered for "${write.collection}".`;
             break;
           }
           if (write.value === null) {
-            preview.push({ table: write.table, rowId: write.rowId, value: undefined });
+            preview.push({ collection: write.collection, rowId: write.rowId, value: undefined });
             continue;
           }
           try {
-            const row = freezeRow({ ...validateRow(`outbox preview ${write.table}`, table.schema, write.value) });
-            const rowId = validateTableKey(table, row, `Outbox preview table "${write.table}"`);
+            const row = freezeRow({ ...validateRow(`outbox preview ${write.collection}`, collection.schema, write.value) });
+            const rowId = validateCollectionKey(collection, row, `Outbox preview collection "${write.collection}"`);
             if (rowId !== write.rowId) throw new Error(`Outbox preview key changed from "${write.rowId}" to "${rowId}".`);
-            preview.push({ table: write.table, rowId, value: row });
+            preview.push({ collection: write.collection, rowId, value: row });
           } catch (error) {
             invalid = error instanceof Error ? error.message : String(error);
             break;
@@ -1202,9 +1202,9 @@ export class SyncClient {
     for (const write of writes) {
       this.provenance.record({
         at: this.options.clock.now(),
-        table: write.table,
+        collection: write.collection,
         rowId: write.rowId,
-        value: this.materializer.confirmedGet(write.table, write.rowId),
+        value: this.materializer.confirmedGet(write.collection, write.rowId),
         cause: { kind: cause, mutationId: entry.mutationId, mutations: entry.calls.map((call) => call.decl.name) }
       });
     }
@@ -1468,12 +1468,12 @@ export class SyncClient {
     subscription: ClientSubscription,
     snapshot: Snapshot
   ): Array<{ id: string; row: Row }> {
-    const table = subscription.query.into;
+    const collection = subscription.query.into;
     const snapshotRows = snapshot.rows.map((raw, index) => {
       const row = freezeRow({
-        ...validateRow(`snapshot query ${subscription.query.name}`, table.schema, raw)
+        ...validateRow(`snapshot query ${subscription.query.name}`, collection.schema, raw)
       });
-      const id = validateTableKey(table, row, `Snapshot query "${subscription.query.name}" row ${index}`);
+      const id = validateCollectionKey(collection, row, `Snapshot query "${subscription.query.name}" row ${index}`);
       return { id, row, index };
     });
     const firstIndexes = new Map<string, number>();
@@ -1481,7 +1481,7 @@ export class SyncClient {
       const firstIndex = firstIndexes.get(id);
       if (firstIndex !== undefined) {
         throw new Error(
-          `Snapshot query "${subscription.query.name}" has duplicate key ${JSON.stringify(id)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+          `Snapshot query "${subscription.query.name}" has duplicate key ${JSON.stringify(id)} for collection "${collection.name}" at rows ${firstIndex} and ${index}.`
         );
       }
       firstIndexes.set(id, index);
@@ -1494,11 +1494,11 @@ export class SyncClient {
     snapshot: Snapshot,
     snapshotRows: readonly { id: string; row: Row }[]
   ): void {
-    const table = subscription.query.into;
+    const collection = subscription.query.into;
     for (const { id, row } of snapshotRows) {
       this.provenance.record({
         at: this.options.clock.now(),
-        table: table.name,
+        collection: collection.name,
         rowId: id,
         value: row,
         cause: { kind: 'bootstrap', seq: snapshot.seq, subscriptionId: snapshot.subscriptionId }
@@ -1590,12 +1590,12 @@ export class SyncClient {
     if (delta.seq <= subscription.lastDeltaSeq) {
       return; // stale: a later delta already superseded this state (whole-row model)
     }
-    const table = subscription.query.into;
+    const collection = subscription.query.into;
     const puts = delta.puts.map((raw, index) => {
       const row = freezeRow({
-        ...validateRow(`delta query ${subscription.query.name}`, table.schema, raw)
+        ...validateRow(`delta query ${subscription.query.name}`, collection.schema, raw)
       });
-      const id = validateTableKey(table, row, `Delta query "${subscription.query.name}" put ${index}`);
+      const id = validateCollectionKey(collection, row, `Delta query "${subscription.query.name}" put ${index}`);
       return { id, row, index };
     });
     const putIndexes = new Map<string, number>();
@@ -1603,7 +1603,7 @@ export class SyncClient {
       const firstIndex = putIndexes.get(id);
       if (firstIndex !== undefined) {
         throw new Error(
-          `Delta query "${subscription.query.name}" has duplicate put key ${JSON.stringify(id)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+          `Delta query "${subscription.query.name}" has duplicate put key ${JSON.stringify(id)} for collection "${collection.name}" at rows ${firstIndex} and ${index}.`
         );
       }
       putIndexes.set(id, index);
@@ -1615,7 +1615,7 @@ export class SyncClient {
       }
       if (orderIds.has(id)) {
         throw new Error(
-          `Delta query "${subscription.query.name}" has duplicate order key ${JSON.stringify(id)} for table "${table.name}".`
+          `Delta query "${subscription.query.name}" has duplicate order key ${JSON.stringify(id)} for collection "${collection.name}".`
         );
       }
       orderIds.add(id);
@@ -1636,7 +1636,7 @@ export class SyncClient {
     for (const { id, row } of puts) {
       this.provenance.record({
         at: this.options.clock.now(),
-        table: table.name,
+        collection: collection.name,
         rowId: id,
         value: row,
         cause: { kind: 'sync-apply', seq: delta.seq, subscriptionId: delta.subscriptionId }
@@ -1645,7 +1645,7 @@ export class SyncClient {
     for (const id of delta.deletes) {
       this.provenance.record({
         at: this.options.clock.now(),
-        table: table.name,
+        collection: collection.name,
         rowId: id,
         value: undefined,
         cause: { kind: 'sync-apply', seq: delta.seq, subscriptionId: delta.subscriptionId }
@@ -1710,23 +1710,23 @@ export class SyncClient {
   /**
    * A row's current value plus its full provenance chain.
    *
-   * ONE TYPED CALLING CONVENTION (4.4): address the row by its table
+   * ONE TYPED CALLING CONVENTION (4.4): address the row by its collection
    * DECLARATION plus id — `explain(todos, todoId)`. The old stringly form
    * (`explain("todos.row(id).done")`) is gone: it silently ignored trailing
    * property suffixes, exactly the kind of quiet wrongness this pass removes.
    */
-  explain<RowT extends Row>(table: TableDecl<RowT>, id: string): ExplainResult<RowT> {
-    const history = this.provenance.forRow(table.name, id);
+  explain<RowT extends Row>(collection: CollectionDecl<RowT>, id: string): ExplainResult<RowT> {
+    const history = this.provenance.forRow(collection.name, id);
     return {
-      value: this.materializer.get(table, id),
+      value: this.materializer.get(collection, id),
       cause: history[history.length - 1]?.cause,
       history
     };
   }
 
-  /** Every table and its current effective rows — the debug panel's state tree. */
-  tablesDebug(): Array<{ table: string; rows: readonly Row[] }> {
-    return this.materializer.tablesDebug();
+  /** Every collection and its current effective rows — the debug panel's state tree. */
+  collectionsDebug(): Array<{ collection: string; rows: readonly Row[] }> {
+    return this.materializer.collectionsDebug();
   }
 
   /** The most recent provenance entries, newest last — the debug panel's change stream. */
@@ -1745,16 +1745,16 @@ export class SyncClient {
     }));
   }
 
-  /** Record that one table's effective rows moved; the next notify carries it. */
-  private markChanged(table: string): void {
-    this.changedTables.add(table);
+  /** Record that one collection's effective rows moved; the next notify carries it. */
+  private markChanged(collection: string): void {
+    this.changedCollections.add(collection);
   }
 
   private notify(): void {
     this.version += 1;
-    const changed = this.changedAll ? undefined : new Set(this.changedTables);
+    const changed = this.changedAll ? undefined : new Set(this.changedCollections);
     this.changedAll = false;
-    this.changedTables.clear();
+    this.changedCollections.clear();
     for (const listener of [...this.listeners]) {
       listener(changed);
     }
@@ -1898,7 +1898,7 @@ export class SyncClient {
     if (this.lastPublishedPresence !== null) {
       this.publishPresence(this.lastPublishedPresence);
     }
-    // A rebootstrap replaced whole subscriptions; the scope is every table.
+    // A rebootstrap replaced whole subscriptions; the scope is every collection.
     this.changedAll = true;
     this.notify();
   }

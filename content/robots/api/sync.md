@@ -6,7 +6,7 @@ Import only from `wheel/sync`. The linked declarations are the source of truth f
 
 ## `CacheReader`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:176](../../../packages/wheel/src/sync/declarations.ts#L176).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:169](../../../packages/wheel/src/sync/declarations.ts#L169).
 
 Read-only view of the effective client state — what invert() captures old values from.
 
@@ -27,6 +27,24 @@ Local identity used by in-process transports; WebSockets authenticate during the
 Kind: interface. Source: [packages/wheel/src/core/runtime-defaults.ts:16](../../../packages/wheel/src/core/runtime-defaults.ts#L16).
 
 Injected wall clock — real time in production, a fixed/stepping clock in tests.
+
+## `collection`
+
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:79](../../../packages/wheel/src/sync/declarations.ts#L79).
+
+Declare a synced collection of immutable rows.
+
+## `CollectionDecl`
+
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:32](../../../packages/wheel/src/sync/declarations.ts#L32).
+
+A declared synced collection: name, row schema, and key extractor.
+
+## `CollectionKeySpec`
+
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:24](../../../packages/wheel/src/sync/declarations.ts#L24).
+
+Language-neutral description of how a collection row becomes its wire/cache identity.
 
 ## `createCacheScopes`
 
@@ -96,7 +114,7 @@ Extract the TypeScript type a schema validates to - Infer<typeof TodoRow>.
 
 ## `InverseSpec`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:186](../../../packages/wheel/src/sync/declarations.ts#L186).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:179](../../../packages/wheel/src/sync/declarations.ts#L179).
 
 The inverse of a mutation, captured at record time: applying it as a NEW mutation restores the prior state. Undo/redo is built from these — the engine never learns undo exists (it's just another mutation).
 
@@ -168,25 +186,25 @@ A mutation's typed outcome. THE DOCTRINE: anything the engine COMPUTES — succe
 
 ## `mutation`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:292](../../../packages/wheel/src/sync/declarations.ts#L292).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:280](../../../packages/wheel/src/sync/declarations.ts#L280).
 
 Declare a mutation (sync-side). The server handler binds to it by name in *.server.ts.
 
 ## `MutationCall`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:286](../../../packages/wheel/src/sync/declarations.ts#L286).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:274](../../../packages/wheel/src/sync/declarations.ts#L274).
 
 One existing mutation declaration and its arguments inside an atomic command.
 
 ## `MutationCtx`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:196](../../../packages/wheel/src/sync/declarations.ts#L196).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:189](../../../packages/wheel/src/sync/declarations.ts#L189).
 
 Deterministic context available to optimistic handlers (and replayed on the server).
 
 ## `MutationDecl`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:275](../../../packages/wheel/src/sync/declarations.ts#L275).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:263](../../../packages/wheel/src/sync/declarations.ts#L263).
 
 A declared write: named + typed args and the optimistic handler that previews it client-side.
 
@@ -210,7 +228,7 @@ The audit record of one mutation attempt, including its rejection/error if any.
 
 ## `MutationRejection`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:376](../../../packages/wheel/src/sync/declarations.ts#L376).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:364](../../../packages/wheel/src/sync/declarations.ts#L364).
 
 Typed rejection — a value that crosses the wire, not an exception class.
 
@@ -222,27 +240,27 @@ The lifecycle of a mutation: pending -> confirmed | rejected | failed | orphaned
 
 ## `OptimisticCache`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:167](../../../packages/wheel/src/sync/declarations.ts#L167).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:160](../../../packages/wheel/src/sync/declarations.ts#L160).
 
 The optimistic handlers' entire write vocabulary: rows are frozen values; `update` takes a patch and the cache owns the copy, which is the exit path to persistent structures if benchmarks ever demand it. Produce new rows, never mutate: rows returned by `get`/`list` are frozen (in production too). To change a row, pass a fresh object to `put` or a patch to `update` — writing to a returned row in place throws in strict mode and would otherwise silently corrupt the shared base state.
 
 ## `orphan`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:431](../../../packages/wheel/src/sync/declarations.ts#L431).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:419](../../../packages/wheel/src/sync/declarations.ts#L419).
 
 Throw this from an optimistic handler when a row it reads is missing on replay — `if (!cache.get(issues, id)) throw orphan('issue ' + id + ' is gone')`. Signals a legitimate row-is-gone, not a bug: the client settles the mutation `orphaned` and rolls it back cleanly, instead of `failed`. Reserve it for genuine row-gone guards; let real invariant violations throw normally so they surface as `failed` with the original error.
 
 ## `OrphanedError`
 
-Kind: class. Source: [packages/wheel/src/sync/declarations.ts:414](../../../packages/wheel/src/sync/declarations.ts#L414).
+Kind: class. Source: [packages/wheel/src/sync/declarations.ts:402](../../../packages/wheel/src/sync/declarations.ts#L402).
 
 The typed signal an optimistic handler throws when the row it depends on is gone — deleted by a peer's confirmed delta before this pending mutation replayed. It means "there is nothing left for me to edit," NOT "I have a bug." The client treats it as the ONE legitimate reason to abandon a replaying optimistic mutation: the entry settles `orphaned` (terminal, cleanly rolled back), never `failed`. Why a dedicated class instead of a bare `Error`: rebase() must tell "the row vanished" apart from "the handler crashed (typo, null deref)". A bare throw used to be swallowed as `orphaned`, so a real bug silently rolled the mutation back with no error to paste. Now only an `OrphanedError` takes the orphaned path; every other throw settles the mutation `failed` and logs.
 
 ## `patchMutation`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:335](../../../packages/wheel/src/sync/declarations.ts#L335).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:323](../../../packages/wheel/src/sync/declarations.ts#L323).
 
-The guard → patch → capture-prior → self-inverse skeleton that patch-by-id mutations copy verbatim. It read-guards the row (orphans if a peer deleted it first), applies the caller's partial patch, and makes the mutation ITS OWN inverse by replaying the prior values of exactly the fields the patch touched: export const projectUpdate = patchMutation({ name: 'projects.update', args: t.object({ projectId: t.string(), patch: ProjectPatch }), table: projects, id: (args) => args.projectId, description: 'edit project' }); `stamp` contributes server-mirroring fields the patch does not carry and the inverse must NOT restore — they are re-derived on every apply (undo included): stamp: (ctx) => ({ updatedAt: ctx.now() }) // issues.update stamp: (_ctx, _args, row) => ({ version: row.version + 1 }) Reserved for the `{ id, patch }` shape only. The odd cases — flat args (`{ commentId, body }`), multi-row writes, creates/deletes, mutations that skip rather than orphan on a missing row — stay hand-written.
+The guard → patch → capture-prior → self-inverse skeleton that patch-by-id mutations copy verbatim. It read-guards the row (orphans if a peer deleted it first), applies the caller's partial patch, and makes the mutation ITS OWN inverse by replaying the prior values of exactly the fields the patch touched: export const projectUpdate = patchMutation({ name: 'projects.update', args: t.object({ projectId: t.string(), patch: ProjectPatch }), collection: projects, id: (args) => args.projectId, description: 'edit project' }); `stamp` contributes server-mirroring fields the patch does not carry and the inverse must NOT restore — they are re-derived on every apply (undo included): stamp: (ctx) => ({ updatedAt: ctx.now() }) // issues.update stamp: (_ctx, _args, row) => ({ version: row.version + 1 }) Reserved for the `{ id, patch }` shape only. The odd cases — flat args (`{ commentId, body }`), multi-row writes, creates/deletes, mutations that skip rather than orphan on a missing row — stay hand-written.
 
 ## `PeerPresenceFailure`
 
@@ -276,13 +294,13 @@ Midpoint sort key between two neighbors (undefined = list edge) - a reorder writ
 
 ## `presence`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:142](../../../packages/wheel/src/sync/declarations.ts#L142).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:135](../../../packages/wheel/src/sync/declarations.ts#L135).
 
 Declare the app's presence-state shape (sync-side; single options object).
 
 ## `PresenceDecl`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:134](../../../packages/wheel/src/sync/declarations.ts#L134).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:127](../../../packages/wheel/src/sync/declarations.ts#L127).
 
 A typed contract for the presence channel — ephemeral state (cursor, focus, live-typing preview) relayed client → server → peers with no database, no history, no undo. The declaration is TYPING ONLY: the wire and the server relay stay untyped and unchanged; validation happens at the client's edges. A client has ONE presence state — the decl names and shapes it, it does not add channels.
 
@@ -290,7 +308,7 @@ A typed contract for the presence channel — ephemeral state (cursor, focus, li
 
 Kind: interface. Source: [packages/wheel/src/sync/client/provenance.ts:17](../../../packages/wheel/src/sync/client/provenance.ts#L17).
 
-One write in the audit log: table/row, the value after the write, and its cause.
+One write in the audit log: collection/row, the value after the write, and its cause.
 
 ## `ProvenanceLog`
 
@@ -300,15 +318,15 @@ The capped ring buffer of writes that explain() answers from - bounded retention
 
 ## `query`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:234](../../../packages/wheel/src/sync/declarations.ts#L234).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:227](../../../packages/wheel/src/sync/declarations.ts#L227).
 
 Declare a live query (sync-side). The optional projection decides where optimistic rows appear before the server confirms.
 
 ## `QueryDecl`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:219](../../../packages/wheel/src/sync/declarations.ts#L219).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:212](../../../packages/wheel/src/sync/declarations.ts#L212).
 
-A declared live query: named + typed params, target table, dependencies, and optional client projection. SQL lives in the *.server.ts binding.
+A declared live query: named, typed, and linked to one target collection.
 
 ## `QueryHandle`
 
@@ -318,7 +336,7 @@ A live subscription handle: current rows (server order + optimistic projection) 
 
 ## `QueryProjection`
 
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:213](../../../packages/wheel/src/sync/declarations.ts#L213).
+Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:206](../../../packages/wheel/src/sync/declarations.ts#L206).
 
 The client-side approximation of a query's SQL, declared next to it in the sync-module side: which rows belong to this query's result (`filter`, mirroring the where clause) and how they order (`sort`, mirroring order by). The server SQL is always the truth — this only decides where *optimistic* rows show up before the server confirms. Optional: a query without it shows optimistic rows only after server confirmation.
 
@@ -342,13 +360,13 @@ Injected randomness source backing id generation — seeded in tests, crypto in 
 
 ## `rejection`
 
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:396](../../../packages/wheel/src/sync/declarations.ts#L396).
+Kind: function. Source: [packages/wheel/src/sync/declarations.ts:384](../../../packages/wheel/src/sync/declarations.ts#L384).
 
 `throw rejection('forbidden', ...)` in a server handler → typed rejection to the client. A NOUN on purpose: it BUILDS a value, it does not act. Written without `throw` — `rejection('forbidden', 'no')` on its own line — it reads as plainly inert, which is exactly the mistake the old verb form `reject(...)` hid ("reject" looks like it did something; forgetting `throw` guarded nothing).
 
 ## `RejectionError`
 
-Kind: class. Source: [packages/wheel/src/sync/declarations.ts:383](../../../packages/wheel/src/sync/declarations.ts#L383).
+Kind: class. Source: [packages/wheel/src/sync/declarations.ts:371](../../../packages/wheel/src/sync/declarations.ts#L371).
 
 The throwable carrier for a typed MutationRejection - thrown server-side by rejection(), never crosses the wire as an exception.
 
@@ -525,24 +543,6 @@ Real crypto randomness — production counterpart of the seeded test source.
 Kind: export. Source: [node_modules/zod/v4/classic/external.d.cts:1](../../../node_modules/zod/v4/classic/external.d.cts#L1).
 
 Public export. Read the linked declaration for its complete contract.
-
-## `table`
-
-Kind: function. Source: [packages/wheel/src/sync/declarations.ts:81](../../../packages/wheel/src/sync/declarations.ts#L81).
-
-Declare a synced table of immutable rows (sync-side; single options object).
-
-## `TableDecl`
-
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:32](../../../packages/wheel/src/sync/declarations.ts#L32).
-
-A declared synced table: name, row schema, and key extractor - the unit the client cache pools rows by.
-
-## `TableKeySpec`
-
-Kind: interface. Source: [packages/wheel/src/sync/declarations.ts:24](../../../packages/wheel/src/sync/declarations.ts#L24).
-
-Language-neutral description of how a table row becomes its wire/cache identity.
 
 ## `validateJsonValue`
 

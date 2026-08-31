@@ -1,4 +1,4 @@
-import { mutation, query, rejection, t, table } from '../../packages/wheel/src/sync';
+import { mutation, query, rejection, t, collection } from '../../packages/wheel/src/sync';
 import { serveMutation, serveQuery } from '../../packages/wheel/src/sync/server';
 import { sql } from '../../packages/wheel/src/sync/sql';
 
@@ -10,7 +10,7 @@ export const WidgetRow = t.object({
   note: t.string().nullable()
 });
 
-export const widgets = table({
+export const widgets = collection({
   name: 'widgets',
   type: WidgetRow,
   key: (row) => row.id
@@ -22,11 +22,10 @@ export const widgetsAll = query({
   into: widgets
 });
 
-export const sourceWidgets = table({
+export const sourceWidgets = collection({
   name: 'source_widgets',
   type: WidgetRow,
-  key: (row) => row.id,
-  virtual: true
+  key: (row) => row.id
 });
 
 export const sourceWidgetsAll = query({

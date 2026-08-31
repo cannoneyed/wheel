@@ -25,7 +25,7 @@ export class CycleService extends SyncService {
     'cycle'
   );
 
-  /** Stats for one cycle from the VIRTUAL cycle_stats table (zeros until it has issues). */
+  /** Stats from the derived `cycle_stats` collection. Zero until the cycle has issues. */
   readonly statsOf = this.computedFor((teamId: string, cycleId: string): CycleStats => {
     return (
       this.statsView(teamId).rows.find((row) => row.cycleId === cycleId) ?? {

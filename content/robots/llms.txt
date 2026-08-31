@@ -28,7 +28,7 @@ Use `README.md` as the primary index. Source declarations and tests override pro
 - [Live state](live-state.md): Declarations, optimistic writes, offline replay, and provenance.
 - [Server](server.md): Backends, SQL ownership, HTTP, and lifecycle.
 - [Server handlers](server-advanced.md): Migrations, invalidation, ids, and external writes.
-- [Virtual tables](virtual-tables.md): Derived row contracts and invalidation.
+- [Derived collections](derived-collections.md): Derived row contracts and invalidation.
 - [Presence](presence.md): Typed ephemeral peer state.
 - [Undo and redo](undo.md): Inverse mutations and patch helpers.
 

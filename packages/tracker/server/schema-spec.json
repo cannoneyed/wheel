@@ -1,11 +1,10 @@
 {
-  "schemaSpecVersion": 3,
+  "schemaSpecVersion": 4,
   "protocolVersion": 3,
-  "rowSchemaFingerprint": "wheel-rows-sha256:56e3a6ac33e2aef1e12fe570f996472a9b713d1c974578d01746001cd76e3ae0",
-  "tables": [
+  "rowSchemaFingerprint": "wheel-rows-sha256:61ccda773743c77ad01ca16bf95c1d3f7985ee3d4a2f56f9fed1dfde0a3ef2c7",
+  "collections": [
     {
       "name": "activity",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -48,7 +47,6 @@
     },
     {
       "name": "comments",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -98,7 +96,6 @@
     },
     {
       "name": "cycle_stats",
-      "virtual": true,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -133,7 +130,6 @@
     },
     {
       "name": "cycles",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -172,7 +168,6 @@
     },
     {
       "name": "favorites",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -217,7 +212,6 @@
     },
     {
       "name": "issue_labels",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -249,7 +243,6 @@
     },
     {
       "name": "issue_relations",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -293,7 +286,6 @@
     },
     {
       "name": "issues",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -437,7 +429,6 @@
     },
     {
       "name": "labels",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -479,7 +470,6 @@
     },
     {
       "name": "notifications",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -537,7 +527,6 @@
     },
     {
       "name": "project_counts",
-      "virtual": true,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -568,7 +557,6 @@
     },
     {
       "name": "projects",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -637,7 +625,6 @@
     },
     {
       "name": "reactions",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -674,7 +661,6 @@
     },
     {
       "name": "search_results",
-      "virtual": true,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -717,7 +703,6 @@
     },
     {
       "name": "teams",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -768,7 +753,6 @@
     },
     {
       "name": "users",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -803,7 +787,6 @@
     },
     {
       "name": "views",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -850,7 +833,6 @@
     },
     {
       "name": "workflow_states",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

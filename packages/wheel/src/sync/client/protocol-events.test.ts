@@ -2,7 +2,7 @@
 /** Phase 1 client handling for query status, order-only deltas, and checkpoints. */
 import { describe, expect, test } from 'vitest';
 
-import { mutation, query, table } from '../declarations';
+import { mutation, query, collection } from '../declarations';
 import { fixedClock, seededRandomBytes } from '../ids';
 import type { MutateResult, ServerEvent, Snapshot } from '../protocol';
 import { t } from '../schema';
@@ -11,7 +11,7 @@ import { MemoryCache } from './local-cache';
 import type { SyncTransport } from './transport';
 
 const ItemRow = t.object({ id: t.string(), label: t.string() });
-const items = table({ name: 'protocol_items', type: ItemRow, key: (row) => row.id });
+const items = collection({ name: 'protocol_items', type: ItemRow, key: (row) => row.id });
 const itemList = query({
   name: 'protocol_items.all',
   params: t.object({}),

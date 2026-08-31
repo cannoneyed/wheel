@@ -39,7 +39,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       'live-state',
       'server',
       'server-advanced',
-      'virtual-tables',
+      'derived-collections',
       'presence',
       'undo'
     ]

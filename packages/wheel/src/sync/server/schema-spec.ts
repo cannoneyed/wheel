@@ -1,11 +1,11 @@
-import type { TableDecl } from '../declarations';
+import type { CollectionDecl } from '../declarations';
 import { ROW_SCHEMA_FINGERPRINT_PREFIX, type RowSchemaFingerprint } from '../row-schema';
 import { toContractJsonSchema, type JsonSchema } from '../schema';
 import { SYNC_PROTOCOL_VERSION } from '../socket-protocol';
 import { buildRegistry } from './registry';
 
 /** Version of the generated document shape. Independent from the wire version. */
-export const WHEEL_SCHEMA_SPEC_VERSION = 3 as const;
+export const WHEEL_SCHEMA_SPEC_VERSION = 4 as const;
 
 const SET_LIKE_SCHEMA_ARRAYS = new Set(['allOf', 'anyOf', 'enum', 'oneOf', 'required', 'type']);
 
@@ -15,15 +15,14 @@ export interface SchemaSpecKey {
   readonly separator: string;
 }
 
-/** One table's wire row shape, identity rule, and storage kind. */
-export interface SchemaSpecTable {
+/** One collection's wire row shape and identity rule. */
+export interface SchemaSpecCollection {
   readonly name: string;
-  readonly virtual: boolean;
   readonly jsonSchema: JsonSchema;
   readonly key: SchemaSpecKey;
 }
 
-/** One query's input shape, output table, and physical dependencies. */
+/** One query's input shape, output collection, and physical dependencies. */
 export interface SchemaSpecQuery {
   readonly name: string;
   readonly into: string;
@@ -48,7 +47,7 @@ export interface WheelSchemaSpec {
   readonly schemaSpecVersion: typeof WHEEL_SCHEMA_SPEC_VERSION;
   readonly protocolVersion: typeof SYNC_PROTOCOL_VERSION;
   readonly rowSchemaFingerprint: RowSchemaFingerprint;
-  readonly tables: readonly SchemaSpecTable[];
+  readonly collections: readonly SchemaSpecCollection[];
   readonly queries: readonly SchemaSpecQuery[];
   readonly mutations: readonly SchemaSpecMutation[];
   readonly presence: SchemaSpecPresence | null;
@@ -72,19 +71,18 @@ function canonicalJson(value: unknown, parentKey?: string): unknown {
 
 /** Hash only the declarations that control cached row shape, identity, and ownership. */
 export async function fingerprintSnapshotRows(spec: {
-  readonly tables: readonly SchemaSpecTable[];
+  readonly collections: readonly SchemaSpecCollection[];
   readonly queries: readonly Pick<SchemaSpecQuery, 'name' | 'into'>[];
 }): Promise<RowSchemaFingerprint> {
   const input = {
-    tables: [...spec.tables]
+    collections: [...spec.collections]
       .sort((left, right) => left.name.localeCompare(right.name))
-      .map((table) => ({
-        name: table.name,
-        virtual: table.virtual,
-        jsonSchema: canonicalJson(table.jsonSchema),
+      .map((collection) => ({
+        name: collection.name,
+        jsonSchema: canonicalJson(collection.jsonSchema),
         key: {
-          fields: [...table.key.fields],
-          separator: table.key.separator
+          fields: [...collection.key.fields],
+          separator: collection.key.separator
         }
       })),
     queries: [...spec.queries]
@@ -102,20 +100,20 @@ export async function fingerprintSnapshotRows(spec: {
   return `${ROW_SCHEMA_FINGERPRINT_PREFIX}${hex}`;
 }
 
-function assertKeySchema(table: TableDecl, jsonSchema: JsonSchema): void {
+function assertKeySchema(collection: CollectionDecl, jsonSchema: JsonSchema): void {
   const schema = jsonSchema as Record<string, unknown>;
   const properties = schema.properties;
   const required = schema.required;
   if (typeof properties !== 'object' || properties === null || Array.isArray(properties)) {
-    throw new Error(`Table "${table.name}" must export an object JSON Schema with properties.`);
+    throw new Error(`Collection "${collection.name}" must export an object JSON Schema with properties.`);
   }
   if (!Array.isArray(required)) {
-    throw new Error(`Table "${table.name}" must export required key fields.`);
+    throw new Error(`Collection "${collection.name}" must export required key fields.`);
   }
-  for (const field of table.keySpec.fields) {
+  for (const field of collection.keySpec.fields) {
     const fieldSchema = (properties as Record<string, unknown>)[field];
     if (!required.includes(field)) {
-      throw new Error(`Table "${table.name}" key field ${JSON.stringify(field)} must be required.`);
+      throw new Error(`Collection "${collection.name}" key field ${JSON.stringify(field)} must be required.`);
     }
     if (
       typeof fieldSchema !== 'object' ||
@@ -123,7 +121,7 @@ function assertKeySchema(table: TableDecl, jsonSchema: JsonSchema): void {
       Array.isArray(fieldSchema) ||
       (fieldSchema as Record<string, unknown>).type !== 'string'
     ) {
-      throw new Error(`Table "${table.name}" key field ${JSON.stringify(field)} must be a string.`);
+      throw new Error(`Collection "${collection.name}" key field ${JSON.stringify(field)} must be a string.`);
     }
   }
 }
@@ -134,15 +132,20 @@ export async function createSchemaSpec(options: {
   readonly servers: object[];
 }): Promise<WheelSchemaSpec> {
   const registry = buildRegistry(options);
-  const tables = [...registry.tables.values()]
-    .map((table): SchemaSpecTable => {
-      const jsonSchema = toContractJsonSchema(`Table "${table.name}"`, table.schema);
-      assertKeySchema(table, jsonSchema);
+  const collections = [...registry.collections.values()]
+    .map((collection): SchemaSpecCollection => {
+      const jsonSchema = toContractJsonSchema(
+        `Collection "${collection.name}"`,
+        collection.schema
+      );
+      assertKeySchema(collection, jsonSchema);
       return {
-        name: table.name,
-        virtual: table.virtual,
+        name: collection.name,
         jsonSchema,
-        key: { fields: [...table.keySpec.fields], separator: table.keySpec.separator }
+        key: {
+          fields: [...collection.keySpec.fields],
+          separator: collection.keySpec.separator
+        }
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -176,8 +179,8 @@ export async function createSchemaSpec(options: {
   return {
     schemaSpecVersion: WHEEL_SCHEMA_SPEC_VERSION,
     protocolVersion: SYNC_PROTOCOL_VERSION,
-    rowSchemaFingerprint: await fingerprintSnapshotRows({ tables, queries }),
-    tables,
+    rowSchemaFingerprint: await fingerprintSnapshotRows({ collections, queries }),
+    collections,
     queries,
     mutations,
     presence

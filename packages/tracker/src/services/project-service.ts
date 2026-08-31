@@ -34,7 +34,7 @@ export class ProjectService extends SyncService {
     (projectId: string): Project | undefined => this.projects.rows.find((row) => row.id === projectId),
     'project'
   );
-  /** Progress from the VIRTUAL project_counts table ({total: 0, completed: 0} until issues join). */
+  /** Progress from the derived `project_counts` collection. Zero until issues join. */
   readonly progress = this.computedFor((projectId: string): ProjectCounts => {
     return (
       this.counts.rows.find((row) => row.projectId === projectId) ?? {

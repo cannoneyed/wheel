@@ -56,7 +56,7 @@ export interface ServeQueryBinding<
  *   // Explicit — any QueryHandler (the backend escape hatch):
  *   serveQuery({ query, handler: SqlQueryHandler({ sql }) })
  *
- * A query must offer at least one invalidation channel: declared table
+ * A query must offer at least one invalidation channel: declared physical
  * dependencies (re-run + diff when a table is touched) and/or push-based
  * `subscribe` (backends with native reactivity).
  */
@@ -77,7 +77,7 @@ export function serveQuery<Params extends Record<string, unknown>, Row extends R
       : SqlQueryHandler<Params, Row>({ sql: options.sql });
   if (options.query.dependsOn.length === 0 && handler.subscribe === undefined) {
     throw new Error(
-      `serveQuery(${options.query.name}): the query must declare dependsOn tables and/or the handler must provide a subscribe channel.`
+      `serveQuery(${options.query.name}): the query must declare physical dependencies and/or the handler must provide a subscribe channel.`
     );
   }
   return {

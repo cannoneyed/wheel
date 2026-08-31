@@ -52,7 +52,7 @@ defmodule WheelSync.ContractTest do
       end
     end
 
-    assert_raise ArgumentError, ~r/dependsOn tables or implement subscribe\/3/, fn ->
+    assert_raise ArgumentError, ~r/declare physical dependencies or implement subscribe\/3/, fn ->
       WheelSync.Registry.build!(
         registry_options([WheelSync.Test.WidgetsAll, WheelSync.Test.SourceWithoutSubscription])
       )

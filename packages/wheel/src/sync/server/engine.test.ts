@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { mutation, query, rejection, table } from '../declarations';
+import { mutation, query, rejection, collection } from '../declarations';
 import { createIdGen, fixedClock, seededRandomBytes, type IdGen } from '../ids';
 import { t } from '../schema';
 import { sql } from '../sql';
@@ -15,8 +15,8 @@ const TodoRow = t.object({
   text: t.string(),
   done: t.boolean()
 });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
-const notes = table({ name: 'notes', type: t.object({ id: t.string(), body: t.string() }), key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const notes = collection({ name: 'notes', type: t.object({ id: t.string(), body: t.string() }), key: (row) => row.id });
 
 const todosByList = query({
   name: 'todos.byList', params: t.object({ listId: t.string() }), into: todos });

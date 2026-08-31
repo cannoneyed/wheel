@@ -236,14 +236,14 @@ export interface ContextClient {
   /**
    * Subscribe to every client-data change; returns an unsubscribe.
    *
-   * `changedTables` names the tables whose EFFECTIVE rows moved in this
+   * `changedCollections` names the collections whose EFFECTIVE rows moved in this
    * change: an empty set is a data-free change (connection status, mutation
    * lifecycle, presence), and `undefined` means "assume everything" (a
-   * reconnect bootstrap, or a client that does not track tables). The
-   * context uses it to bump per-table version signals, so a live query over
-   * one table stops re-deriving when a write lands in another.
+   * reconnect bootstrap, or a client that does not track collections). The
+   * context uses it to bump per-collection version signals, so a live query over
+   * one collection stops re-deriving when a write lands in another.
    */
-  onChange(cb: (changedTables?: ReadonlySet<string>) => void): () => void;
+  onChange(cb: (changedCollections?: ReadonlySet<string>) => void): () => void;
   /** Optional injected wall-clock read shared with client-backed services. */
   now?(): number;
   /** Optional injected one-shot scheduler shared with client-backed services. */
@@ -352,8 +352,8 @@ export class ServiceContext {
   private disposeRoot: (() => void) | null = null;
   private readonly version: Accessor<number>;
   private readonly bumpVersion: () => void;
-  /** Per-table data revisions, minted lazily by `trackTable`. */
-  private readonly tableVersions = new Map<string, { version: Accessor<number>; bump: () => void }>();
+  /** Per-collection data revisions, minted lazily by `trackCollection`. */
+  private readonly collectionVersions = new Map<string, { version: Accessor<number>; bump: () => void }>();
   private readonly debugVersion: Accessor<number>;
   private releaseClient: (() => void) | null = null;
   private disposed = false;
@@ -397,7 +397,7 @@ export class ServiceContext {
       // One client listener per context that owns a client reference; child
       // contexts sharing the parent's client get their own cheap listener so
       // dispose stays local.
-      this.releaseClient = this.clientRef.onChange((changedTables) => this.bumpTables(changedTables));
+      this.releaseClient = this.clientRef.onChange((changedCollections) => this.bumpCollections(changedCollections));
     }
     options.parent?.children.add(this);
   }
@@ -437,17 +437,17 @@ export class ServiceContext {
   }
 
   /**
-   * Tracked read of ONE table's data revision. This is the narrow channel
-   * `liveQuery.rows` rides: it moves only when that table's effective rows
-   * moved, so a write to another table re-derives nothing. The signal is
-   * minted lazily on first track; a table nobody tracks costs nothing.
+   * Tracked read of ONE collection's data revision. This is the narrow channel
+   * `liveQuery.rows` rides: it moves only when that collection's effective rows
+   * moved, so a write to another collection re-derives nothing. The signal is
+   * minted lazily on first track; a collection nobody tracks costs nothing.
    */
-  trackTable(name: string): number {
-    let signal = this.tableVersions.get(name);
+  trackCollection(name: string): number {
+    let signal = this.collectionVersions.get(name);
     if (!signal) {
       const [version, setVersion] = createSignal(0);
       signal = { version, bump: () => setVersion((v) => v + 1) };
-      this.tableVersions.set(name, signal);
+      this.collectionVersions.set(name, signal);
     }
     return signal.version();
   }
@@ -455,20 +455,20 @@ export class ServiceContext {
   /**
    * @internal Invalidate the revision channels for one client change. The
    * COARSE channel (`trackVersion`) always bumps — status, presence and
-   * mutation-lifecycle readers ride it. The per-table channels bump only for
-   * the tables named; `undefined` (unknown scope) bumps them all.
+   * mutation-lifecycle readers ride it. The per-collection channels bump only for
+   * the collections named; `undefined` (unknown scope) bumps them all.
    */
-  bumpTables(changedTables?: ReadonlySet<string>): void {
+  bumpCollections(changedCollections?: ReadonlySet<string>): void {
     batch(() => {
       this.bumpVersion();
-      if (changedTables === undefined) {
-        for (const signal of this.tableVersions.values()) {
+      if (changedCollections === undefined) {
+        for (const signal of this.collectionVersions.values()) {
           signal.bump();
         }
         return;
       }
-      for (const name of changedTables) {
-        this.tableVersions.get(name)?.bump();
+      for (const name of changedCollections) {
+        this.collectionVersions.get(name)?.bump();
       }
     });
   }
@@ -484,11 +484,11 @@ export class ServiceContext {
   /**
    * @internal Non-client invalidation of the revision channels (subscription
    * arrival/error, test-driven fakes). No scope information, so it bumps the
-   * coarse channel AND every per-table channel — the conservative read of
+   * coarse channel AND every per-collection channel — the conservative read of
    * "something changed".
    */
   bump(): void {
-    this.bumpTables(undefined);
+    this.bumpCollections(undefined);
   }
 
   /** Resolve (or lazily construct) the singleton for a service class. */

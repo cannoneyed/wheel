@@ -4,7 +4,7 @@
  * deterministic. These are the tests the todo demo app's suite builds on.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { mutation, orphan, presence, query, table } from '../sync/declarations';
+import { mutation, orphan, presence, query, collection } from '../sync/declarations';
 import { ServiceContext } from '../core/services';
 import { SyncService } from '../sync/sync-service';
 import { t } from '../sync/schema';
@@ -21,7 +21,7 @@ const TodoRow = t.object({
   position: t.number()
 });
 
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 
 const todosByList = query({
   name: 'todos.byList',

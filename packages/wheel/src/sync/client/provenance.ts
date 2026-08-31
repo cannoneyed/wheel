@@ -13,10 +13,10 @@ export type WriteCause =
   /** Served from the persisted local cache at boot, before any wire confirmation. */
   | { kind: 'hydrate'; seq: number };
 
-/** One write in the audit log: table/row, the value after the write, and its cause. */
+/** One write in the audit log: collection/row, the value after the write, and its cause. */
 export interface ProvenanceEntry {
   readonly at: number;
-  readonly table: string;
+  readonly collection: string;
   readonly rowId: string;
   /** The row value after this write; undefined = the write deleted the row. */
   readonly value: Record<string, unknown> | undefined;
@@ -42,8 +42,8 @@ export class ProvenanceLog {
   }
 
   /** Every recorded write for one row, oldest first. */
-  forRow(table: string, rowId: string): ProvenanceEntry[] {
-    return this.entries.filter((entry) => entry.table === table && entry.rowId === rowId);
+  forRow(collection: string, rowId: string): ProvenanceEntry[] {
+    return this.entries.filter((entry) => entry.collection === collection && entry.rowId === rowId);
   }
 
   /** The whole buffer, oldest first. */

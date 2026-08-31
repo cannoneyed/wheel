@@ -4,7 +4,7 @@
  * invariants at quiescence. Same seed, same run, forever — a failing seed is
  * a permanent regression test (see replayFixture).
  */
-import type { TableDecl } from '../sync/declarations';
+import type { CollectionDecl } from '../sync/declarations';
 import type { SyncClient } from '../sync/client/client';
 import { World, type WorldOptions } from './world';
 
@@ -34,8 +34,8 @@ export interface SimulateOptions extends WorldOptions {
   /** Run once per client before stepping (subscribe to the queries under test). */
   prepare: (client: SyncClient) => Promise<void>;
   ops: SimOp[];
-  /** Tables whose rows the convergence invariant compares across clients. */
-  tables: TableDecl<any>[];
+  /** Collections whose rows the convergence invariant compares across clients. */
+  collections: CollectionDecl<any>[];
 }
 
 /** What a simulation run reports: per-op counts and the final converged rows. */
@@ -43,7 +43,7 @@ export interface SimulationReport {
   seed: number;
   steps: number;
   opCounts: Record<string, number>;
-  /** Final rows per table, from client 0 (all clients proven identical). */
+  /** Final rows per collection, from client 0 (all clients proven identical). */
   finalRows: Record<string, unknown[]>;
 }
 
@@ -83,7 +83,7 @@ export async function simulate(options: SimulateOptions): Promise<SimulationRepo
       clients.push(client);
     }
 
-    // Weighted op table + built-in network chaos.
+    // Weighted operation pool plus built-in network chaos.
     const pool: SimOp[] = [
       ...options.ops,
       {
@@ -119,16 +119,16 @@ export async function simulate(options: SimulateOptions): Promise<SimulationRepo
     }
     await world.settle();
 
-    // Invariant: convergence — every client sees identical rows per table.
+    // Invariant: convergence — every client sees identical rows per collection.
     // Pool iteration order is insertion order and legitimately differs per
-    // client; compare row SETS, keyed and sorted by the table's key.
-    const sortedRows = (client: SyncClient, table: TableDecl): unknown[] =>
-      [...client.rows(table)].sort((a, b) => table.key(a).localeCompare(table.key(b)));
-    for (const table of options.tables) {
-      const reference = JSON.stringify(sortedRows(clients[0], table));
+    // client; compare row SETS, keyed and sorted by the collection's key.
+    const sortedRows = (client: SyncClient, collection: CollectionDecl): unknown[] =>
+      [...client.rows(collection)].sort((a, b) => collection.key(a).localeCompare(collection.key(b)));
+    for (const collection of options.collections) {
+      const reference = JSON.stringify(sortedRows(clients[0], collection));
       for (const [index, client] of clients.entries()) {
-        if (JSON.stringify(sortedRows(client, table)) !== reference) {
-          throw new InvariantViolation('convergence', `client sim_${index} diverges on table ${table.name}`, options.seed, options.steps);
+        if (JSON.stringify(sortedRows(client, collection)) !== reference) {
+          throw new InvariantViolation('convergence', `client sim_${index} diverges on collection ${collection.name}`, options.seed, options.steps);
         }
       }
       const seqs = new Set(clients.map((client) => client.seq()));
@@ -172,9 +172,9 @@ export async function simulate(options: SimulateOptions): Promise<SimulationRepo
       steps: options.steps,
       opCounts,
       finalRows: Object.fromEntries(
-        options.tables.map((table) => [
-          table.name,
-          [...clients[0].rows(table)].sort((a, b) => table.key(a).localeCompare(table.key(b)))
+        options.collections.map((collection) => [
+          collection.name,
+          [...clients[0].rows(collection)].sort((a, b) => collection.key(a).localeCompare(collection.key(b)))
         ])
       )
     };
@@ -190,16 +190,16 @@ export interface ReplayFixture {
   finalRows: Record<string, unknown[]>;
 }
 
-/** Re-run a fixture's seed and fail loudly if any table's final rows differ. */
+/** Re-run a fixture's seed and fail loudly if any collection's final rows differ. */
 export async function replayFixture(
   fixture: ReplayFixture,
   options: Omit<SimulateOptions, 'seed' | 'steps'>
 ): Promise<SimulationReport> {
   const report = await simulate({ ...options, seed: fixture.seed, steps: fixture.steps });
-  for (const [table, rows] of Object.entries(fixture.finalRows)) {
-    const actual = JSON.stringify(report.finalRows[table]);
+  for (const [collection, rows] of Object.entries(fixture.finalRows)) {
+    const actual = JSON.stringify(report.finalRows[collection]);
     if (actual !== JSON.stringify(rows)) {
-      throw new Error(`Replay diverged from fixture on table "${table}" (seed=${fixture.seed}): the engine's behavior changed.`);
+      throw new Error(`Replay diverged from fixture on collection "${collection}" (seed=${fixture.seed}): the engine's behavior changed.`);
     }
   }
   return report;

@@ -3,7 +3,7 @@
  * SqlQueryHandler:
  *
  * - `run` produces ranked rows via SQLite FTS5 full-text search;
- * - the shared query declaration gives standard table invalidation;
+ * - the shared query declaration gives standard physical dependency invalidation;
  * - `subscribe` is a real push channel: anything can poke
  *   `searchInvalidation.notify()` and every open search re-runs + diffs —
  *   the seam a materialized view or external index (Meilisearch etc.) would use.

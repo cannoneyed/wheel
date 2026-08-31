@@ -1,5 +1,5 @@
 /**
- * Server bindings for projects. The `project_counts` virtual query is the
+ * Server bindings for projects. The `project_counts` derived query is the
  * first physical-table-free handler: its SQL derives rows from issues +
  * workflow_states, and invalidation comes from the shared dependency list.
  */
@@ -13,7 +13,7 @@ import {
   projectsAll
 } from './projects.sync';
 
-/** DDL for the projects table (the virtual table has none — that's the point). */
+/** DDL for the projects table (`project_counts` has no matching table). */
 export const PROJECTS_DDL = [
   `create table if not exists projects (
      id text primary key,
@@ -34,7 +34,7 @@ export const projectsAllServer = serveQuery({
         from projects order by position, id`
 });
 
-/** project_counts.all — derived progress per project (virtual; declared dependencies only). */
+/** project_counts.all — derived progress per project through declared dependencies. */
 export const projectCountsAllServer = serveQuery({
   query: projectCountsAll,
   sql: () =>

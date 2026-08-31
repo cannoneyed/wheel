@@ -18,7 +18,7 @@
  */
 import { canonicalParams } from '../../core/params';
 import type { AuthPrincipal } from '../../auth/index';
-import { validateTableKey } from '../declarations';
+import { validateCollectionKey } from '../declarations';
 import type { Clock, IdGen } from '../ids';
 import { createIdGen, isValidId } from '../ids';
 import { buildRegistry, type Registry } from './registry';
@@ -256,19 +256,13 @@ export class SyncServer {
     return this.lastSeq;
   }
 
-  /** Physical names of every non-virtual declared table — the set the backend installs tracking on. */
+  /** Physical table names derived from every query dependency. */
   syncedTables(): string[] {
-    const names: string[] = [];
-    for (const [tableName, tableDecl] of this.registry.tables) {
-      if (!tableDecl.virtual) {
-        names.push(tableName);
-      }
-    }
-    return names;
+    return [...new Set([...this.registry.queries.values()].flatMap((query) => query.dependsOn))];
   }
 
   /**
-   * Each non-virtual table's zod row schema (name → schema). Handed to the
+   * Each physical source table's row schema (name → schema). Handed to the
    * backend at boot so a backend whose storage drifts from what the schemas
    * validate can repair rows at its read seam (the SQLite backend turns integer
    * 0/1 back into real booleans); backends that already return schema-shaped
@@ -276,10 +270,9 @@ export class SyncServer {
    */
   private syncedTableSchemas(): Map<string, RowSchema> {
     const schemas = new Map<string, RowSchema>();
-    for (const [tableName, tableDecl] of this.registry.tables) {
-      if (!tableDecl.virtual) {
-        schemas.set(tableName, tableDecl.schema);
-      }
+    for (const tableName of this.syncedTables()) {
+      const collection = this.registry.collections.get(tableName);
+      if (collection) schemas.set(tableName, collection.schema);
     }
     return schemas;
   }
@@ -624,18 +617,18 @@ export class SyncServer {
 
   /** Validate + freeze + key one query's raw rows — the boundary net: no row reaches a client unvalidated. */
   private keyRows(binding: ServeQueryBinding, rawRows: readonly DbRow[]): Map<string, { row: DbRow; canonical: string }> {
-    const table = binding.query.into;
+    const collection = binding.query.into;
     const keyed = new Map<string, { row: DbRow; canonical: string }>();
     const firstIndexes = new Map<string, number>();
     for (const [index, raw] of rawRows.entries()) {
-      const row = validateRow(`query ${binding.name}`, table.schema, raw);
+      const row = validateRow(`query ${binding.name}`, collection.schema, raw);
       const frozen = Object.freeze(row);
-      const key = validateTableKey(table, frozen, `Query "${binding.name}" row ${index}`);
+      const key = validateCollectionKey(collection, frozen, `Query "${binding.name}" row ${index}`);
       const firstIndex = firstIndexes.get(key);
       if (firstIndex !== undefined) {
         throw new SyncServerError(
           'duplicate_row_key',
-          `Query "${binding.name}" returned duplicate key ${JSON.stringify(key)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+          `Query "${binding.name}" returned duplicate key ${JSON.stringify(key)} for collection "${collection.name}" at rows ${firstIndex} and ${index}.`
         );
       }
       firstIndexes.set(key, index);

@@ -17,7 +17,7 @@
  * delete is deliberately NOT undoable and is server-guarded to archived
  * issues only (soft-delete doctrine).
  */
-import { mutation, orphan, patchMutation, query, t, table, type Infer, type InverseSpec } from 'wheel/sync';
+import { mutation, orphan, patchMutation, query, t, collection, type Infer, type InverseSpec } from 'wheel/sync';
 
 /** One issue row as it lives in SQLite and every client cache. */
 export const IssueRow = t.object({
@@ -50,8 +50,8 @@ export const IssueRow = t.object({
   updatedAt: t.number()
 });
 
-/** The issues table. */
-export const issues = table({ name: 'issues', type: IssueRow, key: (row) => row.id });
+/** The issues collection. */
+export const issues = collection({ name: 'issues', type: IssueRow, key: (row) => row.id });
 
 /** A label; `teamId` null = workspace-level label visible to every team. */
 export const LabelRow = t.object({
@@ -61,8 +61,8 @@ export const LabelRow = t.object({
   color: t.string()
 });
 
-/** The labels table. */
-export const labels = table({ name: 'labels', type: LabelRow, key: (row) => row.id });
+/** The labels collection. */
+export const labels = collection({ name: 'labels', type: LabelRow, key: (row) => row.id });
 
 /** An issue↔issue relation. `blocks`: issueId blocks relatedId. */
 export const RelationRow = t.object({
@@ -73,8 +73,8 @@ export const RelationRow = t.object({
   kind: t.enum(['blocks', 'relates', 'duplicate'])
 });
 
-/** The issue_relations table. */
-export const issueRelations = table({
+/** The issue_relations collection. */
+export const issueRelations = collection({
   name: 'issue_relations',
   type: RelationRow,
   key: (row) => row.id
@@ -87,8 +87,8 @@ export const IssueLabelRow = t.object({
   teamId: t.string()
 });
 
-/** The issue_labels join table (composite key). */
-export const issueLabels = table({
+/** The issue_labels join collection (composite key). */
+export const issueLabels = collection({
   name: 'issue_labels',
   type: IssueLabelRow,
   key: (row) => `${row.issueId}:${row.labelId}`,
@@ -255,7 +255,7 @@ export const issueCreate = mutation({
 export const issueUpdate = patchMutation({
   name: 'issues.update',
   args: t.object({ issueId: t.string(), patch: IssuePatch }),
-  table: issues,
+  collection: issues,
   id: (args) => args.issueId,
   stamp: (ctx) => ({ updatedAt: ctx.now() }),
   description: 'edit issue',

@@ -27,7 +27,7 @@ on chat history.
 | 3. Add Elixir grouping and external writes | `M` | Complete | PostgreSQL grouping and external-write checks passed |
 | 4. Move client state ownership | `L` | Complete | Materializer ownership and local behavior gates passed |
 | 5. Expand query and source contracts | `L` | Complete | Shared dependencies and callback-source gates passed |
-| 6. Rename APIs and enforce boundary | `M` | Ready | Final local and CI checks not run |
+| 6. Rename APIs and enforce boundary | `M` | In progress | Local implementation passed; Buildkite gates pending |
 | 7. Add multi-node invalidation | `L` | Deferred | Scope not active |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`. Only
@@ -140,7 +140,7 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 ### Phase 2B
 
 - [x] Generate one canonical cached-row fingerprint from the schema contract.
-- [x] Include table contracts and query-to-table mappings in the fingerprint input.
+- [x] Include collection contracts and query-to-collection mappings in the fingerprint input.
 - [x] Generate matching server JSON and browser-safe TypeScript artifacts.
 - [x] Add the standard cache-scope helper and preserve the outbox scope.
 - [x] Replace manual snapshot version scopes in Tracker, demos, and examples.
@@ -182,12 +182,12 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 
 ### Phase 6
 
-- [ ] Remove obsolete public table names and the `virtual` flag.
-- [ ] Pass schema generation checks with the new version.
-- [ ] Enforce the materializer write boundary or record why a safe lint rule is not feasible.
-- [ ] Pass `bun run typecheck` locally.
-- [ ] Pass `bun run lint` locally.
-- [ ] Pass `bun run test` locally.
+- [x] Remove obsolete public table names and the `virtual` flag.
+- [x] Pass schema generation checks with the new version.
+- [x] Enforce the materializer write boundary or record why a safe lint rule is not feasible.
+- [x] Pass `bun run typecheck` locally.
+- [x] Pass `bun run lint` locally.
+- [x] Pass `bun run test` locally.
 - [ ] Pass backend, package, and Cloudflare checks in Buildkite.
 - [ ] Pass Buildkite browser checks for SQLite and PostgreSQL.
 - [ ] Confirm CI completes in less than two minutes.
@@ -243,10 +243,73 @@ A phase cannot be `Complete` while a required check is skipped or failing.
 | 2026-08-31 | 5 | Keep dependencies as validated table names | String names avoid cross-module import cycles, and both registries reject undeclared names at startup. |
 | 2026-08-31 | 5 | Do not add expression pushdown | Phase 0A removed the TanStack adapter, and Wheel has no expression consumer. A mapper would be unused public surface. |
 | 2026-08-31 | 5 | Sequence source invalidations before reruns | External source deltas and status changes must share the normal workspace order and checkpoint path. |
+| 2026-08-31 | 6 | Replace table declarations with collection declarations | Collection describes both stored rows and derived query results. The old `virtual` flag duplicated data already present in query dependencies. |
+| 2026-08-31 | 6 | Derive physical sources from `dependsOn` | The union of query dependencies is the exact set of storage tables that need backend tracking. Push-only queries use an empty list. |
+| 2026-08-31 | 6 | Restrict materializer imports with ESLint | Package exports already hide the module from consumers. The rule also stops production source files in this repository from bypassing `SyncClient`. |
 
 ## Work log
 
 Add new entries at the top of this section. Keep prior entries unchanged.
+
+### 2026-08-31: Implement Phase 6
+
+**State:** In progress
+
+**Worktree**
+
+- Branch `wheel-upgrades`, based on commit `6b72bf6`.
+- Existing changes to `AGENTS.md`, `wheel-version.md`, and `wheel-upgrades-report.md` remain outside
+  this phase.
+
+**Decisions**
+
+- A collection is a physical invalidation source when at least one query names it in `dependsOn`.
+- A push-only collection has no physical source because its query declares `dependsOn: []`.
+- SQL storage and touched-table terms stay at the backend boundary. Public declarations, cache APIs,
+  generated contracts, applications, and docs use collection terms.
+- Direct materializer imports are blocked outside `SyncClient` and focused tests. Package exports
+  already prevent public imports, so the rule can enforce the repository boundary without matching
+  method names.
+
+**Changes**
+
+- Replaced `table`, `TableDecl`, schema `tables`, and cache table terms with collection names. No
+  compatibility alias remains.
+- Removed `virtual`. The server now derives physical backend sources from the union of query
+  `dependsOn` lists; `dependsOn: []` marks a push-only query.
+- Bumped the generated schema contract from version 3 to version 4 and regenerated all schema and
+  fingerprint artifacts.
+- Updated TypeScript, Elixir, Cloudflare, Tracker, demos, examples, package probes, debug tools, and
+  test helpers to the new contract.
+- Replaced the virtual-table guide with the derived-collection guide and regenerated the robot API
+  docs.
+- Added `wheel/no-direct-materializer-writes`, Linter API cases, root configuration, and the linting
+  reference entry.
+
+**Validation**
+
+- `rg` found no obsolete public declaration names, `virtual: true`, or old guide paths in active
+  source and docs.
+- `bun run check:static` passed lint, schema checks, generated fingerprints, generated docs,
+  TypeScript, Wrangler types, package tests, and Node, Bun, Vite, and Cloudflare package consumers.
+- `bun run test` passed 155 component files with 1,882 passing and 26 skipped tests, then 105 node
+  files with 818 passing tests and no type errors.
+- `bun run test:backends` passed 16 SQLite backend tests.
+- `bun run test:wire` passed 12 TypeScript SQLite wire tests.
+- `bun run test:cloudflare` passed 3 files and 27 tests.
+- `bun run test:elixir` passed formatting, 10 WheelSync tests, and Tracker compilation. Five
+  PostgreSQL tests remained excluded because this local command has no database.
+- The `/ponytail` audit found no added dependency, compatibility shim, or unused abstraction. It
+  removed stale virtual-table wording and renamed the remaining Elixir collection-contract locals.
+- The post-audit checks passed lint, the 10 Elixir unit tests, Tracker compilation, and 47 focused
+  declaration, schema, query-handler, and lint-rule tests.
+- `git diff --check` passed.
+- Browser and PostgreSQL matrix checks were not run locally. Buildkite owns those gates.
+
+**Gate**
+
+- Local implementation is complete. Phase 6 remains in progress until the branch is committed,
+  pushed, and the required Buildkite checks pass in less than two minutes.
 
 ### 2026-08-31: Complete Phase 5
 

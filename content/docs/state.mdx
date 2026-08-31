@@ -154,7 +154,7 @@ This demo runs the real kernel. Click the button, watch the registry's live view
 
 Server data goes one level deeper — `client.explain(...)` returns any row's current value, the cause of its last write, and its full history (see [Live State](#/live-state)).
 
-**The debug panel ships with the library.** Wrap your root in `<WheelApp client>` (from `wheel/debug`) and a dev build mounts it for you: the service tree with live primitive values, every component's declared dependencies, client tables, and the cause-colored change stream (`bootstrap` grey, `hydrate` purple, `optimistic` amber, `sync-apply` teal, `rollback` and `orphaned` red). It works in clientless sandboxes too — the client sections hide. Hosts that cannot wrap their root mount the floating `<WheelDebugPanel />` instead. The full tour is on [Debugging](#/debugging).
+**The debug panel ships with the library.** Wrap your root in `<WheelApp client>` (from `wheel/debug`) and a dev build mounts it for you: the service tree with live primitive values, every component's declared dependencies, client collections, and the cause-colored change stream (`bootstrap` grey, `hydrate` purple, `optimistic` amber, `sync-apply` teal, `rollback` and `orphaned` red). It works in clientless sandboxes too — the client sections hide. Hosts that cannot wrap their root mount the floating `<WheelDebugPanel />` instead. The full tour is on [Debugging](#/debugging).
 
 <Aside kind="todo">
   <strong>Snapshot export.</strong> The rectangle inspector ships (see <a href="#/components">Components</a>):

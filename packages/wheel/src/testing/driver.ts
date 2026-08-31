@@ -67,7 +67,7 @@ type BridgeMethod =
   | 'act'
   | 'actService'
   | 'actions'
-  | 'tables'
+  | 'collections'
   | 'writes'
   | 'errors'
   | 'highlight'
@@ -83,7 +83,7 @@ export interface WheelDriver {
   act(instanceId: string, action: string, ...args: unknown[]): Promise<BridgeActResult>;
   actService(serviceName: string, actionName: string, ...args: unknown[]): Promise<BridgeActResult>;
   actions(): Promise<ReturnType<WheelGlobal['actions']>>;
-  tables(): Promise<ReturnType<WheelGlobal['tables']>>;
+  collections(): Promise<ReturnType<WheelGlobal['collections']>>;
   writes(limit?: number): Promise<Array<Record<string, unknown>>>;
   /** The app's full captured-error buffer. */
   errors(): Promise<BridgeErrorEntry[]>;
@@ -141,7 +141,7 @@ export function wheelDriver(page: DriverPage, options: WheelDriverOptions = {}):
     act: (instanceId, action, ...args) => call('act', [instanceId, action, args]),
     actService: (serviceName, actionName, ...args) => call('actService', [serviceName, actionName, args]),
     actions: () => call('actions', []),
-    tables: () => call('tables', []),
+    collections: () => call('collections', []),
     writes: (limit) => call('writes', limit === undefined ? [] : [limit]),
     errors: () => evaluate('errors', []),
     newErrors: drainNewErrors,

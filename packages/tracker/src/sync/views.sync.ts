@@ -3,7 +3,7 @@
  * config, stored as JSON strings. They're ordinary synced rows — every
  * client sees every saved view.
  */
-import { mutation, query, t, table, type Infer, type InverseSpec } from 'wheel/sync';
+import { mutation, query, t, collection, type Infer, type InverseSpec } from 'wheel/sync';
 
 /** One saved view. `filters`/`display` are ViewOptionsService snapshots (JSON). */
 export const ViewRow = t.object({
@@ -16,8 +16,8 @@ export const ViewRow = t.object({
   createdAt: t.number()
 });
 
-/** The views table. */
-export const views = table({ name: 'views', type: ViewRow, key: (row) => row.id });
+/** The views collection. */
+export const views = collection({ name: 'views', type: ViewRow, key: (row) => row.id });
 
 /** A team's saved views, oldest first. */
 export const viewsByTeam = query({

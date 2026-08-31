@@ -13,10 +13,10 @@ defmodule WheelSync.Registry do
     assert_same_names!(Map.keys(contract.mutations), Map.keys(mutations), "mutation")
 
     for {name, query} <- contract.queries do
-      for table <- query["dependsOn"] do
-        unless Map.has_key?(contract.tables, table) do
+      for collection <- query["dependsOn"] do
+        unless Map.has_key?(contract.collections, collection) do
           raise ArgumentError,
-                "query #{inspect(query["name"])} depends on undeclared table #{inspect(table)}"
+                "query #{inspect(query["name"])} depends on undeclared collection #{inspect(collection)}"
         end
       end
 
@@ -42,7 +42,7 @@ defmodule WheelSync.Registry do
 
     if query["dependsOn"] == [] and not function_exported?(module, :subscribe, 3) do
       raise ArgumentError,
-            "query #{inspect(query["name"])} must declare dependsOn tables or implement subscribe/3"
+            "query #{inspect(query["name"])} must declare physical dependencies or implement subscribe/3"
     end
   end
 

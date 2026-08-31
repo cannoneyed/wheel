@@ -7,7 +7,7 @@
  * list index — a move is always ONE row write, so concurrent moves of
  * different cards compose instead of conflicting.
  */
-import { mutation, query, t, table } from 'wheel/sync';
+import { mutation, query, t, collection } from 'wheel/sync';
 
 /** One kanban card as it lives in SQLite and every client cache. */
 export const CardRow = t.object({
@@ -18,7 +18,7 @@ export const CardRow = t.object({
   position: t.number()
 });
 
-export const cards = table({ name: 'cards', type: CardRow, key: (row) => row.id });
+export const cards = collection({ name: 'cards', type: CardRow, key: (row) => row.id });
 
 /** All cards, position-sorted; the columns split them client-side. */
 export const cardList = query({

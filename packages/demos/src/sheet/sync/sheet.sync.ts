@@ -7,7 +7,7 @@ import {
   mutation,
   query,
   t,
-  table,
+  collection,
   type Infer,
   type InverseSpec,
   type MutationDecl
@@ -21,7 +21,7 @@ export const CellRow = t.object({
   value: t.string()
 });
 
-export const cells = table({ name: 'cells', type: CellRow, key: (row) => row.id });
+export const cells = collection({ name: 'cells', type: CellRow, key: (row) => row.id });
 
 /** Every populated cell of the sheet, server-ordered by (row, col). */
 export const cellList = query({

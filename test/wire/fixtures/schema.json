@@ -1,11 +1,10 @@
 {
-  "schemaSpecVersion": 3,
+  "schemaSpecVersion": 4,
   "protocolVersion": 3,
-  "rowSchemaFingerprint": "wheel-rows-sha256:fb6281996d6cb4de5c3535589563aa5958d5e7a6581cdfc25589534a38826519",
-  "tables": [
+  "rowSchemaFingerprint": "wheel-rows-sha256:2718c1fa88a5331f7e5deab5170190d2340bb676a171d9d332152c04ef196d8d",
+  "collections": [
     {
       "name": "source_widgets",
-      "virtual": true,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -51,7 +50,6 @@
     },
     {
       "name": "widgets",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

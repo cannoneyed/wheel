@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
-import { mutation, orphan, query, rejection, table, type InverseSpec } from '../sync/declarations';
+import { mutation, orphan, query, rejection, collection, type InverseSpec } from '../sync/declarations';
 import { t } from '../sync/schema';
 import { sql } from '../sync/sql';
 import { serveMutation, serveQuery } from '../sync/server/serve';
@@ -13,7 +13,7 @@ import type { MutateGroupRequest } from '../sync/protocol';
 import { World } from './world';
 
 const ItemRow = t.object({ id: t.string(), label: t.string() });
-const items = table({ name: 'items', type: ItemRow, key: (row) => row.id });
+const items = collection({ name: 'items', type: ItemRow, key: (row) => row.id });
 const itemList = query({
   name: 'items.list',
   params: t.object({}),

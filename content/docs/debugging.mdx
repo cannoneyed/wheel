@@ -77,7 +77,7 @@ Services are bucketed by the class's `static group`: **app** (yours, open by def
 **framework** (wheel's own kit and router internals, collapsed), and any custom group you define.
 Wheel's debug services are hidden entirely — the panel does not show you the panel.
 
-A client-backed app gets three more sections here: the table cache, the live subscriptions, and
+A client-backed app gets three more sections here: the collection cache, the live subscriptions, and
 the color-coded provenance change stream.
 
 ### The components pane
@@ -208,7 +208,7 @@ from `page.evaluate`, from any tool that can run JS in the tab:
 | `find(query)` | instances whose id or name matches, with rects |
 | `act(id, action, args)` | invoke a mounted instance's shape action |
 | `actService(service, action, args)` | invoke a service action by name (`actions()` lists the catalog) |
-| `tables()` / `writes()` | the client's row cache and provenance stream |
+| `collections()` / `writes()` | the client's row cache and provenance stream |
 | `settle(timeoutMs?)` | resolves when sync is quiet — 0 pending, connected |
 | `highlight(id)` | outline an instance on the page (show a human what you mean) |
 

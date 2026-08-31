@@ -44,7 +44,7 @@ my-app/
 | Component | `issue-row.tsx` | `IssueRow` |
 | Its styles | `issue-row.module.css` | default `styles` object |
 | Service | `issue-service.ts` | `class IssueService` |
-| Sync contract | `issues.sync.ts` | tables, queries, mutations |
+| Sync contract | `issues.sync.ts` | collections, queries, mutations |
 | Server bindings | `issues.server.ts` | `serveQuery` / `serveMutation` + DDL |
 
 Files are kebab-case. Exports are PascalCase for components and classes. Sync files are named after the domain in plural (`issues`, `comments`, `cycles`), and the two halves of a domain always share that stem — `issues.sync.ts` is the shared declaration and `issues.server.ts` is its SQL binding. Splitting a domain means adding a new pair, never adding a third file to an existing one.

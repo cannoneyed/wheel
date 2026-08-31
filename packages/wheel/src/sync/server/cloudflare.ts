@@ -82,7 +82,7 @@ export {
   type SchemaSpecMutation,
   type SchemaSpecPresence,
   type SchemaSpecQuery,
-  type SchemaSpecTable,
+  type SchemaSpecCollection,
   type WheelSchemaSpec
 } from './schema-spec';
 export {

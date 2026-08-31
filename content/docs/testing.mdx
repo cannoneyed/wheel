@@ -64,7 +64,7 @@ await world.settle();
 
 `simulate` runs a seeded, weighted mix of operations across several clients — including deliberate drops, reorders, and reconnects — then checks four invariants at quiescence. Same seed, same run, forever: a failing seed reproduces the bug on demand.
 
-Declare the schedule and the tables to compare:
+Declare the schedule and the collections to compare:
 
 <CodeExample example={testingSource} region="simulation" />
 
@@ -72,7 +72,7 @@ The four invariants checked at quiescence:
 
 | Invariant | Asserts |
 | --- | --- |
-| `convergence` | every client sees identical rows per table |
+| `convergence` | every client sees identical rows per collection |
 | `seqContinuity` | no gaps in the sync log |
 | `causesComplete` | every write has a known cause (provenance is never blank) |
 | `noOrphanOptimism` | no pending mutation left behind |

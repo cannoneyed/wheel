@@ -1,6 +1,6 @@
 /**
  * The debug surfaces' shared section library: the expandable JSON tree and
- * the audit sections (service state, component manifests, client tables /
+ * the audit sections (service state, component manifests, client collections /
  * subscriptions / provenance stream). Two chromes render these — the
  * floating `<WheelDebugPanel/>` widget and `<WheelApp/>`'s docked panel — so
  * the sections live here, chrome-free, taking their context as props.
@@ -50,7 +50,7 @@ export const sectionStyles = {
    * A pane's OWN heading, pinned while its content scrolls — the components
    * header carries the ⌖ picker, and losing it three screens into a tree is
    * the moment you want it. Only the heading that opens a pane gets this;
-   * the sub-headings inside one (tables/subscriptions/change stream) scroll
+   * the sub-headings inside one (collections/subscriptions/change stream) scroll
    * normally, or they would stack on top of each other.
    */
   paneTitle: {
@@ -496,7 +496,7 @@ function causeLabel(cause: WriteCause): JSX.Element {
   );
 }
 
-/** Client-backed sections: table cache, subscriptions, provenance stream. Renders nothing clientless. */
+/** Client-backed sections: collection cache, subscriptions, provenance stream. Renders nothing clientless. */
 export function ClientSections(props: {
   services: ServiceContext;
   client: SyncClient | null;
@@ -505,9 +505,9 @@ export function ClientSections(props: {
   // Client-backed reads: rev() subscribes them to the client's change channel
   // (every onChange bumps the context revision signal).
   const rev = (): number => props.services.trackVersion();
-  const tables = (): Array<{ table: string; rows: readonly Record<string, unknown>[] }> => {
+  const collections = (): Array<{ collection: string; rows: readonly Record<string, unknown>[] }> => {
     rev();
-    return props.client?.tablesDebug() ?? [];
+    return props.client?.collectionsDebug() ?? [];
   };
   const subscriptions = (): Array<{ key: string; subscriptionId: string; refs: number; rows: number }> => {
     rev();
@@ -519,14 +519,14 @@ export function ClientSections(props: {
   };
   return (
     <Show when={props.client !== null}>
-      <div style={sectionStyles.sectionTitle}>tables</div>
-      <For each={tables()}>
+      <div style={sectionStyles.sectionTitle}>collections</div>
+      <For each={collections()}>
         {(entry) => (
-          <Expandable path={`table:${entry.table}`} label={entry.table} summary={`(${entry.rows.length})`} ex={props.ex}>
+          <Expandable path={`collection:${entry.collection}`} label={entry.collection} summary={`(${entry.rows.length})`} ex={props.ex}>
             <For each={entry.rows}>
               {(row, index) => {
                 const id = String(row.id ?? index());
-                return <JsonTree path={`table:${entry.table}.${id}`} label={id} value={row} ex={props.ex} />;
+                return <JsonTree path={`collection:${entry.collection}.${id}`} label={id} value={row} ex={props.ex} />;
               }}
             </For>
           </Expandable>
@@ -549,7 +549,7 @@ export function ClientSections(props: {
           {(entry) => (
             <div style={sectionStyles.row}>
               <span style={sectionStyles.dim}>
-                {entry.table}/{entry.rowId}
+                {entry.collection}/{entry.rowId}
               </span>
               {causeLabel(entry.cause)}
               <Show when={entry.value === undefined}>

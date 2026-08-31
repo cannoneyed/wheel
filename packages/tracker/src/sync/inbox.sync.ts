@@ -9,7 +9,7 @@
  * mutation `notifications.setRead` carries explicit per-id values, so
  * mark-one, mark-all, and both undos are the same shape.
  */
-import { mutation, query, t, table, type Infer, type InverseSpec } from 'wheel/sync';
+import { mutation, query, t, collection, type Infer, type InverseSpec } from 'wheel/sync';
 
 /** One notification. `detail` is display context (e.g. the comment snippet). */
 export const NotificationRow = t.object({
@@ -23,8 +23,8 @@ export const NotificationRow = t.object({
   createdAt: t.number()
 });
 
-/** The notifications table. */
-export const notifications = table({
+/** The notifications collection. */
+export const notifications = collection({
   name: 'notifications',
   type: NotificationRow,
   key: (row) => row.id

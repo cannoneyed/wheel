@@ -1,12 +1,12 @@
 /**
  * wheel/sync — the local-first sync surface (browser-safe).
  *
- * Declarations (table/query/mutation/presence), the wire protocol, the sync
+ * Declarations (collection/query/mutation/presence), the wire protocol, the sync
  * client + transports + local cache, and `SyncService`/`liveQuery`. Depends on
  * `core` and nothing else — never on `sync/server` (the node engine).
  */
 export {
-  table,
+  collection,
   query,
   mutation,
   patchMutation,
@@ -16,8 +16,8 @@ export {
   orphan,
   OrphanedError,
   type PresenceDecl,
-  type TableKeySpec,
-  type TableDecl,
+  type CollectionKeySpec,
+  type CollectionDecl,
   type QueryDecl,
   type MutationDecl,
   type MutationCall,

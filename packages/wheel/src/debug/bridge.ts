@@ -8,7 +8,7 @@
  * - READS: the full state tree (`state()`), the mounted component tree
  *   (`components()`), per-instance live props/local/connect state
  *   (`component(id)`), the client's
- *   table cache and provenance stream (`tables()`, `writes()`). Everything
+ *   collection cache and provenance stream (`collections()`, `writes()`). Everything
  *   returns plain JSON — serialized with depth/size caps so a `page.evaluate`
  *   round trip can't explode on a big app.
  * - WRITES: `act()` (a mounted instance's shape action) and `actService()`
@@ -262,9 +262,9 @@ function makeAppBridge(appId: string, context: WheelContextValue): WheelBridgeAp
           serviceId: entry.meta.serviceId ?? ''
         }));
     },
-    tables() {
-      return (client?.tablesDebug() ?? []).map((entry) => ({
-        table: entry.table,
+    collections() {
+      return (client?.collectionsDebug() ?? []).map((entry) => ({
+        collection: entry.collection,
         rows: serializeValue(entry.rows) as Record<string, unknown>[]
       }));
     },
@@ -338,7 +338,7 @@ function makeGlobal(): WheelGlobal {
     act: proxy('act'),
     actService: proxy('actService'),
     actions: proxy('actions'),
-    tables: proxy('tables'),
+    collections: proxy('collections'),
     writes: proxy('writes'),
     // Errors are WINDOW-scoped — readable with zero or many apps mounted (a
     // crashed app may have uninstalled itself; its errors must remain

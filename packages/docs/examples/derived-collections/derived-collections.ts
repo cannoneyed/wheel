@@ -1,5 +1,5 @@
 // #region declaration
-import { query, sql, t, table } from 'wheel/sync';
+import { query, sql, t, collection } from 'wheel/sync';
 
 const ProjectCountsRow = t.object({
   projectId: t.string(),
@@ -7,12 +7,11 @@ const ProjectCountsRow = t.object({
   completed: t.number()
 });
 
-export const projectCounts = table({
+export const projectCounts = collection({
   name: 'project_counts',
   type: ProjectCountsRow,
   key: (row) => row.projectId,
-  keySpec: { fields: ['projectId'] },
-  virtual: true
+  keySpec: { fields: ['projectId'] }
 });
 
 export const projectCountsAll = query({
@@ -48,11 +47,10 @@ const SearchResult = t.object({
   id: t.string(),
   rank: t.number()
 });
-const searchResults = table({
+const searchResults = collection({
   name: 'search_results',
   type: SearchResult,
-  key: (row) => row.id,
-  virtual: true
+  key: (row) => row.id
 });
 const searchQuery = query({
   name: 'search_results.all',

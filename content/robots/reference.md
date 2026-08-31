@@ -9,13 +9,13 @@ Human page: [Names and errors](../docs/reference.mdx). API: [`wheel/sync`](api/s
 | Table and presence | `^[a-z][a-z0-9_]*$` |
 | Query and mutation | `^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$` |
 
-A query namespace must equal its result table name. A mutation namespace groups operations and does not declare its complete write set.
+A query namespace must equal its result collection name. A mutation namespace groups operations and does not declare its complete write set.
 
 ## JSON boundary
 
 Query params, mutation args, rows, presence, and protocol values must round-trip through JSON.
 
-Reject bigint, `Date`, non-finite numbers, undefined, sparse arrays, class instances, functions, symbols, and cycles. Validate table keys as non-empty strings. Reject duplicate keys in one query result.
+Reject bigint, `Date`, non-finite numbers, undefined, sparse arrays, class instances, functions, symbols, and cycles. Validate collection keys as non-empty strings. Reject duplicate keys in one query result.
 
 ## Mutation states
 

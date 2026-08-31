@@ -7,7 +7,7 @@
  * progress (scope/started/completed), recomputed through its dependencies
  * whenever issues or cycles change.
  */
-import { query, t, table, type Infer } from 'wheel/sync';
+import { query, t, collection, type Infer } from 'wheel/sync';
 
 /** One cycle: a numbered, dated iteration of a team. */
 export const CycleRow = t.object({
@@ -20,8 +20,8 @@ export const CycleRow = t.object({
   endsAt: t.number()
 });
 
-/** The cycles table. */
-export const cycles = table({ name: 'cycles', type: CycleRow, key: (row) => row.id });
+/** The cycles collection. */
+export const cycles = collection({ name: 'cycles', type: CycleRow, key: (row) => row.id });
 
 /** Derived per-cycle progress. VIRTUAL — computed by the query, never written. */
 export const CycleStatsRow = t.object({
@@ -34,13 +34,12 @@ export const CycleStatsRow = t.object({
   completed: t.number()
 });
 
-/** The cycle_stats virtual table. */
-export const cycleStats = table({
+/** Cycle statistics derived from cycles and issues. */
+export const cycleStats = collection({
   name: 'cycle_stats',
   type: CycleStatsRow,
   key: (row) => row.cycleId,
-  keySpec: { fields: ['cycleId'] },
-  virtual: true
+  keySpec: { fields: ['cycleId'] }
 });
 
 /** A team's cycles, newest first. */

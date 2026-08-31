@@ -26,7 +26,7 @@
  *   3. The server authors no rows of its own.
  *   4. No field is server-assigned, so there are no pending sentinels.
  */
-import { mutation, presence, query, t, table, type Infer, type InverseSpec, type MutationDecl } from 'wheel/sync';
+import { mutation, presence, query, t, collection, type Infer, type InverseSpec, type MutationDecl } from 'wheel/sync';
 
 /** How many steps one bar holds. Sixteenth notes, one bar, four to the beat. */
 export const STEP_COUNT = 16;
@@ -72,9 +72,9 @@ type Transport = Infer<typeof TransportRow>;
 export type { Track, Step, Transport };
 export type VoiceName = Infer<typeof Voice>;
 
-export const tracks = table({ name: 'tracks', type: TrackRow, key: (row) => row.id });
-export const steps = table({ name: 'steps', type: StepRow, key: (row) => row.id });
-export const transport = table({ name: 'transport', type: TransportRow, key: (row) => row.id });
+export const tracks = collection({ name: 'tracks', type: TrackRow, key: (row) => row.id });
+export const steps = collection({ name: 'steps', type: StepRow, key: (row) => row.id });
+export const transport = collection({ name: 'transport', type: TransportRow, key: (row) => row.id });
 
 /** The id of the single transport row, known to both sides and never minted. */
 export const TRANSPORT_ID = 'transport_seed-main';

@@ -3,19 +3,19 @@
  * Rows are frozen plain objects; ALL writes go through the patch vocabulary
  * (put/update/delete), so the representation is swappable behind this file.
  */
-import { validateTableKey, type OptimisticCache, type TableDecl } from '../declarations';
+import { validateCollectionKey, type OptimisticCache, type CollectionDecl } from '../declarations';
 
 /** A plain JSON row object - always frozen, only ever created by the cache. */
 export type Row = Record<string, unknown>;
-/** The client-side row pool: table name -> id -> frozen row. */
-export type Tables = Map<string, Map<string, Row>>;
+/** The client-side row pool: collection name -> id -> frozen row. */
+export type Collections = Map<string, Map<string, Row>>;
 
-/** Get (or lazily create) one table's row map inside a Tables pool. */
-export function tableMap(tables: Tables, table: string): Map<string, Row> {
-  let map = tables.get(table);
+/** Get (or lazily create) one collection's row map inside a Collections pool. */
+export function collectionMap(collections: Collections, collection: string): Map<string, Row> {
+  let map = collections.get(collection);
   if (!map) {
     map = new Map();
-    tables.set(table, map);
+    collections.set(collection, map);
   }
   return map;
 }
@@ -30,9 +30,9 @@ export function tableMap(tables: Tables, table: string): Map<string, Row> {
  * alternative is silent corruption of server truth in exactly the builds
  * where nothing would catch it.
  */
-export function cloneTables(tables: Tables): Tables {
-  const clone: Tables = new Map();
-  for (const [name, rows] of tables) {
+export function cloneCollections(collections: Collections): Collections {
+  const clone: Collections = new Map();
+  for (const [name, rows] of collections) {
     clone.set(name, new Map(rows));
   }
   return clone;
@@ -41,7 +41,7 @@ export function cloneTables(tables: Tables): Tables {
 /**
  * Deep-freeze a row so in-place mutation throws (in strict mode) instead of
  * silently corrupting the base/effective shared rows. Unconditional - there is
- * no production bypass: cloneTables shares row objects between base and
+ * no production bypass: cloneCollections shares row objects between base and
  * effective state, so an unfrozen row mutated in place would corrupt the
  * client's copy of server truth with no error anywhere. Freezing is cheap at
  * wheel's row counts; that risk is not.
@@ -72,7 +72,7 @@ function freezeDeep(value: object): void {
 
 /** One write an optimistic handler performed - recorded for provenance and rollback bookkeeping. */
 export interface RecordedWrite {
-  readonly table: string;
+  readonly collection: string;
   readonly rowId: string;
   /** undefined = delete */
   readonly value: Row | undefined;
@@ -80,46 +80,46 @@ export interface RecordedWrite {
 
 /**
  * The OptimisticCache handed to optimistic handlers: a working view over a
- * set of tables, recording every write (for provenance and rebase).
+ * set of collections, recording every write (for provenance and rebase).
  */
 export class OverlayCache implements OptimisticCache {
   /** Every write this overlay performed, in order - provenance and rebase bookkeeping. */
   readonly writes: RecordedWrite[] = [];
 
-  constructor(private readonly tables: Tables) {}
+  constructor(private readonly collections: Collections) {}
 
   /** One row by id, or undefined. */
-  get<R extends Row>(table: TableDecl<R>, id: string): R | undefined {
-    return tableMap(this.tables, table.name).get(id) as R | undefined;
+  get<R extends Row>(collection: CollectionDecl<R>, id: string): R | undefined {
+    return collectionMap(this.collections, collection.name).get(id) as R | undefined;
   }
 
-  /** All rows of a table in the working view. */
-  list<R extends Row>(table: TableDecl<R>): readonly R[] {
-    return [...tableMap(this.tables, table.name).values()] as R[];
+  /** All rows of a collection in the working view. */
+  list<R extends Row>(collection: CollectionDecl<R>): readonly R[] {
+    return [...collectionMap(this.collections, collection.name).values()] as R[];
   }
 
   /** Create or replace a row (frozen on entry). */
-  put<R extends Row>(table: TableDecl<R>, row: R): void {
+  put<R extends Row>(collection: CollectionDecl<R>, row: R): void {
     const frozen = freezeRow({ ...row }) as R;
-    const id = validateTableKey(table, frozen, 'optimistic cache put');
-    tableMap(this.tables, table.name).set(id, frozen);
-    this.writes.push({ table: table.name, rowId: id, value: frozen });
+    const id = validateCollectionKey(collection, frozen, 'optimistic cache put');
+    collectionMap(this.collections, collection.name).set(id, frozen);
+    this.writes.push({ collection: collection.name, rowId: id, value: frozen });
   }
 
   /** Patch an existing row; throws if it does not exist (use put to create). */
-  update<R extends Row>(table: TableDecl<R>, id: string, patch: Partial<R>): void {
-    const existing = tableMap(this.tables, table.name).get(id);
+  update<R extends Row>(collection: CollectionDecl<R>, id: string, patch: Partial<R>): void {
+    const existing = collectionMap(this.collections, collection.name).get(id);
     if (!existing) {
-      throw new Error(`cache.update(${table.name}, ${id}): row does not exist. Use put() to create rows.`);
+      throw new Error(`cache.update(${collection.name}, ${id}): row does not exist. Use put() to create rows.`);
     }
     const next = freezeRow({ ...existing, ...patch });
-    tableMap(this.tables, table.name).set(id, next);
-    this.writes.push({ table: table.name, rowId: id, value: next });
+    collectionMap(this.collections, collection.name).set(id, next);
+    this.writes.push({ collection: collection.name, rowId: id, value: next });
   }
 
   /** Remove a row from the working view. */
-  delete<R extends Row>(table: TableDecl<R>, id: string): void {
-    tableMap(this.tables, table.name).delete(id);
-    this.writes.push({ table: table.name, rowId: id, value: undefined });
+  delete<R extends Row>(collection: CollectionDecl<R>, id: string): void {
+    collectionMap(this.collections, collection.name).delete(id);
+    this.writes.push({ collection: collection.name, rowId: id, value: undefined });
   }
 }

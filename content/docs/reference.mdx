@@ -14,11 +14,11 @@ Two regexes gate every declaration at construction — an illegal name throws wh
 
 | Thing | Rule | Regex | Examples |
 | --- | --- | --- | --- |
-| Table name | lowercase, snake_case, starts with a letter | `^[a-z][a-z0-9_]*$` | `todos`, `cycle_stats`, `issue_labels` |
-| Query name | `<table>.<op>` — namespace must equal the query's `into` table; op is camelCase | `^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$` | `todos.list`, `cycle_stats.byTeam` |
-| Mutation name | `<domain>.<op>` — namespace is organizational because one mutation may touch several tables | `^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$` | `todos.add`, `issues.update` |
+| Collection name | lowercase, snake_case, starts with a letter | `^[a-z][a-z0-9_]*$` | `todos`, `cycle_stats`, `issue_labels` |
+| Query name | `<collection>.<op>` — namespace must equal the query's `into` collection; op is camelCase | `^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$` | `todos.list`, `cycle_stats.byTeam` |
+| Mutation name | `<domain>.<op>` — namespace is organizational because one mutation may touch several collections | `^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$` | `todos.add`, `issues.update` |
 
-A query name predicts its result table: `cycle_stats.byTeam` must query `into: cycleStats`. Wheel checks that equality at declaration time. A mutation name does not claim a complete write set. `issues.bulkUpdate` may also write activity, inbox, or join tables; its namespace groups the operation for discovery and logs.
+A query name predicts its result collection: `cycle_stats.byTeam` must query `into: cycleStats`. Wheel checks that equality at declaration time. A mutation name does not claim a complete write set. `issues.bulkUpdate` may also write activity, inbox, or join collections; its namespace groups the operation for discovery and logs.
 
 Legal and illegal, side by side:
 
@@ -32,7 +32,7 @@ query({ name: 'cards.list', into: todos, ... }); // ❌ namespace does not equal
 
 ## JSON data boundary
 
-Query params, mutation args, rows, and presence must round-trip through JSON without coercion. Zod validation runs first; Wheel then rejects `bigint`, `Date`, `NaN`, infinity, `undefined`, sparse arrays, class instances, functions, symbols, and cycles with the declaration name and offending path. Table key extractors must return non-empty strings. A query that returns the same key twice fails with the query, table, key, and both row indexes instead of silently dropping one row.
+Query params, mutation args, rows, and presence must round-trip through JSON without coercion. Zod validation runs first; Wheel then rejects `bigint`, `Date`, `NaN`, infinity, `undefined`, sparse arrays, class instances, functions, symbols, and cycles with the declaration name and offending path. Collection key extractors must return non-empty strings. A query that returns the same key twice fails with the query, collection, key, and both row indexes instead of silently dropping one row.
 
 ## The four mutation outcomes
 

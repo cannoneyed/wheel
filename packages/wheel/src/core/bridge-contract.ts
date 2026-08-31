@@ -95,8 +95,8 @@ export interface WheelBridgeApp {
   ): Promise<BridgeActResult>;
   /** Every invocable service action: the catalog behind actService. */
   actions(): Array<{ service: string; action: string; id: string; serviceId: string }>;
-  /** The client's table cache (empty for clientless apps). */
-  tables(): Array<{ table: string; rows: readonly Record<string, unknown>[] }>;
+  /** The client's collection cache (empty for clientless apps). */
+  collections(): Array<{ collection: string; rows: readonly Record<string, unknown>[] }>;
   /** The provenance change stream, newest last (empty for clientless apps). */
   writes(limit?: number): Array<Record<string, unknown>>;
   /** Captured errors, oldest first. Check this FIRST when the app misbehaves. */

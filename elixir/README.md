@@ -124,7 +124,7 @@ Every application query and mutation must include `workspace_id` in its SQL. `wh
 
 ## Queries
 
-A query uses either the Postgres SQL fast path or a general callback. The generated contract supplies its parameter schema, output table, row key, and `dependsOn` list.
+A query uses either the Postgres SQL fast path or a general callback. The generated contract supplies its parameter schema, output collection, row key, and `dependsOn` list.
 
 ```elixir
 defmodule MyApp.Queries.WidgetsAll do
@@ -195,7 +195,7 @@ end
 
 Return `{:reject, code, message}` or raise `WheelSync.Rejection` for a business rejection. Other handler failures roll back and return `handler_error`. Connection loss, serialization failure, and deadlock failure remain retryable request errors.
 
-`WheelSync.Tx.touch!/2` declares each changed contract table. After commit, the workspace process reruns subscriptions whose `dependsOn` list overlaps those tables and sends whole-row deltas with the full order.
+`WheelSync.Tx.touch!/2` declares each changed physical source table. After commit, the workspace process reruns subscriptions whose `dependsOn` list overlaps those tables and sends whole-row deltas with the full order.
 
 ## Generated contracts
 
@@ -214,7 +214,7 @@ bun run seed:tracker:check
 ```
 
 The schema contract contains the generated `rowSchemaFingerprint`. TypeScript computes it from
-table row schemas, row keys, and query-to-table mappings. Elixir loads the literal from the JSON
+collection row schemas, row keys, and query-to-collection mappings. Elixir loads the literal from the JSON
 contract and rejects a missing or malformed value. It does not implement a second hash algorithm.
 
 The browser imports the matching generated TypeScript literal. Both runtimes compare it during the

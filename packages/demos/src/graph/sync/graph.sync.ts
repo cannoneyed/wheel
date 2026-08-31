@@ -21,7 +21,7 @@
  *   3. The server authors no rows of its own, so rule 3 has nothing to bite.
  *   4. No field is server-assigned; there are no sentinels to render.
  */
-import { mutation, query, t, table, presence, type Infer, type InverseSpec, type MutationDecl } from 'wheel/sync';
+import { mutation, query, t, collection, presence, type Infer, type InverseSpec, type MutationDecl } from 'wheel/sync';
 
 /** Which slice of the fictional package graph a node belongs to (its color). */
 export const NodeGroup = t.enum(['core', 'ui', 'data', 'tools']);
@@ -55,8 +55,8 @@ type GraphEdge = Infer<typeof EdgeRow>;
 export type { GraphNode, GraphEdge };
 export type Group = Infer<typeof NodeGroup>;
 
-export const nodes = table({ name: 'nodes', type: NodeRow, key: (row) => row.id });
-export const edges = table({ name: 'edges', type: EdgeRow, key: (row) => row.id });
+export const nodes = collection({ name: 'nodes', type: NodeRow, key: (row) => row.id });
+export const edges = collection({ name: 'edges', type: EdgeRow, key: (row) => row.id });
 
 /** Every node, id-ordered so both sides build the position buffers identically. */
 export const nodeList = query({

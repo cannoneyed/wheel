@@ -1,9 +1,9 @@
 /**
- * The sample sync module the playground sandboxes: one table, one query, two
+ * The sample sync module the playground sandboxes: one collection, one query, two
  * mutations. Same split-file convention as a real feature — server bindings
  * live in todos.server.ts.
  */
-import { mutation, query, t, table, type Infer } from 'wheel/sync';
+import { mutation, query, t, collection, type Infer } from 'wheel/sync';
 
 export const TodoRow = t.object({
   id: t.string(),
@@ -14,7 +14,7 @@ export const TodoRow = t.object({
 
 export type Todo = Infer<typeof TodoRow>;
 
-export const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+export const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 
 export const todoList = query({
   name: 'todos.list',

@@ -21,7 +21,7 @@ The design: **the server is the only truth, clients guess optimistically, and ev
 
 ## Declaring synced data
 
-You declare tables, queries, and mutations once, in a **sync module** (`todos.sync.ts`). Both the client and the server use the same declarations, so they cannot drift apart silently.
+You declare collections, queries, and mutations once, in a **sync module** (`todos.sync.ts`). Both the client and the server use the same declarations, so they cannot drift apart silently.
 
 <CodeExample example={todosSyncSource} />
 
@@ -38,14 +38,14 @@ export const todoListServer = serveQuery({
 });
 ```
 
-The shared `query()` declaration owns `dependsOn`. A physical query defaults to its target table. A virtual query lists its physical sources or uses `[]` for a push-only source.
+The shared `query()` declaration owns `dependsOn`. It defaults to the target collection name, which makes that name a physical source. A derived collection lists its physical sources. A push-only source uses `[]`.
 
 The `sql` form above is sugar. Underneath it builds a **query handler** — an object
 that knows how to produce this query's rows and how to tell the engine they changed. Pass your own
 with `handler:` instead, and the rows need not come from the database at all: an
 incrementally-maintained view, a reactive store that pushes changes instead of table dependencies,
 or an HTTP source. The wire protocol, the diffing, and the client stay exactly the same.
-[Virtual tables](#/virtual-tables) walks through writing one.
+[Derived collections](#/derived-collections) walks through writing one.
 
 <Aside kind="note">
   The default storage is <strong>SQLite in-process</strong> (<code>bun:sqlite</code>, zero
@@ -172,8 +172,8 @@ All of this is tested end to end in `client/outbox.test.ts` against a real in-pr
 Cached rows need an exact shape match. Release compatibility needs an ordered range. Wheel keeps
 these checks separate.
 
-`bun run row-schema` generates a `wheel-rows-sha256:…` value from table row schemas, row keys,
-and query-to-table mappings. Pass that value to both WebSocket runtimes. Use it with
+`bun run row-schema` generates a `wheel-rows-sha256:…` value from collection row schemas, row keys,
+and query-to-collection mappings. Pass that value to both WebSocket runtimes. Use it with
 `createCacheScopes()` for IndexedDB:
 
 ```ts
@@ -199,7 +199,7 @@ Some state should never be a row: cursors, focus, and typing state. Presence use
 
 <Aside kind="note">
   Wheel owns the client materializer because pending commands must replay against confirmed rows,
-  replace their full write sets, and publish cross-table changes once. Application code still reads
+  replace their full write sets, and publish cross-collection changes once. Application code still reads
   through <code>SyncClient</code> and <code>LiveQueryView</code>.
 </Aside>
 

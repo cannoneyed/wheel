@@ -8,12 +8,12 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
-import { mutation, query, sql, t, table } from '../sync/index';
+import { mutation, query, sql, t, collection } from '../sync/index';
 import { serveMutation, serveQuery } from '../sync/server/index';
 import { World } from './world';
 
 const ProbeRow = t.object({ id: t.string(), label: t.string() });
-const probes = table({ name: 'probes', type: ProbeRow, key: (row) => row.id });
+const probes = collection({ name: 'probes', type: ProbeRow, key: (row) => row.id });
 const probeList = query({
   name: 'probes.list',
   params: t.object({}),

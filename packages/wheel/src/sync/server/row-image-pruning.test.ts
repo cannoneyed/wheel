@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
-import { mutation, query, table } from '../declarations';
+import { mutation, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from './serve';
@@ -15,7 +15,7 @@ import { createSyncServer } from './node-engine';
 import { betterSqlite3Driver, type SqliteDriver } from './backends/sqlite-driver';
 
 const TodoRow = t.object({ id: t.string(), listId: t.string(), text: t.string() });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 const todosByList = query({
   name: 'todos.byList',
   params: t.object({ listId: t.string() }),

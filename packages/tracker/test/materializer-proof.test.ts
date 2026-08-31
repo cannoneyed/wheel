@@ -1,7 +1,7 @@
 // @vitest-environment node
 /**
  * Run WheelMaterializer against Tracker's real issue, project, aggregate,
- * join-table, and grouped-update declarations, then compare its public client
+ * join-collection, and grouped-update declarations, then compare its public client
  * boundary with direct materializer inputs.
  */
 import { describe, expect, test } from 'vitest';
@@ -186,7 +186,7 @@ describe('Tracker materializer query scopes', () => {
   });
 });
 
-describe('Tracker materializer multi-table actions', () => {
+describe('Tracker materializer multi-collection actions', () => {
   test('publishes issue creation and every label link as one view', () => {
     const materializer = makeMaterializer();
     const existing = makeIssue('issue_phase2_existing', { sortOrder: 10 });
@@ -207,7 +207,7 @@ describe('Tracker materializer multi-table actions', () => {
         links: materializer
           .queryRows(issueLabelsByTeam, { teamId: TEAM_A })
           .map((link) => `${link.issueId}:${link.labelId}`),
-        changed: [...publication.changedTables].sort()
+        changed: [...publication.changedCollections].sort()
       });
     });
 

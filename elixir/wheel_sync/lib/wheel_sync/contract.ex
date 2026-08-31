@@ -4,7 +4,7 @@ defmodule WheelSync.Contract do
   def load!(path) do
     spec = path |> File.read!() |> Jason.decode!()
 
-    unless spec["schemaSpecVersion"] == 3 do
+    unless spec["schemaSpecVersion"] == 4 do
       raise ArgumentError, "unsupported wheel schema spec version"
     end
 
@@ -21,9 +21,13 @@ defmodule WheelSync.Contract do
 
     %{
       row_schema_fingerprint: row_schema_fingerprint,
-      tables:
-        index(spec["tables"], fn table ->
-          Map.put(table, "validator", JSV.build!(table["jsonSchema"], warnings: :silent))
+      collections:
+        index(spec["collections"], fn collection ->
+          Map.put(
+            collection,
+            "validator",
+            JSV.build!(collection["jsonSchema"], warnings: :silent)
+          )
         end),
       queries:
         index(spec["queries"], fn query ->

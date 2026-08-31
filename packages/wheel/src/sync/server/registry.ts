@@ -2,10 +2,9 @@
  * The registry collects declarations from sync modules (*.sync.ts) and cross-checks
  * them against server bindings at boot. Everything fails
  * loudly at startup, never at request time: duplicate names, declarations
- * without implementations, orphan implementations, dependencies on undeclared
- * tables.
+ * without implementations, orphan implementations, and undeclared dependencies.
  */
-import type { MutationDecl, PresenceDecl, QueryDecl, TableDecl } from '../declarations';
+import type { CollectionDecl, MutationDecl, PresenceDecl, QueryDecl } from '../declarations';
 
 /** Boot-time failure listing every registry problem at once (duplicates, unimplemented declarations, orphan bindings, bad dependencies) with declaration sites. */
 export class RegistryError extends Error {
@@ -14,8 +13,8 @@ export class RegistryError extends Error {
   }
 }
 
-function isTable(value: unknown): value is TableDecl {
-  return typeof value === 'object' && value !== null && (value as TableDecl).kind === 'table';
+function isCollection(value: unknown): value is CollectionDecl {
+  return typeof value === 'object' && value !== null && (value as CollectionDecl).kind === 'collection';
 }
 function isQuery(value: unknown): value is QueryDecl {
   return typeof value === 'object' && value !== null && (value as QueryDecl).kind === 'query';
@@ -29,7 +28,7 @@ function isPresence(value: unknown): value is PresenceDecl {
 
 /** The collected declarations of all sync modules (*.sync.ts), keyed by name. */
 export interface SyncDeclarations {
-  tables: Map<string, TableDecl>;
+  collections: Map<string, CollectionDecl>;
   queries: Map<string, QueryDecl>;
   mutations: Map<string, MutationDecl>;
   presence: PresenceDecl | null;
@@ -41,7 +40,7 @@ export interface SyncDeclarations {
  */
 export function collectDeclarations(syncModules: object[]): SyncDeclarations {
   const problems: string[] = [];
-  const tables = new Map<string, TableDecl>();
+  const collections = new Map<string, CollectionDecl>();
   const queries = new Map<string, QueryDecl>();
   const mutations = new Map<string, MutationDecl>();
   const presences = new Map<string, PresenceDecl>();
@@ -63,8 +62,8 @@ export function collectDeclarations(syncModules: object[]): SyncDeclarations {
 
   for (const syncModule of syncModules) {
     for (const value of Object.values(syncModule)) {
-      if (isTable(value)) {
-        add(tables, value, 'table');
+      if (isCollection(value)) {
+        add(collections, value, 'collection');
       } else if (isQuery(value)) {
         add(queries, value, 'query');
       } else if (isMutation(value)) {
@@ -81,17 +80,17 @@ export function collectDeclarations(syncModules: object[]): SyncDeclarations {
     );
   }
 
-  // Queries can only target or depend on declared tables.
+  // Queries can only target or depend on declared collections.
   for (const decl of queries.values()) {
-    if (!tables.has(decl.into.name)) {
+    if (!collections.has(decl.into.name)) {
       problems.push(
-        `Query "${decl.name}" (${decl.declSite}) targets table "${decl.into.name}", which is not exported by any syncModule.`
+        `Query "${decl.name}" (${decl.declSite}) targets collection "${decl.into.name}", which is not exported by any syncModule.`
       );
     }
     for (const dependency of decl.dependsOn) {
-      if (!tables.has(dependency)) {
+      if (!collections.has(dependency)) {
         problems.push(
-          `Query "${decl.name}" (${decl.declSite}) depends on table "${dependency}", which is not exported by any syncModule.`
+          `Query "${decl.name}" (${decl.declSite}) depends on collection "${dependency}", which is not exported by any syncModule.`
         );
       }
     }
@@ -100,7 +99,7 @@ export function collectDeclarations(syncModules: object[]): SyncDeclarations {
   if (problems.length > 0) {
     throw new RegistryError(problems);
   }
-  return { tables, queries, mutations, presence: presences.values().next().value ?? null };
+  return { collections, queries, mutations, presence: presences.values().next().value ?? null };
 }
 
 /** Minimal shape of a server binding, as produced by serveQuery/serveMutation. */
