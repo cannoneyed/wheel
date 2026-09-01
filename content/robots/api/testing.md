@@ -102,13 +102,13 @@ Thrown when a driven app captured new errors during a driver call.
 
 ## `wheelDriver`
 
-Kind: function. Source: [packages/wheel/src/testing/driver.ts:97](../../../packages/wheel/src/testing/driver.ts#L97).
+Kind: function. Source: [packages/wheel/src/testing/driver.ts:99](../../../packages/wheel/src/testing/driver.ts#L99).
 
 Build a driver over a page whose app installed the `window.__wheel` bridge.
 
 ## `WheelDriver`
 
-Kind: interface. Source: [packages/wheel/src/testing/driver.ts:77](../../../packages/wheel/src/testing/driver.ts#L77).
+Kind: interface. Source: [packages/wheel/src/testing/driver.ts:78](../../../packages/wheel/src/testing/driver.ts#L78).
 
 The driver surface: the bridge's methods, awaited, plus error accounting.
 
