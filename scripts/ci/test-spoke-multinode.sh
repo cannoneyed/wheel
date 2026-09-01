@@ -84,7 +84,6 @@ start_node() {
     --env SPOKE_IP=0.0.0.0 \
     --env "SPOKE_RESET_DATABASE=$reset" \
     --env SPOKE_TEST_CONTROLS=1 \
-    --env SPOKE_ALLOWED_ORIGINS=http://127.0.0.1:4907 \
     --env MIX_HOME=/workspace/.cache/mix \
     --env HEX_HOME=/workspace/.cache/hex \
     "$elixir_image" \
