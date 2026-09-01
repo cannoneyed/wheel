@@ -384,10 +384,20 @@ export class ServiceContext {
     const [version, setVersion] = createSignal(0);
     this.version = version;
     this.bumpVersion = () => setVersion((v) => v + 1);
-    const [debugVersion, setDebugVersion] = createSignal(0);
-    this.debugVersion = debugVersion;
-    const [instanceVersion, setInstanceVersion] = createSignal(0);
-    this.instanceVersion = instanceVersion;
+    // The debug channels follow the REGISTRY. A child context shares its
+    // parent's registry (see above), so it must share the signals that report
+    // changes to it — a context with its own signals and no wiring is a
+    // channel that never fires.
+    //
+    // That was the bug behind "the component tree shows the app root but never
+    // the rows": a demo's panel lives in a child context, so its `trackDebug`
+    // never bumped. It appeared to work only because the tree ALSO tracked the
+    // data revision, which is genuinely per-context — so the tree redrew on
+    // sync traffic and looked live, while a mount alone did nothing.
+    const [ownDebugVersion, setDebugVersion] = createSignal(0);
+    const [ownInstanceVersion, setInstanceVersion] = createSignal(0);
+    this.debugVersion = options.parent ? options.parent.debugVersion : ownDebugVersion;
+    this.instanceVersion = options.parent ? options.parent.instanceVersion : ownInstanceVersion;
     if (!options.parent) {
       // Root context owns the registry. Registry-only changes get their OWN
       // signals — they must NOT ride the client-data revision channel: every

@@ -318,7 +318,7 @@ Project any value into bounded, JSON-safe data (see the module doc for the bound
 
 ## `Service`
 
-Kind: class. Source: [packages/wheel/src/core/services.ts:695](../../../packages/wheel/src/core/services.ts#L695).
+Kind: class. Source: [packages/wheel/src/core/services.ts:705](../../../packages/wheel/src/core/services.ts#L705).
 
 Framework-neutral DI singleton holding reactive state. Subclasses declare fields with the protected factories; components reach them only through connect().
 
