@@ -150,6 +150,12 @@ export interface InstanceTreeNode {
   readonly children: InstanceTreeNode[];
 }
 
+/** The trailing `#n` of a stable key (`TodoRow#2` → 2). */
+function slotOf(key: string): number {
+  const hash = key.lastIndexOf('#');
+  return hash === -1 ? 0 : Number(key.slice(hash + 1));
+}
+
 /** An instance's first inserted element, or null when it renders no DOM. */
 function positionedElement(record: InstanceRecord): Element | null {
   for (const element of record.elements) {
@@ -431,6 +437,64 @@ export class DebugRegistry {
     };
   }
 
+  /**
+   * Display id for a record's stable key, numbering only among SIBLINGS.
+   *
+   * Built for the whole registry at once and cached, because it cannot be
+   * answered one record at a time: knowing whether `Button(delete)` needs a
+   * number means knowing what else sits under the same parent, and parents
+   * come from DOM containment. Computing that per read — and `instanceId` is
+   * read on every stamp and every tree row — would be quadratic on every
+   * paint. The cache is dropped whenever the registry changes, which is the
+   * only thing that can change the answer.
+   */
+  displayIdOf(key: string): string {
+    if (!this.displayIds) this.displayIds = this.computeDisplayIds();
+    return this.displayIds.get(key) ?? key;
+  }
+
+  private displayIds: Map<string, string> | null = null;
+
+  private computeDisplayIds(): Map<string, string> {
+    // Group by (parent, name). The parent is a stable KEY: display ids are
+    // what we are in the middle of deciding.
+    const groups = new Map<string, InstanceRecord[]>();
+    for (const record of this.instanceRecords.values()) {
+      const parent = this.displayParentKey(record) ?? '';
+      const bucket = `${parent}\u0000${record.name}`;
+      const existing = groups.get(bucket);
+      if (existing) existing.push(record);
+      else groups.set(bucket, [record]);
+    }
+    const ids = new Map<string, string>();
+    for (const members of groups.values()) {
+      if (members.length === 1) {
+        const only = members[0]!;
+        ids.set(only.key, only.name);
+        continue;
+      }
+      // Several of one name under one parent: number them, in slot order, so
+      // the same mount order reproduces the same ids after a reload.
+      const ordered = [...members].sort((a, b) => slotOf(a.key) - slotOf(b.key));
+      ordered.forEach((record, index) => ids.set(record.key, `${record.name}#${index + 1}`));
+    }
+    // The DOM stamp is written at registration, when this component's parent
+    // may not be mounted yet — so the id it got then can be wrong the moment
+    // the tree settles. Rewriting here keeps `data-wheel-id` and the tree
+    // saying the same thing, and costs one pass per change-burst rather than
+    // one per registration, because the map is rebuilt lazily on first read.
+    for (const record of this.instanceRecords.values()) {
+      const id = ids.get(record.key);
+      if (!id) continue;
+      for (const element of record.elements) {
+        if (element.isConnected && element.getAttribute('data-wheel-id') !== id) {
+          element.setAttribute('data-wheel-id', id);
+        }
+      }
+    }
+    return ids;
+  }
+
   /** Smallest free slot for a name, so unmount/remount reproduces ids. */
   private allocateSlot(name: string): number {
     let slot = 1;
@@ -476,8 +540,35 @@ export class DebugRegistry {
 
   /** Notify debug surfaces that the registry's SHAPE changed — mounts, unmounts, renames. */
   notifyInstances(): void {
+    // Any shape change can renumber a sibling group, so the display ids go.
+    this.displayIds = null;
+    this.scheduleRestamp();
     this.onInstanceChange?.();
   }
+
+  /**
+   * Rewrite the DOM stamps once the mount burst has settled.
+   *
+   * A stamp cannot be correct at registration: an id is scoped to siblings,
+   * siblings come from DOM containment, and the element being registered is
+   * not in the document yet — its own `use:componentRoot` adds it on the next
+   * line, and its parent may mount after it. So the honest moment is "once
+   * this batch of mounts is done", which is the microtask after them.
+   *
+   * Coalesced, so mounting a hundred rows costs one pass and not a hundred.
+   * Reading `instanceId` never waits for it — that reads the map directly.
+   */
+  private scheduleRestamp(): void {
+    if (this.restampQueued) return;
+    this.restampQueued = true;
+    queueMicrotask(() => {
+      this.restampQueued = false;
+      // Rebuilding is what rewrites the stamps; see `computeDisplayIds`.
+      this.displayIds = this.computeDisplayIds();
+    });
+  }
+
+  private restampQueued = false;
 
   /** Every currently mounted instance (insertion order = mount order). */
   instances(): readonly InstanceRecord[] {
@@ -510,15 +601,37 @@ export class DebugRegistry {
    * containment is build-mode-independent. The recorded `parentId` remains
    * as the fallback for headless instances (no elements to contain).
    */
+  /**
+   * The parent's STABLE KEY, by the same DOM-containment rule as
+   * `displayParentId`.
+   *
+   * Anything that INDEXES on the parent wants this: display ids are only
+   * unique among siblings, so two `Button(delete)`s under different rows
+   * would collide in a map keyed by display id.
+   */
+  displayParentKey(record: InstanceRecord): string | null {
+    const parent = this.displayParentRecord(record);
+    return parent?.key ?? null;
+  }
+
+  /**
+   * The parent's DISPLAY id, for surfaces that show it to a person.
+   *
+   * Anything that keys a map on the parent wants `displayParentKey` instead:
+   * a display id is unique among siblings, not globally.
+   */
   displayParentId(record: InstanceRecord): string | null {
+    return this.displayParentRecord(record)?.instanceId ?? null;
+  }
+
+  private displayParentRecord(record: InstanceRecord): InstanceRecord | undefined {
     const element = [...record.elements].find((el) => el.isConnected);
     if (!element) {
       // Headless: the owner-chain hint is all there is. It may be a sibling
       // in production builds — a root beats a wrong nesting, so only trust
       // it when that parent is still mounted. The hint is a stable KEY;
       // callers want the display id.
-      const parent = record.parentId !== null ? this.instanceRecords.get(record.parentId) : undefined;
-      return parent?.instanceId ?? null;
+      return record.parentId !== null ? this.instanceRecords.get(record.parentId) : undefined;
     }
     let best: InstanceRecord | null = null;
     let bestDepth = -1;
@@ -535,7 +648,7 @@ export class DebugRegistry {
         }
       }
     }
-    return best?.instanceId ?? null;
+    return best ?? undefined;
   }
 
   /**
@@ -554,9 +667,12 @@ export class DebugRegistry {
    * a root rather than vanishing.
    */
   instanceTree(): InstanceTreeNode[] {
+    // Keyed by the STABLE key, never the display id: display ids are unique
+    // among siblings only, so two `Button(delete)`s in two rows would be one
+    // entry in a map keyed by display id, and one row would lose its button.
     const nodes = new Map<string, InstanceTreeNode>();
     for (const record of this.instanceRecords.values()) {
-      nodes.set(record.instanceId, {
+      nodes.set(record.key, {
         key: record.key,
         instanceId: record.instanceId,
         name: record.name,
@@ -568,7 +684,7 @@ export class DebugRegistry {
     const rootRecords: InstanceRecord[] = [];
     const childRecords = new Map<string, InstanceRecord[]>();
     for (const record of this.instanceRecords.values()) {
-      const parent = this.displayParentId(record);
+      const parent = this.displayParentKey(record);
       if (parent && nodes.has(parent)) {
         const siblings = childRecords.get(parent);
         if (siblings) siblings.push(record);
@@ -580,8 +696,8 @@ export class DebugRegistry {
     const attach = (records: InstanceRecord[]): InstanceTreeNode[] =>
       // Array.sort is stable, so DOM-less siblings keep mount order.
       [...records].sort(compareDocumentOrder).map((record) => {
-        const node = nodes.get(record.instanceId)!;
-        node.children.push(...attach(childRecords.get(record.instanceId) ?? []));
+        const node = nodes.get(record.key)!;
+        node.children.push(...attach(childRecords.get(record.key) ?? []));
         return node;
       });
     return attach(rootRecords);
