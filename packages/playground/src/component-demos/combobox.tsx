@@ -1,3 +1,4 @@
+/* eslint-disable wheel/require-component-role -- The catalog demonstrates the components themselves: every fixture here IS a Button or a Dialog, so a role would name the catalog rather than tell two instances of one app apart. */
 /* eslint-disable wheel/require-view-root -- Isolated catalog fixtures render library parts and icons; the catalog owns their inspection boundary. */
 import type { JSX } from 'solid-js';
 import { createUniqueId } from 'solid-js';

@@ -28,7 +28,7 @@ export function AddCardForm(props: { columnId: string }) {
   };
   return (
     <div use:componentRoot class={styles.form}>
-      <Input
+      <Input data-wheel-role="add-a-card"
         type="text"
         class={styles.titleInput}
         placeholder="Add a card…"
@@ -36,14 +36,14 @@ export function AddCardForm(props: { columnId: string }) {
         onInput={(e) => setDraft(e.currentTarget.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
       />
-      <Input
+      <Input data-wheel-role="tag"
         type="text"
         class={styles.tagInput}
         placeholder="tag"
         value={tag()}
         onInput={(e) => setTag(e.currentTarget.value)}
       />
-      <Button onClick={submit}>+</Button>
+      <Button data-wheel-role="add" onClick={submit}>+</Button>
     </div>
   );
 }

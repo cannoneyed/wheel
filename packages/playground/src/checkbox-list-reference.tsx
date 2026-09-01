@@ -1,3 +1,4 @@
+/* eslint-disable wheel/require-component-role -- The catalog demonstrates the components themselves: every fixture here IS a Button or a Dialog, so a role would name the catalog rather than tell two instances of one app apart. */
 import { CheckboxList, CheckboxListItem } from 'wheel/components';
 import type { ComponentReferenceDefinition } from './component-reference';
 

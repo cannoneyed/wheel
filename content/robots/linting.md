@@ -16,6 +16,7 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `require-view-root`: non-connected host roots use `viewRoot`.
 - `no-directive-on-component`: `use:` directives sit on native elements; Solid drops them on a component.
 - `require-stable-instance-name`: entity props produce entity-derived instance ids.
+- `require-component-role`: a component imported from `wheel/components` carries `data-wheel-role`. The role joins the name to form the instance id — `Button(add)`, not `Button#1` — so shared components are named rather than numbered by page-wide mount order, and the id is what the debug tree, `data-wheel-id`, a note's anchor and `__wheel.component()` all use. Distinct roles need no number; instances that truly share a role still get one (`Button(delete)#1`), where it means "which row". Compound parts (`Dialog.Portal`) are exempt, roots are not. Pragma: `// wheel-component-role: <reason>`.
 - `require-component-states`: connected kit components provide typed states.
 - `require-tracked-show`: root `Show` imports the Wheel wrapper.
 - `require-use-signal`: component-local signals carry names.

@@ -74,7 +74,7 @@ export function SequencerToolbar() {
 
   return (
     <span use:componentRoot class={styles.controls}>
-      <Button
+      <Button data-wheel-role="sequencer-play"
         class={styles.transportButton}
         data-testid="sequencer-play"
         data-playing={state.playing ? 'true' : 'false'}
@@ -102,7 +102,7 @@ export function SequencerToolbar() {
         />
       </label>
 
-      <Button
+      <Button data-wheel-role="sequencer-undo"
         class={styles.iconButton}
         title="Undo (mod+z)"
         data-testid="sequencer-undo"
@@ -111,7 +111,7 @@ export function SequencerToolbar() {
       >
         <Undo2 size={14} />
       </Button>
-      <Button
+      <Button data-wheel-role="sequencer-redo"
         class={styles.iconButton}
         title="Redo (mod+shift+z)"
         data-testid="sequencer-redo"

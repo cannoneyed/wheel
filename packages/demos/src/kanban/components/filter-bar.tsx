@@ -30,6 +30,7 @@ export function FilterBar() {
       <For each={state.tags}>
         {(tag) => (
           <Button
+            data-wheel-role="tag"
             classList={{ [styles.tagActive]: state.active === tag }}
             onClick={() => (state.active === tag ? state.clear() : state.apply(tag))}
           >
@@ -38,7 +39,7 @@ export function FilterBar() {
         )}
       </For>
       <Show when={state.active !== null}>
-        <Button onClick={() => state.clear()}>clear</Button>
+        <Button data-wheel-role="clear-filter" onClick={() => state.clear()}>clear</Button>
       </Show>
     </div>
   );

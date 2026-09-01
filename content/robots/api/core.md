@@ -504,7 +504,7 @@ What a read form produces on the shape: call result, atom value, or the value it
 
 ## `viewRoot`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:288](../../../packages/wheel/src/core/connect.tsx#L288).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:307](../../../packages/wheel/src/core/connect.tsx#L307).
 
 The `use:viewRoot` directive — how a DUMB (non-connected) component registers in the component tree: export function Avatar(props: { url: string }) { return <img use:viewRoot={'Avatar'} src={props.url} />; } The string names the component (lint checks it matches the enclosing function); the object form additionally carries `group` and the component's `props`, so the tree can show them. Dev mode only — in production builds this is a flag check and nothing else, so marking every dumb component costs nothing. In dev each marked mount gets a live-slot instance id (`Avatar`, `Avatar#2`), a `data-wheel-id` DOM stamp, and a parent edge to the nearest enclosing instance — which is what makes the debug panel's component tree and the agent bridge see the WHOLE component tree, not just the connected layer. Mark ONE root element per view component. Components that render no DOM of their own carry the `// wheel-view-root: <reason>` pragma instead. Lint-enforced by `require-view-root`.
 

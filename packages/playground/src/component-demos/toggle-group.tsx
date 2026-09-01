@@ -1,3 +1,4 @@
+/* eslint-disable wheel/require-component-role -- The catalog demonstrates the components themselves: every fixture here IS a Button or a Dialog, so a role would name the catalog rather than tell two instances of one app apart. */
 import { viewRoot } from 'wheel/core';
 import { Toggle, ToggleGroup } from 'wheel/components';
 import { DirectionProvider } from 'wheel/components/direction-provider';

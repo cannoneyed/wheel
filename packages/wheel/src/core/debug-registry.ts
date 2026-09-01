@@ -361,6 +361,12 @@ export class DebugRegistry {
    * instance shows its bare name, siblings show `#1`/`#2`. Mount and unmount
    * therefore renumber a name's group, and this method re-stamps the
    * affected DOM so `data-wheel-id` always matches what the tree shows.
+   *
+   * A ROLE joins the name to form that identity: `Button` with role `add` is
+   * `Button(add)`. Shared components are the reason — a todo list renders one
+   * `Button` to add and one per row to delete, and `Button#1` names none of
+   * them. `Button(add)` is legible, and being distinct from `Button(delete)`
+   * it usually needs no number at all.
    */
   registerInstance(
     name: string,
@@ -368,21 +374,26 @@ export class DebugRegistry {
     options?: {
       kind?: InstanceRecord['kind'];
       group?: string;
+      /** What this instance of a shared component IS (`add`, `delete`). */
+      role?: string | undefined;
       /** The PARENT'S STABLE KEY (never its display id — that can renumber). */
       parentId?: string | null;
       /** Live accessor for the component's props object (connect passes this automatically). */
       props?: () => object | undefined;
     }
   ): { record: InstanceRecord; unregister: () => void } {
-    const slot = this.allocateSlot(name);
-    const key = `${name}#${slot}`;
+    // The role is part of the identity, not a label beside it: it decides the
+    // slot, the key, the display id and the DOM stamp.
+    const identity = options?.role ? `${name}(${options.role})` : name;
+    const slot = this.allocateSlot(identity);
+    const key = `${identity}#${slot}`;
     const registry = this;
     const record: InstanceRecord = {
       key,
       get instanceId(): string {
-        return registry.countNamed(name) > 1 ? key : name;
+        return registry.countNamed(identity) > 1 ? key : identity;
       },
-      name,
+      name: identity,
       kind: options?.kind ?? 'connected',
       group: options?.group ?? 'app',
       hiddenBy: null,
@@ -407,14 +418,14 @@ export class DebugRegistry {
     };
     this.instanceRecords.set(key, record);
     // Crossing 1 → 2 renames the incumbent (`TodoRow` becomes `TodoRow#1`).
-    this.restampNamed(name);
+    this.restampNamed(identity);
     this.notifyInstances();
     return {
       record,
       unregister: () => {
         this.instanceRecords.delete(key);
         // Dropping back to 1 gives the survivor its bare name again.
-        this.restampNamed(name);
+        this.restampNamed(identity);
         this.notifyInstances();
       }
     };

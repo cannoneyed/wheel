@@ -56,6 +56,7 @@ export function TodoList(props: { placeholder?: string } = {}) {
       </Show>
       <div class={styles.addRow}>
         <Input
+          data-wheel-role="new-todo"
           type="text"
           placeholder={props.placeholder ?? 'Add a todo… (press n)'}
           ref={(el) => state.registerAddInput(el)}
@@ -63,7 +64,7 @@ export function TodoList(props: { placeholder?: string } = {}) {
           onInput={(e) => setDraft(e.currentTarget.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
         />
-        <Button class={styles.iconButton} title="Add todo" onClick={submit}>
+        <Button class={styles.iconButton} data-wheel-role="add" title="Add todo" onClick={submit}>
           <Plus size={14} />
         </Button>
         <span class={styles.remaining}>{state.remaining} remaining</span>

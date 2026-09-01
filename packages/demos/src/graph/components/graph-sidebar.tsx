@@ -77,7 +77,7 @@ export function GraphSidebar() {
       </p>
 
       <div class={styles.addRow}>
-        <Input
+        <Input data-wheel-role="graph-new-label"
           type="text"
           placeholder="New package…"
           data-testid="graph-new-label"
@@ -92,7 +92,7 @@ export function GraphSidebar() {
         >
           <For each={GROUPS}>{(group) => <option value={group}>{group}</option>}</For>
         </select>
-        <Button data-testid="graph-add-node" onClick={addNode}>
+        <Button data-wheel-role="graph-add-node" data-testid="graph-add-node" onClick={addNode}>
           Add
         </Button>
       </div>
@@ -119,7 +119,7 @@ export function GraphSidebar() {
             </p>
 
             <div class={styles.addRow}>
-              <Input
+              <Input data-wheel-role="graph-rename-input"
                 type="text"
                 placeholder="Rename to…"
                 data-testid="graph-rename-input"
@@ -127,23 +127,23 @@ export function GraphSidebar() {
                 onInput={(event) => setDraftLabel(event.currentTarget.value)}
                 onKeyDown={(event) => event.key === 'Enter' && renameSelected(node.id)}
               />
-              <Button data-testid="graph-rename" onClick={() => renameSelected(node.id)}>
+              <Button data-wheel-role="graph-rename" data-testid="graph-rename" onClick={() => renameSelected(node.id)}>
                 Rename
               </Button>
             </div>
 
             <div class={styles.buttonRow}>
-              <Button data-testid="graph-pin-here" onClick={() => state.pinHere(node.id)}>
+              <Button data-wheel-role="graph-pin-here" data-testid="graph-pin-here" onClick={() => state.pinHere(node.id)}>
                 Pin here
               </Button>
-              <Button
+              <Button data-wheel-role="graph-release-pin"
                 data-testid="graph-release-pin"
                 disabled={node.pinX === null}
                 onClick={() => state.unpin(node.id)}
               >
                 Release pin
               </Button>
-              <Button data-testid="graph-delete-node" onClick={() => state.remove(node.id)}>
+              <Button data-wheel-role="graph-delete-node" data-testid="graph-delete-node" onClick={() => state.remove(node.id)}>
                 Delete
               </Button>
             </div>
@@ -159,7 +159,7 @@ export function GraphSidebar() {
                   {(row) => <option value={row.id}>{row.label}</option>}
                 </For>
               </select>
-              <Button data-testid="graph-add-edge" onClick={() => connectSelected(node.id)}>
+              <Button data-wheel-role="graph-add-edge" data-testid="graph-add-edge" onClick={() => connectSelected(node.id)}>
                 Connect
               </Button>
             </div>
@@ -171,7 +171,7 @@ export function GraphSidebar() {
                     <span>
                       {edge.fromLabel} → {edge.toLabel}
                     </span>
-                    <Button
+                    <Button data-wheel-role="graph-delete-edge"
                       class={styles.linkButton}
                       data-testid={`graph-delete-edge-${edge.id}`}
                       onClick={() => state.disconnect(edge.id)}
@@ -190,7 +190,7 @@ export function GraphSidebar() {
         <For each={state.nodes}>
           {(row) => (
             <li>
-              <Button
+              <Button data-wheel-role="node"
                 class={styles.nodeButton}
                 data-node-id={row.id}
                 data-group={row.group}
@@ -203,7 +203,7 @@ export function GraphSidebar() {
         </For>
       </ul>
 
-      <Button class={styles.linkButton} data-testid="graph-reset-view" onClick={() => state.resetView()}>
+      <Button data-wheel-role="graph-reset-view" class={styles.linkButton} data-testid="graph-reset-view" onClick={() => state.resetView()}>
         reset view
       </Button>
     </aside>

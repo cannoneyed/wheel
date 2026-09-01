@@ -39,7 +39,7 @@ export function IssuesPage() {
   const state = connectIssuesPage({});
   return (
     <div use:componentRoot class={styles.issueList} data-testid="issues-page">
-      <Input
+      <Input data-wheel-role="issue-filter"
         type="search"
         placeholder="Filter issues…"
         data-testid="issue-filter"

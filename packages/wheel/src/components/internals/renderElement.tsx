@@ -13,7 +13,7 @@ import type { AsChildRenderFn, HTMLProps, MaybeAccessor } from './types';
 import { access } from './types';
 import { getStateAttributesProps, type StateAttributesMapping } from './getStateAttributesProps';
 import { mergeProps, mergePropsN, mergeClassNames, mergeStyles } from '../merge-props/mergeProps';
-import { viewRoot } from '../../core/connect';
+import { roleOfProps, viewRoot } from '../../core/connect';
 
 type IntrinsicTagName = keyof JSX.IntrinsicElements;
 
@@ -187,7 +187,10 @@ export function renderElement<State extends Record<string, any>>(
       // inside a wheel app the tree finally contains the library itself, which
       // is what makes a Radio selectable by the inspector and the annotator.
       const slot = params.slot === undefined ? undefined : access(params.slot);
-      if (slot) viewRoot(el, () => partName(slot));
+      // `data-wheel-role` comes from the merged props, not from the element: a
+      // spread attribute lands after this ref runs, so reading the DOM here
+      // would miss every `<Button data-wheel-role="add">`.
+      if (slot) viewRoot(el, () => ({ name: partName(slot), role: roleOfProps(finalProps()) }));
       componentProps.ref?.(el);
       const paramRef = params.ref;
       if (Array.isArray(paramRef)) {

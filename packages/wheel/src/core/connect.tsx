@@ -265,6 +265,25 @@ export function componentRoot(el: HTMLElement, _value: () => true): void {
 }
 
 /**
+ * What this instance of a shared component IS, from `data-wheel-role`.
+ *
+ * Shared components have no identity of their own — a todo list renders one
+ * `Button` to add and one per row to delete, and `Button#1` names none of
+ * them. The role is the caller saying which is which, and it becomes part of
+ * the instance id (`Button(add)`), so the tree, `data-wheel-id`, a note's
+ * anchor and `__wheel.component()` all agree.
+ */
+function roleOf(el: Element): string | undefined {
+  return el.getAttribute('data-wheel-role') ?? undefined;
+}
+
+/** The `data-wheel-role` in a props bag, for callers that spread rather than write markup. */
+export function roleOfProps(props: Record<string, unknown> | undefined): string | undefined {
+  const role = props?.['data-wheel-role'];
+  return typeof role === 'string' && role.length > 0 ? role : undefined;
+}
+
+/**
  * The `use:viewRoot` directive — how a DUMB (non-connected) component
  * registers in the component tree:
  *
@@ -287,7 +306,7 @@ export function componentRoot(el: HTMLElement, _value: () => true): void {
  */
 export function viewRoot(
   el: HTMLElement,
-  value: () => string | { name: string; group?: string; props?: object }
+  value: () => string | { name: string; group?: string; role?: string | undefined; props?: object }
 ): void {
   if (!isWheelDevMode()) {
     return; // production: registration and DOM stamps are dev-only surfaces
@@ -297,12 +316,18 @@ export function viewRoot(
     return; // outside any provider (docs snippets, stub sandboxes): silently inert
   }
   const raw = value();
-  const named = typeof raw === 'string' ? { name: raw, group: undefined, props: undefined } : raw;
+  const named =
+    typeof raw === 'string' ? { name: raw, group: undefined, role: undefined, props: undefined } : raw;
   const owner = getOwner() as OwnerWithInstance | null;
   const parent = nearestInstance(owner);
   const { record, unregister } = context.services.registry.registerInstance(named.name, {}, {
     kind: 'view',
     group: named.group,
+    // Explicit wins: a library part reads the role off the props it was given,
+    // because a SPREAD attribute is applied after this ref runs and would not
+    // be on the element yet. A hand-written `use:viewRoot` element can put it
+    // in the markup instead, where the template already carries it.
+    role: named.role ?? roleOf(el),
     // Stable key, not the display id (see connect()).
     parentId: parent?.key ?? null,
     // A dumb component's props are only visible if the directive passes
@@ -324,7 +349,7 @@ declare module 'solid-js' {
   namespace JSX {
     interface Directives {
       componentRoot: true;
-      viewRoot: string | { name: string; group?: string; props?: object };
+      viewRoot: string | { name: string; group?: string; role?: string | undefined; props?: object };
     }
   }
 }

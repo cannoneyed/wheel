@@ -37,7 +37,7 @@ export function RouteErrorPage(props: RouteErrorProps) {
         {messageOf(props.error)}
       </p>
       <p class="route-error-actions">
-        <Button type="button" onClick={() => props.reset()} data-testid="route-error-retry">
+        <Button type="button" data-wheel-role="retry" onClick={() => props.reset()} data-testid="route-error-retry">
           Retry
         </Button>
         <appRouter.Link to="home" data-testid="route-error-home">
