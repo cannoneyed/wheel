@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, onCleanup, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, splitProps, type JSX } from 'solid-js';
 import { ownerDocument } from '../../base-utils/owner';
 import { NOOP } from '../../base-utils/empty';
 import { useDrawerRootContext } from '../root/DrawerRootContext';
@@ -79,7 +79,7 @@ export function DrawerSwipeArea(componentProps: DrawerSwipeArea.Props): JSX.Elem
   const frontmostHeight = store.useState('frontmostHeight');
   const providerContext = useDrawerProviderContext(true);
 
-  const [swipeActive, setSwipeActive] = createSignal(false);
+  const [swipeActive, setSwipeActive] = useSignal(false, 'swipeActive');
 
   let swipeAreaElement: HTMLDivElement | null = null;
   let openedBySwipe = false;

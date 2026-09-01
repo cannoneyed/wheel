@@ -1,7 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createSignal, onMount, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../core/local-state';
+import { onMount, splitProps, type JSX } from 'solid-js';
 import { platform } from '../base-utils/platform/index';
 import { visuallyHidden } from '../base-utils/visuallyHidden';
 
@@ -17,7 +18,7 @@ export interface FocusGuardProps {
  */
 export function FocusGuard(props: FocusGuardProps): JSX.Element {
   const [local, rest] = splitProps(props, ['ref', 'onFocus']);
-  const [role, setRole] = createSignal<'button' | undefined>(undefined);
+  const [role, setRole] = useSignal<'button' | undefined>(undefined, 'role');
 
   onMount(() => {
     // Unlike NVDA and JAWS, VoiceOver's virtual cursor triggers `onFocus` as

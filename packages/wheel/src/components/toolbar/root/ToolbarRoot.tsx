@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createMemo, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createMemo, splitProps, type JSX } from 'solid-js';
 import type { BaseUIComponentProps, HTMLProps, Orientation } from '../../internals/types';
 import { CompositeRoot } from '../../internals/composite/root/CompositeRoot';
 import type { CompositeMetadata } from '../../internals/composite/list/CompositeList';
@@ -31,9 +31,8 @@ export function ToolbarRoot(componentProps: ToolbarRoot.Props): JSX.Element {
   const loopFocus = () => componentProps.loopFocus ?? true;
   const orientation = (): Orientation => componentProps.orientation ?? 'horizontal';
 
-  const [itemMap, setItemMap] = createSignal(
-    new Map<Element, CompositeMetadata<ToolbarRoot.ItemMetadata> | null>(),
-  );
+  const [itemMap, setItemMap] = useSignal(
+    new Map<Element, CompositeMetadata<ToolbarRoot.ItemMetadata> | null>(), 'itemMap');
 
   const disabledIndices = createMemo(() => {
     const output: number[] = [];

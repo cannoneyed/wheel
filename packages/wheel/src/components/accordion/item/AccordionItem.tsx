@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps, type JSX } from 'solid-js';
 import { renderElement } from '../../internals/renderElement';
 import type { BaseUIComponentProps } from '../../internals/types';
 import { createBaseUiId } from '../../internals/createBaseUiId';
@@ -119,7 +119,7 @@ export function AccordionItem(componentProps: AccordionItem.Props): JSX.Element 
   };
 
   const defaultTriggerId = createBaseUiId();
-  const [triggerIdState, setTriggerId] = createSignal<string | undefined>(undefined);
+  const [triggerIdState, setTriggerId] = useSignal<string | undefined>(undefined, 'triggerIdState');
   const triggerId = () => triggerIdState() ?? defaultTriggerId();
 
   const accordionItemContext: AccordionItemContext = {

@@ -1,7 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, Show, splitProps, untrack, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, Show, splitProps, untrack, type JSX } from 'solid-js';
 import { warn } from '../../base-utils/warn';
 import { createControllableSignal } from '../../base-utils/createControllableSignal';
 import { createValueChanged } from '../../base-utils/createValueChanged';
@@ -144,11 +145,10 @@ export function OTPFieldRoot(componentProps: OTPFieldRoot.Props): JSX.Element {
     );
   const filled = () => value() !== '';
 
-  const [inputCount, setInputCount] = createSignal(0);
-  const [focusedIndex, setFocusedIndex] = createSignal(
-    Math.min(untrack(value).length, componentProps.length - 1),
-  );
-  const [focused, setFocusedState] = createSignal(false);
+  const [inputCount, setInputCount] = useSignal(0, 'inputCount');
+  const [focusedIndex, setFocusedIndex] = useSignal(
+    Math.min(untrack(value).length, componentProps.length - 1), 'focusedIndex');
+  const [focused, setFocusedState] = useSignal(false, 'focused');
 
   const activeIndex = () =>
     focused()

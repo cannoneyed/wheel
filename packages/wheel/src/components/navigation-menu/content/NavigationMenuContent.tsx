@@ -1,7 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-tracked-show -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-tracked-show -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, splitProps, Show, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, splitProps, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { inertValue } from '../../base-utils/inertValue';
 import { FloatingNode } from '../../floating-ui-solid';
@@ -67,8 +68,8 @@ export function NavigationMenuContent(componentProps: NavigationMenuContent.Prop
 
   let contentElement: HTMLElement | null = null;
 
-  const [hasMountedInPortal, setHasMountedInPortal] = createSignal(false);
-  const [focusInside, setFocusInside] = createSignal(false);
+  const [hasMountedInPortal, setHasMountedInPortal] = useSignal(false, 'hasMountedInPortal');
+  const [focusInside, setFocusInside] = useSignal(false, 'focusInside');
 
   const { mounted, setMounted, transitionStatus } = createTransitionStatus(open);
 

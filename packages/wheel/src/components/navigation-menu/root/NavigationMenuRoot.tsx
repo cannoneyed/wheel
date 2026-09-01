@@ -1,7 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-tracked-show -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-tracked-show -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, splitProps, untrack, Show, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, splitProps, untrack, Show, type JSX } from 'solid-js';
 import { isHTMLElement } from '@floating-ui/utils/dom';
 import { createControllableSignal } from '../../base-utils/createControllableSignal';
 import { ownerDocument } from '../../base-utils/owner';
@@ -89,17 +90,17 @@ export function NavigationMenuRoot<Value = any>(
 
   let closeReason: NavigationMenuRoot.ChangeEventReason | undefined;
 
-  const [positionerElement, setPositionerElement] = createSignal<HTMLElement | null>(null);
-  const [popupElement, setPopupElement] = createSignal<HTMLElement | null>(null);
-  const [viewportElement, setViewportElement] = createSignal<HTMLElement | null>(null);
-  const [viewportTargetElement, setViewportTargetElement] = createSignal<HTMLElement | null>(null);
-  const [activationDirection, setActivationDirection] = createSignal<
+  const [positionerElement, setPositionerElement] = useSignal<HTMLElement | null>(null, 'positionerElement');
+  const [popupElement, setPopupElement] = useSignal<HTMLElement | null>(null, 'popupElement');
+  const [viewportElement, setViewportElement] = useSignal<HTMLElement | null>(null, 'viewportElement');
+  const [viewportTargetElement, setViewportTargetElement] = useSignal<HTMLElement | null>(null, 'viewportTargetElement');
+  const [activationDirection, setActivationDirection] = useSignal<
     'left' | 'right' | 'up' | 'down' | null
-  >(null);
-  const [floatingRootContext, setFloatingRootContext] = createSignal<
+  >(null, 'activationDirection');
+  const [floatingRootContext, setFloatingRootContext] = useSignal<
     FloatingRootContext | undefined
-  >(undefined);
-  const [viewportInert, setViewportInert] = createSignal(false);
+  >(undefined, 'floatingRootContext');
+  const [viewportInert, setViewportInert] = useSignal(false, 'viewportInert');
 
   const rootRef: { current: HTMLElement | null } = { current: null };
   const prevTriggerElementRef: { current: Element | null | undefined } = { current: null };

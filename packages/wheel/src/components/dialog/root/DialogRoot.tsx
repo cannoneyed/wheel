@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createEffect, createSignal, onCleanup, Show, untrack, type Accessor, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, Show, untrack, type Accessor, type JSX } from 'solid-js';
 import { EMPTY_OBJECT } from '../../base-utils/empty';
 import { DialogRootContext, useDialogRootContext } from './DialogRootContext';
 import { contains, getTarget, useDismiss } from '../../floating-ui-solid';
@@ -163,8 +163,8 @@ function DialogInteractions<Payload>(props: {
   const modal = store.useState('modal');
   const popupElement = store.useState('popupElement');
 
-  const [ownNestedOpenDialogs, setOwnNestedOpenDialogs] = createSignal(0);
-  const [ownNestedOpenDrawers, setOwnNestedOpenDrawers] = createSignal(0);
+  const [ownNestedOpenDialogs, setOwnNestedOpenDialogs] = useSignal(0, 'ownNestedOpenDialogs');
+  const [ownNestedOpenDrawers, setOwnNestedOpenDrawers] = useSignal(0, 'ownNestedOpenDrawers');
   const isTopmost = () => ownNestedOpenDialogs() === 0;
 
   const dismiss = useDismiss(floatingRootContext, {

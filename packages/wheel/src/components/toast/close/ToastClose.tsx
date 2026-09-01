@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps, type JSX } from 'solid-js';
 import type { BaseUIComponentProps, NativeButtonProps } from '../../internals/types';
 import { useToastRootContext } from '../root/ToastRootContext';
 import { useToastProviderContext } from '../provider/ToastProviderContext';
@@ -31,7 +31,7 @@ export function ToastClose(componentProps: ToastClose.Props): JSX.Element {
   const context = useToastRootContext();
   const expanded = store.useState('expanded');
 
-  const [hasFocus, setHasFocus] = createSignal(false);
+  const [hasFocus, setHasFocus] = useSignal(false, 'hasFocus');
 
   const { getButtonProps, buttonRef } = createButton({
     disabled,

@@ -1,7 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, onCleanup, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, splitProps, type JSX } from 'solid-js';
 import { mergeRefs } from '../../base-utils/mergeRefs';
 import { visuallyHidden } from '../../base-utils/visuallyHidden';
 import { ownerWindow } from '../../base-utils/owner';
@@ -167,7 +168,7 @@ export function SliderThumb(componentProps: SliderThumb.Props): JSX.Element {
   const thumbValue = () => sliderValues()[index()];
   const thumbValuePercent = () => valueToPercent(thumbValue(), min(), max());
 
-  const [positionPercent, setPositionPercent] = createSignal<number | undefined>(undefined);
+  const [positionPercent, setPositionPercent] = useSignal<number | undefined>(undefined, 'positionPercent');
 
   const safeLastUsedThumbIndex = () =>
     lastUsedThumbIndex() >= 0 && lastUsedThumbIndex() < sliderValues().length

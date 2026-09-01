@@ -1,9 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
+import { useSignal } from '../../../core/local-state';
 import {
   createEffect,
-  createSignal,
   onCleanup,
   Show,
   untrack,
@@ -211,7 +210,7 @@ export function DrawerRoot<Payload = unknown>(props: DrawerRoot.Props<Payload>):
 
   // Tracks whether a nested drawer is currently reporting a frontmost height, so this drawer's own
   // `frontmostHeight` falls back to its own `popupHeight` once the nested drawer closes.
-  const [isNestedDrawerOpen, setIsNestedDrawerOpen] = createSignal(false);
+  const [isNestedDrawerOpen, setIsNestedDrawerOpen] = useSignal(false, 'isNestedDrawerOpen');
 
   createEffect(() => {
     const height = popupHeight();
@@ -307,8 +306,8 @@ function DrawerInteractions<Payload>(props: {
   const modal = store.useState('modal');
   const popupElement = store.useState('popupElement');
 
-  const [ownNestedOpenDialogs, setOwnNestedOpenDialogs] = createSignal(0);
-  const [ownNestedOpenDrawers, setOwnNestedOpenDrawers] = createSignal(0);
+  const [ownNestedOpenDialogs, setOwnNestedOpenDialogs] = useSignal(0, 'ownNestedOpenDialogs');
+  const [ownNestedOpenDrawers, setOwnNestedOpenDrawers] = useSignal(0, 'ownNestedOpenDrawers');
   const isTopmost = () => ownNestedOpenDialogs() === 0;
 
   const dismiss = useDismiss(floatingRootContext, {

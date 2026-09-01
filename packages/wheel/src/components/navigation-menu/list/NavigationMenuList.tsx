@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps, Show, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps, Show, type JSX } from 'solid-js';
 import { EMPTY_OBJECT } from '../../base-utils/empty';
 import { useDismiss, useHoverFloatingInteraction, type ElementProps } from '../../floating-ui-solid';
 import { getTarget } from '../../floating-ui-solid/utils';
@@ -52,7 +52,7 @@ export function NavigationMenuList(componentProps: NavigationMenuList.Props): JS
   const hoverInteractionsEnabled = () =>
     positionerElement() != null || viewportElement() != null || value() == null;
 
-  const [dismissProps, setDismissProps] = createSignal<ElementProps | undefined>(undefined);
+  const [dismissProps, setDismissProps] = useSignal<ElementProps | undefined>(undefined, 'dismissProps');
 
   const state: NavigationMenuListState = {
     get open() {

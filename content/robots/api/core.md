@@ -90,7 +90,7 @@ A component's declared dependency edge, recorded at connect() time.
 
 ## `componentRoot`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:253](../../../packages/wheel/src/core/connect.tsx#L253).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:254](../../../packages/wheel/src/core/connect.tsx#L254).
 
 The `use:componentRoot` directive — mark a connected component's root element(s) so rectangle selection and the inspector can find it: <li use:componentRoot class={styles.row}> No arguments: the directive walks the owner chain to the nearest connect() instance and attaches this element to it. Multi-root components mark each root sibling (bounds = union). Detachment is automatic on cleanup, so roots inside <Show> re-register correctly and unmounted instances can't leak elements.
 
@@ -114,13 +114,13 @@ A KEYED derived value: callable with arguments, one memoized node per canonical 
 
 ## `connect`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:161](../../../packages/wheel/src/core/connect.tsx#L161).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:162](../../../packages/wheel/src/core/connect.tsx#L162).
 
 Declare a component's complete state manifest. Returns the component's ONE connection function, called once at the top of the component: const connectTodoList = connect('TodoList', (c, props: { listId: string }) => { const todoService = c.service(TodoService); return { get rows() { return todoService.rows(); }, get status() { return todoService.status(); }, add: todoService.add }; }); export function TodoList(props: { listId: string }) { const state = connectTodoList(props); ... }
 
 ## `Connector`
 
-Kind: interface. Source: [packages/wheel/src/core/connect.tsx:112](../../../packages/wheel/src/core/connect.tsx#L112).
+Kind: interface. Source: [packages/wheel/src/core/connect.tsx:113](../../../packages/wheel/src/core/connect.tsx#L113).
 
 The declaration surface available inside connect() callbacks.
 
@@ -252,7 +252,7 @@ Typed event builders exposed as named Service actions by `machine()`.
 
 ## `makeConnector`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:129](../../../packages/wheel/src/core/connect.tsx#L129).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:130](../../../packages/wheel/src/core/connect.tsx#L130).
 
 Build the connector surface for a component's connect declaration.
 
@@ -360,7 +360,7 @@ Explicit cleanup ownership for a service override.
 
 ## `ServiceProvider`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:85](../../../packages/wheel/src/core/connect.tsx#L85).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:86](../../../packages/wheel/src/core/connect.tsx#L86).
 
 Child scope (or clientless root, for pure-local sandboxes). Overrides inject service fakes for the subtree — the substitution seam for tests/sandboxes.
 
@@ -504,7 +504,7 @@ What a read form produces on the shape: call result, atom value, or the value it
 
 ## `viewRoot`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:307](../../../packages/wheel/src/core/connect.tsx#L307).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:308](../../../packages/wheel/src/core/connect.tsx#L308).
 
 The `use:viewRoot` directive — how a DUMB (non-connected) component registers in the component tree: export function Avatar(props: { url: string }) { return <img use:viewRoot={'Avatar'} src={props.url} />; } The string names the component (lint checks it matches the enclosing function); the object form additionally carries `group` and the component's `props`, so the tree can show them. Dev mode only — in production builds this is a flag check and nothing else, so marking every dumb component costs nothing. In dev each marked mount gets a live-slot instance id (`Avatar`, `Avatar#2`), a `data-wheel-id` DOM stamp, and a parent edge to the nearest enclosing instance — which is what makes the debug panel's component tree and the agent bridge see the WHOLE component tree, not just the connected layer. Mark ONE root element per view component. Components that render no DOM of their own carry the `// wheel-view-root: <reason>` pragma instead. Lint-enforced by `require-view-root`.
 
@@ -522,7 +522,7 @@ The `window.__wheel` global: per-app bridges plus sole-app conveniences.
 
 ## `WheelProvider`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:67](../../../packages/wheel/src/core/connect.tsx#L67).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:68](../../../packages/wheel/src/core/connect.tsx#L68).
 
 Client-backed root provider. Mount once at the app root.
 

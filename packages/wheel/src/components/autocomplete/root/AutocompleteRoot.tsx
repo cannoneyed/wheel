@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createMemo, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, createMemo, splitProps, type JSX } from 'solid-js';
 import { ComboboxRoot } from '../../combobox/root/ComboboxRoot';
 import { createCoreFilter } from '../../combobox/root/utils/useFilter';
 import { stringifyAsLabel } from '../../internals/resolveValueLabel';
@@ -50,8 +50,8 @@ export function AutocompleteRoot<ItemValue>(
   // Mirrors the typed value for uncontrolled usage so we can compose the temporary inline input
   // value on top of it.
   const isControlled = () => local.value !== undefined;
-  const [internalValue, setInternalValue] = createSignal(local.defaultValue ?? '');
-  const [inlineInputValue, setInlineInputValue] = createSignal('');
+  const [internalValue, setInternalValue] = useSignal(local.defaultValue ?? '', 'internalValue');
+  const [inlineInputValue, setInlineInputValue] = useSignal('', 'inlineInputValue');
 
   createEffect(() => {
     if (local.value !== undefined) {

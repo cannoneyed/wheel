@@ -1,6 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createMemo, createSignal, splitProps } from 'solid-js';
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+import { useSignal } from '../../../core/local-state';
+import { createMemo, splitProps } from 'solid-js';
 import { visuallyHidden } from '../../base-utils/visuallyHidden';
 import { renderElement } from '../../internals/renderElement';
 import { clamp } from '../../internals/clamp';
@@ -39,7 +40,7 @@ export function MeterRoot(componentProps: MeterRoot.Props) {
   const max = () => componentProps.max ?? 100;
   const min = () => componentProps.min ?? 0;
 
-  const [labelId, setLabelId] = createSignal<string | undefined>(undefined);
+  const [labelId, setLabelId] = useSignal<string | undefined>(undefined, 'labelId');
 
   // `clamp` handles infinity, but NaN needs an explicit fallback before normalizing range outputs.
   const computed = createMemo<ComputedMeter>(() => {

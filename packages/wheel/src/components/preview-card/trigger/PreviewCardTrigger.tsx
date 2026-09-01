@@ -1,8 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+import { useSignal } from '../../../core/local-state';
 import {
   createEffect,
-  createSignal,
   onCleanup,
   splitProps,
   untrack,
@@ -107,13 +106,11 @@ export function PreviewCardTrigger<Payload = unknown>(
   const delayWithDefault = () => local.delay ?? OPEN_DELAY;
   const closeDelayWithDefault = () => local.closeDelay ?? CLOSE_DELAY;
 
-  const [hoverProps, setHoverProps] = createSignal<Accessor<HTMLProps<Element> | undefined>>(
-    () => undefined,
-  );
-  const [focusProps, setFocusProps] = createSignal<ElementProps['reference']>({});
-  const [isMountedByThisTrigger, setIsMountedByThisTrigger] = createSignal<Accessor<boolean>>(
-    () => false,
-  );
+  const [hoverProps, setHoverProps] = useSignal<Accessor<HTMLProps<Element> | undefined>>(
+    () => undefined, 'hoverProps');
+  const [focusProps, setFocusProps] = useSignal<ElementProps['reference']>({}, 'focusProps');
+  const [isMountedByThisTrigger, setIsMountedByThisTrigger] = useSignal<Accessor<boolean>>(
+    () => false, 'isMountedByThisTrigger');
 
   // (Re)binds registration and hover/focus interactions whenever the resolved store's identity
   // changes. See this file's doc comment for why a one-time setup (as in `TooltipTrigger`/

@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createMemo, createSignal, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createMemo, type JSX } from 'solid-js';
 import {
   DrawerProviderContext,
   type DrawerVisualState,
@@ -15,7 +15,7 @@ import {
  * Documentation: [Base UI Drawer](https://base-ui.com/react/components/drawer)
  */
 export function DrawerProvider(props: DrawerProvider.Props): JSX.Element {
-  const [openById, setOpenById] = createSignal(new Map<string, boolean>());
+  const [openById, setOpenById] = useSignal(new Map<string, boolean>(), 'openById');
   const visualStateStore = createVisualStateStore();
 
   function setDrawerOpen(drawerId: string, open: boolean) {

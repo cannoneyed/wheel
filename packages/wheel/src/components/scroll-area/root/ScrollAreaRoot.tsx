@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps, type JSX } from 'solid-js';
 import { createTimeout } from '../../base-utils/createTimeout';
 import type { BaseUIComponentProps, HTMLProps } from '../../internals/types';
 import { createBaseUiId } from '../../internals/createBaseUiId';
@@ -68,15 +68,15 @@ export function ScrollAreaRoot(componentProps: ScrollAreaRoot.Props): JSX.Elemen
   const scrollYTimeout = createTimeout();
   const scrollXTimeout = createTimeout();
 
-  const [hovering, setHovering] = createSignal(false);
-  const [scrollingX, setScrollingX] = createSignal(false);
-  const [scrollingY, setScrollingY] = createSignal(false);
-  const [touchModality, setTouchModality] = createSignal(false);
-  const [hasMeasuredScrollbar, setHasMeasuredScrollbar] = createSignal(false);
-  const [cornerSize, setCornerSize] = createSignal<Size>(DEFAULT_SIZE);
-  const [thumbSize, setThumbSize] = createSignal<Size>(DEFAULT_SIZE);
-  const [overflowEdges, setOverflowEdges] = createSignal(DEFAULT_OVERFLOW_EDGES);
-  const [hiddenState, setHiddenState] = createSignal(DEFAULT_HIDDEN_STATE);
+  const [hovering, setHovering] = useSignal(false, 'hovering');
+  const [scrollingX, setScrollingX] = useSignal(false, 'scrollingX');
+  const [scrollingY, setScrollingY] = useSignal(false, 'scrollingY');
+  const [touchModality, setTouchModality] = useSignal(false, 'touchModality');
+  const [hasMeasuredScrollbar, setHasMeasuredScrollbar] = useSignal(false, 'hasMeasuredScrollbar');
+  const [cornerSize, setCornerSize] = useSignal<Size>(DEFAULT_SIZE, 'cornerSize');
+  const [thumbSize, setThumbSize] = useSignal<Size>(DEFAULT_SIZE, 'thumbSize');
+  const [overflowEdges, setOverflowEdges] = useSignal(DEFAULT_OVERFLOW_EDGES, 'overflowEdges');
+  const [hiddenState, setHiddenState] = useSignal(DEFAULT_HIDDEN_STATE, 'hiddenState');
 
   const rootRef: { current: HTMLElement | null } = { current: null };
   const viewportRef: { current: HTMLElement | null } = { current: null };

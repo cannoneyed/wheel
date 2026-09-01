@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps } from 'solid-js';
 import { renderElement } from '../../internals/renderElement';
 import type { BaseUIComponentProps } from '../../internals/types';
 import { AvatarRootContext } from './AvatarRootContext';
@@ -26,7 +26,7 @@ export function AvatarRoot(componentProps: AvatarRoot.Props) {
     'shape',
   ]);
 
-  const [imageLoadingStatus, setImageLoadingStatus] = createSignal<ImageLoadingStatus>('idle');
+  const [imageLoadingStatus, setImageLoadingStatus] = useSignal<ImageLoadingStatus>('idle', 'imageLoadingStatus');
   const size = (): AvatarSize => componentProps.size ?? 'md';
   const shape = (): AvatarShape => componentProps.shape ?? 'circle';
 

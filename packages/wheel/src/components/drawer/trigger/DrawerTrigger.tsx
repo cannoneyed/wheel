@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createEffect, createSignal, onCleanup, splitProps, untrack, type Accessor, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, splitProps, untrack, type Accessor, type JSX } from 'solid-js';
 import { useDrawerRootContext } from '../root/DrawerRootContext';
 import { createButton } from '../../internals/use-button/createButton';
 import { renderElement } from '../../internals/renderElement';
@@ -79,11 +79,10 @@ export function DrawerTrigger<Payload = unknown>(
     native: nativeButton,
   });
 
-  const [isMountedByThisTrigger, setIsMountedByThisTrigger] = createSignal<Accessor<boolean>>(
-    () => false,
-  );
-  const [clickProps, setClickProps] = createSignal<ElementProps['reference']>({});
-  const [openMethodProps, setOpenMethodProps] = createSignal<HTMLProps>({});
+  const [isMountedByThisTrigger, setIsMountedByThisTrigger] = useSignal<Accessor<boolean>>(
+    () => false, 'isMountedByThisTrigger');
+  const [clickProps, setClickProps] = useSignal<ElementProps['reference']>({}, 'clickProps');
+  const [openMethodProps, setOpenMethodProps] = useSignal<HTMLProps>({}, 'openMethodProps');
 
   // (Re)binds registration, click, and open-method interactions whenever the resolved store's
   // identity changes. See this file's doc comment for why a one-time setup isn't sufficient.

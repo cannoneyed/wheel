@@ -190,7 +190,15 @@ export function renderElement<State extends Record<string, any>>(
       // `data-wheel-role` comes from the merged props, not from the element: a
       // spread attribute lands after this ref runs, so reading the DOM here
       // would miss every `<Button data-wheel-role="add">`.
-      if (slot) viewRoot(el, () => ({ name: partName(slot), role: roleOfProps(finalProps()) }));
+      if (slot) {
+        viewRoot(el, () => ({
+          name: partName(slot),
+          role: roleOfProps(finalProps()),
+          // The part's own reactive state — `checked`, `open`, `disabled` —
+          // which is what drives it and what a reader of the tree came for.
+          state
+        }));
+      }
       componentProps.ref?.(el);
       const paramRef = params.ref;
       if (Array.isArray(paramRef)) {

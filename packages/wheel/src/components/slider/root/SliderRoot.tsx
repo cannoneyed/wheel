@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createMemo, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, createMemo, splitProps, type JSX } from 'solid-js';
 import { createControllableSignal } from '../../base-utils/createControllableSignal';
 import { createValueChanged } from '../../base-utils/createValueChanged';
 import { ownerDocument } from '../../base-utils/owner';
@@ -116,7 +116,7 @@ export function SliderRoot<Value extends number | readonly number[] = number | r
   } = useFieldRootContext();
   const { labelId: fieldLabelId } = useLabelableContext();
 
-  const [labelId, setLabelId] = createSignal<string | undefined>(undefined);
+  const [labelId, setLabelId] = useSignal<string | undefined>(undefined, 'labelId');
 
   const ariaLabelledby = () =>
     componentProps['aria-labelledby'] ?? resolveAriaLabelledBy(fieldLabelId(), labelId());
@@ -146,16 +146,15 @@ export function SliderRoot<Value extends number | readonly number[] = number | r
   // We can't use the :active browser pseudo-classes.
   // - The active state isn't triggered when clicking on the rail.
   // - The active state isn't transferred when inversing a range slider.
-  const [active, setActiveState] = createSignal(-1);
-  const [lastUsedThumbIndex, setLastUsedThumbIndex] = createSignal(-1);
-  const [dragging, setDragging] = createSignal(false);
-  const [thumbMap, setThumbMap] = createSignal(
-    new Map<Element, CompositeMetadata<ThumbMetadata> | null>(),
-  );
-  const [indicatorPosition, setIndicatorPosition] = createSignal<Array<number | undefined>>([
+  const [active, setActiveState] = useSignal(-1, 'active');
+  const [lastUsedThumbIndex, setLastUsedThumbIndex] = useSignal(-1, 'lastUsedThumbIndex');
+  const [dragging, setDragging] = useSignal(false, 'dragging');
+  const [thumbMap, setThumbMap] = useSignal(
+    new Map<Element, CompositeMetadata<ThumbMetadata> | null>(), 'thumbMap');
+  const [indicatorPosition, setIndicatorPosition] = useSignal<Array<number | undefined>>([
     undefined,
     undefined,
-  ]);
+  ], 'indicatorPosition');
 
   const setActive = (value: number) => {
     setActiveState(value);

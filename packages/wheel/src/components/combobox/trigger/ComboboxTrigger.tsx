@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, splitProps, type JSX } from 'solid-js';
 import { ownerDocument } from '../../base-utils/owner';
 import { createTimeout } from '../../base-utils/createTimeout';
 import { contains, getTarget, useClick, useTypeahead } from '../../floating-ui-solid';
@@ -101,7 +101,7 @@ export function ComboboxTrigger(componentProps: ComboboxTrigger.Props): JSX.Elem
     return undefined;
   };
 
-  const [currentPointerType, setCurrentPointerType] = createSignal<PointerEvent['pointerType']>('');
+  const [currentPointerType, setCurrentPointerType] = useSignal<PointerEvent['pointerType']>('', 'currentPointerType');
 
   function trackPointerType(event: PointerEvent) {
     setCurrentPointerType(event.pointerType);

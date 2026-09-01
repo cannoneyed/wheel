@@ -1,7 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, onCleanup, splitProps, Show, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, splitProps, Show, type JSX } from 'solid-js';
 import { isHTMLElement } from '@floating-ui/utils/dom';
 import { addEventListener } from '../../base-utils/addEventListener';
 import { ownerWindow } from '../../base-utils/owner';
@@ -151,9 +152,9 @@ export function NavigationMenuTrigger(componentProps: NavigationMenuTrigger.Prop
   const resizeFrame = createAnimationFrame();
   const sizeFrame = createAnimationFrame();
 
-  const [triggerElement, setTriggerElement] = createSignal<HTMLElement | null>(null);
-  const [stickIfOpen, setStickIfOpen] = createSignal(true);
-  const [pointerType, setPointerType] = createSignal<'mouse' | 'touch' | 'pen' | ''>('');
+  const [triggerElement, setTriggerElement] = useSignal<HTMLElement | null>(null, 'triggerElement');
+  const [stickIfOpen, setStickIfOpen] = useSignal(true, 'stickIfOpen');
+  const [pointerType, setPointerType] = useSignal<'mouse' | 'touch' | 'pen' | ''>('', 'pointerType');
 
   const triggerElementRef: { current: HTMLElement | null } = { current: null };
   let allowFocus = false;

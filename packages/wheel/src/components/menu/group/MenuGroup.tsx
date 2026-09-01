@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps, type JSX } from 'solid-js';
 import { renderElement } from '../../internals/renderElement';
 import type { BaseUIComponentProps } from '../../internals/types';
 import { MenuGroupContext } from './MenuGroupContext';
@@ -14,7 +14,7 @@ import { MenuGroupContext } from './MenuGroupContext';
 export function MenuGroup(componentProps: MenuGroup.Props): JSX.Element {
   const [, elementProps] = splitProps(componentProps, ['class', 'style', 'as', 'asChild', 'children']);
 
-  const [labelId, setLabelId] = createSignal<string | undefined>(undefined);
+  const [labelId, setLabelId] = useSignal<string | undefined>(undefined, 'labelId');
 
   return (
     <MenuGroupContext.Provider value={setLabelId}>

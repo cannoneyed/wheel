@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps, type JSX } from 'solid-js';
 import { renderElement } from '../../internals/renderElement';
 import type { BaseUIComponentProps } from '../../internals/types';
 import { FieldsetRootContext, useFieldsetRootContext } from './FieldsetRootContext';
@@ -21,7 +21,7 @@ export function FieldsetRoot(componentProps: FieldsetRoot.Props): JSX.Element {
     'disabled',
   ]);
 
-  const [legendId, setLegendId] = createSignal<string | undefined>(undefined);
+  const [legendId, setLegendId] = useSignal<string | undefined>(undefined, 'legendId');
 
   const parentContext = useFieldsetRootContext(true);
   const disabled = () => (parentContext?.disabled() || componentProps.disabled) ?? false;

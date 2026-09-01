@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps } from 'solid-js';
+import { useSignal } from '../../core/local-state';
+import { splitProps } from 'solid-js';
 import { createControllableSignal } from '../base-utils/createControllableSignal';
 import { createValueChanged } from '../base-utils/createValueChanged';
 import { CompositeRoot } from '../internals/composite/root/CompositeRoot';
@@ -79,7 +79,7 @@ export function RadioGroup<Value = any>(componentProps: RadioGroup.Props<Value>)
     state: 'value',
   });
 
-  const [touched, setTouched] = createSignal(false);
+  const [touched, setTouched] = useSignal(false, 'touched');
 
   const setCheckedValue = (value: Value, eventDetails: RadioGroup.ChangeEventDetails) => {
     componentProps.onValueChange?.(value, eventDetails);

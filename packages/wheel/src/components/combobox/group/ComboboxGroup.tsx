@@ -1,6 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-tracked-show -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, Show, splitProps, type JSX } from 'solid-js';
+/* eslint-disable wheel/require-tracked-show -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+import { useSignal } from '../../../core/local-state';
+import { Show, splitProps, type JSX } from 'solid-js';
 import type { BaseUIComponentProps } from '../../internals/types';
 import { renderElement } from '../../internals/renderElement';
 import { ComboboxGroupContext } from './ComboboxGroupContext';
@@ -22,7 +23,7 @@ export function ComboboxGroup(componentProps: ComboboxGroup.Props): JSX.Element 
     'items',
   ]);
 
-  const [labelId, setLabelId] = createSignal<string | undefined>(undefined);
+  const [labelId, setLabelId] = useSignal<string | undefined>(undefined, 'labelId');
 
   const items = () => local.items ?? [];
   const hasItems = () => local.items !== undefined;

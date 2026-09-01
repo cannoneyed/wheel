@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps, type JSX } from 'solid-js';
 import { createControllableSignal } from '../../base-utils/createControllableSignal';
 import { renderElement } from '../../internals/renderElement';
 import type { BaseUIComponentProps } from '../../internals/types';
@@ -28,7 +28,7 @@ export function MenuRadioGroup(componentProps: MenuRadioGroup.Props): JSX.Elemen
     'aria-labelledby',
   ]);
 
-  const [labelId, setLabelId] = createSignal<string | undefined>(undefined);
+  const [labelId, setLabelId] = useSignal<string | undefined>(undefined, 'labelId');
   const disabled = () => local.disabled ?? false;
 
   const [value, setValueUnwrapped] = createControllableSignal<any>({

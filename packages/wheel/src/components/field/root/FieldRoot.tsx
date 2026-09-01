@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, splitProps, type JSX } from 'solid-js';
 import { renderElement } from '../../internals/renderElement';
 import type { BaseUIComponentProps } from '../../internals/types';
 import { FieldRootContext } from '../../internals/field-root-context/FieldRootContext';
@@ -43,17 +43,17 @@ function FieldRootInner(componentProps: FieldRoot.Props): JSX.Element {
 
   const disabled = () => (fieldsetContext?.disabled() || componentProps.disabled) ?? false;
 
-  const [touchedState, setTouchedState] = createSignal(false);
-  const [dirtyState, setDirtyState] = createSignal(false);
-  const [filled, setFilled] = createSignal(false);
-  const [focused, setFocused] = createSignal(false);
+  const [touchedState, setTouchedState] = useSignal(false, 'touchedState');
+  const [dirtyState, setDirtyState] = useSignal(false, 'dirtyState');
+  const [filled, setFilled] = useSignal(false, 'filled');
+  const [focused, setFocused] = useSignal(false, 'focused');
 
   const dirty = () => componentProps.dirty ?? dirtyState();
   const touched = () => componentProps.touched ?? touchedState();
 
   const markedDirty: { current: boolean } = { current: dirty() };
   const registeredFieldId: { current: string | undefined } = { current: undefined };
-  const [registeredFieldName, setRegisteredFieldName] = createSignal<string | undefined>(undefined);
+  const [registeredFieldName, setRegisteredFieldName] = useSignal<string | undefined>(undefined, 'registeredFieldName');
   const effectiveName = () => componentProps.name ?? registeredFieldName();
 
   createEffect(() => {
@@ -100,13 +100,13 @@ function FieldRootInner(componentProps: FieldRoot.Props): JSX.Element {
   };
   const invalid = () => componentProps.invalid === true || hasFormError();
 
-  const [validityData, setValidityData] = createSignal<FieldValidityData>({
+  const [validityData, setValidityData] = useSignal<FieldValidityData>({
     state: DEFAULT_VALIDITY_STATE,
     error: '',
     errors: [],
     value: null,
     initialValue: null,
-  });
+  }, 'validityData');
 
   // App-controlled invalidity (the `invalid` prop and `<Form>` errors) keeps the field marked
   // invalid even while disabled. Only computed validity (native constraints and `validate`)

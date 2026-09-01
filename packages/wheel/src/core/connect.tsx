@@ -37,6 +37,7 @@ import { assertSingleSolidRuntime } from './solid-runtime';
  */
 const INSTANCE_KEY = Symbol('wheel.instance');
 
+
 type OwnerWithInstance = { [INSTANCE_KEY]?: InstanceRecord; owner: OwnerWithInstance | null };
 
 /**
@@ -306,7 +307,23 @@ export function roleOfProps(props: Record<string, unknown> | undefined): string 
  */
 export function viewRoot(
   el: HTMLElement,
-  value: () => string | { name: string; group?: string; role?: string | undefined; props?: object }
+  value: () =>
+    | string
+    | {
+        name: string;
+        group?: string;
+        role?: string | undefined;
+        /**
+         * The component's own reactive state, as an object of getters.
+         *
+         * A library part keeps its state in `createControllableSignal`, not in
+         * a `useSignal` the tree could name — so the part hands the whole
+         * state object over instead, and the tree reads it live exactly as it
+         * reads a `connect()` shape.
+         */
+        state?: object;
+        props?: object;
+      }
 ): void {
   if (!isWheelDevMode()) {
     return; // production: registration and DOM stamps are dev-only surfaces
@@ -317,10 +334,12 @@ export function viewRoot(
   }
   const raw = value();
   const named =
-    typeof raw === 'string' ? { name: raw, group: undefined, role: undefined, props: undefined } : raw;
+    typeof raw === 'string'
+      ? { name: raw, group: undefined, role: undefined, state: undefined, props: undefined }
+      : raw;
   const owner = getOwner() as OwnerWithInstance | null;
   const parent = nearestInstance(owner);
-  const { record, unregister } = context.services.registry.registerInstance(named.name, {}, {
+  const { record, unregister } = context.services.registry.registerInstance(named.name, named.state ?? {}, {
     kind: 'view',
     group: named.group,
     // Explicit wins: a library part reads the role off the props it was given,
@@ -349,7 +368,15 @@ declare module 'solid-js' {
   namespace JSX {
     interface Directives {
       componentRoot: true;
-      viewRoot: string | { name: string; group?: string; role?: string | undefined; props?: object };
+      viewRoot:
+        | string
+        | {
+            name: string;
+            group?: string;
+            role?: string | undefined;
+            state?: object;
+            props?: object;
+          };
     }
   }
 }

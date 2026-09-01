@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, onCleanup, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, splitProps, type JSX } from 'solid-js';
 import { mergeCleanups } from '../../base-utils/mergeCleanups';
 import { addEventListener } from '../../base-utils/addEventListener';
 import { ownerWindow } from '../../base-utils/owner';
@@ -90,7 +90,7 @@ export function NavigationMenuPositioner(componentProps: NavigationMenuPositione
 
   // When the menu is initially open, disable the positioner's transition for one frame
   // so a default value does not animate in from the unpositioned portal state.
-  const [instant, setInstant] = createSignal(open());
+  const [instant, setInstant] = useSignal(open(), 'instant');
   let needsInitialInstantReset = open();
 
   let prevTriggerElement: Element | null = null;
