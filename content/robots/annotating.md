@@ -46,7 +46,7 @@ Taps:
 
 Harvested at save time, because the app already records them:
 
-- sync writes from the client provenance log;
+- sync writes from the client provenance log. `RecordedWrite` carries `collection` (0.2's name for a table) and a `cause` of `<kind>:<mutations joined by +>` — an atomic group commits several mutations under one cause, and the NAMES are the useful half;
 - errors from the capture buffer, with source-mapped stacks.
 
 Bounds:

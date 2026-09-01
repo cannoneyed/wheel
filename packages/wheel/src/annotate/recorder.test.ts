@@ -229,7 +229,7 @@ describe('Recorder', () => {
     recorder.uninstall();
 
     const merged = recorder.harvest(0, 10_000, [
-      { at: 1_100, kind: 'write', table: 'cells', rowId: '3-7', cause: 'optimistic:toggle' }
+      { at: 1_100, kind: 'write', collection: 'cells', rowId: '3-7', cause: 'optimistic:toggle' }
     ]);
     expect(merged.map((event) => event.kind)).toEqual(['action', 'state', 'write']);
     expect(merged.every((event, index) => index === 0 || event.at >= merged[index - 1]!.at)).toBe(true);

@@ -247,7 +247,7 @@ Everything, by default. Each stream can be turned off, but the default is maxima
 | actions (service, name, arguments, duration) | the kernel tap on `Service.action` |
 | state transitions (atom, before → after) | the kernel tap on `Atom.set` / `.update` |
 | input (click, key, pointer, focus, scroll) | capture-phase listeners, each mapped to the component that owns the element |
-| sync writes | the client's provenance log — already recorded, harvested by timestamp |
+| sync writes | the client's provenance log — already recorded, harvested by timestamp. Each row names the collection and the mutations behind it (`optimistic:addRow+setTotal` when an atomic group wrote several) |
 | errors | the capture buffer — already recorded, with source-mapped stacks |
 | route changes | `popstate` / `hashchange`, so it works without wheel's router |
 | network | a `fetch` wrapper: method, url, status, round-trip |

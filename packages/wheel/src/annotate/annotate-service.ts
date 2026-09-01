@@ -533,9 +533,13 @@ export class AnnotateService extends Service {
         extra.push({
           at: write.at,
           kind: 'write',
-          table: write.table,
+          collection: write.collection,
           rowId: write.rowId,
-          cause: 'mutation' in cause ? `${cause.kind}:${cause.mutation}` : cause.kind,
+          // `optimistic:toggleCell`, or `optimistic:addRow+setTotal` when an
+          // atomic group wrote several. The names are the whole point of the
+          // line: `optimistic` alone says a local write happened, which the
+          // reader already knew.
+          cause: 'mutations' in cause ? `${cause.kind}:${cause.mutations.join('+')}` : cause.kind,
           ...(write.value === undefined ? {} : { value: serializeValue(write.value, WRITE_DEPTH) })
         });
       }

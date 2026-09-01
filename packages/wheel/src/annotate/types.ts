@@ -140,8 +140,8 @@ export interface RecordedWrite {
   readonly at: number;
   /** Discriminator. */
   readonly kind: 'write';
-  /** Table name. */
-  readonly table: string;
+  /** Collection name. */
+  readonly collection: string;
   /** Row id. */
   readonly rowId: string;
   /** Why the row moved — local mutation, server delta, rollback, hydrate. */

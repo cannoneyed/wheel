@@ -419,6 +419,55 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
+  it('names the mutations behind a sync write, including an atomic group', async () => {
+    // `optimistic` alone says a local write happened, which the reader already
+    // knew from the row changing. The mutation NAMES are the useful half, and
+    // an atomic group commits several under one cause.
+    //
+    // This is a regression guard for a rename that typechecked: 0.2 turned
+    // `cause.mutation` into `cause.mutations`, and the `in` narrowing that
+    // read it simply stopped matching — every write silently lost its names.
+    stubFetch();
+    const context = mountApp();
+    const service = context.services.get(AnnotateService);
+    service.attach(
+      {
+        // Inside the harvested window: the note reaches back over the rolling
+        // buffer, and a write stamped outside it is correctly ignored.
+        recentWrites: () => [
+          {
+            at: context.services.now(),
+            collection: 'cells',
+            rowId: '3-7',
+            value: { on: true },
+            cause: { kind: 'optimistic', mutationId: 'm1', mutations: ['toggleCell', 'bumpTotal'] }
+          }
+        ],
+        connectionStatus: () => 'connected',
+        pendingMutations: () => 0
+      } as unknown as Parameters<AnnotateService['attach']>[0],
+      {
+        region: () => Promise.resolve('data:image/png;base64,AAA'),
+        stream: () => Promise.reject(new Error('no display capture in tests'))
+      }
+    );
+
+    service.arm();
+    context.services.get(BoardService).toggleCell('3-7');
+    service.pickRegion(OVER_CELL);
+    service.setText('this row is wrong');
+    service.save();
+
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    const payload = posted[0]!['payload'] as NotePayload;
+    const write = payload.timeline.find((event) => event.kind === 'write');
+    expect(write).toMatchObject({
+      collection: 'cells',
+      cause: 'optimistic:toggleCell+bumpTotal'
+    });
+    service.disarm();
+  });
+
   it('finishes a running screen recording before it sends the note', async () => {
     stubFetch();
     let stopped = 0;

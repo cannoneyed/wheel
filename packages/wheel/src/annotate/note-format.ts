@@ -82,7 +82,7 @@ export function describeEvent(event: RecordedEvent): string {
       return `${event.type} ${where}${detail ? ` (${detail})` : ''}`;
     }
     case 'write':
-      return `${event.table}/${event.rowId} cause=${event.cause}`;
+      return `${event.collection}/${event.rowId} cause=${event.cause}`;
     case 'error':
       return `${event.id} ${event.message}`;
     case 'route':
