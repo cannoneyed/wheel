@@ -49,12 +49,30 @@ fi
 
 database_url="postgres://postgres:postgres@postgres:5432/wheel_sync"
 
+docker run --rm \
+  --network "$docker_network" \
+  --user "$(id -u):$(id -g)" \
+  --volume "$repo_dir:/workspace" \
+  --workdir /workspace/elixir/spoke \
+  --env "DATABASE_URL=$database_url" \
+  --env MIX_HOME=/workspace/.cache/mix \
+  --env HEX_HOME=/workspace/.cache/hex \
+  "$elixir_image" \
+  bash -lc '
+    set -euo pipefail
+    mix local.hex --force
+    mix local.rebar --force
+    mix deps.get
+    mix format --check-formatted
+    mix compile --warnings-as-errors
+  '
+
 start_node() {
   local container="$1"
   local port="$2"
   local reset="$3"
 
-  docker run --rm --detach \
+  docker run --detach \
     --name "$container" \
     --network "$docker_network" \
     --publish "127.0.0.1::$port" \
