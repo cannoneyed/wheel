@@ -64,6 +64,32 @@ test('hovering a row highlights its component, and leaving clears it', async ({ 
   await expect.poll(outlined).toBe(0);
 });
 
+test('the children prop lists the components it mounted, and they are reachable', async ({ page }) => {
+  const pane = page.getByTestId('wheel-pane-components');
+  // Open down until some component's `children` prop is on screen.
+  for (let pass = 0; pass < 12; pass += 1) {
+    if ((await pane.getByTestId('wheel-tree-child-link').count()) > 0) break;
+    const closed = pane.locator('[data-tree-row]').filter({ hasText: /^▸/ }).first();
+    if ((await closed.count()) === 0) break;
+    await closed.click();
+  }
+
+  const links = pane.getByTestId('wheel-tree-child-link');
+  await expect(links.first()).toBeVisible();
+
+  // It used to read `<jsx children>` — a marker, not a lie: reading the getter
+  // MOUNTS what it returns, and the tree re-renders on every registration, so
+  // reading it here is a mount loop. These are the child nodes the tree
+  // already had.
+  const label = (await links.first().textContent())!.trim();
+  expect(label).not.toBe('<jsx children>');
+  expect(label.length).toBeGreaterThan(0);
+
+  // And it is a way THROUGH the tree: pressing one reveals that component.
+  await links.first().click();
+  await expect(page.locator(`[data-tree-node="${label}"]`)).toHaveCount(1);
+});
+
 test('hovering does not rebuild the tree under the pointer', async ({ page }) => {
   const row = page.getByTestId('wheel-pane-components').locator('[data-tree-node] [data-tree-row]').first();
   const handle = await row.elementHandle();

@@ -118,12 +118,19 @@ function TreeChildren(props: {
   services: ServiceContext;
   ex: ExpandState;
   selected: () => string | null;
+  reveal: (instanceId: string) => void;
 }): JSX.Element {
   return (
     <For each={groupSiblings(props.nodes)}>
       {(child) =>
         child.kind === 'node' ? (
-          <TreeNode node={child.node} services={props.services} ex={props.ex} selected={props.selected} />
+          <TreeNode
+            node={child.node}
+            services={props.services}
+            ex={props.ex}
+            selected={props.selected}
+            reveal={props.reveal}
+          />
         ) : (
           <Expandable
             path={`${props.parentPath}:list:${child.name}`}
@@ -144,7 +151,13 @@ function TreeChildren(props: {
           >
             <For each={child.members}>
               {(member) => (
-                <TreeNode node={member} services={props.services} ex={props.ex} selected={props.selected} />
+                <TreeNode
+                  node={member}
+                  services={props.services}
+                  ex={props.ex}
+                  selected={props.selected}
+                  reveal={props.reveal}
+                />
               )}
             </For>
           </Expandable>
@@ -154,11 +167,71 @@ function TreeChildren(props: {
   );
 }
 
+/**
+ * The `children` prop, as the components it actually mounted.
+ *
+ * It used to read `<jsx children>`, and that marker is not laziness — reading a
+ * JSX getter MOUNTS what it returns, and the tree re-renders whenever an
+ * instance registers, so reading it here is a mount loop (it froze the graph
+ * demo at 400% CPU). Nothing is read now either: these are the child nodes the
+ * tree already has, which is what the prop produced.
+ *
+ * Each one selects its row, so `children` is a way THROUGH the tree rather
+ * than a dead end.
+ */
+function ChildLinks(props: {
+  node: InstanceTreeNode;
+  services: ServiceContext;
+  reveal: (instanceId: string) => void;
+}): JSX.Element {
+  const highlight = (id: string | null): void => props.services.get(InspectorService).highlight(id);
+  const count = (): number => props.node.children.length;
+  return (
+    <>
+      <div style={sectionStyles.row}>
+        <span style={sectionStyles.dim}>children:</span>
+        <span style={sectionStyles.dim}>
+          {count() > 0 ? `(${count()})` : 'nothing wheel can see'}
+        </span>
+      </div>
+      <For each={props.node.children}>
+        {(child) => (
+          <button
+            type="button"
+            data-testid="wheel-tree-child-link"
+            style={childLinkStyle}
+            title={`reveal ${child.instanceId}`}
+            onClick={() => props.reveal(child.instanceId)}
+            onMouseEnter={() => highlight(child.instanceId)}
+            onMouseLeave={() => highlight(null)}
+          >
+            {child.instanceId}
+          </button>
+        )}
+      </For>
+    </>
+  );
+}
+
+/** A child link reads as a link, not as a value. */
+const childLinkStyle = {
+  display: 'block',
+  padding: '1px 0 1px 12px',
+  border: 'none',
+  background: 'none',
+  color: 'var(--wheel-indigo-edge, #93c5fd)',
+  font: 'inherit',
+  cursor: 'pointer',
+  'text-align': 'left',
+  'text-decoration': 'underline'
+} satisfies JSX.CSSProperties;
+
 function TreeNode(props: {
   node: InstanceTreeNode;
   services: ServiceContext;
   ex: ExpandState;
   selected: () => string | null;
+  reveal: (instanceId: string) => void;
 }): JSX.Element {
   const record = () => props.services.registry.instance(props.node.instanceId);
   // Live values, on the DATA channel. Kept out of the tree-shape memo so a
@@ -232,12 +305,19 @@ function TreeNode(props: {
                 >
                   <For each={Object.entries(liveProps())}>
                     {([key, value]) => (
-                      <JsonTree
-                        path={`tree:${props.node.key}:props.${key}`}
-                        label={key}
-                        value={value}
-                        ex={props.ex}
-                      />
+                      <Show
+                        when={key === 'children'}
+                        fallback={
+                          <JsonTree
+                            path={`tree:${props.node.key}:props.${key}`}
+                            label={key}
+                            value={value}
+                            ex={props.ex}
+                          />
+                        }
+                      >
+                        <ChildLinks node={props.node} services={props.services} reveal={props.reveal} />
+                      </Show>
                     )}
                   </For>
                 </Expandable>
@@ -315,6 +395,7 @@ function TreeNode(props: {
           services={props.services}
           ex={props.ex}
           selected={props.selected}
+          reveal={props.reveal}
         />
       </Expandable>
     </div>
@@ -520,6 +601,7 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
               services={props.services}
               ex={props.ex}
               selected={selected}
+              reveal={reveal}
             />
           </Expandable>
         </Show>
@@ -536,6 +618,7 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
               services={props.services}
               ex={props.ex}
               selected={selected}
+              reveal={reveal}
             />
           </Expandable>
         </Show>
