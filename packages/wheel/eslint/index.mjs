@@ -48,6 +48,7 @@ import noDevModeShow from './rules/no-dev-mode-show.mjs';
 import noDirectiveOnComponent from './rules/no-directive-on-component.mjs';
 import noDirectMaterializerWrites from './rules/no-direct-materializer-writes.mjs';
 import noWorkerDataExports from './rules/no-worker-data-exports.mjs';
+import noBrowserSupportInProduction from './rules/no-browser-support-in-production.mjs';
 
 export default {
   meta: { name: 'wheel' },
@@ -92,6 +93,7 @@ export default {
     'no-dev-mode-show': noDevModeShow,
     'no-directive-on-component': noDirectiveOnComponent,
     'no-direct-materializer-writes': noDirectMaterializerWrites,
-    'no-worker-data-exports': noWorkerDataExports
+    'no-worker-data-exports': noWorkerDataExports,
+    'no-browser-support-in-production': noBrowserSupportInProduction
   }
 };

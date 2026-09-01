@@ -230,8 +230,9 @@ describe('ordered deltas and checkpoints', () => {
     expect(await store.loadOutbox()).toHaveLength(1);
 
     client.setConnectionStatus('reconnecting');
-    push({ type: 'hello', clientId: 'generation_client' });
+    // The socket-level hello reports connected before the engine-level hello.
     client.setConnectionStatus('connected');
+    push({ type: 'hello', clientId: 'generation_client' });
     await drainMicrotasks();
     expect(requests).toHaveLength(2);
 

@@ -90,6 +90,17 @@ export default [
     }
   },
 
+  // Fault injection and process controls belong to browser tests. Production
+  // entries share domain bindings, never the harness that wraps them.
+  {
+    files: ['packages/*/server.ts', 'cloudflare/*-worker.ts'],
+    ignores: ['cloudflare/test-worker.ts'],
+    plugins: { wheel },
+    rules: {
+      'wheel/no-browser-support-in-production': 'error'
+    }
+  },
+
   // Layer 1 — library code (the kernel). Documentation rules plus
   // derive-don't-store. NOT connect-only: kernel internals legitimately use
   // the context primitives that rule forbids in app code.
