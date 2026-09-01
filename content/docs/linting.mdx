@@ -135,6 +135,26 @@ Some rules are about runtime shape, not syntax. Those run as tests (`constraints
 </Aside>
 
 <Aside kind="todo">
+  <strong><code>no-presence-narrowing</code>.</strong> Narrowing a union by property presence —
+  <code>'mutations' in cause ? cause.mutations : …</code> — survives the property being renamed
+  away. The check stays valid TypeScript, silently stops matching, and takes the fallback branch
+  forever. Wheel 0.2 renamed <code>WriteCause.mutation</code> to <code>mutations</code> and two
+  sites did exactly this: the annotator dropped the mutation names from every recorded sync
+  write, and the tracker's explain popover dropped them from every row. Both compiled, and both
+  passed their suites, because no test asserted the string.
+  <br />
+  The blocker is that the rule needs types. Without knowing the union, the linter cannot tell a
+  dead <code>in</code> check from a live one — and the live ones are everywhere and legitimate
+  (<code>'touches' in event</code> against a DOM union we do not own; there are twenty in the
+  drawer alone). Banning the operator would drown the signal.
+  <br />
+  The defense is a pattern, and it is better than a rule would be: <strong>narrow on the
+  discriminant</strong> (<code>cause.kind === 'optimistic' || …</code>) so the property read is
+  checked against a known member. Then a rename is a compile error at every site rather than
+  silence. Both sites above now do this, and it is verified — renaming the field fails the build.
+</Aside>
+
+<Aside kind="todo">
   <strong>Manifest parity (runtime, dev-only).</strong> The registry knows what each component
   declared. The kernel should warn when a component reads a signal that is not in its manifest —
   the last mile of "the declaration is the whole truth."

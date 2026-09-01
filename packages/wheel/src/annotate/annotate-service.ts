@@ -539,7 +539,16 @@ export class AnnotateService extends Service {
           // atomic group wrote several. The names are the whole point of the
           // line: `optimistic` alone says a local write happened, which the
           // reader already knew.
-          cause: 'mutations' in cause ? `${cause.kind}:${cause.mutations.join('+')}` : cause.kind,
+          //
+          // Narrowed on `kind`, deliberately, NOT on `'mutations' in cause`.
+          // Property-presence narrowing stays legal when the property is
+          // renamed away — it just silently stops matching, which is how this
+          // dropped every mutation name across the 0.2 upgrade. Naming the
+          // members makes the compiler fail the next rename instead.
+          cause:
+            cause.kind === 'optimistic' || cause.kind === 'rollback' || cause.kind === 'orphaned'
+              ? `${cause.kind}:${cause.mutations.join('+')}`
+              : cause.kind,
           ...(write.value === undefined ? {} : { value: serializeValue(write.value, WRITE_DEPTH) })
         });
       }
