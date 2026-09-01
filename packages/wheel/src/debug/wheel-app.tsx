@@ -43,6 +43,7 @@ import type { ContextClient, ServiceContext } from '../core/services';
 import type { SyncClient } from '../sync/client/client';
 import { WheelProvider, ServiceProvider } from '../core/connect';
 import { WheelContext } from '../core/context';
+import { DebugChrome } from '../core/connect';
 import { debugPanes, type DebugPane } from './panes';
 import { isWheelDevMode } from '../core/dev-mode';
 
@@ -360,6 +361,11 @@ function DockPanel(props: {
           )}
         </For>
       </div>
+      {/* Everything below is TOOLING. It is built from the same kit and
+          component library an app uses — deliberately, because the panel
+          should live on the parts it exists to show — and `DebugChrome` keeps
+          that furniture out of the component tree it is drawing. */}
+      <DebugChrome>
       <div style={dockStyles.sections} ref={(element) => (sectionsHost = element)}>
         <For each={shown()}>
           {(pane, index) => (
@@ -394,6 +400,7 @@ function DockPanel(props: {
           )}
         </For>
       </div>
+      </DebugChrome>
     </>
   );
 }

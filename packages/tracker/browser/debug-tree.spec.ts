@@ -157,14 +157,24 @@ test('the tree and its detail scroll on their own, and the split is draggable', 
   // taller, because the detail is pinned to the bottom.
   const detail = pane.getByTestId('wheel-tree-detail');
   const before = (await detail.boundingBox())!.height;
-  const handle = pane.getByTestId('wheel-tree-detail-handle');
-  const grip = (await handle.boundingBox())!;
-  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(grip.x + grip.width / 2, grip.y - 60, { steps: 6 });
-  await page.mouse.up();
+  // Frame draws the handle: an ARIA separator, labelled by the region it
+  // resizes. Nothing here hand-rolls a drag any more.
+  // Frame's handle belongs to the region ABOVE the boundary it straddles, so
+  // the split between tree and detail is the TREE's handle. Nothing here
+  // hand-rolls a drag any more.
+  // Frame's handle belongs to the region ABOVE the boundary it straddles, so
+  // the split between tree and detail is the TREE's handle. Nothing here
+  // hand-rolls a drag any more — including the keyboard path, which comes
+  // with it.
+  const handle = pane.locator('[data-wheel-frame-handle="wheel-debug-tree"]');
+  await expect(handle).toBeVisible();
+  await handle.focus();
+  await handle.press('ArrowUp');
 
-  expect((await detail.boundingBox())!.height).toBeGreaterThan(before);
+  // Shrinking the tree gives the space to the detail.
+  await expect
+    .poll(async () => Math.round((await detail.boundingBox())!.height))
+    .toBeGreaterThan(Math.round(before));
 });
 
 test('a childless row has no caret, and a long name is cut rather than wrapped', async ({ page }) => {

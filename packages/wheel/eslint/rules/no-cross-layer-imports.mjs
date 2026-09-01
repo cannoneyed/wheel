@@ -13,7 +13,8 @@
  *   sync          ← may use core
  *   sync/server   ← may use sync, core
  *   kit           ← may use core and components (never sync — verified per file)
- *   debug         ← may use core, sync (it renders the client's surfaces)
+ *   debug         ← may use core, sync, components, kit (it renders the client's
+ *                   surfaces, and builds its own with the same parts an app gets)
  *   annotate      ← may use core, sync, debug (it reuses the picker and capture)
  *   testing       ← may use sync, sync/server, core
  *
@@ -91,7 +92,11 @@ const ALLOWED_EDGES = {
   sync: new Set(['core']),
   'sync/server': new Set(['auth', 'sync', 'core']),
   kit: new Set(['core', 'components']),
-  debug: new Set(['core', 'sync']),
+  // The panel is a wheel app like any other: it lays itself out with the
+  // Frame kit and draws itself with the component library, rather than
+  // hand-rolling a second, worse copy of both. Still a DOWN edge — neither
+  // kit nor components imports debug.
+  debug: new Set(['core', 'sync', 'components', 'kit']),
   annotate: new Set(['core', 'sync', 'debug']),
   testing: new Set(['sync', 'sync/server', 'core'])
 };

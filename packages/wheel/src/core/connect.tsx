@@ -15,7 +15,7 @@
  *   functions — never whole service instances.
  */
 
-import { getOwner, onCleanup, useContext, type JSX } from 'solid-js';
+import { createContext, getOwner, onCleanup, useContext, type JSX } from 'solid-js';
 
 import {
   ServiceContext,
@@ -35,6 +35,34 @@ import { assertSingleSolidRuntime } from './solid-runtime';
  * find it. Plain userland Solid (an expando on getOwner()) — no internals,
  * works identically in production builds.
  */
+/**
+ * Inside this, components do not register.
+ *
+ * The debug panel builds itself from the same kit and component library an app
+ * uses — that is the point of dogfooding them — but a `Frame` it mounts for
+ * its OWN layout is furniture, not the app being inspected. Without a
+ * boundary the panel fills its own component tree with its own scaffolding.
+ *
+ * It suppresses registration rather than filtering later: a name-based ignore
+ * list (`InspectorSystem|SnapshotSystem`) has to be kept in step with every
+ * new piece of chrome, and quietly hides an app component that happens to
+ * share a name.
+ */
+const ChromeBoundary = createContext(false);
+
+/**
+ * Mark a subtree as tooling: components inside it stay out of the component
+ * tree, the agent bridge, and anything else that reads the registry.
+ */
+export function DebugChrome(props: { children: JSX.Element }): JSX.Element {
+  return <ChromeBoundary.Provider value={true}>{props.children}</ChromeBoundary.Provider>;
+}
+
+/** Whether the caller is inside a {@link DebugChrome} subtree. */
+export function insideChrome(): boolean {
+  return useContext(ChromeBoundary);
+}
+
 const INSTANCE_KEY = Symbol('wheel.instance');
 
 
@@ -216,7 +244,9 @@ export function connect<Props, Shape>(
     // The parent edge is resolved BEFORE stamping — the walk starts at this
     // component's own (unstamped) owner and finds the nearest enclosing
     // mounted instance.
-    if (shape !== null && typeof shape === 'object') {
+    // Chrome registers nothing: the panel builds itself from the same parts an
+    // app uses, and its own furniture is not part of the app it is inspecting.
+    if (shape !== null && typeof shape === 'object' && !insideChrome()) {
       const owner = getOwner() as OwnerWithInstance | null;
       const parent = nearestInstance(owner);
       const { record, unregister } = registry.registerInstance(name, shape, {
@@ -337,6 +367,9 @@ export function viewRoot(
     typeof raw === 'string'
       ? { name: raw, group: undefined, role: undefined, state: undefined, props: undefined }
       : raw;
+  // See `DebugChrome`: a view component the panel mounts for its own layout is
+  // furniture, not part of the tree it draws.
+  if (insideChrome()) return;
   const owner = getOwner() as OwnerWithInstance | null;
   const parent = nearestInstance(owner);
   const { record, unregister } = context.services.registry.registerInstance(named.name, named.state ?? {}, {

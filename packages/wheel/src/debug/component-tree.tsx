@@ -28,6 +28,8 @@ import type { DebugRegistry, InstanceRecord, InstanceTreeNode } from '../core/de
 import type { ServiceContext } from '../core/services';
 
 import { InspectorService } from './inspector';
+import { Frame } from '../kit';
+
 import { Expandable, JsonTree, sectionStyles, type ExpandState } from './panel-sections';
 
 /**
@@ -541,40 +543,23 @@ function renderedChain(registry: DebugRegistry, instanceId: string): string[] {
   return chain;
 }
 
-/** The remembered detail height, or the default when nothing is stored. */
-function readDetailHeight(): number {
-  try {
-    const stored = Number(localStorage.getItem(DETAIL_HEIGHT_KEY));
-    return Number.isFinite(stored) && stored >= DETAIL_MIN ? stored : DETAIL_DEFAULT;
-  } catch {
-    return DETAIL_DEFAULT;
-  }
-}
-
-/** How tall the detail sub-view starts, and how small it may be dragged. */
-const DETAIL_HEIGHT_KEY = 'wheel.debug-panel.detail-height';
-const DETAIL_DEFAULT = 180;
-const DETAIL_MIN = 60;
-
 /**
- * The components pane's own layout: a tree that scrolls, a handle, a detail
- * that scrolls.
+ * The components pane's own layout: a tree that scrolls above a detail that
+ * scrolls, split by a handle the reader can drag.
  *
  * The pane used to be one scrolling box with everything in it, so a big tree
  * pushed the detail off the bottom and the reader chased two things with one
- * scrollbar. Each region scrolls itself now, and the split between them is
- * draggable — the same idiom the dock already uses between panes.
+ * scrollbar.
+ *
+ * The split is a `Frame.Column` of two `Frame.Row`s — the framework's own
+ * geometry primitive, which brings the handle, the clamps and the remembered
+ * size with it. The panel is a wheel app; it should not hand-roll a second,
+ * worse copy of the thing it exists to show off.
  */
 const treeStyles = {
   column: { display: 'flex', 'flex-direction': 'column', height: '100%', 'min-height': 0 },
-  scroll: { flex: '1 1 auto', 'overflow-y': 'auto', 'min-height': 0 },
-  handle: {
-    flex: '0 0 5px',
-    margin: '4px 0',
-    cursor: 'ns-resize',
-    background: 'var(--wheel-stage-line-strong, #2a2f3a)',
-    'border-radius': '2px'
-  }
+  /** Frame sizes the region; this scrolls whatever does not fit in it. */
+  region: { height: '100%', width: '100%', 'min-height': 0, overflow: 'auto' }
 } satisfies Record<string, JSX.CSSProperties>;
 
 /** The full mounted-component tree in App/Framework buckets, nodes default closed. */
@@ -596,34 +581,6 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
   // a time on purpose: this is "what is this component holding", not a second
   // tree to navigate.
   const [inspected, setInspected] = createSignal<string | null>(null);
-  const [detailHeight, setDetailHeight] = createSignal(readDetailHeight());
-  /**
-   * Drag the split between the tree and the detail.
-   *
-   * The same idiom the dock uses between its panes: capture the pointer on
-   * the handle, move a stored size, persist on release. Grown UPWARD — the
-   * detail is anchored to the bottom, so dragging up makes it taller.
-   */
-  const beginDetailResize = (event: PointerEvent): void => {
-    const handle = event.currentTarget as HTMLElement;
-    handle.setPointerCapture(event.pointerId);
-    const startY = event.clientY;
-    const startHeight = detailHeight();
-    const onMove = (move: PointerEvent): void => {
-      setDetailHeight(Math.max(DETAIL_MIN, startHeight - (move.clientY - startY)));
-    };
-    const onUp = (): void => {
-      handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', onUp);
-      try {
-        localStorage.setItem(DETAIL_HEIGHT_KEY, String(Math.round(detailHeight())));
-      } catch {
-        // Private mode, or storage disabled: the size is simply not remembered.
-      }
-    };
-    handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', onUp);
-  };
   const inspectedNode = createMemo<InstanceTreeNode | null>(() => {
     const key = inspected();
     if (key === null) return null;
@@ -777,7 +734,17 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
           ⌖
         </button>
       </div>
-      <div style={treeStyles.scroll} data-testid="wheel-tree-scroll">
+      <Frame.Column id="wheel-debug-components" size="1fr" class={undefined}>
+      <Frame.Row
+        id="wheel-debug-tree"
+        // The handle belongs to the region above the boundary, and it resizes
+        // THAT region — so the tree carries the size and the detail absorbs
+        // what is left. With no detail open there is nothing to absorb, so
+        // the tree takes the pane.
+        size={inspectedNode() ? '240px' : '1fr'}
+        minSize="80px"
+      >
+      <div style={treeStyles.region} data-testid="wheel-tree-scroll">
       <Show
         when={!empty()}
         fallback={<div style={sectionStyles.dim}>nothing mounted (components register via connect() and use:viewRoot)</div>}
@@ -817,20 +784,13 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
         </Show>
       </Show>
       </div>
-      {/* The sub-view, attached under the tree and sized by the reader. */}
+      </Frame.Row>
+      {/* The sub-view, attached under the tree. `Frame.Row` brings the handle,
+          the clamps and the remembered height. */}
       <Show when={inspectedNode()}>
         {(node) => (
-          <>
-            <div
-              style={treeStyles.handle}
-              data-testid="wheel-tree-detail-handle"
-              aria-label="resize the component detail"
-              onPointerDown={beginDetailResize}
-            />
-            <div
-              style={{ ...detailStyles.panel, height: `${detailHeight()}px` }}
-              data-testid="wheel-tree-detail"
-            >
+          <Frame.Row id="wheel-debug-detail" size="1fr" minSize="60px">
+            <div style={treeStyles.region} data-testid="wheel-tree-detail">
               <ComponentDetail
                 node={node()}
                 services={props.services}
@@ -839,9 +799,10 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
                 close={() => setInspected(null)}
               />
             </div>
-          </>
+          </Frame.Row>
         )}
       </Show>
+      </Frame.Column>
     </div>
   );
 }
