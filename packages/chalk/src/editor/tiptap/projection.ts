@@ -1,5 +1,5 @@
 /**
- * The wheel → editor half of the projection (design.md):
+ * The Wheel → Chalk editor half of the projection (design.md):
  *
  *   wheel rows ──(diff rows vs doc BY BLOCK ID, patch minimally)──▶ tiptap doc
  *

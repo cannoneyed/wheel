@@ -1,5 +1,5 @@
 /**
- * Editor sync module — the block-document contract (007 design):
+ * Chalk editor sync module — the block-document contract (007 design):
  *
  * - A block row = one top-level node in the single tiptap editor: `kind`
  *   (paragraph/heading/bullet/…), `text` (INLINE markdown only — bold,

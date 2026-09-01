@@ -1,5 +1,5 @@
 /**
- * Undo/redo icon buttons for the toolbar row — disabled states track the
+ * Chalk undo/redo buttons for the toolbar row — disabled states track the
  * client's history stacks, and the buttons NEVER unmount (the toolbar's
  * no-layout-shift rule). The same undo/redo also rides mod+z / mod+shift+z
  * (registered by EditorService), so buttons and shortcuts stay one code path.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Presence decorations against a REAL mounted editor (008 P3): dots for
+ * Chalk presence decorations against a real mounted editor (008 P3): dots for
  * focused peers, carets at offsets, and the typing preview replacing the
  * block's display — all as decorations, never as document content.
  */

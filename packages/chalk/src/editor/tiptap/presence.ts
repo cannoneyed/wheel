@@ -1,5 +1,5 @@
 /**
- * Live peer state rendered INSIDE the editor as ProseMirror decorations
+ * Live Chalk peer state rendered inside the editor as ProseMirror decorations
  * (008 P3): presence dots, colored carets, and the typing preview.
  *
  * Why decorations and not Solid JSX: this all lives inside the

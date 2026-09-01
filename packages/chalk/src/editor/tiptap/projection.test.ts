@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * The projection machinery WITHOUT a mounted editor: the markdown codec's
+ * Chalk projection without a mounted editor: the markdown codec's
  * round-trip guarantee (an untouched block must never commit a phantom
  * edit), and rows → doc diffing on the real ProseMirror model — replace one
  * block, insert, delete, move, and the dirty-block hold-back.

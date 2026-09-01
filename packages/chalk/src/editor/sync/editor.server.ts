@@ -1,5 +1,5 @@
 /**
- * Editor server bindings — the authoritative half of editor.sync.ts.
+ * Chalk editor server bindings — the authoritative half of editor.sync.ts.
  * Handlers mirror the optimistic handlers write-for-write; insert positions
  * are recomputed against AUTHORITATIVE neighbors so concurrent inserts land
  * deterministically and clients rebase onto the truth.

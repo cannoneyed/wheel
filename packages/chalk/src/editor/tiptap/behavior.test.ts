@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Gesture interpretation against a REAL mounted tiptap editor (jsdom):
+ * Chalk gesture interpretation against a real mounted Tiptap editor (jsdom):
  * keydown events run the actual keymap, and the hooks record what mutations
  * WOULD fire — Enter → split payloads (with markdown serialized from the
  * live doc), Backspace → merge/demote, "# " prefixes → kind changes. No

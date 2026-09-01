@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * The editor vertical against a real in-process engine: two-client edit
+ * The Chalk editor vertical against a real in-process engine: two-client edit
  * convergence, split/merge as single two-row mutations with MUTUAL inverts
  * (undo a split IS the matching merge — byte-exact restores), last-write-wins
  * same-block conflicts with baseVersion as the witness, sync-tied undo/redo,

@@ -10,11 +10,10 @@
  */
 import { ContextMenuSystem, DialogSystem, KeyboardSystem } from 'wheel/kit';
 import { WheelApp } from 'wheel/debug';
+import { DocumentEditor, HistoryControls } from 'wheel-chalk';
 
 import { demoClient } from '../shared/utils/demo-client';
 import { DemoStage } from '../shared/components/demo-stage';
-import { HistoryControls } from './components/history-controls';
-import { DocumentEditor } from './components/document-editor';
 
 /** The demo root the shell mounts. */
 export function EditorDemo() {

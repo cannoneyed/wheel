@@ -1,4 +1,4 @@
-/* The single-editor document surface: block styles, presence dots, slash
+/* Chalk's single-editor document surface: block styles, presence dots, slash
    menu, conflict note. Element and [data-*] selectors are scoped by nesting
    under the module's .editor class (CSS modules only hash class names). */
 

@@ -1,5 +1,5 @@
 /**
- * The editor's document schema: FLAT block nodes, one per wheel row.
+ * Chalk's document schema: flat block nodes, one per Wheel row.
  *
  * Deliberately not starter-kit: no nested lists, no listItem wrappers — a
  * bullet is a top-level `bullet` node, period. Flat nodes keep the row ↔

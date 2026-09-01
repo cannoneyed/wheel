@@ -1,5 +1,5 @@
 /**
- * The editor → wheel half of the projection (design.md):
+ * The Chalk editor → Wheel half of the projection (design.md):
  *
  *   tiptap gestures ──(interpret: split? merge? kind change?)──▶ wheel mutations
  *

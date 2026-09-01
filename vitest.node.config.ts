@@ -44,6 +44,7 @@ export default defineProject({
     include: [
       'packages/wheel/src/**/*.test.{ts,tsx}',
       'packages/wheel/eslint/**/*.test.mjs',
+      'packages/chalk/src/**/*.test.{ts,tsx}',
       'packages/demos/src/**/*.test.{ts,tsx}',
       'packages/tracker/**/*.test.{ts,tsx}',
       'scripts/**/*.test.ts',

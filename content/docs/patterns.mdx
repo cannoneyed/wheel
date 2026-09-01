@@ -158,7 +158,7 @@ The playground (`bun run playground`) mounts a sample component all three ways; 
 
 Some UI cannot be declarative: a rich-text editor owns its own document, a WebGL scene owns its
 own render loop. Wheel wraps these instead of fighting them. Two demos are the reference
-implementations — the editor (`packages/demos/src/editor/`, TipTap: discrete events, a flush
+implementations — Chalk (`packages/chalk/src/editor/`, Tiptap: discrete events, a flush
 hook for uncommitted keystrokes) and the graph (`packages/demos/src/graph/`, three.js: a
 continuous `requestAnimationFrame` loop over mutable buffers). Read whichever is closer to your
 core; both follow the same rules:

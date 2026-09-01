@@ -7,7 +7,7 @@ block context menu) are mutations the moment they happen; undo/redo runs
 through wheel, not through the editor's own history. Ids are permanent: never
 renumber, never reuse; retire a row with ~~strikethrough~~, keep it in place.
 
-The seeded document (`EDITOR_SCHEMA.seed` in `src/editor/sync/editor.server.ts`)
+The seeded document (`EDITOR_SCHEMA.seed` in `packages/chalk/src/editor/sync/editor.server.ts`)
 is seven blocks: h1, paragraph, two bullets, a to-do, a quote, a code block.
 The standalone engine is reset before each behavior, so the seed is the fixed
 starting point in both hosts.

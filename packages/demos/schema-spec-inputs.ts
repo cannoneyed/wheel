@@ -1,4 +1,4 @@
-import * as editorServer from './src/editor/sync/editor.server';
+import * as editorServer from 'wheel-chalk/server';
 import * as graphServer from './src/graph/sync/graph.server';
 import * as kanbanServer from './src/kanban/sync/kanban.server';
 import * as sequencerServer from './src/sequencer/sync/sequencer.server';

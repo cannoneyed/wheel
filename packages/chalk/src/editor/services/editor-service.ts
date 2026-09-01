@@ -1,5 +1,5 @@
 /**
- * The editor feature service: the ONLY place this demo touches synced data.
+ * The editor feature service: the only place Chalk touches synced block data.
  * Owns the block-list subscription, every document mutation (edit/split/
  * merge/kind/move/delete), sync-tied undo/redo with the D1 flush hook, the
  * presence channel (who is editing which block), and the feature's keyboard

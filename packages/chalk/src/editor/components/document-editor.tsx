@@ -1,5 +1,5 @@
 /**
- * THE editor — one tiptap instance, many blocks, wheel owns the state.
+ * The Chalk editor — one tiptap instance, many blocks, Wheel owns the state.
  *
  * This component is the meeting point of the two projection flows:
  *   rows → doc: a createEffect watches `blocks()` and patches the doc

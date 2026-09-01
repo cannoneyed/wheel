@@ -1,5 +1,5 @@
 /**
- * One block's context menu — an ORDINARY connected component ("globally
+ * One Chalk block's context menu — an ORDINARY connected component ("globally
  * rendered, locally connected"): declared at the trigger site (the document
  * editor), portaled by ContextMenuSystem, fully aware of global services,
  * locally fed by props. Per-instance connect name so each open menu is

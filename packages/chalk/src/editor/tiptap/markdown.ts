@@ -1,5 +1,5 @@
 /**
- * Inline markdown ↔ ProseMirror inline JSON — the codec between a block
+ * Chalk inline markdown ↔ ProseMirror JSON — the codec between a block
  * row's `text` column and the content of its editor node.
  *
  * Only INLINE syntax lives here (bold/italic/code/strike/links); block-level

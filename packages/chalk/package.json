@@ -1,0 +1,22 @@
+{
+  "name": "wheel-chalk",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/editor/index.ts",
+    "./server": "./src/editor/sync/editor.server.ts",
+    "./sync": "./src/editor/sync/editor.sync.ts"
+  },
+  "dependencies": {
+    "@tiptap/core": "^3.26.1",
+    "@tiptap/pm": "^3.26.1",
+    "lucide-solid": "^1.25.0",
+    "solid-js": "^1.9.0",
+    "wheel": "workspace:@cannoneyed/wheel@*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}
