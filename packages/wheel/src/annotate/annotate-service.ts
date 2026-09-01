@@ -186,6 +186,9 @@ export class AnnotateService extends Service {
       this.client.set(client);
       this.capture.set(capture);
       if (sink) this.sink.set(sink);
+      // Saving a note used to appear in the note. The recorder wraps `fetch`
+      // for the whole page, so it has to be told which URL is ours.
+      this.recorder.ignoreUrl(this.sink.get().url);
     },
     'attach'
   );
@@ -578,8 +581,20 @@ export class AnnotateService extends Service {
     // nothing but raw input, and eighteen recorded keystrokes explain nothing
     // about anything. That is noise dressed as evidence, so it is dropped
     // along with the empty state tree that goes with it.
+    //
+    // "Anything" means an action, a state change, a sync write or an error.
+    // Writes and errors count precisely because a note may have NO local
+    // action behind it: an edit the server rejected and rolled back is a
+    // write, a cause and an error, with the app's own atoms never moving —
+    // and it is the single most useful thing a note can carry.
     const recorded = this.harvest(this.recorder.timeline()[0]?.at ?? draft.openedAt, at);
-    const explains = recorded.some((event) => event.kind === 'action' || event.kind === 'state');
+    const explains = recorded.some(
+      (event) =>
+        event.kind === 'action' ||
+        event.kind === 'state' ||
+        event.kind === 'write' ||
+        event.kind === 'error'
+    );
     const timeline = explains ? recorded : [];
     const startState = explains ? draft.startState : {};
     return {

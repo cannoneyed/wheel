@@ -70,6 +70,8 @@ function BoardCell() {
 }
 
 let teardown: (() => void) | null = null;
+/** When a fake sync write happened, stamped before `save()` opens its window. */
+let writeAt = 0;
 const posted: Array<Record<string, unknown>> = [];
 const copied: string[] = [];
 const downloaded: Array<{ filename: string; text: string }> = [];
@@ -432,11 +434,12 @@ describe('AnnotateService', () => {
     const service = context.services.get(AnnotateService);
     service.attach(
       {
-        // Inside the harvested window: the note reaches back over the rolling
-        // buffer, and a write stamped outside it is correctly ignored.
+        // Stamped BEFORE save, not when `recentWrites` is called. The harvest
+        // window ends at the moment `save()` starts, so a write stamped inside
+        // the call lands a millisecond past the end and is correctly dropped.
         recentWrites: () => [
           {
-            at: context.services.now(),
+            at: writeAt,
             collection: 'cells',
             rowId: '3-7',
             value: { on: true },
@@ -456,6 +459,7 @@ describe('AnnotateService', () => {
     context.services.get(BoardService).toggleCell('3-7');
     service.pickRegion(OVER_CELL);
     service.setText('this row is wrong');
+    writeAt = context.services.now();
     service.save();
 
     await vi.waitFor(() => expect(posted).toHaveLength(1));
@@ -465,6 +469,68 @@ describe('AnnotateService', () => {
       collection: 'cells',
       cause: 'optimistic:toggleCell+bumpTotal'
     });
+    service.disarm();
+  });
+
+  it('keeps a timeline whose only evidence is a sync write', async () => {
+    // The gate used to require an action or a state change, which threw away
+    // the most valuable note there is: an edit the server rejected and rolled
+    // back moves no local atom, so its whole story is two writes and a cause.
+    stubFetch();
+    const context = mountApp();
+    const service = context.services.get(AnnotateService);
+    service.attach(
+      {
+        recentWrites: () => [
+          {
+            at: writeAt,
+            collection: 'items',
+            rowId: 'item_exit',
+            value: { note: 'Clear' },
+            cause: { kind: 'rollback', mutationId: 'm1', mutations: ['item.setNote'] }
+          }
+        ],
+        connectionStatus: () => 'connected',
+        pendingMutations: () => 0
+      } as unknown as Parameters<AnnotateService['attach']>[0],
+      {
+        region: () => Promise.resolve('data:image/png;base64,AAA'),
+        stream: () => Promise.reject(new Error('no display capture in tests'))
+      }
+    );
+
+    service.arm();
+    service.pickRegion(OVER_CELL);
+    service.setText('my edit vanished');
+    writeAt = context.services.now();
+    service.save();
+
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    const payload = posted[0]!['payload'] as NotePayload;
+    expect(payload.timeline.some((event) => event.kind === 'write')).toBe(true);
+    expect(payload.timeline.find((event) => event.kind === 'write')).toMatchObject({
+      cause: 'rollback:item.setNote'
+    });
+    service.disarm();
+  });
+
+  it('does not record its own save in the note it is saving', async () => {
+    // The network tap wraps `fetch` for the whole page, so the POST that
+    // delivers a note used to appear inside that note.
+    stubFetch();
+    const context = mountApp();
+    const service = annotator(context);
+
+    service.arm();
+    context.services.get(BoardService).toggleCell('3-7');
+    service.pickRegion(OVER_CELL);
+    service.setText('nothing about this note is about the note');
+    service.save();
+
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    const payload = posted[0]!['payload'] as NotePayload;
+    const network = payload.timeline.filter((event) => event.kind === 'network');
+    expect(network.every((event) => !String(event.url).includes('/__wheel/note'))).toBe(true);
     service.disarm();
   });
 

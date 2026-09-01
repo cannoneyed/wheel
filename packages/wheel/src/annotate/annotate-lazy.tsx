@@ -41,6 +41,7 @@ import { Dynamic, Portal } from 'solid-js/web';
 
 import { WheelContext } from '../core/context';
 import { isWheelDevMode } from '../core/dev-mode';
+import { CHROME_ATTRIBUTE } from './anchor';
 import { logger } from '../core/logger';
 
 import { startAnnotateSession, stopAnnotateSession } from './session';
@@ -142,6 +143,10 @@ export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
           <button
             type="button"
             style={chipStyle}
+            // Marked like the rest of the chrome: pressing the chip is not
+            // something the app did, and a note that records its own opening
+            // buries what it was about.
+            {...{ [CHROME_ATTRIBUTE]: '' }}
             data-testid="wheel-annotate-chip"
             title="Annotate this page (⌘⇧A)"
             onClick={open}

@@ -231,6 +231,17 @@ export class Recorder {
     }
   }
 
+  /**
+   * Stop recording requests to this URL — the annotator's own sink.
+   *
+   * The network tap wraps `fetch` for the whole page, so saving a note put the
+   * save itself in the note. Same principle as skipping input inside the
+   * chrome: what the annotator does is not what the app did.
+   */
+  ignoreUrl(url: string): void {
+    this.ignoredUrls.add(url);
+  }
+
   /** Drop everything buffered. */
   clear(): void {
     this.events = [];
@@ -414,6 +425,8 @@ export class Recorder {
     this.checkUrl(at);
   }
 
+  private readonly ignoredUrls = new Set<string>();
+
   private installNetwork(): void {
     const host = this.options.host ?? globalThis;
     const original = host.fetch;
@@ -425,6 +438,7 @@ export class Recorder {
       const at = this.options.now();
       const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
       const url = input instanceof Request ? input.url : String(input);
+      if (this.ignoredUrls.has(url)) return original(input, init);
       try {
         const response = await original(input, init);
         this.push({

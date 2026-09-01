@@ -57,8 +57,9 @@ Bounds:
 - a merge that would erase the change is refused, so a value that leaves and returns inside the window stays two entries;
 - the buffer is a rolling 60-second window; the hard cap is 20000 events;
 - services in the `debug` group are excluded, so the recorder never records itself;
+- requests to the note sink are excluded (`Recorder.ignoreUrl`, set from `attach`), or delivering a note would appear inside it;
 - input inside the annotator's own chrome (`CHROME_ATTRIBUTE`) is dropped at the tap, so a timeline is never mostly the keystrokes that wrote the note;
-- a timeline with no `action` and no `state` event is discarded at save, along with `startState`. On a page with no services the buffer holds only raw input, which is noise dressed as evidence. This is decided on what was RECORDED, not on what services existed at mount — services are constructed lazily, so a mount-time check gets a real app wrong.
+- a timeline with no `action`, `state`, `write` or `error` event is discarded at save, along with `startState`. Writes and errors count because a note may have no local action behind it at all — a rejected, rolled-back edit moves no atom, and its whole story is two writes and a cause. On a page with no services the buffer holds only raw input, which is noise dressed as evidence. This is decided on what was RECORDED, not on what services existed at mount — services are constructed lazily, so a mount-time check gets a real app wrong.
 
 Cost with no tap installed: one null check per action call and per atom write.
 

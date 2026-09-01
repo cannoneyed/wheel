@@ -252,7 +252,7 @@ Start listening: transcript from speech recognition, audio from the microphone. 
 
 ## `stateTreeSnapshot`
 
-Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:501](../../../packages/wheel/src/annotate/recorder.ts#L501).
+Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:515](../../../packages/wheel/src/annotate/recorder.ts#L515).
 
 Every service's atoms and computed values right now, keyed by service name. A clip stores this as its START STATE — a timeline of actions is only re-runnable against a known starting point, which is what makes replay reachable later.
 
@@ -300,12 +300,12 @@ A capture in progress.
 
 ## `WheelAnnotate`
 
-Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:92](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L92).
+Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:93](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L93).
 
 Mount the annotator: a rolling recorder now, the chrome on demand.
 
 ## `WheelAnnotateProps`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:70](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L70).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:71](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L71).
 
 Props for {@link WheelAnnotate}.

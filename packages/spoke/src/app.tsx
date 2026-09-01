@@ -1,4 +1,5 @@
 import { For, Show, onCleanup } from 'solid-js';
+import { WheelAnnotate } from 'wheel/annotate';
 import { WheelApp } from 'wheel/debug';
 import { componentRoot, connect, view } from 'wheel/core';
 
@@ -141,5 +142,10 @@ function SpokeWorkspace() {
 
 /** Workspace chat app used by Wheel's authorization and delivery proofs. */
 export function App() {
-  return <WheelApp client={spokeClient()}><SpokeWorkspace /></WheelApp>;
+  return (
+    <WheelApp client={spokeClient()}>
+      <SpokeWorkspace />
+      <WheelAnnotate />
+    </WheelApp>
+  );
 }
