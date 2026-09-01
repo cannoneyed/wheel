@@ -21,6 +21,7 @@ export { compileSql, type CompiledSql } from '../sql';
 export type {
   SyncBackend,
   BackendMutateResult,
+  BackendMutationCall,
   ExternalChangeRecord,
   SyncBackendInitOptions
 } from './sync-backend';
@@ -44,12 +45,16 @@ export {
   type SyncConnection,
   type SyncConnectionState,
   type SyncSubscriptionState,
-  type MutateRequest,
+  type MutateGroupRequest,
+  type MutateCallRequest,
   type MutateResult,
   type MutationError,
+  type QueryStatusEvent,
   type RowDelta,
   type ServerEvent,
   type Snapshot,
+  type SyncQueryError,
+  type SyncQueryStatus,
   type SubscriptionDebugInfo
 } from './engine';
 export {
@@ -79,11 +84,17 @@ export {
 export {
   WHEEL_SCHEMA_SPEC_VERSION,
   createSchemaSpec,
+  fingerprintSnapshotRows,
   stringifySchemaSpec,
   type SchemaSpecKey,
   type SchemaSpecMutation,
   type SchemaSpecPresence,
   type SchemaSpecQuery,
-  type SchemaSpecTable,
+  type SchemaSpecCollection,
   type WheelSchemaSpec
 } from './schema-spec';
+export {
+  ROW_SCHEMA_FINGERPRINT_PREFIX,
+  validateRowSchemaFingerprint,
+  type RowSchemaFingerprint
+} from '../row-schema';

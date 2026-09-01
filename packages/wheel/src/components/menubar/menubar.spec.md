@@ -13,4 +13,3 @@
 - `sm`, `md`, and `lg` set top-level and popup density together.
 - Menubar itself has no entry motion. Popups enter immediately and fade out for 100 ms.
 - Forced colors preserves current Trigger, highlighted items, selected items, and focus.
-- Browser proof covers all keys, pointer switching, RTL, nested menus, dynamic disabled state, and focus exit.

@@ -1,7 +1,7 @@
 /**
  * <WheelDebugPanel /> — wheel's runtime audit surface as a drop-in FLOATING
  * widget (🐛, fixed bottom-right): the registry's service → primitive graph
- * with live values, component dependency manifests, the client's table
+ * with live values, component dependency manifests, the client's collection
  * cache, and the provenance change stream. Ships with the library because
  * extreme debuggability is the product, not demo garnish. Self-contained
  * inline styles; open/closed state persists in localStorage.
@@ -121,7 +121,7 @@ const styles = {
 /**
  * The drop-in runtime audit widget (🐛, fixed bottom-right): registry state
  * tree with live values, component manifests, and — when the provider is
- * client-backed — the table cache and the color-coded provenance change
+ * client-backed — the collection cache and the color-coded provenance change
  * stream. Clientless ServiceProviders get the registry sections only.
  */
 export function WheelDebugPanel(): JSX.Element {

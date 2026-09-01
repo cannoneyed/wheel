@@ -20,7 +20,7 @@ Development mode comes from `wheelDevTools()` during Vite serve. A production ho
 - `components()`: mounted component tree.
 - `component(id)`: one instance with props, local state, connected state, actions, and rectangles.
 - `find(query)`: id and name search.
-- `tables()`: effective client rows.
+- `collections()`: effective client rows.
 - `writes()`: provenance log.
 
 ## Bridge writes

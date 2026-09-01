@@ -30,8 +30,8 @@ function makeHarness() {
       return async () => {};
     },
     init: (tables, options) => inside((instance) => instance.backend.init(tables, options)),
-    runMutation: (binding, args, ctx) =>
-      inside((instance) => instance.backend.runMutation(binding, args, ctx)),
+    runMutation: (calls) =>
+      inside((instance) => instance.backend.runMutation(calls)),
     findCommitted: (mutationId) =>
       inside((instance) => instance.backend.findCommitted(mutationId)),
     recordExternalChange: (input) =>

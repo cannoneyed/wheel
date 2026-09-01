@@ -61,22 +61,6 @@
     border-radius: var(--wheel-component-radius-sm);
   }
 
-  .wheel-Avatar-Root[data-status='online'] {
-    border-color: var(--wheel-component-success);
-  }
-
-  .wheel-Avatar-Root[data-status='busy'] {
-    border-color: var(--wheel-component-danger);
-  }
-
-  .wheel-Avatar-Root[data-status='away'] {
-    border-color: var(--wheel-component-warning);
-  }
-
-  .wheel-Avatar-Root[data-status='offline'] {
-    border-color: var(--wheel-component-fg-subtle);
-  }
-
   .wheel-Avatar-Image {
     display: block;
     width: 100%;

@@ -1,10 +1,15 @@
 import {
   IndexedDbCache,
   SyncClient,
+  createCacheScopes,
+  createRowSchemaReloadGuard,
   createWebSocketTransport,
   systemClock,
   systemRandomBytes
 } from 'wheel/sync';
+import { logger } from 'wheel/core';
+import { ROW_SCHEMA_FINGERPRINT } from './row-schema.generated';
+import * as todosSync from './todos.sync';
 
 function stable(
   storage: Storage,
@@ -37,17 +42,30 @@ const APPLICATION_VERSION = 1;
 const wireId = `web_${crypto.randomUUID().slice(0, 8)}`;
 
 export let client: SyncClient;
+const rowSchemaReload = createRowSchemaReloadGuard(sessionStorage, 'todos.rowSchemaReload');
 const transport = createWebSocketTransport({
   baseUrl: '',
   applicationVersion: APPLICATION_VERSION,
+  rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
   params: {
     demoActor: `user:${wireId}`,
     demoSession: wireId
   },
   onReconnect: () => void client.rebootstrap(),
-  onStatus: (status) => client.setConnectionStatus(status),
-  onVersionMismatch: ({ reason }) => {
+  onStatus: (status) => {
+    if (status === 'connected') rowSchemaReload.clear();
+    client.setConnectionStatus(status);
+  },
+  onVersionMismatch: (mismatch) => {
+    const { reason } = mismatch;
     if (reason === 'server_updating') return;
+    if (
+      reason === 'row_schema_mismatch' &&
+      !rowSchemaReload.shouldReload(mismatch.serverRowSchemaFingerprint)
+    ) {
+      logger.error('Browser assets and sync server have different row contracts.', mismatch);
+      return;
+    }
     // wheel-raw-location: incompatible client code requires a full asset reload.
     location.reload();
   }
@@ -59,16 +77,12 @@ client = new SyncClient({
   actor: `user:${wireId}`,
   clock: systemClock,
   randomBytes: systemRandomBytes,
-  // Two scopes on purpose: snapshots are row-shaped (retire them when your
-  // schema changes — put a fingerprint in the scope); the outbox holds
-  // pending mutations, which a schema change must NOT abandon. `retires`
-  // names your app's dead scopes; their rows are deleted at open.
-  localCache: new IndexedDbCache('todos', {
-    snapshots: `${storeScope}|snapshots:v${APPLICATION_VERSION}`,
-    outbox: `${storeScope}|outbox`,
-    retires: (scope) =>
-      scope.startsWith(`${storeScope}|`) &&
-      scope !== `${storeScope}|snapshots:v${APPLICATION_VERSION}` &&
-      scope !== `${storeScope}|outbox`
-  })
+  syncModules: [todosSync],
+  // Two scopes on purpose: snapshots carry the generated row fingerprint,
+  // while the outbox keeps only the stable store identity. A declaration
+  // change retires old rows without abandoning pending mutations.
+  localCache: new IndexedDbCache(
+    'todos',
+    createCacheScopes({ storeScope, rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT })
+  )
 });

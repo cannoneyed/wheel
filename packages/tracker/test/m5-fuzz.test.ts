@@ -11,7 +11,7 @@
  */
 import { describe, expect, test } from 'vitest';
 
-import { positionBetween, type SyncClient, type TableDecl } from 'wheel/sync';
+import { positionBetween, type SyncClient, type CollectionDecl } from 'wheel/sync';
 import { simulate, type SimOp } from 'wheel/testing';
 
 import * as teamsSync from '../src/sync/teams.sync';
@@ -250,8 +250,8 @@ describe('fuzz — four invariants across seeded chaos', () => {
           await client.subscribe(commentsByIssue, { issueId: COMMENT_ISSUE });
         },
         ops: OPS,
-        // TableDecl is invariant over its row type; the harness compares rows generically.
-        tables: [issues, issueLabels, comments] as unknown as TableDecl[]
+        // CollectionDecl is invariant over its row type; the harness compares rows generically.
+        collections: [issues, issueLabels, comments] as unknown as CollectionDecl[]
       });
       // The harness throws on any invariant violation; the report proves work happened.
       const mutations = Object.entries(report.opCounts)

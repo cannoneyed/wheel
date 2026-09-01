@@ -57,6 +57,7 @@ Register it with `process.once('SIGTERM', …)` and `process.once('SIGINT', …)
 const sockets = new SyncSocketServer({
   server: live,
   applicationVersion: TRACKER_APPLICATION_VERSION,
+  rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
   schemaVersion: TRACKER_MIGRATIONS.length,
   maxMessageBytes: config.maxBodyBytes,
   messagesPerMinute: config.requestsPerMinute

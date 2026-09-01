@@ -29,10 +29,32 @@ export interface RowDelta {
   readonly order: readonly string[];
 }
 
+/** Safe query failure detail that may cross the wire. Full errors stay in server logs. */
+export interface SyncQueryError {
+  readonly code: string;
+  readonly message: string;
+}
+
+/** Server-owned lifecycle for one query scope. */
+export type SyncQueryStatus =
+  | { readonly kind: 'live' }
+  | { readonly kind: 'stale'; readonly error?: SyncQueryError }
+  | { readonly kind: 'error'; readonly error: SyncQueryError };
+
+/** A query lifecycle transition after its initial snapshot. */
+export interface QueryStatusEvent {
+  readonly subscriptionId: string;
+  readonly query: string;
+  readonly seq: number;
+  readonly status: SyncQueryStatus;
+}
+
 /** Events that the server pushes through a connection. */
 export type ServerEvent =
   | { readonly type: 'hello'; readonly clientId: string }
   | { readonly type: 'delta'; readonly delta: RowDelta }
+  | { readonly type: 'query_status'; readonly status: QueryStatusEvent }
+  | { readonly type: 'checkpoint'; readonly seq: number }
   | {
       readonly type: 'presence';
       readonly clientId: string;
@@ -41,14 +63,19 @@ export type ServerEvent =
       readonly state: Record<string, unknown> | null;
     };
 
-/** A mutation crossing the wire; actor identity comes from the authenticated server connection. */
-export interface MutateRequest {
-  readonly clientId: string;
-  readonly mutationId: string;
+/** One ordered member of an atomic mutation command. */
+export interface MutateCallRequest {
   readonly name: string;
   readonly args: unknown;
-  /** The client's pre-generated id stream; the server replays it, so optimistic ids and committed ids always match. */
+  /** This member's client-generated deterministic id stream. */
   readonly ids: readonly string[];
+}
+
+/** An atomic mutation command crossing the wire; actor identity comes from the authenticated connection. */
+export interface MutateGroupRequest {
+  readonly clientId: string;
+  readonly mutationId: string;
+  readonly calls: readonly MutateCallRequest[];
 }
 
 /**
@@ -82,4 +109,5 @@ export interface Snapshot {
   readonly query: string;
   readonly seq: number;
   readonly rows: readonly DbRow[];
+  readonly status: SyncQueryStatus;
 }

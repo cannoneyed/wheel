@@ -14,4 +14,3 @@
 - Modal mode locks outside interaction. Non-modal mode leaves outside content available.
 - Popup entry is immediate. It never fades, scales, or slides in.
 - Closing uses the shared 100 ms fade-out without delaying focus or dismissal.
-- Browser proof covers every dismissal route, focus policies, nested portals, collision, resize, touch, and repeated openings.

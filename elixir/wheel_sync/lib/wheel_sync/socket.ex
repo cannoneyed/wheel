@@ -2,20 +2,31 @@ defmodule WheelSync.Socket do
   @moduledoc false
   @behaviour WebSock
 
-  @protocol 1
+  @protocol 3
 
   @impl true
   def init(handshake) do
     config = WheelSync.Runtime.config(handshake.runtime)
     application_version = Map.fetch!(config, :application_version)
     minimum_client_version = Map.get(config, :minimum_client_version, application_version)
+    row_schema_fingerprint = Map.fetch!(config, :row_schema_fingerprint)
 
     mismatch =
       cond do
-        handshake.client_protocol != @protocol -> "protocol_mismatch"
-        handshake.client_application_version > application_version -> "server_updating"
-        handshake.client_application_version < minimum_client_version -> "client_outdated"
-        true -> nil
+        handshake.client_protocol != @protocol ->
+          "protocol_mismatch"
+
+        handshake.client_application_version > application_version ->
+          "server_updating"
+
+        handshake.client_application_version < minimum_client_version ->
+          "client_outdated"
+
+        handshake.client_row_schema_fingerprint != row_schema_fingerprint ->
+          "row_schema_mismatch"
+
+        true ->
+          nil
       end
 
     if mismatch do
@@ -27,7 +38,9 @@ defmodule WheelSync.Socket do
         "serverProtocol" => @protocol,
         "clientApplicationVersion" => handshake.client_application_version,
         "serverApplicationVersion" => application_version,
-        "minimumClientVersion" => minimum_client_version
+        "minimumClientVersion" => minimum_client_version,
+        "clientRowSchemaFingerprint" => handshake.client_row_schema_fingerprint,
+        "serverRowSchemaFingerprint" => row_schema_fingerprint
       }
 
       {:stop, :normal, {4410, mismatch}, {:text, encode(frame)}, handshake}
@@ -134,9 +147,9 @@ defmodule WheelSync.Socket do
             error -> error
           end
 
-        "mutate" ->
-          mutation = Map.put(request["mutation"], "clientId", state.connection_id)
-          WheelSync.Workspace.mutate(state.workspace, mutation, state.principal)
+        "mutateGroup" ->
+          command = Map.put(request["command"], "clientId", state.connection_id)
+          WheelSync.Workspace.mutate_group(state.workspace, command, state.principal)
       end
 
     response = response(request["requestId"], result, state.detailed_errors)
@@ -209,10 +222,13 @@ defmodule WheelSync.Socket do
        when is_map(state) and not is_struct(state),
        do: :ok
 
-  defp validate_request(%{"type" => "mutate", "mutation" => mutation})
-       when is_map(mutation) do
-    if is_binary(mutation["mutationId"]) && is_binary(mutation["name"]) &&
-         is_list(mutation["ids"]) && Enum.all?(mutation["ids"], &is_binary/1),
+  defp validate_request(%{"type" => "mutateGroup", "command" => command})
+       when is_map(command) do
+    if is_binary(command["mutationId"]) && is_list(command["calls"]) &&
+         Enum.all?(command["calls"], fn call ->
+           is_map(call) && is_binary(call["name"]) && is_list(call["ids"]) &&
+             Enum.all?(call["ids"], &is_binary/1)
+         end),
        do: :ok,
        else: :error
   end

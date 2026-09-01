@@ -4,7 +4,6 @@ export type {
   AvatarRootState,
   AvatarShape,
   AvatarSize,
-  AvatarStatus,
   ImageLoadingStatus,
 } from './root/AvatarRoot';
 export type { AvatarImageProps, AvatarImageState } from './image/AvatarImage';

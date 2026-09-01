@@ -67,6 +67,7 @@ docker run --rm \
   --env HEX_HOME=/workspace/.cache/hex \
   "$elixir_image" \
   bash -lc '
+    set -euo pipefail
     mix local.hex --force
     mix local.rebar --force
     cd elixir/wheel_sync

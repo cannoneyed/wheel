@@ -4,8 +4,8 @@ Human page: [Live State](../docs/live-state.mdx). API: [`wheel/sync`](api/sync.m
 
 ## Shared declarations
 
-- `table()` defines immutable row schema, name, key extractor, and virtual flag.
-- `query()` defines name, params, result table, and optional optimistic projection.
+- `collection()` defines immutable row schema, name, and key extractor.
+- `query()` defines name, params, result collection, physical dependencies, and optional optimistic projection.
 - `mutation()` defines name, args, optimistic handler, and optional inverse.
 - `patchMutation()` defines the common `{ id, patch }` inverse pattern.
 - `presence()` defines the one typed ephemeral peer-state shape.
@@ -53,11 +53,11 @@ Shared declaration modules import from `wheel/sync`. Server binding modules impo
 
 ## Subscription invalidation
 
-`rerunOn` and handler `subscribe()` decide when to re-check. Row diff decides whether a client event exists. Coarse invalidation affects server work, not client correctness.
+Query `dependsOn` and handler `subscribe()` decide when to re-check. Row diff decides whether a client event exists. Coarse invalidation affects server work, not client correctness.
 
 ## Provenance
 
-`ProvenanceLog` records bootstrap, hydrate, optimistic, sync apply, rollback, and orphan causes. `client.explain(table, id)` returns current value, last cause, and history.
+`ProvenanceLog` records bootstrap, hydrate, optimistic, sync apply, rollback, and orphan causes. `client.explain(collection, id)` returns current value, last cause, and history.
 
 ## Current limits
 

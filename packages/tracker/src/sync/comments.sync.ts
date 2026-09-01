@@ -11,7 +11,7 @@
  * id/body/createdAt travelling in the args (same discipline as the editor
  * demo's blocks).
  */
-import { mutation, orphan, query, t, table, type Infer, type InverseSpec } from 'wheel/sync';
+import { mutation, orphan, query, t, collection, type Infer, type InverseSpec } from 'wheel/sync';
 
 /** One comment as it lives in SQLite and every client cache. */
 export const CommentRow = t.object({
@@ -23,8 +23,8 @@ export const CommentRow = t.object({
   createdAt: t.number()
 });
 
-/** The comments table. */
-export const comments = table({ name: 'comments', type: CommentRow, key: (row) => row.id });
+/** The comments collection. */
+export const comments = collection({ name: 'comments', type: CommentRow, key: (row) => row.id });
 
 /** One emoji reaction; the key is (comment, user, emoji) — toggling is add/remove. */
 export const ReactionRow = t.object({
@@ -34,8 +34,8 @@ export const ReactionRow = t.object({
   emoji: t.string()
 });
 
-/** The reactions table (composite key). */
-export const reactions = table({
+/** The reactions collection (composite key). */
+export const reactions = collection({
   name: 'reactions',
   type: ReactionRow,
   key: (row) => `${row.commentId}:${row.userId}:${row.emoji}`,

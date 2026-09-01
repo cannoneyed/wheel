@@ -7,20 +7,20 @@
  * - Without a durable outbox, a reload or crash with unconfirmed mutations in
  *   flight silently loses that work.
  *
- * Design: persistence sits UNDER the existing base + pending[] → rebase()
- * overlay model, which is kept unchanged. The store is written asynchronously
- * after applies (debounced for base tables, immediately for outbox entries).
+ * Design: persistence sits under the materializer. Confirmed query snapshots
+ * are debounced, while outbox commands and their optimistic previews commit
+ * before a wire send.
  * The optimistic preview appears first, but no wire send starts until the
  * outbox commits; storage failure removes the preview and settles the mutation
- * failed, so undurable state never masquerades as saved. On boot the client hydrates base tables from
- * the store instantly (status 'stale'), replays the outbox through the normal
- * mutate path (deterministic: the pre-generated id stream and mutationId are
- * persisted with each entry), then re-bootstraps in the background and swaps.
+ * failed, so undurable state never masquerades as saved. On boot the client
+ * restores previews, hydrates confirmed rows as stale, then replays registered
+ * handlers with their persisted IDs as confirmed state arrives.
  *
  * Everything is keyed by (storeName, clientId) so multiple apps/tabs coexist.
  */
 
 import type { Row } from './cache';
+import { validateRowSchemaFingerprint } from '../row-schema';
 
 /** A persisted snapshot of one subscription's server truth. */
 export interface PersistedSubscription {
@@ -34,10 +34,18 @@ export interface PersistedSubscription {
 /** A persisted pending mutation, replayable byte-for-byte. */
 export interface PersistedOutboxEntry {
   readonly mutationId: string;
-  readonly mutation: string;
-  readonly args: Record<string, unknown>;
-  /** Pre-generated id stream — server replay stays deterministic. */
-  readonly ids: readonly string[];
+  readonly calls: readonly {
+    readonly mutation: string;
+    readonly args: Record<string, unknown>;
+    /** This member's pre-generated id stream. */
+    readonly ids: readonly string[];
+  }[];
+  /** Last published optimistic output. `null` is a delete. */
+  readonly preview: readonly {
+    readonly collection: string;
+    readonly rowId: string;
+    readonly value: Row | null;
+  }[];
   readonly enqueuedAt: number;
 }
 
@@ -83,7 +91,7 @@ export class MemoryCache implements LocalCache {
   }
 }
 
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 const SUBS = 'subscriptions';
 const OUTBOX = 'outbox';
 
@@ -94,19 +102,39 @@ const OUTBOX = 'outbox';
  * invalidation. The outbox holds mutations (name + args, replayed and deduped
  * by the server), which no schema fingerprint invalidates: scoping them by
  * the fingerprint silently abandoned every pending write that straddled a
- * schema change (found 2026-08-10). `retires` names the scopes this app owns
- * and no longer serves; the cache deletes their rows at open, because a
- * scope nothing will ever read again otherwise grows the store — and the
- * boot-time getAll over it — forever. It must answer false for every scope
- * a DIFFERENT app in the same store still serves.
+ * schema change (found 2026-08-10). `retires` names the snapshot scopes this
+ * app owns and no longer serves; the cache deletes their rows at open, because
+ * a scope nothing will ever read again otherwise grows the store — and the
+ * boot-time getAll over it — forever. It must answer false for every scope a
+ * DIFFERENT app in the same store still serves.
  */
 export interface CacheScopes {
   /** Scope for subscription snapshots — carries the schema fingerprint. */
   readonly snapshots: string;
   /** Scope for the durable outbox — carries the store identity only. */
   readonly outbox: string;
-  /** True for a dead scope this app owns; its rows are deleted at open. */
+  /** True for a dead snapshot scope this app owns; its rows are deleted at open. */
   readonly retires: (scope: string) => boolean;
+}
+
+/** Build the standard split scopes for cached rows and durable pending commands. */
+export function createCacheScopes(options: {
+  readonly storeScope: string;
+  readonly rowSchemaFingerprint: string;
+}): CacheScopes {
+  if (options.storeScope === '') {
+    throw new TypeError('storeScope must be non-empty.');
+  }
+  const fingerprint = validateRowSchemaFingerprint(options.rowSchemaFingerprint);
+  const prefix = `${options.storeScope}|`;
+  const snapshotPrefix = `${prefix}snapshots:`;
+  const snapshots = `${snapshotPrefix}${fingerprint}`;
+  const outbox = `${prefix}outbox`;
+  return Object.freeze({
+    snapshots,
+    outbox,
+    retires: (scope: string) => scope.startsWith(snapshotPrefix) && scope !== snapshots
+  });
 }
 
 /** IndexedDB-backed store for browsers. One database per storeName. */
@@ -122,10 +150,15 @@ export class IndexedDbCache implements LocalCache {
     if (!this.dbPromise) {
       this.dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
         const request = indexedDB.open(`wheel:${this.storeName}`, DB_VERSION);
-        request.onupgradeneeded = () => {
+        request.onupgradeneeded = (event) => {
           const db = request.result;
           if (!db.objectStoreNames.contains(SUBS)) {
             db.createObjectStore(SUBS, { keyPath: 'storageKey' });
+          }
+          // Version 3 adds the optimistic preview required to restore pending
+          // work before confirmed rows hydrate. Older rows cannot provide it.
+          if (event.oldVersion > 0 && event.oldVersion < 3 && db.objectStoreNames.contains(OUTBOX)) {
+            db.deleteObjectStore(OUTBOX);
           }
           if (!db.objectStoreNames.contains(OUTBOX)) {
             const store = db.createObjectStore(OUTBOX, { keyPath: 'storageKey' });

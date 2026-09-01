@@ -18,7 +18,7 @@ export interface NavGroup {
 
 /** Every docs page, grouped. Every `content/docs/*.mdx` slug appears exactly once. */
 export const NAV_GROUPS: readonly NavGroup[] = [
-  { id: 'Basics', children: ['overview', 'getting-started', 'project-layout', 'walkthrough'] },
+  { id: 'Basics', children: ['overview', 'getting-started', 'project-layout', 'walkthrough', 'upgrading'] },
   {
     id: 'Building',
     children: [
@@ -39,7 +39,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       'live-state',
       'server',
       'server-advanced',
-      'virtual-tables',
+      'derived-collections',
       'presence',
       'undo'
     ]

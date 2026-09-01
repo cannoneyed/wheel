@@ -48,7 +48,6 @@ export const commentsByIssueServer = serveQuery({
                  edited_at as "editedAt", created_at as "createdAt"
           from comments where issue_id = ${params.issueId}
           order by created_at, id`,
-    rerunOn: ['comments'],
     prune: (image, params) => (image.n?.issue_id ?? image.o?.issue_id) === params.issueId
   })
 });
@@ -61,7 +60,6 @@ export const reactionsByIssueServer = serveQuery({
       sql`select comment_id as "commentId", issue_id as "issueId", user_id as "userId", emoji
           from reactions where issue_id = ${params.issueId}
           order by comment_id, user_id, emoji`,
-    rerunOn: ['reactions'],
     prune: (image, params) => (image.n?.issue_id ?? image.o?.issue_id) === params.issueId
   })
 });

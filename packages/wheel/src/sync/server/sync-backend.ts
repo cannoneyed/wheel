@@ -37,6 +37,15 @@ export type BackendMutateResult =
     }
   | { readonly ok: false; readonly rejection: MutationRejection };
 
+/** One validated member ready to run inside a backend-owned transaction. */
+export interface BackendMutationCall {
+  readonly binding: ServeMutationBinding;
+  readonly args: Record<string, unknown>;
+  readonly ctx: ServerMutationCtx;
+  /** Fails inside the transaction when the handler consumed too few deterministic IDs. */
+  readonly assertIdsConsumed: () => void;
+}
+
 /** Backend install options — mirrors the engine's DB-shaped `createSyncServer` options. */
 export interface SyncBackendInitOptions {
   /**
@@ -48,7 +57,7 @@ export interface SyncBackendInitOptions {
    */
   readonly rowImages?: boolean;
   /**
-   * The zod row schema for each non-virtual declared table (name → schema).
+   * The zod row schema for each physical table named by query dependencies.
    * A backend whose storage drifts from what the schemas validate uses these to
    * REPAIR rows at the read seam before they reach the engine's `validateRow`
    * gate — the SQLite backend turns its integer 0/1 back into real booleans this
@@ -92,7 +101,7 @@ export interface SyncBackend {
   /**
    * Install change-tracking (the sync log + per-table write-tracking triggers,
    * plus row-image triggers when `options.rowImages`) for exactly `tables`
-   * (the non-virtual declared tables), idempotently, and return the current
+   * (the physical names derived from query dependencies), idempotently, and return the current
    * max committed seq so the engine resumes numbering. Called once at boot,
    * AFTER `acquireWriterLease` (install must not race a second writer).
    */
@@ -121,11 +130,7 @@ export interface SyncBackend {
    * `{ ok: false, rejection }` (clean rollback, a domain verdict); EVERY other
    * failure is thrown.
    */
-  runMutation(
-    binding: ServeMutationBinding,
-    args: Record<string, unknown>,
-    ctx: ServerMutationCtx
-  ): Promise<BackendMutateResult>;
+  runMutation(calls: readonly BackendMutationCall[]): Promise<BackendMutateResult>;
 
   /**
    * Has this mutationId already committed? Returns its ORIGINAL seq or null.

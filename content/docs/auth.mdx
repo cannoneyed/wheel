@@ -111,8 +111,7 @@ serveQuery({
   sql: (params, principal) =>
     sql`select id, kind, created_at as "createdAt" from notifications
         where user_id = ${params.userId}
-          and ${params.userId} = ${principal.actor.replace(/^user:/, '')}`,
-  rerunOn: ['notifications']
+          and ${params.userId} = ${principal.actor.replace(/^user:/, '')}`
 });
 ```
 
@@ -137,7 +136,7 @@ for (const update of args.updates) {
 
 ## `prune` is an optimization
 
-A `SqlQueryHandler` can add a `prune` predicate. When a table named in `rerunOn` is written, the engine offers each touched row's before/after images to `prune`; if no image passes, the re-run is skipped.
+A `SqlQueryHandler` can add a `prune` predicate. When a table named in the query's `dependsOn` is written, the engine offers each touched row's before/after images to `prune`; if no image passes, the re-run is skipped.
 
 ```ts
 // Excerpt: activity.server.ts — raw table shape (snake_case), not the projected row.

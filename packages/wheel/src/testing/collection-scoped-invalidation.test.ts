@@ -1,11 +1,11 @@
 // @vitest-environment node
 /**
- * e2e proof that invalidation is table-scoped through the REAL pipeline:
+ * e2e proof that invalidation is collection-scoped through the REAL pipeline:
  * server, transport, client marking, context channels, liveQuery cache.
  *
  * The bug this locks out: every client change used to bump ONE global
  * version signal, and every `.rows` read rebuilt a fresh array — so a write
- * to any table re-ran every mounted rows consumer in the app, with no memo
+ * to any collection re-ran every mounted rows consumer in the app, with no memo
  * able to cut it (new identity every read). In the Surface app that meant a
  * progress heartbeat re-rendered the whole shell, several times a second.
  */
@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createEffect, createRoot } from 'solid-js';
 
 import { ServiceContext } from '../core/services';
-import { mutation, query, table } from '../sync/declarations';
+import { mutation, query, collection } from '../sync/declarations';
 import { t } from '../sync/schema';
 import { sql } from '../sync/sql';
 import { serveMutation, serveQuery } from '../sync/server/serve';
@@ -21,10 +21,10 @@ import { SyncService } from '../sync/sync-service';
 import { World } from './world';
 
 const AlphaRow = t.object({ id: t.string(), label: t.string() });
-const alphas = table({ name: 'alphas', type: AlphaRow, key: (row) => row.id });
+const alphas = collection({ name: 'alphas', type: AlphaRow, key: (row) => row.id });
 const alphaList = query({ name: 'alphas.list', params: t.object({}), into: alphas });
 const BetaRow = t.object({ id: t.string(), label: t.string() });
-const betas = table({ name: 'betas', type: BetaRow, key: (row) => row.id });
+const betas = collection({ name: 'betas', type: BetaRow, key: (row) => row.id });
 const betaList = query({ name: 'betas.list', params: t.object({}), into: betas });
 
 const renameAlpha = mutation({
@@ -39,13 +39,11 @@ const syncModule = { alphas, alphaList, betas, betaList, renameAlpha };
 const serverModule = {
   alphaListServer: serveQuery({
     query: alphaList,
-    sql: () => sql`select id, label from alphas order by id`,
-    rerunOn: ['alphas']
+    sql: () => sql`select id, label from alphas order by id`
   }),
   betaListServer: serveQuery({
     query: betaList,
-    sql: () => sql`select id, label from betas order by id`,
-    rerunOn: ['betas']
+    sql: () => sql`select id, label from betas order by id`
   }),
   renameAlphaServer: serveMutation({
     mutation: renameAlpha,
@@ -77,7 +75,7 @@ afterAll(async () => {
   await world.close();
 });
 
-describe('table-scoped invalidation (e2e)', () => {
+describe('collection-scoped invalidation (e2e)', () => {
   test('a write to alphas re-runs no beta subscriber, and beta rows keep identity', async () => {
     const client = await world.client('web_a');
     const context = new ServiceContext({ client });

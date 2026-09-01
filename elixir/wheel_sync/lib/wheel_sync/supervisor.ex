@@ -14,18 +14,23 @@ defmodule WheelSync.Supervisor do
     database_url = Keyword.fetch!(options, :database_url)
     registry = WheelSync.Registry.build!(options)
 
+    connection_options = WheelSync.PostgresOptions.from_url!(database_url)
+
     postgres_options =
-      database_url
-      |> WheelSync.PostgresOptions.from_url!()
-      |> Keyword.merge(
+      Keyword.merge(connection_options,
         name: names.postgres,
         pool_size: Keyword.get(options, :pool_size, 10)
       )
 
+    notification_options =
+      Keyword.merge(connection_options, name: names.notifications, auto_reconnect: true)
+
     children = [
       {Postgrex, postgres_options},
+      {Postgrex.Notifications, notification_options},
       {Registry, keys: :unique, name: names.workspace_registry},
       {DynamicSupervisor, strategy: :one_for_one, name: names.workspace_supervisor},
+      {WheelSync.ChangeListener, names: names},
       {WheelSync.Runtime, names: names, registry: registry, options: options}
     ]
 

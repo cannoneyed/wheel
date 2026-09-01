@@ -3,7 +3,7 @@
  * The shared client/server contract (optimistic handlers mirror
  * teams.server.ts exactly).
  */
-import { patchMutation, query, t, table } from 'wheel/sync';
+import { patchMutation, query, t, collection } from 'wheel/sync';
 
 /** A workspace member profile. Production actor identity comes from server authentication. */
 export const UserRow = t.object({
@@ -12,7 +12,7 @@ export const UserRow = t.object({
   initials: t.string(),
   avatarColor: t.string()
 });
-export const users = table({ name: 'users', type: UserRow, key: (row) => row.id });
+export const users = collection({ name: 'users', type: UserRow, key: (row) => row.id });
 
 /** A team: key is the issue-identifier prefix (ENG-42), unique server-side. */
 export const TeamRow = t.object({
@@ -25,7 +25,7 @@ export const TeamRow = t.object({
   estimatesEnabled: t.boolean(),
   position: t.number()
 });
-export const teams = table({ name: 'teams', type: TeamRow, key: (row) => row.id });
+export const teams = collection({ name: 'teams', type: TeamRow, key: (row) => row.id });
 
 /** Workflow state category — drives grouping order and board semantics. */
 export const StateType = t.enum(['backlog', 'unstarted', 'started', 'completed', 'canceled']);
@@ -39,7 +39,7 @@ export const WorkflowStateRow = t.object({
   color: t.string(),
   position: t.number()
 });
-export const workflowStates = table({
+export const workflowStates = collection({
   name: 'workflow_states',
   type: WorkflowStateRow,
   key: (row) => row.id
@@ -81,7 +81,7 @@ export const teamUpdate = patchMutation({
       estimatesEnabled: t.boolean().optional()
     })
   }),
-  table: teams,
+  collection: teams,
   id: (args) => args.teamId,
   description: 'team settings'
 });

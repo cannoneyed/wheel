@@ -3,7 +3,7 @@
  * ordering — the third `positionBetween` consumer. Per-user by params (the
  * same trust model as the inbox).
  */
-import { mutation, orphan, query, t, table, type Infer, type InverseSpec } from 'wheel/sync';
+import { mutation, orphan, query, t, collection, type Infer, type InverseSpec } from 'wheel/sync';
 
 /** One favorite: what kind of thing, which one, where in the list. */
 export const FavoriteRow = t.object({
@@ -14,8 +14,8 @@ export const FavoriteRow = t.object({
   position: t.number()
 });
 
-/** The favorites table. */
-export const favorites = table({ name: 'favorites', type: FavoriteRow, key: (row) => row.id });
+/** The favorites collection. */
+export const favorites = collection({ name: 'favorites', type: FavoriteRow, key: (row) => row.id });
 
 /** The current user's favorites in manual order. */
 export const favoritesMine = query({

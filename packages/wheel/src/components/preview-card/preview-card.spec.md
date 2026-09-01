@@ -14,4 +14,3 @@
 - Loading and error content preserve the same card bounds and accessible link.
 - Entry is immediate after the intent delay. The delay is not a fade-in.
 - Closing uses the shared 100 ms fade-out. Reduced motion removes the fade.
-- Browser proof covers focus, pointer intent, safe corridor, touch, collision, link navigation, and repeated previews.

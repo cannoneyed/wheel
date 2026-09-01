@@ -52,6 +52,7 @@ export default [
     plugins: { wheel },
     rules: {
       'wheel/invert-return-type': 'error',
+      'wheel/no-direct-materializer-writes': 'error',
       'wheel/no-handles-in-atoms': 'error',
       'wheel/no-unused-imports': 'error',
       // Default-on so a *.server.ts that ever lands outside src/ is covered too;
@@ -89,6 +90,7 @@ export default [
       'wheel/require-member-jsdoc': 'error',
       'wheel/prefer-computed': 'error',
       'wheel/invert-return-type': 'error',
+      'wheel/no-direct-materializer-writes': 'error',
       'wheel/no-handles-in-atoms': 'error',
       'wheel/no-optional-computed-args': 'error',
       'wheel/no-unused-imports': 'error',
@@ -182,6 +184,7 @@ export default [
       'wheel/single-connect-per-file': 'error',
       'wheel/connect-only': 'error',
       'wheel/invert-return-type': 'error',
+      'wheel/no-direct-materializer-writes': 'error',
       'wheel/no-handles-in-atoms': 'error',
       'wheel/no-whole-service-injection': 'error',
       'wheel/max-connect-surface': 'error',

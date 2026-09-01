@@ -18,4 +18,3 @@
 - Panels appear immediately when opened. They never fade, slide, or scale in.
 - Closing panels may use the shared 100 ms exit-only motion without delaying state or focus.
 - Reduced motion removes panel exit motion. Forced colors preserve trigger focus and row boundaries.
-- Browser proof covers pointer toggling, every keyboard key, controlled state, nested roots, and repeated open-close cycles.

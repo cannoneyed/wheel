@@ -12,11 +12,15 @@ defmodule WheelSync.Registry do
     assert_same_names!(Map.keys(contract.queries), Map.keys(queries), "query")
     assert_same_names!(Map.keys(contract.mutations), Map.keys(mutations), "mutation")
 
-    for {_name, query} <- contract.queries, table <- query["rerunOn"] do
-      unless Map.has_key?(contract.tables, table) do
-        raise ArgumentError,
-              "query #{inspect(query["name"])} reruns on undeclared table #{inspect(table)}"
+    for {name, query} <- contract.queries do
+      for collection <- query["dependsOn"] do
+        unless Map.has_key?(contract.collections, collection) do
+          raise ArgumentError,
+                "query #{inspect(query["name"])} depends on undeclared collection #{inspect(collection)}"
+        end
       end
+
+      assert_query_module!(Map.fetch!(queries, name), query)
     end
 
     %__MODULE__{
@@ -25,6 +29,21 @@ defmodule WheelSync.Registry do
       mutations: mutations,
       authenticator: Keyword.fetch!(options, :authenticator)
     }
+  end
+
+  defp assert_query_module!(module, query) do
+    sql? = function_exported?(module, :sql, 2)
+    run? = function_exported?(module, :run, 2)
+
+    if sql? == run? do
+      raise ArgumentError,
+            "query handler #{inspect(module)} for #{inspect(query["name"])} must define exactly one of sql/2 or run/2"
+    end
+
+    if query["dependsOn"] == [] and not function_exported?(module, :subscribe, 3) do
+      raise ArgumentError,
+            "query #{inspect(query["name"])} must declare physical dependencies or implement subscribe/3"
+    end
   end
 
   defp modules_by_name!(modules, kind) do

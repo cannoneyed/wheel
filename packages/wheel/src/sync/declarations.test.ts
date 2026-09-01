@@ -1,17 +1,17 @@
 // @vitest-environment node
 /**
  * The declaration name grammars. The one that earns a test is the operation
- * name: `<namespace>.<op>`. Query namespaces equal their target table.
+ * name: `<namespace>.<op>`. Query namespaces equal their target collection.
  * Mutation namespaces are organizational because one mutation may touch
- * several tables.
+ * several collections.
  */
 import { describe, expect, it } from 'vitest';
 
-import { mutation, query, table } from './declarations';
+import { mutation, query, collection } from './declarations';
 import { t } from './schema';
 
 const anyParams = t.object({});
-const rows = table({ name: 'rows', type: t.object({ id: t.string() }), key: (row) => row.id });
+const rows = collection({ name: 'rows', type: t.object({ id: t.string() }), key: (row) => row.id });
 
 const makeQuery = (name: string) => query({ name, params: anyParams, into: rows });
 const makeMutation = (name: string) => mutation({ name, args: anyParams });
@@ -34,7 +34,9 @@ describe('operation-name grammar (4.6)', () => {
     expect(() => makeQuery('rows.ByTeam')).toThrow(/must look like/);
   });
 
-  it('REJECTS a query namespace that does not equal its target table', () => {
-    expect(() => makeQuery('issues.byTeam')).toThrow(/namespace "issues" must equal target table "rows"/);
+  it('REJECTS a query namespace that does not equal its target collection', () => {
+    expect(() => makeQuery('issues.byTeam')).toThrow(
+      /namespace "issues" must equal target collection "rows"/
+    );
   });
 });

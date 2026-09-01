@@ -42,7 +42,7 @@ for (const [sourcePath, source] of Object.entries(specModules)) {
   });
 }
 
-/** Returns the real Markdown contract bundled for a component page. */
+/** Returns the Markdown behavior contract bundled for a component page. */
 export function componentSpec(slug: string): ComponentSpec | undefined {
   return specsBySlug.get(slug);
 }

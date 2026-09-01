@@ -14,4 +14,3 @@
 - Collision keeps every open level inside its boundary and may flip independently.
 - Entry is immediate at every level. Closing levels use the shared 100 ms fade-out.
 - Forced colors preserves highlighted, selected, disabled, destructive, and focused states.
-- Browser proof covers mouse, pen, long press, keyboard invocation, nesting, collision, RTL, and repeated openings.

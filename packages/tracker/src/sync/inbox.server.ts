@@ -33,7 +33,6 @@ export const notificationsInboxServer = serveQuery({
           where user_id = ${params.userId}
             and ${params.userId} = ${principal.actor.replace(/^user:/, '')}
           order by created_at desc, id desc limit 100`,
-    rerunOn: ['notifications'],
     prune: (image, params, principal) =>
       params.userId === principal.actor.replace(/^user:/, '') &&
       (image.n?.user_id ?? image.o?.user_id) === params.userId

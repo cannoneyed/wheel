@@ -1,10 +1,10 @@
 {
-  "schemaSpecVersion": 1,
-  "protocolVersion": 1,
-  "tables": [
+  "schemaSpecVersion": 4,
+  "protocolVersion": 3,
+  "rowSchemaFingerprint": "wheel-rows-sha256:61ccda773743c77ad01ca16bf95c1d3f7985ee3d4a2f56f9fed1dfde0a3ef2c7",
+  "collections": [
     {
       "name": "activity",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -47,7 +47,6 @@
     },
     {
       "name": "comments",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -97,7 +96,6 @@
     },
     {
       "name": "cycle_stats",
-      "virtual": true,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -132,7 +130,6 @@
     },
     {
       "name": "cycles",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -171,7 +168,6 @@
     },
     {
       "name": "favorites",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -216,7 +212,6 @@
     },
     {
       "name": "issue_labels",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -248,7 +243,6 @@
     },
     {
       "name": "issue_relations",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -292,7 +286,6 @@
     },
     {
       "name": "issues",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -436,7 +429,6 @@
     },
     {
       "name": "labels",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -478,7 +470,6 @@
     },
     {
       "name": "notifications",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -536,7 +527,6 @@
     },
     {
       "name": "project_counts",
-      "virtual": true,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -567,7 +557,6 @@
     },
     {
       "name": "projects",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -636,7 +625,6 @@
     },
     {
       "name": "reactions",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -673,7 +661,6 @@
     },
     {
       "name": "search_results",
-      "virtual": true,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -716,7 +703,6 @@
     },
     {
       "name": "teams",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -767,7 +753,6 @@
     },
     {
       "name": "users",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -802,7 +787,6 @@
     },
     {
       "name": "views",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -849,7 +833,6 @@
     },
     {
       "name": "workflow_states",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -915,7 +898,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "activity"
       ]
     },
@@ -935,7 +918,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "comments"
       ]
     },
@@ -955,7 +938,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "cycles",
         "issues",
         "workflow_states"
@@ -977,7 +960,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "cycles"
       ]
     },
@@ -997,7 +980,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "favorites"
       ]
     },
@@ -1017,7 +1000,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "issue_labels"
       ]
     },
@@ -1037,7 +1020,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "issue_relations"
       ]
     },
@@ -1057,7 +1040,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "issues"
       ]
     },
@@ -1077,7 +1060,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "issues"
       ]
     },
@@ -1097,7 +1080,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "labels"
       ]
     },
@@ -1117,7 +1100,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "notifications"
       ]
     },
@@ -1130,7 +1113,7 @@
         "properties": {},
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "issues",
         "workflow_states"
       ]
@@ -1144,7 +1127,7 @@
         "properties": {},
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "projects"
       ]
     },
@@ -1164,7 +1147,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "reactions"
       ]
     },
@@ -1184,7 +1167,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "comments",
         "issues"
       ]
@@ -1198,7 +1181,7 @@
         "properties": {},
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "teams"
       ]
     },
@@ -1211,7 +1194,7 @@
         "properties": {},
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "users"
       ]
     },
@@ -1231,7 +1214,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "views"
       ]
     },
@@ -1251,7 +1234,7 @@
         ],
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "workflow_states"
       ]
     }

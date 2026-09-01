@@ -8,12 +8,12 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
-import { mutation, query, sql, t, table } from '../sync/index';
+import { mutation, query, sql, t, collection } from '../sync/index';
 import { serveMutation, serveQuery } from '../sync/server/index';
 import { World } from './world';
 
 const ProbeRow = t.object({ id: t.string(), label: t.string() });
-const probes = table({ name: 'probes', type: ProbeRow, key: (row) => row.id });
+const probes = collection({ name: 'probes', type: ProbeRow, key: (row) => row.id });
 const probeList = query({
   name: 'probes.list',
   params: t.object({}),
@@ -48,8 +48,7 @@ const syncModule = { probes, probeList, probeAdd, probeBoom, probeJson };
 const serverModule = {
   probeListServer: serveQuery({
     query: probeList,
-    sql: () => sql`select id, label from probes order by id`,
-    rerunOn: ['probes']
+    sql: () => sql`select id, label from probes order by id`
   }),
   probeAddServer: serveMutation({
     mutation: probeAdd,
@@ -129,13 +128,11 @@ describe('failed mutations', () => {
 
   test('engine pre-validation refusals are typed error verdicts, not throws', async () => {
     const client = await world.client('web_d');
-    const result = await world.server.mutate(
+    const result = await world.server.mutateGroup(
       {
         clientId: 'web_d',
         mutationId: client.newId('m'),
-        name: 'no.suchMutation',
-        args: {},
-        ids: []
+        calls: [{ name: 'no.suchMutation', args: {}, ids: [] }]
       },
       {
         actor: 'user:test',
@@ -191,13 +188,11 @@ describe('failed mutations', () => {
       error: { code: 'invalid_args', message: expect.stringContaining('class instances are not data (Date)') }
     });
 
-    const serverResult = await world.server.mutate(
+    const serverResult = await world.server.mutateGroup(
       {
         clientId: 'web_json',
         mutationId: client.newId('m'),
-        name: probeJson.name,
-        args: { value: 42n },
-        ids: []
+        calls: [{ name: probeJson.name, args: { value: 42n }, ids: [] }]
       },
       {
         actor: 'user:test',

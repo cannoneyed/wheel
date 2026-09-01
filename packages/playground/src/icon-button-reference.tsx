@@ -44,7 +44,7 @@ export const ICON_BUTTON_REFERENCE: ComponentReferenceDefinition = {
     { name: 'href', type: 'string', defaultValue: '—', description: 'Renders an anchor and supplies its destination.' },
     { name: 'target / rel / download', type: 'anchor props', defaultValue: '—', description: 'Passes native link behavior through.' },
     { name: 'type / name / value / form', type: 'button props', defaultValue: "'button' / —", description: 'Passes native form behavior through.' },
-    { name: 'as / asChild', type: 'ElementType / boolean', defaultValue: '— / false', description: 'Changes the rendered element without adding a wrapper.' },
+    { name: 'as', type: 'ElementType', defaultValue: '—', description: 'Changes the rendered element.' },
     { name: 'class / style', type: 'value | state function', defaultValue: '—', description: 'Styles the resolved Button state.' },
   ],
   examples: [

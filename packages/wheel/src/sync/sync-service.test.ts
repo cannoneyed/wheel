@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ServiceContext } from '../core/services';
 import type { SyncClient, QueryHandle } from './client/client';
-import { query, table } from './declarations';
+import { query, collection } from './declarations';
 import { t } from './schema';
 import { SyncService } from './sync-service';
 
@@ -16,7 +16,7 @@ describe('liveQuery subscribe/dispose race', () => {
   // gives deterministically.
   it('releases a handle that arrives after dispose and skips the bump', async () => {
     const Row = t.object({ id: t.string() });
-    const todos = table({ name: 'todos', type: Row, key: (row) => row.id });
+    const todos = collection({ name: 'todos', type: Row, key: (row) => row.id });
     const todosAll = query({ name: 'todos.all', params: t.object({}), into: todos });
 
     let releaseCalls = 0;
@@ -24,6 +24,7 @@ describe('liveQuery subscribe/dispose race', () => {
       query: 'todos.all',
       subscriptionId: 'sub-1',
       rows: () => [],
+      status: () => ({ kind: 'live' }),
       stale: () => false,
       release: () => {
         releaseCalls += 1;
@@ -62,14 +63,14 @@ describe('liveQuery subscribe/dispose race', () => {
   });
 });
 
-describe('liveQuery invalidation is table-scoped', () => {
+describe('liveQuery invalidation is collection-scoped', () => {
   // Stub client again: the contract under test is the CONTEXT's — which
   // channel a rows read tracks, and when the cached array rebuilds — so the
   // change notifications are hand-fired with exact scopes.
-  it('rows keep identity between changes, and only the touched table rebuilds', async () => {
+  it('rows keep identity between changes, and only the touched collection rebuilds', async () => {
     const Row = t.object({ id: t.string() });
-    const alphas = table({ name: 'alphas', type: Row, key: (row) => row.id });
-    const betas = table({ name: 'betas', type: Row, key: (row) => row.id });
+    const alphas = collection({ name: 'alphas', type: Row, key: (row) => row.id });
+    const betas = collection({ name: 'betas', type: Row, key: (row) => row.id });
     const alphasAll = query({ name: 'alphas.all', params: t.object({}), into: alphas });
     const betasAll = query({ name: 'betas.all', params: t.object({}), into: betas });
 
@@ -80,6 +81,7 @@ describe('liveQuery invalidation is table-scoped', () => {
       // Fresh array per call, exactly like the real client's queryRows —
       // identity stability must come from the view's cache, not the stub.
       rows: () => [{ id: `${name}-row` }],
+      status: () => ({ kind: 'live' }),
       stale: () => false,
       release: () => {}
     });

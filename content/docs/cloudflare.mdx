@@ -54,17 +54,19 @@ Hibernation does not make the browser reconnect. Subscription IDs and presence s
 
 A deployment is different. Cloudflare terminates WebSockets when Durable Object code changes. The browser reconnects and requests fresh snapshots. The new connection clears old peer presence before the server sends its current peers. The client outbox remains in IndexedDB and replays unconfirmed mutations by mutation ID.
 
-## Schema and deploy versions
+## Schema and deploy contracts
 
-Wheel uses three version values. Do not combine them.
+Wheel uses four deployment values. Do not combine them.
 
-| Version | Owner | Change it when |
+| Value | Owner | Change it when |
 | --- | --- | --- |
 | Sync protocol | Wheel | A frame shape is no longer readable by the other version |
 | Application version | App | Client and server behavior can become incompatible |
+| Row-schema fingerprint | Wheel generator | A cached row shape, key, or query owner changes |
 | SQLite schema version | Migration list | A migration is appended |
 
-The WebSocket handshake sends the protocol and application versions. The server returns its application and SQLite schema versions.
+The WebSocket handshake sends the protocol, application version, and generated row fingerprint.
+The server returns its application version, SQLite schema version, and row fingerprint.
 
 During a rolling deployment:
 
@@ -72,10 +74,15 @@ During a rolling deployment:
 2. An old client can reach a new Durable Object. Keep `minimumClientVersion` at the old version while it remains compatible.
 3. For a breaking change, raise `minimumClientVersion`. The server returns `client_outdated`. The app reloads its assets.
 4. A protocol mismatch also reloads the app.
+5. Accepted application versions must have the same row fingerprint. A mismatch reloads assets
+   once, then stops reconnecting if the deployment remains inconsistent.
 
 Put application versions in one shared file. Tracker uses `packages/tracker/sync-version.ts` from the browser, Bun server, and Cloudflare Worker.
 
-Include the application version in the IndexedDB snapshot scope. Keep the outbox scope stable. A row-shape change then deletes old snapshots without losing pending edits.
+Generate the row fingerprint from the shared declarations. Pass it to `SyncSocketServer` and the
+browser transport. Use `createCacheScopes()` to include it in the IndexedDB snapshot scope while
+keeping the outbox scope stable. A row-shape change then deletes old snapshots without losing
+pending edits.
 
 ## Migration rules
 
@@ -92,6 +99,7 @@ const sockets = new SyncSocketServer({
   server,
   applicationVersion: TRACKER_APPLICATION_VERSION,
   minimumClientVersion: TRACKER_MINIMUM_CLIENT_VERSION,
+  rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
   schemaVersion: migration.toVersion
 });
 ```
@@ -108,7 +116,7 @@ Use these rules:
 
 There are no down migrations. Roll forward with a new migration. A code rollback can run only if it understands the current schema version.
 
-`cloudflare/tracker.worker.test.ts` proves all required paths on real Durable Object test storage. It checks hibernation resume, stable subscription IDs, presence restore, deploy closure, stale socket schema refusal, version mismatches, migration idempotence, changed names or SQL, newer storage, and transaction rollback.
+`cloudflare/tracker.worker.test.ts` proves all required paths on real Durable Object test storage. It checks hibernation resume, stable subscription IDs, presence restore, deploy closure, stale socket schema and row-contract refusal, version mismatches, migration idempotence, changed names or SQL, newer storage, and transaction rollback.
 
 ## Run the local proof
 

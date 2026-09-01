@@ -3,7 +3,7 @@
  * SqlQueryHandler:
  *
  * - `run` produces ranked rows via SQLite FTS5 full-text search;
- * - `rerunOn` gives the standard table-hint invalidation;
+ * - the shared query declaration gives standard physical dependency invalidation;
  * - `subscribe` is a real push channel: anything can poke
  *   `searchInvalidation.notify()` and every open search re-runs + diffs —
  *   the seam a materialized view or external index (Meilisearch etc.) would use.
@@ -16,7 +16,7 @@
  *   - `comment_fts(comment_id, issue_id, body)` — one row per comment.
  * The triggers fire on ANY write to `issues`/`comments` — engine mutations AND
  * direct db writes — so the index is always fresh; whether a search re-runs is a
- * separate concern (table hints or the push channel), exactly as before.
+ * separate concern (declared dependencies or the push channel), exactly as before.
  *
  * An issue is a hit when its own text OR any of its comments match; `source` is
  * `'issue'` when the issue's own text matched, else `'comment'`; `rank` is the
@@ -102,7 +102,6 @@ function toMatchExpr(q: string): string | null {
 /** The custom handler: FTS5 bm25 ranking over issues + their comments. */
 export const searchHandler: QueryHandler<{ q: string }, SearchResult> = {
   kind: 'tracker-search',
-  rerunOn: ['issues', 'comments'],
   subscribe(_params, invalidate) {
     searchInvalidation.listeners.add(invalidate);
     return () => searchInvalidation.listeners.delete(invalidate);

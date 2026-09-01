@@ -120,12 +120,12 @@ async function handle(request: WorkerRequest, port: ClientPort): Promise<unknown
       engine.connections.get(request.clientId)?.connection.unsubscribe(request.subscriptionId);
       return null;
     }
-    case 'mutate': {
+    case 'mutateGroup': {
       const entry = engine.connections.get(request.request.clientId);
       if (!entry) {
         throw new Error(`in-browser sync: client "${request.request.clientId}" is not connected`);
       }
-      return engine.server.mutate(request.request, entry.connection.principal);
+      return engine.server.mutateGroup(request.request, entry.connection.principal);
     }
     case 'presence': {
       await engine.server.setPresence(request.clientId, request.state);

@@ -12,12 +12,17 @@
 import {
   IndexedDbCache,
   SyncClient,
+  createCacheScopes,
+  createRowSchemaReloadGuard,
   createWebSocketTransport,
   systemClock,
   systemRandomBytes
 } from 'wheel/sync';
+import { logger } from 'wheel/core';
 
 import { TRACKER_APPLICATION_VERSION } from '../../sync-version';
+import { ROW_SCHEMA_FINGERPRINT } from '../../row-schema.generated';
+import { TRACKER_SYNC_MODULES } from '../sync/modules';
 
 let client: SyncClient | null = null;
 
@@ -50,17 +55,29 @@ export function trackerClient(): SyncClient {
   // Fresh wire id per page load — never persisted (module doc).
   const wireId = `web_${crypto.randomUUID().slice(0, 8)}`;
   const storeScope = stable('axle.storeId', localStorage, () => crypto.randomUUID().slice(0, 8));
+  const rowSchemaReload = createRowSchemaReloadGuard(sessionStorage, 'axle.rowSchemaReload');
   const transport = createWebSocketTransport({
     baseUrl: '',
     applicationVersion: TRACKER_APPLICATION_VERSION,
+    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
     params: () => ({
       demoUser: currentActorId() || 'anonymous',
       demoSession: wireId
     }),
     onReconnect: () => void client!.rebootstrap(),
-    onStatus: (status) => client!.setConnectionStatus(status),
-    onVersionMismatch: ({ reason }) => {
+    onStatus: (status) => {
+      if (status === 'connected') rowSchemaReload.clear();
+      client!.setConnectionStatus(status);
+    },
+    onVersionMismatch: (mismatch) => {
+      const { reason } = mismatch;
       if (reason === 'server_updating') return;
+      if (reason === 'row_schema_mismatch') {
+        if (!rowSchemaReload.shouldReload(mismatch.serverRowSchemaFingerprint)) {
+          logger.error('Tracker assets and sync server have different row contracts.', mismatch);
+          return;
+        }
+      }
       // wheel-raw-location: incompatible client code requires a full asset reload.
       location.reload();
     }
@@ -71,14 +88,11 @@ export function trackerClient(): SyncClient {
     actor: `user:${currentActorId() || 'anonymous'}`,
     clock: systemClock,
     randomBytes: systemRandomBytes,
-    localCache: new IndexedDbCache('axle', {
-      snapshots: `${storeScope}|snapshots:v${TRACKER_APPLICATION_VERSION}`,
-      outbox: `${storeScope}|outbox`,
-      retires: (scope) =>
-        scope.startsWith(`${storeScope}|`) &&
-        scope !== `${storeScope}|snapshots:v${TRACKER_APPLICATION_VERSION}` &&
-        scope !== `${storeScope}|outbox`
-    })
+    syncModules: TRACKER_SYNC_MODULES,
+    localCache: new IndexedDbCache(
+      'axle',
+      createCacheScopes({ storeScope, rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT })
+    )
   });
   return client;
 }

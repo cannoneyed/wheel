@@ -28,7 +28,12 @@ defmodule WheelSync.Runtime do
       bootstrapper -> :ok = bootstrapper.bootstrap(names.postgres, config)
     end
 
-    {:ok, Map.merge(config, %{names: names, registry: registry})}
+    {:ok,
+     Map.merge(config, %{
+       names: names,
+       registry: registry,
+       row_schema_fingerprint: registry.contract.row_schema_fingerprint
+     })}
   end
 
   @impl true

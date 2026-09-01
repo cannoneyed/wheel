@@ -1,9 +1,9 @@
 /**
- * Search sync module. Results land in a VIRTUAL table computed by a
+ * Search sync module. Results land in a derived collection computed by a
  * fully custom QueryHandler (search.server.ts) — the first handler in the
  * repo built without the SqlQueryHandler sugar.
  */
-import { query, t, table, type Infer } from 'wheel/sync';
+import { query, t, collection, type Infer } from 'wheel/sync';
 
 /** One search hit. `id` is the matched issue's id. */
 export const SearchResultRow = t.object({
@@ -16,19 +16,19 @@ export const SearchResultRow = t.object({
   rank: t.number()
 });
 
-/** The search_results virtual table. */
-export const searchResults = table({
+/** Search rows computed from physical issue and comment sources. */
+export const searchResults = collection({
   name: 'search_results',
   type: SearchResultRow,
-  key: (row) => row.id,
-  virtual: true
+  key: (row) => row.id
 });
 
 /** Full-text search over issue titles/descriptions and comments. */
 export const searchQuery = query({
   name: 'search_results.results',
   params: t.object({ q: t.string() }),
-  into: searchResults
+  into: searchResults,
+  dependsOn: ['issues', 'comments']
 });
 
 /** Search-hit alias. */

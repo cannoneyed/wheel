@@ -40,8 +40,7 @@ export const SHEET_SCHEMA = {
 
 export const cellListServer = serveQuery({
   query: cellList,
-  sql: () => sql`select id, "row", col, value from cells order by "row", col`,
-  rerunOn: ['cells']
+  sql: () => sql`select id, "row", col, value from cells order by "row", col`
 });
 
 export const setCellServer = serveMutation({

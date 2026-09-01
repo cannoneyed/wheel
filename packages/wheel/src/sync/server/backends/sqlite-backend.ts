@@ -33,8 +33,8 @@ import { compileSql, sql as sqlTag, type SqlFragment } from '../../sql';
 import type { DbRow } from '../../protocol';
 import { SyncServerError } from '../errors';
 import type { QueryReader } from '../query-handler';
-import type { ServeMutationBinding, ServerMutationCtx, ServerTx } from '../serve';
-import type { BackendMutateResult, ExternalChangeRecord, SyncBackend, SyncBackendInitOptions } from '../sync-backend';
+import type { ServerTx } from '../serve';
+import type { BackendMutateResult, BackendMutationCall, ExternalChangeRecord, SyncBackend, SyncBackendInitOptions } from '../sync-backend';
 import {
   CREATE_SYNC_LOG,
   CREATE_TOUCHED_TABLE,
@@ -186,11 +186,9 @@ export class SqliteSyncBackend implements SyncBackend {
    * engine's exactly-once path. A handler `rejection(...)` is a clean rollback +
    * typed verdict.
    */
-  async runMutation(
-    binding: ServeMutationBinding,
-    args: Record<string, unknown>,
-    ctx: ServerMutationCtx
-  ): Promise<BackendMutateResult> {
+  async runMutation(calls: readonly BackendMutationCall[]): Promise<BackendMutateResult> {
+    const first = calls[0]!;
+    const mutationNames = calls.map((call) => call.binding.name);
     let seq = 0;
     let touched: readonly string[] = [];
     this.driver.exec('BEGIN');
@@ -200,18 +198,21 @@ export class SqliteSyncBackend implements SyncBackend {
         sql: async (strings, ...values) => this.read(sqlTag(strings, ...values)) as never,
         run: async (text, params) => this.read(text, params) as never
       };
-      await binding.handler(serverTx, args, ctx);
+      for (const call of calls) {
+        await call.binding.handler(serverTx, call.args, call.ctx);
+        call.assertIdsConsumed();
+      }
       touched = this.driver.all(READ_TOUCHED).map((row) => String(row.name));
       const [logRow] = this.driver.all(SYNC_LOG_INSERT, [
-        ctx.mutationId,
-        binding.name,
-        ctx.actor,
-        ctx.clientId,
+        first.ctx.mutationId,
+        mutationNames.join(','),
+        first.ctx.actor,
+        first.ctx.clientId,
         this.clock.now(),
         JSON.stringify(touched)
       ]);
       if (!logRow) {
-        throw new SyncServerError('sync_log_failed', `Mutation "${binding.name}" committed no sync_log row.`);
+        throw new SyncServerError('sync_log_failed', `Mutation group [${mutationNames.join(', ')}] committed no sync_log row.`);
       }
       seq = Number(logRow.seq);
       this.driver.exec('COMMIT');

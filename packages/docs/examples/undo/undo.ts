@@ -41,7 +41,7 @@ const TodoPatch = t.object({
 export const updateTodo = patchMutation({
   name: 'todos.update',
   args: t.object({ todoId: t.string(), patch: TodoPatch }),
-  table: todos,
+  collection: todos,
   id: (args) => args.todoId,
   description: 'edit todo'
 });

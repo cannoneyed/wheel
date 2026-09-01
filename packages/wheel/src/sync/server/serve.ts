@@ -51,13 +51,13 @@ export interface ServeQueryBinding<
  * Bind a query declaration to its backend (*.server.ts side). Two forms:
  *
  *   // Sugar — the standard SQLite case:
- *   serveQuery({ query, sql: (p) => sql`...`, rerunOn: ['cards'] })
+ *   serveQuery({ query, sql: (p) => sql`...` })
  *
  *   // Explicit — any QueryHandler (the backend escape hatch):
- *   serveQuery({ query, handler: SqlQueryHandler({ sql, rerunOn }) })
+ *   serveQuery({ query, handler: SqlQueryHandler({ sql }) })
  *
- * A handler must offer at least one invalidation channel: `rerunOn` table
- * hints (re-run + diff when a table is touched) and/or push-based
+ * A query must offer at least one invalidation channel: declared physical
+ * dependencies (re-run + diff when a table is touched) and/or push-based
  * `subscribe` (backends with native reactivity).
  */
 export function serveQuery<Params extends Record<string, unknown>, Row extends Record<string, unknown>>(
@@ -69,17 +69,15 @@ export function serveQuery<Params extends Record<string, unknown>, Row extends R
     | {
         query: QueryDecl<Params, Row>;
         sql: (params: Params, principal: AuthPrincipal) => QuerySource;
-        /** Table names whose committed writes re-run + diff this query. Coarse on purpose: table-level hints are cheap to declare and the engine's diff suppresses no-op deltas. */
-        rerunOn: readonly string[];
       }
 ): ServeQueryBinding<Params, Row> {
   const handler =
     'handler' in options
       ? options.handler
-      : SqlQueryHandler<Params, Row>({ sql: options.sql, rerunOn: options.rerunOn });
-  if ((handler.rerunOn === undefined || handler.rerunOn.length === 0) && handler.subscribe === undefined) {
+      : SqlQueryHandler<Params, Row>({ sql: options.sql });
+  if (options.query.dependsOn.length === 0 && handler.subscribe === undefined) {
     throw new Error(
-      `serveQuery(${options.query.name}): the handler must provide rerunOn table hints and/or a subscribe channel.`
+      `serveQuery(${options.query.name}): the query must declare physical dependencies and/or the handler must provide a subscribe channel.`
     );
   }
   return {

@@ -11,4 +11,3 @@
 - High zoom keeps a visible one-device-pixel boundary where the platform permits.
 - Forced colors maps semantic lines to system colors.
 - Separator has no motion.
-- Visual proof covers both orientations, every inset, themes, forced colors, and scaled display density.

@@ -73,6 +73,7 @@ describe('renderElement', () => {
   it('supports `as` with a different tag', () => {
     const { container } = render(() => <Demo as="div" />);
     expect(container.firstElementChild!.tagName).toBe('DIV');
+    expect(container.firstElementChild).not.toHaveAttribute('as');
   });
 
   it('supports `as` with a component', () => {
@@ -95,6 +96,7 @@ describe('renderElement', () => {
     const el = container.firstElementChild!;
     expect(el.tagName).toBe('BUTTON');
     expect(el).toHaveAttribute('role', 'switch');
+    expect(el).not.toHaveAttribute('aschild');
     expect(el).not.toHaveAttribute('data-checked');
     setChecked(true);
     expect(el).toHaveAttribute('data-checked', '');

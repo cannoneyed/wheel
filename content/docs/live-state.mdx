@@ -21,11 +21,11 @@ The design: **the server is the only truth, clients guess optimistically, and ev
 
 ## Declaring synced data
 
-You declare tables, queries, and mutations once, in a **sync module** (`todos.sync.ts`). Both the client and the server use the same declarations, so they cannot drift apart silently.
+You declare collections, queries, and mutations once, in a **sync module** (`todos.sync.ts`). Both the client and the server use the same declarations, so they cannot drift apart silently.
 
 <CodeExample example={todosSyncSource} />
 
-The server side binds each declaration in `todos.server.ts` — SQL plus **re-run hints**. The SQL targets your backend's dialect (SQLite for the reference apps):
+The server side binds each declaration in `todos.server.ts` to SQL. The SQL targets your backend's dialect (SQLite for the reference apps):
 
 ```ts
 // Excerpt: todoList is imported from the checked sync module above.
@@ -34,19 +34,18 @@ import { serveQuery } from 'wheel/sync/server';
 
 export const todoListServer = serveQuery({
   query: todoList,
-  sql: () => sql`select id, title, done, position from todos order by position`,
-  rerunOn: ['todos']
+  sql: () => sql`select id, title, done, position from todos order by position`
 });
 ```
 
-`rerunOn` is a hint, not the subscription (see "How a delta reaches a client" below).
+The shared `query()` declaration owns `dependsOn`. It defaults to the target collection name, which makes that name a physical source. A derived collection lists its physical sources. A push-only source uses `[]`.
 
-The `{ sql, rerunOn }` pair above is sugar. Underneath it builds a **query handler** — an object
+The `sql` form above is sugar. Underneath it builds a **query handler** — an object
 that knows how to produce this query's rows and how to tell the engine they changed. Pass your own
 with `handler:` instead, and the rows need not come from the database at all: an
-incrementally-maintained view, a reactive store that pushes changes instead of taking table hints,
+incrementally-maintained view, a reactive store that pushes changes instead of table dependencies,
 or an HTTP source. The wire protocol, the diffing, and the client stay exactly the same.
-[Virtual tables](#/virtual-tables) walks through writing one.
+[Derived collections](#/derived-collections) walks through writing one.
 
 <Aside kind="note">
   The default storage is <strong>SQLite in-process</strong> (<code>bun:sqlite</code>, zero
@@ -102,16 +101,42 @@ Why the split is sacred: the client retries `queued` mutations in order, forever
 
 The exact outcome table, the wire envelopes that produce each one, and the three error carriers all live in one place: [Names and errors](#/reference).
 
+### Atomic mutation groups
+
+`mutateGroup()` runs existing mutation declarations as one user action:
+
+```ts
+// Excerpt: one user action becomes one atomic command.
+return this.mutateGroup([
+  { mutation: issueUpdate, args: { issueId: firstId, patch: { status: 'done' } } },
+  { mutation: issueUpdate, args: { issueId: secondId, patch: { status: 'done' } } },
+  { mutation: issueUpdate, args: { issueId: thirdId, patch: { status: 'done' } } }
+]);
+```
+
+The client validates and applies every member before it publishes the result. It stores one outbox
+record and counts one pending command. The server runs the calls in list order inside one
+transaction, writes one sync-log row, and publishes once. A rejection, failure, or orphan rolls
+back the whole group. Replay and exactly-once handling also use the group's one mutation id.
+
+Every member must return a complete inverse. The client captures inverses against the prior
+members' writes, then runs them in reverse order as one undo command. A missing or `null` inverse
+fails the group before any optimistic write. Keep permanent work, such as a cascading hard delete,
+as a plain `mutate()` call because the client cannot reconstruct every deleted dependent row.
+
+An empty group settles locally as confirmed. A group may contain at most 128 calls. Wheel rejects
+larger groups instead of splitting their transaction.
+
 ## How a delta reaches a client
 
-A common misreading: `rerunOn: ['todos']` looks like "the subscription is the table." It isn't. The pipeline for every committed write:
+A common misreading: `dependsOn: ['todos']` looks like "the subscription is the table." It isn't. The pipeline for every committed write:
 
 <Diagram
   direction="LR"
   nodes={[
     { id: 'write', label: 'Write commits', kind: 'server' },
     { id: 'touched', label: 'Touched tables', sub: 'noted by triggers', kind: 'store' },
-    { id: 'rerun', label: 'Re-run', sub: 'queries whose rerunOn intersects', kind: 'server' },
+    { id: 'rerun', label: 'Re-run', sub: 'queries whose dependsOn intersects', kind: 'server' },
     { id: 'diff', label: 'Diff', sub: 'vs. last result', kind: 'server' },
     { id: 'delta', label: 'Delta', sub: 'ONLY if rows changed', kind: 'client' }
   ]}
@@ -121,10 +146,10 @@ A common misreading: `rerunOn: ['todos']` looks like "the subscription is the ta
     { from: 'rerun', to: 'diff' },
     { from: 'diff', to: 'delta' }
   ]}
-  caption="rerunOn decides when to re-CHECK; the diff decides whether clients hear anything."
+  caption="dependsOn decides when to re-CHECK; the diff decides whether clients hear anything."
 />
 
-So the client-observable contract is query-level: **a subscription hears about a query exactly when that query's rows change** — an irrelevant write to the same table re-runs the SQL, diffs to nothing, and emits nothing ("an unchanged re-run emits nothing" is a passing engine test). The table hint only costs wasted server re-runs, which is a server-CPU concern, not a correctness one — and push-based handlers (`QueryHandler.subscribe`) skip hints entirely. Finer invalidation tiers (row-predicate pruning, incremental view maintenance) are known escalation paths; the coarse hint trades server CPU for a design with no query language to maintain.
+So the client-observable contract is query-level: **a subscription hears about a query exactly when that query's rows change** — an irrelevant write to the same dependency re-runs the SQL, diffs to nothing, and emits nothing ("an unchanged re-run emits nothing" is a passing engine test). A coarse dependency only costs wasted server re-runs, which is a server-CPU concern, not a correctness one. Push-based handlers (`QueryHandler.subscribe`) can use an empty dependency list. Finer invalidation tiers (row-predicate pruning, incremental view maintenance) are known escalation paths; coarse dependencies trade server CPU for a design with no query language to maintain.
 
 ## Going offline
 
@@ -132,7 +157,8 @@ The client is always local-first — the `localCache` is required, not an opt-in
 
 - **Offline mutations queue — never roll back.** A mutation whose send fails keeps its optimistic state, parks as `queued`, and flushes in order the moment the connection returns. The UI reads `client.queuedMutations()` for its "N unsaved changes" banner. The transport draws a hard line between "couldn't reach the server" (queue and retry — offline means *later*) and "the server said no" (roll back and drop — a validation rejection means *never*, and retrying it would jam every mutation queued behind it).
 - **Local durability failure rolls back.** The optimistic preview appears immediately, but the wire send waits for the outbox commit. If IndexedDB refuses that write, the preview is removed and the handle settles `failed` with `local_persistence_failed`. Required local-first durability never degrades silently to session-only state.
-- **The outbox survives reloads.** Every mutation is durably persisted (with its pre-generated id stream) before the send goes out. A fresh client on the same store replays survivors on connect — and replay is **exactly-once**: the server dedupes by mutation id (a unique constraint on the sync log), answering a duplicate with the original seq instead of applying twice.
+- **The outbox survives reloads.** Every command stores its calls, generated ids, and last optimistic output before the send. A fresh client restores that preview before confirmed rows load. Registered handlers replay when confirmed state arrives. The server dedupes by mutation id, so a resend returns the original sequence instead of applying twice.
+- **Acknowledgement is not release.** A successful response settles the caller, but the command stays in the outbox and materializer until the current connection sends its checkpoint. If the connection drops first, the next connection resends the same command.
 - **Boot hydrates from cache, instantly.** Subscriptions serve their last persisted rows immediately (marked `stale`, provenance cause `hydrate`), even with no server in sight. Stale subscriptions re-open automatically when the connection lands, and the wire snapshot replaces cached truth.
 - **The transport never gives up.** Initial connects and reconnects both retry forever with capped backoff + jitter, waking immediately on `online` / `visibilitychange`. Closing your laptop overnight does not kill the app.
 - **Backoff also paces sockets that die young.** A socket that opens and dies within one second is a **flap**. Consecutive flaps use the same capped backoff. A stable socket resets the streak.
@@ -141,15 +167,40 @@ The client is always local-first — the `localCache` is required, not an opt-in
 
 All of this is tested end to end in `client/outbox.test.ts` against a real in-process server — offline queue, crash-replay, exactly-once, and stale-then-refresh.
 
+### Snapshot identity is not an application version
+
+Cached rows need an exact shape match. Release compatibility needs an ordered range. Wheel keeps
+these checks separate.
+
+`bun run row-schema` generates a `wheel-rows-sha256:…` value from collection row schemas, row keys,
+and query-to-collection mappings. Pass that value to both WebSocket runtimes. Use it with
+`createCacheScopes()` for IndexedDB:
+
+```ts
+// Excerpt: generated row identity scopes snapshots but not pending mutations.
+const scopes = createCacheScopes({
+  storeScope,
+  rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
+});
+const localCache = new IndexedDbCache('my-app', scopes);
+```
+
+The snapshot scope includes the generated fingerprint. A changed row contract retires old
+snapshots before hydration. The outbox scope includes only the stable store identity, so pending
+mutations survive and follow the normal replay rules.
+
+Keep `applicationVersion` and `minimumClientVersion`. Change them when client and server behavior
+becomes incompatible, even if row shapes stay the same. The WebSocket checks protocol and ordered
+application versions before it checks the exact row fingerprint.
+
 ## The presence channel
 
 Some state should never be a row: cursors, focus, and typing state. Presence uses the same WebSocket in both directions. It has **no database, no history, and no undo**. It gets its own page: [Presence](#/presence).
 
 <Aside kind="note">
-  TanStack DB solves the same reactive-query model client-side, but it cannot carry wheel's
-  per-write provenance, and its ordering and handler models clash with wheel's declaration
-  rules. Wheel keeps its own client; the <code>LiveQueryView</code> interface keeps that choice
-  reversible.
+  Wheel owns the client materializer because pending commands must replay against confirmed rows,
+  replace their full write sets, and publish cross-collection changes once. Application code still reads
+  through <code>SyncClient</code> and <code>LiveQueryView</code>.
 </Aside>
 
 ## Where a value came from

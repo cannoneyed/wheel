@@ -1,6 +1,8 @@
 defmodule WheelSync.Storage do
   @moduledoc false
 
+  @change_channel "wheel_sync_changes"
+
   @core_schema [
     """
     create table if not exists wheel_sync_workspaces (
@@ -40,6 +42,22 @@ defmodule WheelSync.Storage do
     end
   end
 
+  def changes_after(postgres, workspace_id, seq) do
+    Postgrex.query!(
+      postgres,
+      """
+      select seq, name, touched, client_id
+      from wheel_sync_log
+      where workspace_id = $1 and seq > $2
+      order by seq
+      """,
+      [workspace_id, seq]
+    ).rows
+    |> Enum.map(fn [next_seq, name, touched, client_id] ->
+      %{seq: next_seq, name: name, touched: touched, client_id: client_id}
+    end)
+  end
+
   def find_committed(connection, workspace_id, mutation_id) do
     case Postgrex.query!(
            connection,
@@ -68,7 +86,7 @@ defmodule WheelSync.Storage do
     seq
   end
 
-  def append_log!(connection, workspace_id, seq, request, principal, touched) do
+  def append_log!(connection, workspace_id, seq, entry) do
     Postgrex.query!(
       connection,
       """
@@ -79,13 +97,27 @@ defmodule WheelSync.Storage do
       [
         workspace_id,
         seq,
-        request["mutationId"],
-        request["name"],
-        MapSet.to_list(touched),
-        principal.actor,
-        request["clientId"]
+        entry.mutation_id,
+        entry.name,
+        entry.touched |> MapSet.to_list() |> Enum.sort(),
+        entry.actor,
+        entry.client_id
       ]
     )
+
+    # PostgreSQL delivers this only after the surrounding transaction commits.
+    Postgrex.query!(connection, "select pg_notify($1, $2)", [
+      @change_channel,
+      notification_key(workspace_id)
+    ])
+  end
+
+  def change_channel, do: @change_channel
+
+  def notification_key(workspace_id) do
+    :sha256
+    |> :crypto.hash(workspace_id)
+    |> Base.url_encode64(padding: false)
   end
 
   def rows(%Postgrex.Result{columns: columns, rows: rows}) when is_list(columns) do

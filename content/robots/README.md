@@ -10,6 +10,7 @@ Read the smallest topic that answers the task. Follow source links when exact si
 - [Getting started](getting-started.md) - run the repository and assemble one feature.
 - [Project layout](project-layout.md) - required files, compiler settings, and boundaries.
 - [Walkthrough](walkthrough.md) - one synced feature from declaration to browser.
+- [Upgrade from 0.1 to 0.2](upgrading.md) - breaking names, local data, protocol, and server changes.
 
 ## Build application state and UI
 
@@ -28,7 +29,7 @@ Read the smallest topic that answers the task. Follow source links when exact si
 - [Live state](live-state.md) - declarations, optimistic writes, rebase, offline replay, and provenance.
 - [Server](server.md) - backends, drivers, SQL dialect ownership, and server lifecycle.
 - [Server handlers](server-advanced.md) - migrations, handlers, invalidation, ids, and external writes.
-- [Virtual tables](virtual-tables.md) - derived rows and push invalidation.
+- [Derived collections](derived-collections.md) - derived rows and push invalidation.
 - [Presence](presence.md) - typed ephemeral peer state.
 - [Undo and redo](undo.md) - inverse mutations and patch helpers.
 

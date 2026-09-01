@@ -13,17 +13,12 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 
-import { IndexedDbCache, type CacheScopes } from './local-cache';
+import { createCacheScopes, IndexedDbCache } from './local-cache';
 
-const scopesFor = (store: string, fingerprint: string): CacheScopes => {
-  const snapshots = `${store}|schema:${fingerprint}`;
-  const outbox = `${store}|outbox`;
-  return {
-    snapshots,
-    outbox,
-    retires: (scope) => scope.startsWith(`${store}|`) && scope !== snapshots && scope !== outbox
-  };
-};
+const fingerprint = (value: string) => `wheel-rows-sha256:${value.repeat(64)}`;
+
+const scopesFor = (store: string, value: string) =>
+  createCacheScopes({ storeScope: store, rowSchemaFingerprint: fingerprint(value) });
 
 const subscription = (key: string) => ({
   key,
@@ -35,9 +30,8 @@ const subscription = (key: string) => ({
 
 const outboxEntry = (mutationId: string, enqueuedAt: number) => ({
   mutationId,
-  mutation: 'todos.add',
-  args: { text: 'pending' },
-  ids: ['id_1'],
+  calls: [{ mutation: 'todos.add', args: { text: 'pending' }, ids: ['id_1'] }],
+  preview: [{ collection: 'todos', rowId: 'id_1', value: { id: 'id_1', text: 'pending' } }],
   enqueuedAt
 });
 
@@ -48,12 +42,12 @@ describe('IndexedDbCache scopes', () => {
 
   test('the outbox survives a schema fingerprint change; snapshots do not', async () => {
     globalThis.indexedDB = new IDBFactory();
-    const before = new IndexedDbCache('app', scopesFor('proj|store', 'fp_old'));
+    const before = new IndexedDbCache('app', scopesFor('proj-store', 'a'));
     await before.saveSubscription(subscription('todos.byList|{}'));
     await before.appendOutbox(outboxEntry('m_1', 1));
 
     // The schema changes: same store identity, new fingerprint.
-    const after = new IndexedDbCache('app', scopesFor('proj|store', 'fp_new'));
+    const after = new IndexedDbCache('app', scopesFor('proj-store', 'b'));
     expect(await after.loadSubscriptions()).toEqual([]);
     const outbox = await after.loadOutbox();
     expect(outbox.map((entry) => entry.mutationId)).toEqual(['m_1']);
@@ -61,7 +55,7 @@ describe('IndexedDbCache scopes', () => {
 
   test('outbox order is enqueue order, and remove is scope-keyed', async () => {
     globalThis.indexedDB = new IDBFactory();
-    const cache = new IndexedDbCache('app', scopesFor('proj|store', 'fp'));
+    const cache = new IndexedDbCache('app', scopesFor('proj-store', 'a'));
     await cache.appendOutbox(outboxEntry('m_2', 2));
     await cache.appendOutbox(outboxEntry('m_1', 1));
     expect((await cache.loadOutbox()).map((entry) => entry.mutationId)).toEqual(['m_1', 'm_2']);
@@ -71,21 +65,32 @@ describe('IndexedDbCache scopes', () => {
 
   test('a retired scope is deleted at open; a foreign scope survives', async () => {
     globalThis.indexedDB = new IDBFactory();
-    const dead = new IndexedDbCache('app', scopesFor('proj|store', 'fp_old'));
+    const dead = new IndexedDbCache('app', scopesFor('proj-store', 'a'));
     await dead.saveSubscription(subscription('todos.byList|{}'));
-    const foreign = new IndexedDbCache('app', scopesFor('other|store', 'fp_x'));
+    const foreign = new IndexedDbCache('app', scopesFor('proj-store|foreign', 'c'));
     await foreign.saveSubscription(subscription('other.query|{}'));
 
     // Open under the new fingerprint: proj's old generation dies, the other
     // project's rows stay.
-    const current = new IndexedDbCache('app', scopesFor('proj|store', 'fp_new'));
+    const current = new IndexedDbCache('app', scopesFor('proj-store', 'b'));
     await current.loadSubscriptions();
 
-    const foreignAgain = new IndexedDbCache('app', scopesFor('other|store', 'fp_x'));
+    const foreignAgain = new IndexedDbCache('app', scopesFor('proj-store|foreign', 'c'));
     expect((await foreignAgain.loadSubscriptions()).map((sub) => sub.key)).toEqual(['other.query|{}']);
     // The dead generation is gone from storage, not merely filtered: reopening
     // under the OLD fingerprint finds nothing.
-    const deadAgain = new IndexedDbCache('app', scopesFor('proj|store', 'fp_old'));
+    const deadAgain = new IndexedDbCache('app', scopesFor('proj-store', 'a'));
     expect(await deadAgain.loadSubscriptions()).toEqual([]);
+  });
+
+  test('standard scopes validate their owner and generated fingerprint', () => {
+    expect(scopesFor('project-store', 'd')).toMatchObject({
+      snapshots: `project-store|snapshots:${fingerprint('d')}`,
+      outbox: 'project-store|outbox'
+    });
+    expect(() => scopesFor('', 'd')).toThrow(/storeScope/);
+    expect(() =>
+      createCacheScopes({ storeScope: 'project-store', rowSchemaFingerprint: 'manual-v1' })
+    ).toThrow(/rowSchemaFingerprint/);
   });
 });

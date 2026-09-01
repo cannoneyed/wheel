@@ -8,7 +8,7 @@ import {
   orphan,
   query,
   t,
-  table,
+  collection,
   type Infer,
   type InverseSpec,
   type MutationDecl
@@ -22,7 +22,7 @@ export const TodoRow = t.object({
   position: t.number()
 });
 
-export const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+export const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 
 /** All todos, server-ordered by position. */
 export const todoList = query({

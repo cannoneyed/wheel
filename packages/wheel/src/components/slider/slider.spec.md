@@ -14,4 +14,3 @@
 - Neutral, success, warning, and error status pair visual tone with field messages.
 - Disabled blocks every input. Read-only permits focus and value inspection without changes.
 - Initial position appears immediately. Drag and value changes use shared state motion only when not actively dragging.
-- Browser proof covers mouse, touch, keyboard, range constraints, RTL, vertical layout, decimals, and reset.

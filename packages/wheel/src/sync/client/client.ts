@@ -1,10 +1,10 @@
 /**
  * SyncClient: the browser-side (and World-side) engine.
  *
- * State model: `base` tables hold server truth, written
- * ONLY by snapshots and deltas. The optimistic queue replays on top after
- * every change to produce `effective`. Confirm/reject/rollback are all "drop
- * the overlay entry and rebase" — there is no merge.
+ * State model: WheelMaterializer owns confirmed query rows, pending command
+ * replay, and the published view. SyncClient owns transport, persistence, and
+ * command lifecycle. Confirm, reject, and rollback change commands through the
+ * materializer; SyncClient keeps no second row or query-order store.
  *
  * ── THE RECONNECT FUNNEL (client side) ─────────────────────────────────────
  *
@@ -24,8 +24,8 @@
  *                           hydrated (stale) data. Idempotent; safe to fire
  *                           on every "the wire looks healthy" signal.
  *   rebootstrap():          full resync — refetch EVERY subscription's
- *                           snapshot, swap server truth, rebase the
- *                           optimistic queue on top. The heavyweight path,
+ *                           snapshot, swap confirmed truth, and replay pending
+ *                           commands on top. The heavyweight path,
  *                           needed because a dropped WebSocket loses deltas
  *                           irrecoverably (there is no replay protocol).
  *                           COALESCED: a storm of reconnects runs at most
@@ -36,7 +36,7 @@
  * flushing while rebootstrap refetches. That interleaving is safe by
  * construction: a snapshot that predates a queued write is corrected by the
  * write's own delta, and a confirmed entry keeps replaying optimistically
- * until base catches up to its confirmedSeq (releaseSettledEntries).
+ * until the current connection checkpoints its confirmedSeq.
  *
  * ── TEARDOWN ───────────────────────────────────────────────────────────────
  *
@@ -47,14 +47,13 @@
  * state-machine latches, not teardown flags, and say so where they live.
  */
 import {
-  OrphanedError,
-  validateTableKey,
-  type InverseSpec,
+  validateCollectionKey,
+  type MutationCall,
   type MutationDecl,
   type MutationRejection,
   type PresenceDecl,
   type QueryDecl,
-  type TableDecl
+  type CollectionDecl
 } from '../declarations';
 import { canonicalParams } from '../../core/params';
 import {
@@ -68,10 +67,19 @@ import { systemDefer, type Defer } from '../../core/runtime-defaults';
 import { logger } from '../../core/logger';
 import type { Clock, IdGen, RandomBytes } from '../ids';
 import { createIdGen } from '../ids';
-import type { MutationError, RowDelta, ServerEvent, Snapshot } from '../protocol';
-import { OverlayCache, cloneTables, freezeRow, tableMap, type Row, type Tables } from './cache';
+import type {
+  MutationError,
+  QueryStatusEvent,
+  RowDelta,
+  ServerEvent,
+  Snapshot,
+  SyncQueryStatus
+} from '../protocol';
+import { freezeRow, type Row } from './cache';
+import { collectClientDeclarations, type ClientDeclarationRegistry } from './declaration-registry';
 import { ProvenanceLog, type ProvenanceEntry, type WriteCause } from './provenance';
 import type { LocalCache, PersistedSubscription } from './local-cache';
+import { WheelMaterializer } from './materializer';
 import type { SyncConnectionStatus } from './transport';
 import { TransientSyncError } from './transport';
 import type { SyncTransport } from './transport';
@@ -103,7 +111,7 @@ export type MutationState = 'pending' | 'queued' | 'confirmed' | 'rejected' | 'o
 /** The audit record of one mutation attempt, including its rejection/error if any. */
 export interface MutationInfo {
   readonly mutationId: string;
-  readonly mutation: string;
+  readonly mutations: readonly string[];
   readonly state: MutationState;
   readonly rejection?: MutationRejection;
   /** Present on `failed`: the typed "this mutation is broken" verdict — the server's crash, or invalid args caught locally (`code: 'invalid_args'`). */
@@ -122,14 +130,21 @@ export interface MutationHandle {
   readonly settled: Promise<MutationInfo>;
 }
 
-interface OptimisticEntry {
-  readonly mutationId: string;
+interface OptimisticCall {
   readonly decl: MutationDecl;
   readonly args: Record<string, unknown>;
   readonly ids: readonly string[];
+}
+
+interface OptimisticEntry {
+  readonly mutationId: string;
+  readonly calls: readonly OptimisticCall[];
   state: MutationState;
   confirmedSeq?: number;
-  writes: readonly { table: string; rowId: string }[];
+  confirmedGeneration?: number;
+  /** Seq whose server delta first made this in-flight command fail with orphan(). */
+  replayOrphanedAtSeq?: number;
+  rollbackUndoBookkeeping?: () => void;
   /** Settles the caller's MutationHandle.settled promise. */
   resolveSettled?: (info: MutationInfo) => void;
 }
@@ -139,10 +154,10 @@ interface ClientSubscription {
   readonly query: QueryDecl;
   readonly params: Record<string, unknown>;
   subscriptionId: string;
-  /** Server-declared result membership + order (delta.order). */
-  order: string[];
   /** Highest delta seq applied — stale (reordered) deltas are refused. */
   lastDeltaSeq: number;
+  /** Highest query-status seq applied. Status may share a seq with its delta. */
+  lastStatusSeq: number;
   refs: number;
   /** True while serving hydrated (persisted, possibly outdated) rows — no wire subscription yet. */
   stale: boolean;
@@ -154,7 +169,9 @@ export interface QueryHandle<RowT extends Row = Row> {
   readonly subscriptionId: string;
   /** Current effective rows: server membership/order + optimistic projection. */
   rows(): readonly RowT[];
-  /** True while rows come from the hydrated cache and no wire snapshot has confirmed them yet. */
+  /** Current server-owned query lifecycle. */
+  status(): SyncQueryStatus;
+  /** True while rows are hydrated but unconfirmed, or the server reports that its last valid rows are stale. */
   stale(): boolean;
   release(): void;
 }
@@ -195,13 +212,15 @@ export interface PeersResult<State extends Record<string, unknown>> {
   readonly actors: ReadonlyMap<string, string>;
 }
 
-/** Everything a SyncClient needs injected: transport, identity, clock, randomness. */
+/** Transport, declarations, identity, time, randomness, and storage for one client. */
 export interface SyncClientOptions {
   transport: SyncTransport;
   clientId: string;
   actor: string;
   clock: Clock;
   randomBytes: RandomBytes;
+  /** Shared client/server declaration modules. Required for durable command replay after reload. */
+  syncModules: readonly object[];
   /** One-shot timer seam (presence coalescing). Defaults to real timers; tests inject a manual Defer or use fake timers. */
   defer?: Defer;
   provenanceCapacity?: number;
@@ -219,10 +238,10 @@ export interface SyncClientOptions {
   localCache: LocalCache;
 }
 
-/** The client engine: server-truth cache + optimistic overlay, subscriptions deduped by canonical key, provenance on every write (see module doc). */
+/** The client engine: transport and command lifecycle around one Wheel materializer. */
 export class SyncClient {
-  private readonly base: Tables = new Map();
-  private effective: Tables = new Map();
+  private readonly materializer: WheelMaterializer;
+  private readonly declarations: ClientDeclarationRegistry;
   private readonly subscriptions = new Map<string, ClientSubscription>();
   /** Calls requesting each canonical subscription, including hydration/wire still in flight. */
   private readonly subscriptionDemands = new Map<string, number>();
@@ -239,18 +258,22 @@ export class SyncClient {
   private readonly pending: OptimisticEntry[] = [];
   private readonly mutationLog = new Map<string, MutationInfo[]>();
   private readonly provenance: ProvenanceLog;
-  private readonly listeners = new Set<(changedTables?: ReadonlySet<string>) => void>();
+  private readonly listeners = new Set<(changedCollections?: ReadonlySet<string>) => void>();
   /**
-   * Tables whose effective rows moved since the last notify. Marked where
+   * Collections whose effective rows moved since the last notify. Marked where
    * rows change (deltas, bootstraps, optimistic writes, rollbacks, drops)
-   * and flushed to listeners, so a consumer can invalidate per table
+   * and flushed to listeners, so a consumer can invalidate per collection
    * instead of re-deriving the world on every change. `changedAll` is the
    * conservative flag for changes with unknown scope (reconnect bootstrap).
    */
-  private readonly changedTables = new Set<string>();
+  private readonly changedCollections = new Set<string>();
   private changedAll = false;
   private readonly idGen: IdGen;
   private lastSeq = 0;
+  /** Server connection epoch. Checkpoints only settle acknowledgements from this epoch. */
+  private connectionGeneration = 0;
+  /** Highest authoritative checkpoint in the current connection generation. */
+  private checkpointSeq = 0;
   /**
    * The ONE teardown signal (see the module doc): close() aborts it, and every
    * background loop observes it at its next boundary. Nothing else in this
@@ -262,15 +285,47 @@ export class SyncClient {
   /** In-flight dedup latch for connect(); null when no connect is running. */
   private connecting: Promise<void> | null = null;
   private version = 0;
-  private undoStack: InverseSpec[] = [];
-  private redoStack: InverseSpec[] = [];
+  private undoStack: Array<readonly MutationCall<any>[]> = [];
+  private redoStack: Array<readonly MutationCall<any>[]> = [];
   private replaying: 'undo' | 'redo' | null = null;
   private readonly peerPresence = new Map<string, Record<string, unknown>>();
   private readonly peerPresenceActors = new Map<string, string>();
+  private readonly stopIncompatibleServerListener: (() => void) | undefined;
+  private readonly outboxRestore: Promise<void>;
 
   constructor(private readonly options: SyncClientOptions) {
     this.idGen = createIdGen({ clock: options.clock, randomBytes: options.randomBytes });
+    this.declarations = collectClientDeclarations(options.syncModules);
+    this.materializer = new WheelMaterializer({
+      actor: options.actor,
+      now: () => options.clock.now(),
+      retainReplayFailures: true
+    });
+    this.materializer.onPublish(({ changedCollections }) => {
+      for (const collection of changedCollections) this.markChanged(collection);
+    });
     this.provenance = new ProvenanceLog(options.provenanceCapacity);
+    this.outboxRestore = this.restoreOutbox();
+    this.stopIncompatibleServerListener = options.transport.onIncompatibleServer?.((message) => {
+      this.failForOldServer(message);
+    });
+  }
+
+  private failForOldServer(message: string): void {
+    for (const entry of [...this.pending]) {
+      entry.state = 'failed';
+      const info: MutationInfo = {
+        mutationId: entry.mutationId,
+        mutations: entry.calls.map((call) => call.decl.name),
+        state: 'failed',
+        error: { kind: 'error', code: 'server_too_old', message }
+      };
+      this.dropEntry(entry, 'rollback');
+      this.logMutation(info);
+      entry.resolveSettled?.(info);
+      void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
+    }
+    this.notify();
   }
 
   /** The same injected wall clock used by ids, mutations, and provenance. */
@@ -293,7 +348,7 @@ export class SyncClient {
   /**
    * The transport-level connection status — what the "sync offline" UI reads.
    * While disconnected the cache keeps serving last-known server truth (base
-   * tables are only replaced by a successful re-bootstrap), so consumers can
+   * collections are only replaced by a successful re-bootstrap), so consumers can
    * honestly render stale data with a warning instead of empty lists.
    */
   connectionStatus(): SyncConnectionStatus {
@@ -372,10 +427,9 @@ export class SyncClient {
             return; // close() raced the connect; do not resurrect the client
           }
           this.connected = true;
-          // Boot order matters: replay last session's surviving outbox FIRST
-          // (in enqueue order) so pre-crash work precedes this session's, then
-          // hand the healthy wire to the funnel (queued flush + stale wires).
-          await this.replayOutbox();
+          // Boot order matters: restored work precedes this session's queued
+          // work, then the healthy wire flushes it in command order.
+          await this.outboxRestore;
           this.connectionRestored();
         })
         .finally(() => {
@@ -407,11 +461,11 @@ export class SyncClient {
 
   /**
    * Subscribe to every state change (deltas, optimistic writes, presence).
-   * The listener receives the tables whose effective rows moved: an empty
+   * The listener receives the collections whose effective rows moved: an empty
    * set for data-free changes (status, mutation lifecycle, presence),
    * `undefined` when the scope is unknown (assume everything).
    */
-  onChange(listener: (changedTables?: ReadonlySet<string>) => void): () => void {
+  onChange(listener: (changedCollections?: ReadonlySet<string>) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
@@ -473,6 +527,7 @@ export class SyncClient {
       // background whenever the connection allows.
       void wire.catch(() => {});
     }
+    await this.outboxRestore;
     const live = this.subscriptions.get(key)!;
     live.refs += 1;
     const self = this;
@@ -481,10 +536,15 @@ export class SyncClient {
       query: query.name,
       subscriptionId: live.subscriptionId,
       rows(): readonly RowT[] {
-        return self.queryRows(query as unknown as QueryDecl, queryParams, key) as readonly RowT[];
+        return self.materializer.queryRows(query, queryParams);
+      },
+      status(): SyncQueryStatus {
+        const status = self.materializer.queryStatus(query, queryParams);
+        return !status || status.kind === 'loading' ? { kind: 'stale' } : status;
       },
       stale(): boolean {
-        return self.subscriptions.get(key)?.stale ?? false;
+        const subscription = self.subscriptions.get(key);
+        return subscription?.stale === true || self.materializer.queryStatus(query, queryParams)?.kind === 'stale';
       },
       release(): void {
         if (released) return;
@@ -503,10 +563,9 @@ export class SyncClient {
 
         // Live membership dies now. Persisted snapshots remain in LocalCache
         // as a separate stale-start optimization for a later re-subscribe.
-        self.dropUnclaimedRows(current, new Set());
         self.subscriptions.delete(key);
         self.subscriptionsById.delete(current.subscriptionId);
-        self.rebase();
+        self.materializer.releaseQuery(current.query, current.params);
         self.notify();
         if (!current.stale && !current.subscriptionId.startsWith('hydrated:')) {
           void self.options.transport
@@ -552,37 +611,24 @@ export class SyncClient {
     if (!persisted || this.subscriptions.has(key)) {
       return this.subscriptions.get(key);
     }
-    const table = query.into;
-    const rows = tableMap(this.base, table.name);
     const subscription: ClientSubscription = {
       key,
       query,
       params,
       subscriptionId: `hydrated:${key}`,
-      order: [...persisted.order],
       lastDeltaSeq: persisted.seq,
+      lastStatusSeq: persisted.seq,
       refs: 0,
       stale: true
     };
-    const hydratedRows = persisted.rows.map((raw, index) => {
-      const row = freezeRow({ ...validateRow(`cached query ${query.name}`, table.schema, raw) });
-      const id = validateTableKey(table, row, `Cached query "${query.name}" row ${index}`);
-      return { id, row, index };
+    this.materializer.applyServerBatch({
+      queries: [{ query, params, puts: persisted.rows, order: persisted.order, status: { kind: 'stale' } }]
     });
-    const firstIndexes = new Map<string, number>();
-    this.markChanged(table.name);
-    for (const { id, row, index } of hydratedRows) {
-      const firstIndex = firstIndexes.get(id);
-      if (firstIndex !== undefined) {
-        throw new Error(
-          `Cached query "${query.name}" has duplicate key ${JSON.stringify(id)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
-        );
-      }
-      firstIndexes.set(id, index);
-      rows.set(id, row);
+    for (const row of this.materializer.confirmedQueryRows(query, params)) {
+      const id = query.into.key(row);
       this.provenance.record({
         at: this.options.clock.now(),
-        table: table.name,
+        collection: query.into.name,
         rowId: id,
         value: row,
         cause: { kind: 'hydrate', seq: persisted.seq }
@@ -590,7 +636,6 @@ export class SyncClient {
     }
     this.subscriptions.set(key, subscription);
     this.lastSeq = Math.max(this.lastSeq, persisted.seq);
-    this.rebase();
     this.notify();
     return subscription;
   }
@@ -684,9 +729,6 @@ export class SyncClient {
         }
         let subscription = this.subscriptions.get(key);
         if (subscription) {
-          // The wire replaces hydrated truth: drop cached rows the snapshot
-          // no longer contains (unless another subscription still claims them).
-          this.dropUnclaimedRows(subscription, new Set(snapshot.rows.map((row) => query.into.key(row as Row))));
           this.subscriptionsById.delete(subscription.subscriptionId);
           subscription.subscriptionId = snapshot.subscriptionId;
           subscription.stale = false;
@@ -694,14 +736,15 @@ export class SyncClient {
           // the wire snapshot is the authority from here on. Mirrors the
           // reset in rebootstrap() — keep both in sync.
           subscription.lastDeltaSeq = 0;
+          subscription.lastStatusSeq = 0;
         } else {
           subscription = {
             key,
             query,
             params,
             subscriptionId: snapshot.subscriptionId,
-            order: [],
             lastDeltaSeq: snapshot.seq,
+            lastStatusSeq: snapshot.seq,
             refs: 0,
             stale: false
           };
@@ -744,53 +787,14 @@ export class SyncClient {
     }
   }
 
-  /** Remove a subscription's rows that `keep` omits and no other subscription claims. */
-  private dropUnclaimedRows(subscription: ClientSubscription, keep: ReadonlySet<string>): void {
-    const table = subscription.query.into.name;
-    const rows = tableMap(this.base, table);
-    for (const id of subscription.order) {
-      if (keep.has(id)) continue;
-      const claimed = [...this.subscriptions.values()].some(
-        (other) => other !== subscription && other.query.into.name === table && other.order.includes(id)
-      );
-      if (!claimed) {
-        rows.delete(id);
-        this.markChanged(table);
-      }
-    }
-  }
-
-  private queryRows(query: QueryDecl, params: Record<string, unknown>, key: string): readonly Row[] {
-    const subscription = this.subscriptions.get(key);
-    const rows = tableMap(this.effective, query.into.name);
-    if (query.projection) {
-      const projected = [...rows.values()].filter((row) => query.projection!.filter(row, params));
-      if (query.projection.sort) {
-        projected.sort(query.projection.sort);
-      } else if (subscription) {
-        // Rebuilt per read on purpose: a cached map would need invalidation
-        // on every order change, and subscription row counts keep the O(n)
-        // rebuild cheap. Rows absent from the server-provided order
-        // (optimistic-only inserts) get Infinity and deliberately sort last.
-        const position = new Map(subscription.order.map((id, index) => [id, index]));
-        projected.sort((a, b) => (position.get(query.into.key(a)) ?? Infinity) - (position.get(query.into.key(b)) ?? Infinity));
-      }
-      return projected;
-    }
-    if (!subscription) {
-      return [];
-    }
-    return subscription.order.map((id) => rows.get(id)).filter((row): row is Row => row !== undefined);
-  }
-
   /** One row from the effective view (server truth + optimistic overlay). */
-  get<RowT extends Row>(table: TableDecl<RowT>, id: string): RowT | undefined {
-    return tableMap(this.effective, table.name).get(id) as RowT | undefined;
+  get<RowT extends Row>(collection: CollectionDecl<RowT>, id: string): RowT | undefined {
+    return this.materializer.get(collection, id);
   }
 
-  /** All pooled rows of a table from the effective view. */
-  rows<RowT extends Row>(table: TableDecl<RowT>): readonly RowT[] {
-    return [...tableMap(this.effective, table.name).values()] as RowT[];
+  /** All pooled rows of a collection from the effective view. */
+  rows<RowT extends Row>(collection: CollectionDecl<RowT>): readonly RowT[] {
+    return this.materializer.rows(collection);
   }
 
   // ── mutations ──────────────────────────────────────────────────────────
@@ -819,146 +823,155 @@ export class SyncClient {
    * every computed verdict is terminal.
    */
   mutate<Args extends Record<string, unknown>>(decl: MutationDecl<Args>, args: NoInfer<Args>): MutationHandle {
+    return this.mutateCommand([{ mutation: decl, args }], false);
+  }
+
+  /** Apply several existing mutations as one optimistic, durable, and server-side transaction. */
+  mutateGroup(calls: ReadonlyArray<MutationCall<any>>): MutationHandle {
+    return this.mutateCommand(calls, true);
+  }
+
+  private mutateCommand(calls: ReadonlyArray<MutationCall<any>>, requireUndo: boolean): MutationHandle {
     const mutationId = this.idGen.newId('m');
-    const parsed = decl.args.safeParse(args);
-    if (!parsed.success) {
-      // Invalid args are the caller's bug: terminal and un-retryable exactly
-      // like a crashed handler, so they take the SAME `failed` channel rather
-      // than throwing out of mutate(). Nothing is applied, queued, or sent —
-      // the mutation never happened, it just settles broken. (The server would
-      // return this identical `invalid_args` verdict if the args slipped past;
-      // catching locally spares the round trip.)
-      const message = `Args for mutation "${decl.name}" are invalid: ${parsed.error.issues
-        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-        .join('; ')}`;
-      const info: MutationInfo = {
-        mutationId,
-        mutation: decl.name,
-        state: 'failed',
-        error: { kind: 'error', code: 'invalid_args', message }
-      };
-      this.logMutation(info);
+    const mutations = Object.freeze(calls.map((call) => call.mutation.name));
+    const terminal = (
+      state: 'confirmed' | 'failed' | 'orphaned',
+      error?: MutationError
+    ): MutationHandle => {
+      const info: MutationInfo = { mutationId, mutations, state, error };
+      if (calls.length > 0) this.logMutation(info);
       return { mutationId, settled: Promise.resolve(info) };
-    }
-    try {
-      validateJsonValue(`Args for mutation "${decl.name}"`, parsed.data);
-    } catch (error) {
-      if (!(error instanceof JsonValueError)) throw error;
-      const info: MutationInfo = {
-        mutationId,
-        mutation: decl.name,
-        state: 'failed',
-        error: { kind: 'error', code: 'invalid_args', message: error.message }
-      };
-      this.logMutation(info);
-      return { mutationId, settled: Promise.resolve(info) };
-    }
-    const generated: string[] = [];
-    let writes: readonly { table: string; rowId: string }[] = [];
-    let rollbackUndoBookkeeping = (): void => {};
+    };
 
-    // Undo bookkeeping (locked design: undo IS a mutation). The inverse is
-    // captured against the effective state BEFORE the optimistic apply.
-    if (decl.invert) {
-      const inverse = decl.invert(
-        {
-          get: (table, id) => this.get(table, id),
-          list: (table) => this.rows(table)
-        },
-        parsed.data
-      );
-      if (inverse) {
-        if (this.replaying === 'undo') {
-          this.redoStack.push(inverse);
-          rollbackUndoBookkeeping = () => {
-            const index = this.redoStack.lastIndexOf(inverse);
-            if (index >= 0) this.redoStack.splice(index, 1);
-          };
-        } else {
-          this.undoStack.push(inverse);
-          const previousRedo = this.replaying === null ? this.redoStack : null;
-          if (this.replaying === null) {
-            this.redoStack = []; // a fresh local edit invalidates redo history
-          }
-          rollbackUndoBookkeeping = () => {
-            const index = this.undoStack.lastIndexOf(inverse);
-            if (index >= 0) this.undoStack.splice(index, 1);
-            if (previousRedo) this.redoStack = previousRedo;
-          };
-        }
-      }
+    if (calls.length === 0) return terminal('confirmed');
+    if (calls.length > 128) {
+      return terminal('failed', {
+        kind: 'error',
+        code: 'group_too_large',
+        message: 'A mutation group may contain at most 128 members.'
+      });
     }
 
-    if (decl.optimistic) {
-      const working = cloneTables(this.effective);
-      const overlay = new OverlayCache(working);
-      decl.optimistic(
-        overlay,
-        parsed.data,
-        {
-          newId: (prefix) => {
-            const id = this.idGen.newId(prefix);
-            generated.push(id);
-            return id;
-          },
-          now: () => this.options.clock.now(),
-          actor: this.options.actor
-        }
-      );
-      writes = overlay.writes.map(({ table, rowId }) => ({ table, rowId }));
-      for (const write of overlay.writes) {
-        this.markChanged(write.table);
-        this.provenance.record({
-          at: this.options.clock.now(),
-          table: write.table,
-          rowId: write.rowId,
-          value: write.value,
-          cause: { kind: 'optimistic', mutationId, mutation: decl.name }
+    const prepared: Array<{ decl: MutationDecl; args: Record<string, unknown>; ids: string[] }> = [];
+    for (const call of calls) {
+      const parsed = call.mutation.args.safeParse(call.args);
+      if (!parsed.success) {
+        return terminal('failed', {
+          kind: 'error',
+          code: 'invalid_args',
+          message: `Args for mutation "${call.mutation.name}" are invalid: ${parsed.error.issues
+            .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+            .join('; ')}`
         });
+      }
+      try {
+        validateJsonValue(`Args for mutation "${call.mutation.name}"`, parsed.data);
+      } catch (error) {
+        if (!(error instanceof JsonValueError)) throw error;
+        return terminal('failed', {
+          kind: 'error',
+          code: 'invalid_args',
+          message: error.message
+        });
+      }
+      prepared.push({ decl: call.mutation as MutationDecl, args: parsed.data, ids: [] });
+    }
+
+    const result = this.materializer.enqueue({
+      mutationId,
+      calls: prepared.map((call) => ({ mutation: call.decl, args: call.args, ids: call.ids })),
+      requireUndo,
+      newId: (prefix) => this.idGen.newId(prefix)
+    });
+    if (result.state === 'orphaned') return terminal('orphaned');
+    if (result.state === 'failed') {
+      return terminal('failed', {
+        kind: 'error',
+        code: result.message?.includes('not invertible') ? 'non_invertible_group' : 'optimistic_handler_error',
+        message: result.message ?? 'Optimistic mutation failed.'
+      });
+    }
+
+    const materializedCalls = this.materializer.commandCalls(mutationId);
+    const inverses = this.materializer
+      .commandInverses(mutationId)
+      .map((inverse) => ({ mutation: inverse.mutation, args: inverse.args }));
+    const writes = this.materializer.commandWrites(mutationId);
+
+    let rollbackUndoBookkeeping = (): void => {};
+    if (inverses.length === prepared.length) {
+      const inverseGroup = Object.freeze(inverses);
+      if (this.replaying === 'undo') {
+        this.redoStack.push(inverseGroup);
+        rollbackUndoBookkeeping = () => {
+          const index = this.redoStack.lastIndexOf(inverseGroup);
+          if (index >= 0) this.redoStack.splice(index, 1);
+        };
+      } else {
+        this.undoStack.push(inverseGroup);
+        const previousRedo = this.replaying === null ? this.redoStack : null;
+        if (this.replaying === null) this.redoStack = [];
+        rollbackUndoBookkeeping = () => {
+          const index = this.undoStack.lastIndexOf(inverseGroup);
+          if (index >= 0) this.undoStack.splice(index, 1);
+          if (previousRedo) this.redoStack = previousRedo;
+        };
       }
     }
 
     const entry: OptimisticEntry = {
       mutationId,
-      decl: decl as MutationDecl,
-      args: parsed.data,
-      ids: generated,
+      calls: materializedCalls.map((call) => ({
+        decl: call.mutation,
+        args: call.args,
+        ids: call.ids
+      })),
       state: 'pending',
-      writes
+      rollbackUndoBookkeeping
     };
     const settled = new Promise<MutationInfo>((resolve) => {
       entry.resolveSettled = resolve;
     });
     this.pending.push(entry);
-    this.rebase();
+    for (const write of writes) {
+      this.provenance.record({
+        at: this.options.clock.now(),
+        collection: write.collection,
+        rowId: write.rowId,
+        value: write.value,
+        cause: { kind: 'optimistic', mutationId, mutations }
+      });
+    }
     this.notify();
 
-    // Durability before the wire: the outbox entry commits, THEN the send
-    // goes out — a crash after this point replays instead of losing work.
     const persistAndSend = (async () => {
       try {
         await this.options.localCache.appendOutbox({
           mutationId,
-          mutation: decl.name,
-          args: parsed.data,
-          ids: generated,
+          calls: entry.calls.map((call) => ({
+            mutation: call.decl.name,
+            args: call.args,
+            ids: call.ids
+          })),
+          preview: writes.map((write) => ({
+            collection: write.collection,
+            rowId: write.rowId,
+            value: write.value ?? null
+          })),
           enqueuedAt: this.options.clock.now()
         });
       } catch {
-        // Local-first is a hard contract. The preview was visible instantly,
-        // but it cannot remain or reach the wire if durable storage refused it.
         entry.state = 'failed';
         const info: MutationInfo = {
           mutationId,
-          mutation: decl.name,
+          mutations,
           state: 'failed',
           error: {
             kind: 'error',
             code: 'local_persistence_failed',
-            message: `Could not save mutation "${decl.name}" to the local outbox.`
+            message: `Could not save mutation group [${mutations.join(', ')}] to the local outbox.`
           }
         };
-        rollbackUndoBookkeeping();
         this.dropEntry(entry, 'rollback');
         this.logMutation(info);
         entry.resolveSettled?.(info);
@@ -976,44 +989,65 @@ export class SyncClient {
   }
 
   /**
-   * One wire attempt. Confirm/reject settle the entry (and clear its outbox
-   * record); a transport failure parks it as `queued` — optimistic state
-   * stays visible, and flushQueued() retries in order when the connection
-   * returns. Offline work is deferred, never rolled back.
+   * One wire attempt. Confirmation settles the caller but keeps the outbox
+   * record until a checkpoint. Rejection and failure clear it immediately. A
+   * transport failure parks the entry as `queued`; optimistic state stays
+   * visible, and flushQueued() retries it when the connection returns.
    */
   private async attemptSend(entry: OptimisticEntry): Promise<void> {
     let info: MutationInfo;
+    let removeOutbox = false;
+    const mutations = entry.calls.map((call) => call.decl.name);
+    const generation = this.connectionGeneration;
     try {
-      const result = await this.options.transport.mutate({
+      const result = await this.options.transport.mutateGroup({
         clientId: this.options.clientId,
         mutationId: entry.mutationId,
-        name: entry.decl.name,
-        args: entry.args,
-        ids: entry.ids
+        calls: entry.calls.map((call) => ({ name: call.decl.name, args: call.args, ids: call.ids }))
       });
-      if (result.ok) {
-        // Confirmed is NOT done: the entry stays in pending[] and keeps
-        // replaying optimistically until base has materialized this seq
-        // (releaseSettledEntries). Dropping it here would flicker the row
-        // back to pre-mutation state until the server delta lands.
+      if (generation !== this.connectionGeneration) {
+        entry.state = 'queued';
+        this.notify();
+        return;
+      }
+      if (
+        result.ok &&
+        entry.replayOrphanedAtSeq !== undefined &&
+        entry.replayOrphanedAtSeq !== result.seq
+      ) {
+        // A peer's earlier change removed this command's target. The server
+        // may still accept a no-op handler, but the client's optimistic
+        // contract is terminally orphaned and must not become confirmed.
+        entry.state = 'orphaned';
+        info = { mutationId: entry.mutationId, mutations, state: 'orphaned' };
+        this.dropEntry(entry, 'orphaned');
+        removeOutbox = true;
+      } else if (result.ok) {
+        // Confirmed is NOT durable yet: the entry stays in pending[] and keeps
+        // replaying optimistically until this connection checkpoints the seq.
+        // Dropping it here could lose an acknowledgement during reconnect.
         entry.state = 'confirmed';
         entry.confirmedSeq = result.seq;
+        entry.confirmedGeneration = generation;
         this.lastSeq = Math.max(this.lastSeq, result.seq);
-        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'confirmed' };
+        info = { mutationId: entry.mutationId, mutations, state: 'confirmed' };
         this.releaseSettledEntries();
       } else if ('rejection' in result) {
         entry.state = 'rejected';
-        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'rejected', rejection: result.rejection };
+        info = { mutationId: entry.mutationId, mutations, state: 'rejected', rejection: result.rejection };
         this.dropEntry(entry, 'rollback');
+        removeOutbox = true;
       } else {
         // The server RAN this mutation and it broke (typed error verdict) —
         // terminal. Roll back and settle loudly; retrying poison would fail
         // identically forever and block the queue behind it.
         entry.state = 'failed';
-        info = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'failed', error: result.error };
+        info = { mutationId: entry.mutationId, mutations, state: 'failed', error: result.error };
         this.dropEntry(entry, 'rollback');
+        removeOutbox = true;
       }
     } catch {
+      if (!this.pending.includes(entry)) return;
       // ONLY failure-to-communicate lands here (the transports' contract):
       // park and retry when the connection returns. Server verdicts —
       // including crashes — arrive as VALUES above, never as throws.
@@ -1021,7 +1055,7 @@ export class SyncClient {
       this.notify();
       return; // unsettled — flushQueued() picks it back up
     }
-    void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
+    if (removeOutbox) void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
     this.logMutation(info);
     entry.resolveSettled?.(info);
     this.notify();
@@ -1035,6 +1069,7 @@ export class SyncClient {
     if (this.flushing) {
       return;
     }
+    const generation = this.connectionGeneration;
     this.flushing = true;
     void (async () => {
       try {
@@ -1055,17 +1090,13 @@ export class SyncClient {
         }
       } finally {
         this.flushing = false;
+        if (generation !== this.connectionGeneration) this.flushQueued();
       }
     })();
   }
 
-  /**
-   * Replay outbox entries surviving from a previous session, in enqueue
-   * order. No optimistic re-echo (that session's UI is gone); the persisted
-   * id stream keeps the server replay deterministic and the sync_log unique
-   * constraint makes it exactly-once.
-   */
-  private async replayOutbox(): Promise<void> {
+  /** Restore durable previews and queue their registered handlers in enqueue order. */
+  private async restoreOutbox(): Promise<void> {
     const entries = await this.options.localCache.loadOutbox().catch(() => []);
     for (const persisted of entries) {
       if (this.lifecycle.signal.aborted) {
@@ -1074,23 +1105,73 @@ export class SyncClient {
       if (this.pending.some((entry) => entry.mutationId === persisted.mutationId)) {
         continue; // enqueued this session; the normal path owns it
       }
+      const calls: OptimisticCall[] = [];
+      let invalid: string | undefined;
+      for (const call of persisted.calls) {
+        const decl = this.declarations.mutations.get(call.mutation);
+        if (!decl) {
+          invalid = `No client mutation declaration is registered for "${call.mutation}".`;
+          break;
+        }
+        calls.push({ decl, args: call.args, ids: call.ids });
+      }
+      const preview = [] as Array<{ collection: string; rowId: string; value: Row | undefined }>;
+      if (!invalid) {
+        for (const write of persisted.preview) {
+          const collection = this.declarations.collections.get(write.collection);
+          if (!collection) {
+            invalid = `No client collection declaration is registered for "${write.collection}".`;
+            break;
+          }
+          if (write.value === null) {
+            preview.push({ collection: write.collection, rowId: write.rowId, value: undefined });
+            continue;
+          }
+          try {
+            const row = freezeRow({ ...validateRow(`outbox preview ${write.collection}`, collection.schema, write.value) });
+            const rowId = validateCollectionKey(collection, row, `Outbox preview collection "${write.collection}"`);
+            if (rowId !== write.rowId) throw new Error(`Outbox preview key changed from "${write.rowId}" to "${rowId}".`);
+            preview.push({ collection: write.collection, rowId, value: row });
+          } catch (error) {
+            invalid = error instanceof Error ? error.message : String(error);
+            break;
+          }
+        }
+      }
+      if (invalid) {
+        logger.error(`wheel: discarded durable command ${persisted.mutationId}: ${invalid}`);
+        void this.options.localCache.removeOutbox(persisted.mutationId).catch(() => {});
+        continue;
+      }
+      const result = this.materializer.restoreCommand(
+        {
+          mutationId: persisted.mutationId,
+          calls: calls.map((call) => ({ mutation: call.decl, args: call.args, ids: call.ids })),
+          requireUndo: false
+        },
+        preview
+      );
+      if (result.state !== 'pending') {
+        logger.error(`wheel: discarded durable command ${persisted.mutationId}: ${result.message ?? result.state}`);
+        void this.options.localCache.removeOutbox(persisted.mutationId).catch(() => {});
+        continue;
+      }
       const entry: OptimisticEntry = {
         mutationId: persisted.mutationId,
-        decl: { name: persisted.mutation } as MutationDecl,
-        args: persisted.args,
-        ids: persisted.ids,
-        state: 'pending',
-        writes: []
+        calls,
+        state: 'queued'
       };
       this.pending.push(entry);
-      await this.attemptSend(entry);
     }
+    if (entries.length > 0) this.notify();
   }
 
   private logMutation(info: MutationInfo): void {
-    const log = this.mutationLog.get(info.mutation) ?? [];
-    log.push(info);
-    this.mutationLog.set(info.mutation, log);
+    for (const mutation of new Set(info.mutations)) {
+      const log = this.mutationLog.get(mutation) ?? [];
+      log.push(info);
+      this.mutationLog.set(mutation, log);
+    }
   }
 
   /** The audit trail of one mutation name: last outcome and all attempts. */
@@ -1098,74 +1179,148 @@ export class SyncClient {
     const name = typeof decl === 'string' ? decl : decl.name;
     const settledLog = this.mutationLog.get(name) ?? [];
     const pendingInfos = this.pending
-      .filter((entry) => entry.decl.name === name && entry.state === 'pending')
-      .map((entry): MutationInfo => ({ mutationId: entry.mutationId, mutation: name, state: 'pending' }));
+      .filter((entry) => entry.calls.some((call) => call.decl.name === name))
+      .map((entry): MutationInfo => ({
+        mutationId: entry.mutationId,
+        mutations: entry.calls.map((call) => call.decl.name),
+        state: entry.state
+      }));
     const all = [...settledLog, ...pendingInfos];
     return { last: all[all.length - 1], all };
   }
 
   private dropEntry(entry: OptimisticEntry, cause: 'rollback' | 'orphaned'): void {
+    entry.rollbackUndoBookkeeping?.();
+    entry.rollbackUndoBookkeeping = undefined;
+    const writes = this.materializer.commandWrites(entry.mutationId);
     const index = this.pending.indexOf(entry);
     if (index >= 0) {
       this.pending.splice(index, 1);
     }
-    for (const write of entry.writes) {
-      this.markChanged(write.table);
+    this.materializer.removeCommand(entry.mutationId);
+    for (const write of writes) {
       this.provenance.record({
         at: this.options.clock.now(),
-        table: write.table,
+        collection: write.collection,
         rowId: write.rowId,
-        value: tableMap(this.base, write.table).get(write.rowId),
-        cause: { kind: cause, mutationId: entry.mutationId, mutation: entry.decl.name }
+        value: this.materializer.confirmedGet(write.collection, write.rowId),
+        cause: { kind: cause, mutationId: entry.mutationId, mutations: entry.calls.map((call) => call.decl.name) }
       });
     }
-    this.rebase();
   }
 
   /**
-   * Confirmed entries whose seq the base has caught up with are done — server
-   * truth has landed. Until then a confirmed entry keeps replaying in
-   * rebase(); releasing it before appliedSeq reaches its confirmedSeq would
-   * revert the row to pre-mutation state until the delta arrives.
+   * Confirmed entries whose seq the materializer has caught up with are done.
+   * Until then the command keeps replaying over confirmed state; early release
+   * would revert the row until the delta or checkpoint arrives.
    */
   private releaseSettledEntries(): void {
-    let dropped = false;
-    for (const entry of [...this.pending]) {
-      if (entry.state === 'confirmed' && entry.confirmedSeq !== undefined && this.appliedSeq >= entry.confirmedSeq) {
-        this.pending.splice(this.pending.indexOf(entry), 1);
-        this.logMutation({ mutationId: entry.mutationId, mutation: entry.decl.name, state: 'confirmed' });
-        for (const write of entry.writes) {
-          this.markChanged(write.table);
-        }
-        dropped = true;
-      }
+    const settled = this.pending.filter(
+      (entry) =>
+        entry.state === 'confirmed' &&
+        entry.confirmedGeneration === this.connectionGeneration &&
+        entry.confirmedSeq !== undefined &&
+        this.checkpointSeq >= entry.confirmedSeq
+    );
+    if (settled.length === 0) return;
+    this.materializer.applyServerBatch({
+      queries: [],
+      settledCommandIds: settled.map((entry) => entry.mutationId)
+    });
+    for (const entry of settled) {
+      this.pending.splice(this.pending.indexOf(entry), 1);
+      void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
     }
-    if (dropped) {
-      this.rebase();
+    this.handleReplayFailures();
+  }
+
+  /** Settle replay failures after the server sequence identifies self-effects versus peer effects. */
+  private handleReplayFailures(): void {
+    for (const entry of [...this.pending]) {
+      const failure = this.materializer.commandReplayFailure(entry.mutationId);
+      if (!failure) continue;
+      if (failure.state === 'orphaned') {
+        if (this.materializer.commandUsesPreview(entry.mutationId)) continue;
+        if (entry.state === 'pending' || entry.state === 'queued') {
+          entry.replayOrphanedAtSeq ??= this.appliedSeq;
+          continue;
+        }
+        if (entry.state === 'confirmed' && entry.confirmedSeq === this.appliedSeq) continue;
+        entry.state = 'orphaned';
+        const info: MutationInfo = {
+          mutationId: entry.mutationId,
+          mutations: entry.calls.map((call) => call.decl.name),
+          state: 'orphaned'
+        };
+        this.logMutation(info);
+        entry.resolveSettled?.(info);
+        void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
+        this.dropEntry(entry, 'orphaned');
+        continue;
+      }
+      logger.error(
+        `wheel: optimistic mutation group [${entry.calls.map((call) => call.decl.name).join(', ')}] ` +
+          `(${entry.mutationId}) threw during replay; the group was marked failed and rolled back.`,
+        failure.message
+      );
+      entry.state = 'failed';
+      const info: MutationInfo = {
+        mutationId: entry.mutationId,
+        mutations: entry.calls.map((call) => call.decl.name),
+        state: 'failed',
+        error: {
+          kind: 'error',
+          code: 'optimistic_handler_error',
+          message: failure.message ?? 'Optimistic mutation replay failed.'
+        }
+      };
+      this.logMutation(info);
+      entry.resolveSettled?.(info);
+      void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
+      this.dropEntry(entry, 'rollback');
     }
   }
 
   // ── server events ──────────────────────────────────────────────────────
 
-  // Highest seq MATERIALIZED into base (applySnapshot/applyDelta only) —
-  // unlike lastSeq, the highest seq merely OBSERVED (confirm acks bump that
-  // too). releaseSettledEntries must gate on appliedSeq: a
-  // confirm ack proves the server committed, not that this client holds the
-  // resulting rows.
+  // Highest data seq applied in this connection. Replay-orphan classification
+  // compares it with mutation results. Durable command release uses the
+  // separate checkpointSeq because only a checkpoint proves reruns completed.
   private appliedSeq = 0;
-  /** Non-null only during rebootstrap(): deltas whose subscription is not registered yet, awaiting replay. */
-  private rebootstrapBuffer: RowDelta[] | null = null;
+  /** Non-null during rebootstrap: ordered data events awaiting the atomic snapshot swap. */
+  private rebootstrapBuffer: ServerEvent[] | null = null;
 
   private applyEvent(event: ServerEvent): void {
+    if (
+      this.rebootstrapBuffer &&
+      (event.type === 'delta' || event.type === 'query_status' || event.type === 'checkpoint')
+    ) {
+      this.rebootstrapBuffer.push(event);
+      return;
+    }
     if (event.type === 'hello') {
       // A hello starts a new server connection. The previous connection can
       // vanish during a deploy before it sends peer leave events.
+      this.connectionGeneration += 1;
+      this.lastSeq = 0;
+      this.appliedSeq = 0;
+      this.checkpointSeq = 0;
+      for (const entry of this.pending) {
+        if (entry.state !== 'confirmed') continue;
+        entry.state = 'queued';
+        entry.confirmedSeq = undefined;
+        entry.confirmedGeneration = undefined;
+      }
       const hadPeers = this.peerPresence.size > 0 || this.peerPresenceActors.size > 0;
       this.peerPresence.clear();
       this.peerPresenceActors.clear();
       if (hadPeers) this.notify();
     } else if (event.type === 'delta') {
       this.applyDelta(event.delta);
+    } else if (event.type === 'query_status') {
+      this.applyQueryStatus(event.status);
+    } else if (event.type === 'checkpoint') {
+      this.applyCheckpoint(event.seq);
     } else if (event.type === 'presence') {
       if (event.state === null) {
         this.peerPresence.delete(event.clientId);
@@ -1290,13 +1445,34 @@ export class SyncClient {
   }
 
   private applySnapshot(subscription: ClientSubscription, snapshot: Snapshot): void {
-    const table = subscription.query.into;
-    const rows = tableMap(this.base, table.name);
+    const snapshotRows = this.prepareSnapshot(subscription, snapshot);
+    this.materializer.applyServerBatch({
+      queries: [
+        {
+          query: subscription.query,
+          params: subscription.params,
+          puts: snapshotRows.map(({ row }) => row),
+          order: snapshotRows.map(({ id }) => id),
+          status: snapshot.status
+        }
+      ]
+    });
+    this.recordSnapshot(subscription, snapshot, snapshotRows);
+    this.releaseSettledEntries();
+    this.handleReplayFailures();
+    this.notify();
+  }
+
+  private prepareSnapshot(
+    subscription: ClientSubscription,
+    snapshot: Snapshot
+  ): Array<{ id: string; row: Row }> {
+    const collection = subscription.query.into;
     const snapshotRows = snapshot.rows.map((raw, index) => {
       const row = freezeRow({
-        ...validateRow(`snapshot query ${subscription.query.name}`, table.schema, raw)
+        ...validateRow(`snapshot query ${subscription.query.name}`, collection.schema, raw)
       });
-      const id = validateTableKey(table, row, `Snapshot query "${subscription.query.name}" row ${index}`);
+      const id = validateCollectionKey(collection, row, `Snapshot query "${subscription.query.name}" row ${index}`);
       return { id, row, index };
     });
     const firstIndexes = new Map<string, number>();
@@ -1304,29 +1480,69 @@ export class SyncClient {
       const firstIndex = firstIndexes.get(id);
       if (firstIndex !== undefined) {
         throw new Error(
-          `Snapshot query "${subscription.query.name}" has duplicate key ${JSON.stringify(id)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+          `Snapshot query "${subscription.query.name}" has duplicate key ${JSON.stringify(id)} for collection "${collection.name}" at rows ${firstIndex} and ${index}.`
         );
       }
       firstIndexes.set(id, index);
     }
-    subscription.order = [];
-    this.markChanged(table.name);
+    return snapshotRows;
+  }
+
+  private recordSnapshot(
+    subscription: ClientSubscription,
+    snapshot: Snapshot,
+    snapshotRows: readonly { id: string; row: Row }[]
+  ): void {
+    const collection = subscription.query.into;
     for (const { id, row } of snapshotRows) {
-      rows.set(id, row);
-      subscription.order.push(id);
       this.provenance.record({
         at: this.options.clock.now(),
-        table: table.name,
+        collection: collection.name,
         rowId: id,
         value: row,
         cause: { kind: 'bootstrap', seq: snapshot.seq, subscriptionId: snapshot.subscriptionId }
       });
     }
     subscription.lastDeltaSeq = Math.max(subscription.lastDeltaSeq ?? 0, snapshot.seq);
+    subscription.lastStatusSeq = Math.max(subscription.lastStatusSeq ?? 0, snapshot.seq);
     this.lastSeq = Math.max(this.lastSeq, snapshot.seq);
     this.appliedSeq = Math.max(this.appliedSeq, snapshot.seq);
-    this.schedulePersist(subscription);
-    this.rebase();
+    if (snapshot.status.kind === 'live') this.schedulePersist(subscription);
+  }
+
+  private applyQueryStatus(event: QueryStatusEvent): void {
+    const subscription = this.subscriptionsById.get(event.subscriptionId);
+    if (!subscription) return;
+    if (event.query !== subscription.query.name) {
+      throw new Error(
+        `Query status for subscription "${event.subscriptionId}" named "${event.query}" instead of "${subscription.query.name}".`
+      );
+    }
+    if (event.seq < subscription.lastStatusSeq) return;
+    subscription.lastStatusSeq = event.seq;
+    this.materializer.applyServerBatch({
+      queries: [
+        {
+          query: subscription.query,
+          params: subscription.params,
+          order: this.materializer.queryOrder(subscription.query, subscription.params),
+          status: event.status
+        }
+      ]
+    });
+    this.lastSeq = Math.max(this.lastSeq, event.seq);
+    if (event.status.kind === 'live') this.schedulePersist(subscription);
+    this.notify();
+  }
+
+  private applyCheckpoint(seq: number): void {
+    if (!Number.isSafeInteger(seq) || seq < 0) {
+      throw new Error(`Sync checkpoint seq must be a non-negative safe integer; received ${JSON.stringify(seq)}.`);
+    }
+    this.lastSeq = Math.max(this.lastSeq, seq);
+    this.appliedSeq = Math.max(this.appliedSeq, seq);
+    this.checkpointSeq = Math.max(this.checkpointSeq, seq);
+    this.releaseSettledEntries();
     this.notify();
   }
 
@@ -1348,15 +1564,15 @@ export class SyncClient {
         }
         for (const key of keys) {
           const sub = this.subscriptions.get(key);
-          if (!sub || sub.stale) continue;
-          const rows = tableMap(this.base, sub.query.into.name);
+          const status = sub && this.materializer.queryStatus(sub.query, sub.params);
+          if (!sub || sub.stale || status?.kind !== 'live') continue;
           void this.options.localCache
             .saveSubscription({
               key: sub.key,
               subscriptionId: sub.subscriptionId,
               seq: sub.lastDeltaSeq,
-              rows: sub.order.map((id) => rows.get(id)).filter((row): row is Row => row !== undefined),
-              order: [...sub.order]
+              rows: this.materializer.confirmedQueryRows(sub.query, sub.params),
+              order: this.materializer.queryOrder(sub.query, sub.params)
             })
             .catch(() => {});
         }
@@ -1368,22 +1584,17 @@ export class SyncClient {
   private applyDelta(delta: RowDelta): void {
     const subscription = this.subscriptionsById.get(delta.subscriptionId);
     if (!subscription) {
-      // Mid-rebootstrap, a delta can beat its subscription's registration
-      // (the server subscription exists as soon as subscribe() resolves);
-      // buffer it for replay after the swap instead of dropping it.
-      this.rebootstrapBuffer?.push(delta);
       return;
     }
     if (delta.seq <= subscription.lastDeltaSeq) {
       return; // stale: a later delta already superseded this state (whole-row model)
     }
-    const table = subscription.query.into;
-    const rows = tableMap(this.base, table.name);
+    const collection = subscription.query.into;
     const puts = delta.puts.map((raw, index) => {
       const row = freezeRow({
-        ...validateRow(`delta query ${subscription.query.name}`, table.schema, raw)
+        ...validateRow(`delta query ${subscription.query.name}`, collection.schema, raw)
       });
-      const id = validateTableKey(table, row, `Delta query "${subscription.query.name}" put ${index}`);
+      const id = validateCollectionKey(collection, row, `Delta query "${subscription.query.name}" put ${index}`);
       return { id, row, index };
     });
     const putIndexes = new Map<string, number>();
@@ -1391,7 +1602,7 @@ export class SyncClient {
       const firstIndex = putIndexes.get(id);
       if (firstIndex !== undefined) {
         throw new Error(
-          `Delta query "${subscription.query.name}" has duplicate put key ${JSON.stringify(id)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+          `Delta query "${subscription.query.name}" has duplicate put key ${JSON.stringify(id)} for collection "${collection.name}" at rows ${firstIndex} and ${index}.`
         );
       }
       putIndexes.set(id, index);
@@ -1403,34 +1614,37 @@ export class SyncClient {
       }
       if (orderIds.has(id)) {
         throw new Error(
-          `Delta query "${subscription.query.name}" has duplicate order key ${JSON.stringify(id)} for table "${table.name}".`
+          `Delta query "${subscription.query.name}" has duplicate order key ${JSON.stringify(id)} for collection "${collection.name}".`
         );
       }
       orderIds.add(id);
     }
     subscription.lastDeltaSeq = delta.seq;
-    this.markChanged(table.name);
+    this.materializer.applyServerBatch({
+      queries: [
+        {
+          query: subscription.query,
+          params: subscription.params,
+          puts: puts.map(({ row }) => row),
+          deletes: delta.deletes,
+          order: delta.order,
+          status: this.materializer.queryStatus(subscription.query, subscription.params) ?? { kind: 'live' }
+        }
+      ]
+    });
     for (const { id, row } of puts) {
-      rows.set(id, row);
       this.provenance.record({
         at: this.options.clock.now(),
-        table: table.name,
+        collection: collection.name,
         rowId: id,
         value: row,
         cause: { kind: 'sync-apply', seq: delta.seq, subscriptionId: delta.subscriptionId }
       });
     }
-    subscription.order = [...delta.order];
     for (const id of delta.deletes) {
-      const claimed = [...this.subscriptionsById.values()].some(
-        (other) => other !== subscription && other.query.into.name === table.name && other.order.includes(id)
-      );
-      if (!claimed) {
-        rows.delete(id);
-      }
       this.provenance.record({
         at: this.options.clock.now(),
-        table: table.name,
+        collection: collection.name,
         rowId: id,
         value: undefined,
         cause: { kind: 'sync-apply', seq: delta.seq, subscriptionId: delta.subscriptionId }
@@ -1440,79 +1654,8 @@ export class SyncClient {
     this.appliedSeq = Math.max(this.appliedSeq, delta.seq);
     this.schedulePersist(subscription);
     this.releaseSettledEntries();
-    this.rebase();
+    this.handleReplayFailures();
     this.notify();
-  }
-
-  // ── rebase ─────────────────────────────────────────────────────────────
-
-  private rebase(): void {
-    const working = cloneTables(this.base);
-    for (const entry of [...this.pending]) {
-      if (!entry.decl.optimistic) {
-        continue;
-      }
-      const overlay = new OverlayCache(working);
-      let nextId = 0;
-      try {
-        entry.decl.optimistic(
-          overlay,
-          entry.args,
-          {
-            // Positional replay of the entry's id stream: every rebase hands
-            // the handler the SAME ids it minted originally, so optimistic
-            // rows keep the ids the server will confirm. The 'orphan'
-            // fallback fires only when a handler asks for MORE ids on replay
-            // than it minted at enqueue (a nondeterministic handler) — those
-            // ids can never match the server's.
-            newId: () => entry.ids[nextId++] ?? this.idGen.newId('orphan'),
-            now: () => this.options.clock.now(),
-            actor: this.options.actor
-          }
-        );
-        entry.writes = overlay.writes.map(({ table, rowId }) => ({ table, rowId }));
-      } catch (error) {
-        // Two very different reasons a replay throws, kept apart on purpose:
-        //
-        //  - OrphanedError (via `orphan()`): the row this handler edits was
-        //    deleted by a peer before this mutation replayed. Legitimate.
-        //    Terminal `orphaned`, cleanly rolled back — never a bug report.
-        //
-        //  - ANYTHING ELSE (a typo, a null deref, a real invariant blown):
-        //    a bug in the handler. It used to be swallowed as `orphaned`,
-        //    silently reverting the write with nothing to debug. Now it
-        //    settles terminal `failed`, records a rollback, and console.errors
-        //    the mutation + original error so an agent has something to paste.
-        //
-        // Both remove the offending entry via dropEntry, whose re-run rebases
-        // the SURVIVING pending mutations on a fresh base clone — so one poison
-        // handler (and its partial writes) can never corrupt the rest.
-        if (error instanceof OrphanedError) {
-          entry.state = 'orphaned';
-          const info: MutationInfo = { mutationId: entry.mutationId, mutation: entry.decl.name, state: 'orphaned' };
-          this.logMutation(info);
-          entry.resolveSettled?.(info);
-          void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
-          this.dropEntry(entry, 'orphaned');
-          return; // dropEntry re-runs rebase without this entry
-        }
-        logger.error(`wheel: optimistic handler for mutation "${entry.decl.name}" (${entry.mutationId}) threw during replay; mutation marked failed and rolled back.`, error);
-        entry.state = 'failed';
-        const message = error instanceof Error ? error.message : String(error);
-        const info: MutationInfo = {
-          mutationId: entry.mutationId,
-          mutation: entry.decl.name,
-          state: 'failed',
-          error: { kind: 'error', code: 'optimistic_handler_error', message }
-        };
-        this.logMutation(info);
-        entry.resolveSettled?.(info);
-        void this.options.localCache.removeOutbox(entry.mutationId).catch(() => {});
-        this.dropEntry(entry, 'rollback');
-        return; // dropEntry re-runs rebase without this entry
-      }
-    }
-    this.effective = working;
   }
 
   // ── local undo/redo (built on invertible mutations) ───────────────────
@@ -1535,15 +1678,13 @@ export class SyncClient {
    * returned handle.
    */
   undo(): MutationHandle | null {
-    const inverse = this.undoStack.pop();
-    if (!inverse) {
+    const inverseGroup = this.undoStack.pop();
+    if (!inverseGroup) {
       return null;
     }
     this.replaying = 'undo';
     try {
-      const handle = this.mutate(inverse.mutation, inverse.args);
-      this.notify();
-      return handle;
+      return this.mutateCommand(inverseGroup, false);
     } finally {
       this.replaying = null;
     }
@@ -1551,15 +1692,13 @@ export class SyncClient {
 
   /** Redo the most recently undone mutation (same rules as undo). */
   redo(): MutationHandle | null {
-    const inverse = this.redoStack.pop();
-    if (!inverse) {
+    const inverseGroup = this.redoStack.pop();
+    if (!inverseGroup) {
       return null;
     }
     this.replaying = 'redo';
     try {
-      const handle = this.mutate(inverse.mutation, inverse.args);
-      this.notify();
-      return handle;
+      return this.mutateCommand(inverseGroup, false);
     } finally {
       this.replaying = null;
     }
@@ -1570,25 +1709,23 @@ export class SyncClient {
   /**
    * A row's current value plus its full provenance chain.
    *
-   * ONE TYPED CALLING CONVENTION (4.4): address the row by its table
+   * ONE TYPED CALLING CONVENTION (4.4): address the row by its collection
    * DECLARATION plus id — `explain(todos, todoId)`. The old stringly form
    * (`explain("todos.row(id).done")`) is gone: it silently ignored trailing
    * property suffixes, exactly the kind of quiet wrongness this pass removes.
    */
-  explain<RowT extends Row>(table: TableDecl<RowT>, id: string): ExplainResult<RowT> {
-    const history = this.provenance.forRow(table.name, id);
+  explain<RowT extends Row>(collection: CollectionDecl<RowT>, id: string): ExplainResult<RowT> {
+    const history = this.provenance.forRow(collection.name, id);
     return {
-      value: tableMap(this.effective, table.name).get(id) as RowT | undefined,
+      value: this.materializer.get(collection, id),
       cause: history[history.length - 1]?.cause,
       history
     };
   }
 
-  /** Every table and its current effective rows — the debug panel's state tree. */
-  tablesDebug(): Array<{ table: string; rows: readonly Row[] }> {
-    return [...this.effective.entries()]
-      .map(([table, rows]) => ({ table, rows: [...rows.values()] as readonly Row[] }))
-      .sort((a, b) => a.table.localeCompare(b.table));
+  /** Every collection and its current effective rows — the debug panel's state tree. */
+  collectionsDebug(): Array<{ collection: string; rows: readonly Row[] }> {
+    return this.materializer.collectionsDebug();
   }
 
   /** The most recent provenance entries, newest last — the debug panel's change stream. */
@@ -1603,20 +1740,20 @@ export class SyncClient {
       key: subscription.key,
       subscriptionId: subscription.subscriptionId,
       refs: subscription.refs,
-      rows: subscription.order.length
+      rows: this.materializer.queryOrder(subscription.query, subscription.params).length
     }));
   }
 
-  /** Record that one table's effective rows moved; the next notify carries it. */
-  private markChanged(table: string): void {
-    this.changedTables.add(table);
+  /** Record that one collection's effective rows moved; the next notify carries it. */
+  private markChanged(collection: string): void {
+    this.changedCollections.add(collection);
   }
 
   private notify(): void {
     this.version += 1;
-    const changed = this.changedAll ? undefined : new Set(this.changedTables);
+    const changed = this.changedAll ? undefined : new Set(this.changedCollections);
     this.changedAll = false;
-    this.changedTables.clear();
+    this.changedCollections.clear();
     for (const listener of [...this.listeners]) {
       listener(changed);
     }
@@ -1645,8 +1782,8 @@ export class SyncClient {
   /**
    * FUNNEL entry point: full resync after the transport re-opened a dropped
    * stream (the transport's onReconnect wiring calls this). Re-runs every
-   * subscription's snapshot, swaps fresh server truth in, and rebases the
-   * optimistic queue on top. Coalesced — see the invariant above. A rejected
+   * subscription's snapshot, swaps fresh server truth in, and replays pending
+   * commands on top. Coalesced — see the invariant above. A rejected
    * run (connection died again mid-bootstrap) left NO partial state behind
    * (see doRebootstrap) and is retried by the next reconnect trigger, never
    * by a self-retry loop.
@@ -1682,10 +1819,8 @@ export class SyncClient {
    *  2. The swap itself (clear base → register ids → apply snapshots) is
    *     synchronous — no await sits between clearing and repopulating, so no
    *     event can ever observe the half-swapped state.
-   *  3. Deltas that arrive between the server creating a new subscription and
-   *     this client registering its id land in `rebootstrapBuffer` (see
-   *     applyDelta) and replay AFTER the swap; genuinely stale ones are then
-   *     refused by the per-subscription seq guard.
+   *  3. Deltas, query statuses, and checkpoints arriving before the new ids
+   *     register land in `rebootstrapBuffer` and replay after the swap.
    *  4. Presence republish comes last: the server dropped this client's
    *     presence with the dead stream, and without the republish peers see
    *     this client vanish until its next natural update.
@@ -1705,8 +1840,12 @@ export class SyncClient {
       if (signal.aborted) {
         return; // closed while fetching: leave the last-known state untouched
       }
-      this.base.clear();
       this.subscriptionsById.clear();
+      const accepted: Array<{
+        subscription: ClientSubscription;
+        snapshot: Snapshot;
+        rows: Array<{ id: string; row: Row }>;
+      }> = [];
       for (const { subscription, snapshot } of snapshots) {
         if (this.subscriptions.get(subscription.key) !== subscription) {
           void this.options.transport.unsubscribe(this.options.clientId, snapshot.subscriptionId).catch(() => {});
@@ -1719,18 +1858,35 @@ export class SyncClient {
         // the new epoch are silently refused until seq outgrows the old one.
         // Mirrors the reset in ensureWireSubscription() — keep both in sync.
         subscription.lastDeltaSeq = 0;
+        subscription.lastStatusSeq = 0;
         // A wire snapshot IS the upgrade out of hydrated-cache mode: a
         // subscription that booted stale and reconnected before its first
         // ordinary wire upgrade goes live HERE. (Without this line it stayed
         // marked stale forever — pinned by reconnect.test.ts.)
         subscription.stale = false;
-        this.applySnapshot(subscription, snapshot);
+        accepted.push({ subscription, snapshot, rows: this.prepareSnapshot(subscription, snapshot) });
       }
-      // Deltas that raced the swap replay now; stale ones are refused by seq.
+      if (accepted.length > 0) {
+        this.materializer.applyServerBatch({
+          queries: accepted.map(({ subscription, snapshot, rows }) => ({
+            query: subscription.query,
+            params: subscription.params,
+            puts: rows.map(({ row }) => row),
+            order: rows.map(({ id }) => id),
+            status: snapshot.status
+          }))
+        });
+        for (const { subscription, snapshot, rows } of accepted) {
+          this.recordSnapshot(subscription, snapshot, rows);
+        }
+        this.releaseSettledEntries();
+        this.handleReplayFailures();
+      }
+      // Data events that raced the swap replay now in original wire order.
       const buffered = this.rebootstrapBuffer;
       this.rebootstrapBuffer = null;
-      for (const delta of buffered) {
-        this.applyDelta(delta);
+      for (const event of buffered) {
+        this.applyEvent(event);
       }
     } finally {
       this.rebootstrapBuffer = null;
@@ -1741,9 +1897,8 @@ export class SyncClient {
     if (this.lastPublishedPresence !== null) {
       this.publishPresence(this.lastPublishedPresence);
     }
-    // A rebootstrap replaced whole subscriptions; the scope is every table.
+    // A rebootstrap replaced whole subscriptions; the scope is every collection.
     this.changedAll = true;
-    this.rebase();
     this.notify();
   }
 
@@ -1756,6 +1911,7 @@ export class SyncClient {
    */
   close(): void {
     this.lifecycle.abort();
+    this.stopIncompatibleServerListener?.();
     this.cancelPresenceTimer();
     this.options.transport.close(this.options.clientId);
     this.connected = false;

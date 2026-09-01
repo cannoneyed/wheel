@@ -109,10 +109,7 @@ export function renderButton(
     if (result && typeof result.then === 'function') {
       void result.then(
         () => finishAction(actionId),
-        (error) => {
-          finishAction(actionId);
-          throw error;
-        },
+        () => finishAction(actionId),
       );
     } else {
       finishAction(actionId);

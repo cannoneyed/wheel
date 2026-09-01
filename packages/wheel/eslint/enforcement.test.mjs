@@ -44,6 +44,47 @@ function verify(code, rule, options = [], filename = 'fixture.tsx') {
 }
 
 describe('architecture lint regressions', () => {
+  it('keeps materializer access inside SyncClient and focused tests', () => {
+    const direct = verify(
+      `import { WheelMaterializer } from '../../wheel/src/sync/client/materializer';
+       const materializer = new WheelMaterializer({ actor: 'test', now: () => 0 });
+       materializer.applyServerBatch({ queries: [] });`,
+      'no-direct-materializer-writes',
+      [],
+      'packages/app/src/sync.ts'
+    );
+    expect(direct.map((message) => message.ruleId)).toEqual([
+      'wheel/no-direct-materializer-writes'
+    ]);
+
+    const relative = verify(
+      `import { WheelMaterializer } from '../client/materializer'; void WheelMaterializer;`,
+      'no-direct-materializer-writes',
+      [],
+      'packages/wheel/src/sync/server/helper.ts'
+    );
+    expect(relative.map((message) => message.ruleId)).toEqual([
+      'wheel/no-direct-materializer-writes'
+    ]);
+
+    expect(
+      verify(
+        `import { WheelMaterializer } from './materializer'; void WheelMaterializer;`,
+        'no-direct-materializer-writes',
+        [],
+        'packages/wheel/src/sync/client/client.ts'
+      )
+    ).toEqual([]);
+    expect(
+      verify(
+        `import { WheelMaterializer } from './materializer'; void WheelMaterializer;`,
+        'no-direct-materializer-writes',
+        [],
+        'packages/wheel/src/sync/client/materializer.test.ts'
+      )
+    ).toEqual([]);
+  });
+
   it('rejects whole services in direct and aliased view bags', () => {
     const direct = verify(
       `const connectX = connect('X', (c) => {

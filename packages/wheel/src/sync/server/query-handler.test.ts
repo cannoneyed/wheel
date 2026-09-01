@@ -7,44 +7,66 @@
  */
 import { describe, expect, test, vi } from 'vitest';
 
-import { mutation, query, table } from '../declarations';
+import { mutation, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from './serve';
-import { SqlQueryHandler, type QueryHandler } from './query-handler';
+import type { QueryHandler } from './query-handler';
 import { createSyncServer } from './node-engine';
 import { betterSqlite3Driver } from './backends/sqlite-driver';
 
 const NoteRow = t.object({ id: t.string(), text: t.string() });
-const notes = table({ name: 'notes', type: NoteRow, key: (row) => row.id });
+const notes = collection({ name: 'notes', type: NoteRow, key: (row) => row.id });
 const notesAll = query({ name: 'notes.all', params: t.object({}), into: notes });
+const sourceNotes = collection({ name: 'source_notes', type: NoteRow, key: (row) => row.id });
+const sourceNotesAll = query({
+  name: 'source_notes.all', params: t.object({}), into: sourceNotes, dependsOn: []
+});
 
 describe('serveQuery forms', () => {
-  test('sugar desugars to a SqlQueryHandler with rerunOn hints', () => {
+  test('sugar desugars to a SqlQueryHandler while dependencies stay on the query', () => {
     const binding = serveQuery({
       query: notesAll,
-      sql: () => sql`select id, text from notes`,
-      rerunOn: ['notes']
+      sql: () => sql`select id, text from notes`
     });
     expect(binding.handler.kind).toBe('sqlite');
-    expect(binding.handler.rerunOn).toEqual(['notes']);
+    expect(binding.query.dependsOn).toEqual(['notes']);
     expect(binding.handler.sql).toBeDefined();
   });
 
   test('a handler with no invalidation channel is refused at declaration time', () => {
     expect(() =>
       serveQuery({
-        query: notesAll,
+        query: sourceNotesAll,
         handler: { kind: 'broken', run: async () => [] }
       })
-    ).toThrow(/rerunOn table hints and\/or a subscribe channel/);
-    expect(() => SqlQueryHandler({ sql: () => sql`select 1`, rerunOn: [] })).toThrow(
-      /at least one table/
-    );
+    ).toThrow(/declare physical dependencies and\/or.*subscribe channel/);
   });
 });
 
 describe('push-based handlers', () => {
+  test('derives physical tables from dependsOn instead of collection flags', async () => {
+    const server = await createSyncServer({
+      sqlite: { driver: betterSqlite3Driver(':memory:') },
+      syncModules: [{ sourceNotes, sourceNotesAll }],
+      servers: [
+        {
+          sourceNotesServer: serveQuery({
+            query: sourceNotesAll,
+            handler: {
+              kind: 'memory',
+              run: async () => [],
+              subscribe: () => () => {}
+            }
+          })
+        }
+      ]
+    });
+
+    expect(server.syncedTables()).toEqual([]);
+    await server.close();
+  });
+
   test('subscribe → invalidate → delta-only-on-change, unsubscribe on close', async () => {
     // An in-memory backend: rows live in an array; `invalidate` is captured.
     let rows: Array<{ id: string; text: string }> = [
@@ -62,8 +84,8 @@ describe('push-based handlers', () => {
     };
 
     const driver = betterSqlite3Driver(':memory:');
-    // Engine boot installs touch-triggers on every DECLARED table, so the
-    // table must exist physically even when a handler is the row source.
+    // The default dependency is the target collection name, so engine boot
+    // installs a touch trigger and the table must exist physically.
     // (A full external backend lifts this via the SyncBackend seam.)
     driver.exec('create table notes (id text primary key, text text not null)');
     const touch = mutation({ name: 'notes.touch', args: t.object({}) });

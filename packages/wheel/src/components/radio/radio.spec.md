@@ -12,4 +12,3 @@
 - Neutral, success, warning, and error status preserve a visible selected dot in light, dark, and forced-color themes.
 - Indicator appears immediately when selected and never fades in.
 - Form submission emits the checked option value once under the group name.
-- Browser proof covers pointer and Space selection, constraints, group inheritance, form reset, and visible contrast.

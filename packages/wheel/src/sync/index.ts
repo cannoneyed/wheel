@@ -1,12 +1,12 @@
 /**
  * wheel/sync — the local-first sync surface (browser-safe).
  *
- * Declarations (table/query/mutation/presence), the wire protocol, the sync
+ * Declarations (collection/query/mutation/presence), the wire protocol, the sync
  * client + transports + local cache, and `SyncService`/`liveQuery`. Depends on
  * `core` and nothing else — never on `sync/server` (the node engine).
  */
 export {
-  table,
+  collection,
   query,
   mutation,
   patchMutation,
@@ -16,10 +16,11 @@ export {
   orphan,
   OrphanedError,
   type PresenceDecl,
-  type TableKeySpec,
-  type TableDecl,
+  type CollectionKeySpec,
+  type CollectionDecl,
   type QueryDecl,
   type MutationDecl,
+  type MutationCall,
   type OptimisticCache,
   type MutationCtx,
   type CacheReader,
@@ -52,8 +53,12 @@ export { positionBetween } from './ordering';
 export { systemClock, systemDefer, systemRandomBytes, type Defer } from '../core/runtime-defaults';
 export type {
   RowDelta,
+  QueryStatusEvent,
+  SyncQueryError,
+  SyncQueryStatus,
   ServerEvent,
-  MutateRequest,
+  MutateCallRequest,
+  MutateGroupRequest,
   MutationError,
   MutateResult,
   Snapshot,
@@ -88,9 +93,16 @@ export { ProvenanceLog, type ProvenanceEntry, type WriteCause } from './client/p
 export {
   MemoryCache,
   IndexedDbCache,
+  createCacheScopes,
   type CacheScopes,
   type LocalCache,
   type PersistedOutboxEntry,
   type PersistedSubscription
 } from './client/local-cache';
+export {
+  ROW_SCHEMA_FINGERPRINT_PREFIX,
+  createRowSchemaReloadGuard,
+  validateRowSchemaFingerprint,
+  type RowSchemaFingerprint
+} from './row-schema';
 export { SyncService, type LiveQueryFor, type LiveQueryView, type QueryStatus } from './sync-service';

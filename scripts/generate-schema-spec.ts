@@ -25,7 +25,7 @@ if (!Array.isArray(options.syncModules) || !Array.isArray(options.servers)) {
   throw new Error(`${exportName} must contain syncModules and servers arrays.`);
 }
 const generated = stringifySchemaSpec(
-  createSchemaSpec({ syncModules: options.syncModules, servers: options.servers })
+  await createSchemaSpec({ syncModules: options.syncModules, servers: options.servers })
 );
 const destination = resolve(outputPath);
 if (mode === '--check') {

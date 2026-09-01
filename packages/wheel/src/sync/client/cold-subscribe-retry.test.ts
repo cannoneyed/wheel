@@ -11,7 +11,7 @@
  */
 import { describe, expect, test } from 'vitest';
 
-import { mutation, query, table } from '../declarations';
+import { mutation, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveQuery, serveMutation } from '../server/serve';
@@ -29,7 +29,7 @@ const TodoRow = t.object({
   done: t.boolean(),
   position: t.number()
 });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 const todosByList = query({
   name: 'todos.byList',
   params: t.object({ listId: t.string() }),
@@ -60,8 +60,7 @@ const servers = {
     sql: (params) => sql`
       select id, list_id as "listId", text, done, position
       from todos where list_id = ${params.listId}
-      order by position`,
-    rerunOn: ['todos']
+      order by position`
   }),
   addTodoServer: serveMutation({
     mutation: addTodo,
@@ -105,9 +104,9 @@ function failingTransport(world: World, failures: { count: number; error: () => 
     async unsubscribe(_id, subscriptionId) {
       conn.current?.unsubscribe(subscriptionId);
     },
-    async mutate(request) {
+    async mutateGroup(request) {
       if (!conn.current) throw new TypeError('fetch failed');
-      return world.server.mutate(request, conn.current.principal);
+      return world.server.mutateGroup(request, conn.current.principal);
     },
     async setPresence(): Promise<void> {},
     close(): void {
@@ -124,6 +123,7 @@ function makeClient(transport: SyncTransport, seed: number): SyncClient {
     actor: 'tester',
     clock: fixedClock(1_700_000_000_000, 1),
     randomBytes: seededRandomBytes(seed),
+    syncModules: [syncModule],
     localCache: new MemoryCache()
   });
 }

@@ -1,10 +1,55 @@
 {
-  "schemaSpecVersion": 1,
-  "protocolVersion": 1,
-  "tables": [
+  "schemaSpecVersion": 4,
+  "protocolVersion": 3,
+  "rowSchemaFingerprint": "wheel-rows-sha256:2718c1fa88a5331f7e5deab5170190d2340bb676a171d9d332152c04ef196d8d",
+  "collections": [
+    {
+      "name": "source_widgets",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "position",
+          "active",
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
     {
       "name": "widgets",
-      "virtual": false,
       "jsonSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -51,6 +96,17 @@
   ],
   "queries": [
     {
+      "name": "source_widgets.all",
+      "into": "source_widgets",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": []
+    },
+    {
       "name": "widgets.all",
       "into": "widgets",
       "paramsSchema": {
@@ -59,12 +115,30 @@
         "properties": {},
         "additionalProperties": false
       },
-      "rerunOn": [
+      "dependsOn": [
         "widgets"
       ]
     }
   ],
   "mutations": [
+    {
+      "name": "system.noop",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "widgets.breakQuery",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
     {
       "name": "widgets.create",
       "argsSchema": {
@@ -173,7 +247,52 @@
       }
     },
     {
+      "name": "widgets.recoverQuery",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "widgets.reject",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "widgetId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "widgetId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "widgets.reorder",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "widgetId": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "widgetId",
+          "sortOrder"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "widgets.touch",
       "argsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

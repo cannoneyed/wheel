@@ -18,7 +18,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createEffect, createRoot } from 'solid-js';
 
 import { ServiceContext } from '../core/services';
-import { mutation, query, table } from '../sync/declarations';
+import { mutation, query, collection } from '../sync/declarations';
 import { t } from '../sync/schema';
 import { sql } from '../sync/sql';
 import { serveMutation, serveQuery } from '../sync/server/serve';
@@ -28,7 +28,7 @@ import { World } from './world';
 const KEY_COUNT = 300; // 44 past the old LRU limit of 256
 
 const ItemRow = t.object({ id: t.string(), label: t.string() });
-const items = table({ name: 'items', type: ItemRow, key: (row) => row.id });
+const items = collection({ name: 'items', type: ItemRow, key: (row) => row.id });
 const itemList = query({
   name: 'items.list',
   params: t.object({}),
@@ -48,8 +48,7 @@ const syncModule = { items, itemList, renameItem };
 const serverModule = {
   itemListServer: serveQuery({
     query: itemList,
-    sql: () => sql`select id, label from items order by id`,
-    rerunOn: ['items']
+    sql: () => sql`select id, label from items order by id`
   }),
   renameItemServer: serveMutation({
     mutation: renameItem,

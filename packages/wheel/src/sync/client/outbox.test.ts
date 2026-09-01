@@ -11,7 +11,7 @@
  */
 import { describe, expect, test, vi } from 'vitest';
 
-import { mutation, query, table } from '../declarations';
+import { mutation, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from '../server/serve';
@@ -28,7 +28,7 @@ const TodoRow = t.object({
   done: t.boolean(),
   position: t.number()
 });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 const todosByList = query({
   name: 'todos.byList',
   params: t.object({ listId: t.string() }),
@@ -59,8 +59,7 @@ const servers = {
     sql: (params) => sql`
       select id, list_id as "listId", text, done, position
       from todos where list_id = ${params.listId}
-      order by position`,
-    rerunOn: ['todos']
+      order by position`
   }),
   addTodoServer: serveMutation({
     mutation: addTodo,
@@ -110,10 +109,10 @@ function flakyTransport(world: World, clientId: string): SyncTransport & { offli
       if (transport.offline || !conn.current) throw new TypeError('fetch failed');
       conn.current.unsubscribe(subscriptionId);
     },
-    async mutate(request: Parameters<SyncTransport['mutate']>[0]) {
+    async mutateGroup(request: Parameters<SyncTransport['mutateGroup']>[0]) {
       if (transport.offline) throw new TypeError('fetch failed');
       if (!conn.current) throw new TypeError('fetch failed');
-      return world.server.mutate(request, conn.current.principal);
+      return world.server.mutateGroup(request, conn.current.principal);
     },
     async setPresence(): Promise<void> {},
     close(): void {
@@ -131,6 +130,7 @@ function makeClient(world: World, clientId: string, store: MemoryCache, seed: nu
     actor: 'tester',
     clock: fixedClock(1_700_000_000_000, 1),
     randomBytes: seededRandomBytes(seed),
+    syncModules: [syncModule],
     localCache: store
   });
   return { client, transport };
@@ -152,7 +152,7 @@ describe('offline queue', () => {
     const world = await World.create({ syncModules: [syncModule], servers: [servers], setup: seedTodos });
     const { client, transport } = makeClient(world, 'web_storage_fail', new RejectingCache(), 5);
     await client.subscribe(todosByList, { listId: 'l_1' });
-    const send = vi.spyOn(transport, 'mutate');
+    const send = vi.spyOn(transport, 'mutateGroup');
 
     const handle = client.mutate(addTodo, { listId: 'l_1', text: 'must be durable' });
     expect(client.rows(todos).map((row) => row.text)).toContain('must be durable');
@@ -185,7 +185,9 @@ describe('offline queue', () => {
     expect(handle.rows().map((r) => r.text)).toEqual(['seeded todo', 'written offline']);
     expect(client.queuedMutations()).toBe(1);
     // Durably in the outbox before any wire attempt.
-    expect((await store.loadOutbox()).map((e) => e.mutation)).toEqual(['todos.add']);
+    expect((await store.loadOutbox()).map((entry) => entry.calls.map((call) => call.mutation))).toEqual([
+      ['todos.add']
+    ]);
 
     transport.offline = false;
     client.setConnectionStatus('connected'); // what the transport reports on stream return
@@ -201,6 +203,64 @@ describe('offline queue', () => {
 });
 
 describe('outbox replay across reloads', () => {
+  test('restores the durable optimistic preview before confirmed rows load', async () => {
+    const store = new MemoryCache();
+    await store.appendOutbox({
+      mutationId: 'm_reload_preview',
+      calls: [
+        {
+          mutation: addTodo.name,
+          args: { listId: 'l_1', text: 'visible during reload' },
+          ids: ['todo_reload_preview']
+        }
+      ],
+      preview: [
+        {
+          collection: todos.name,
+          rowId: 'todo_reload_preview',
+          value: {
+            id: 'todo_reload_preview',
+            listId: 'l_1',
+            text: 'visible during reload',
+            done: false,
+            position: 1
+          }
+        }
+      ],
+      enqueuedAt: 1
+    });
+    let listener: (event: Parameters<Parameters<SyncTransport['connect']>[1]>[0]) => void = () => {};
+    const transport: SyncTransport = {
+      async connect(_clientId, onEvent) {
+        listener = onEvent;
+        listener({ type: 'hello', clientId: 'web_preview' });
+      },
+      async subscribe() {
+        return new Promise(() => {});
+      },
+      async unsubscribe() {},
+      async mutateGroup() {
+        return new Promise(() => {});
+      },
+      async setPresence() {},
+      close() {}
+    };
+    const client = new SyncClient({
+      transport,
+      clientId: 'web_preview',
+      actor: 'tester',
+      clock: fixedClock(1_700_000_000_000, 1),
+      randomBytes: seededRandomBytes(10),
+      syncModules: [syncModule],
+      localCache: store
+    });
+
+    await client.connect();
+    expect(client.rows(todos).map((row) => row.text)).toEqual(['visible during reload']);
+    expect((await store.loadOutbox()).map((entry) => entry.mutationId)).toEqual(['m_reload_preview']);
+    client.close();
+  });
+
   test('a new client on the same store replays surviving entries, exactly once', async () => {
     const world = await World.create({ syncModules: [syncModule], servers: [servers], setup: seedTodos });
     const store = new MemoryCache();
@@ -233,17 +293,19 @@ describe('outbox replay across reloads', () => {
     const request = {
       clientId: 'web_dup',
       mutationId: 'm_0190b62e-0000-7000-8000-00000000d0d0',
-      name: 'todos.add',
-      args: { listId: 'l_1', text: 'once only' },
-      ids: ['todo_0190b62e-0000-7000-8000-00000000d0d1']
+      calls: [{
+        name: 'todos.add',
+        args: { listId: 'l_1', text: 'once only' },
+        ids: ['todo_0190b62e-0000-7000-8000-00000000d0d1']
+      }]
     };
     const principal = {
       actor: 'tester',
       workspaceId: 'outbox-test',
       sessionId: 'session:test'
     };
-    const firstResult = await world.server.mutate(request, principal);
-    const secondResult = await world.server.mutate(request, principal);
+    const firstResult = await world.server.mutateGroup(request, principal);
+    const secondResult = await world.server.mutateGroup(request, principal);
     expect(firstResult.ok).toBe(true);
     expect(secondResult.ok).toBe(true);
     if (firstResult.ok && secondResult.ok) {

@@ -1,11 +1,11 @@
 /**
  * Projects sync module. Projects are workspace-level (issues from any
- * team can join one). Progress comes from `project_counts` — a VIRTUAL table:
- * no physical table, no touch trigger; its query re-runs purely through its
- * watch list (`issues`, `workflow_states`), which is the engine's derived-
- * table seam getting its first real consumer.
+ * team can join one). Progress comes from `project_counts` — a derived collection:
+ * no physical table or touch trigger; its query re-runs through its
+ * dependencies (`issues`, `workflow_states`), which is the engine's derived-
+ * derived-collection seam getting its first real consumer.
  */
-import { mutation, patchMutation, query, t, table, type Infer, type InverseSpec } from 'wheel/sync';
+import { mutation, patchMutation, query, t, collection, type Infer, type InverseSpec } from 'wheel/sync';
 
 /** One project. `statusKind` is the project lifecycle, not a workflow state. */
 export const ProjectRow = t.object({
@@ -19,8 +19,8 @@ export const ProjectRow = t.object({
   position: t.number()
 });
 
-/** The projects table. */
-export const projects = table({ name: 'projects', type: ProjectRow, key: (row) => row.id });
+/** The projects collection. */
+export const projects = collection({ name: 'projects', type: ProjectRow, key: (row) => row.id });
 
 /** Derived per-project progress. VIRTUAL — never written, only computed. */
 export const ProjectCountsRow = t.object({
@@ -29,13 +29,12 @@ export const ProjectCountsRow = t.object({
   completed: t.number()
 });
 
-/** The project_counts virtual table. */
-export const projectCounts = table({
+/** Project counts derived from projects and issues. */
+export const projectCounts = collection({
   name: 'project_counts',
   type: ProjectCountsRow,
   key: (row) => row.projectId,
-  keySpec: { fields: ['projectId'] },
-  virtual: true
+  keySpec: { fields: ['projectId'] }
 });
 
 /** Every project, in sidebar order. */
@@ -53,7 +52,8 @@ export const projectsAll = query({
 export const projectCountsAll = query({
   name: 'project_counts.all',
   params: t.object({}),
-  into: projectCounts
+  into: projectCounts,
+  dependsOn: ['issues', 'workflow_states']
 });
 
 /** The editable project fields (shared by update's patch). */
@@ -99,7 +99,7 @@ export const projectCreate = mutation({
 export const projectUpdate = patchMutation({
   name: 'projects.update',
   args: t.object({ projectId: t.string(), patch: ProjectPatch }),
-  table: projects,
+  collection: projects,
   id: (args) => args.projectId,
   description: 'edit project'
 });

@@ -12,6 +12,7 @@ import {
 import * as todosServer from './todos.server';
 import * as todosSync from './todos.sync';
 import { TODOS_SCHEMA } from './todos.server';
+import { ROW_SCHEMA_FINGERPRINT } from './row-schema.generated';
 
 const driver = bunSqliteDriver('./todos.db');
 for (const statement of TODOS_SCHEMA) {
@@ -37,7 +38,8 @@ const authenticator = defineAuthenticator((request) => {
 const sockets = new SyncSocketServer({
   server: syncServer,
   applicationVersion: 1,
-  schemaVersion: 1
+  schemaVersion: 1,
+  rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
 });
 
 interface SocketData {

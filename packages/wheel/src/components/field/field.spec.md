@@ -16,4 +16,3 @@
 - Compact, balanced, and spacious density use shared control and message spacing.
 - Field never animates messages into view. Removed messages may use the shared 100 ms fade-out.
 - Forced colors preserve invalid boundaries and text. Zoom and long translations do not overlap the control.
-- Unit proof covers id merging, validation modes, form reset, fill, dirty, touched, and controlled validity.

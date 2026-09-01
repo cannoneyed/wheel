@@ -1,6 +1,6 @@
 {
   "emptySnapshot": {
-    "protocol": 1,
+    "protocol": 3,
     "type": "response",
     "requestId": "subscribe",
     "ok": true,
@@ -8,11 +8,12 @@
       "subscriptionId": "{{subscriptionId}}",
       "query": "widgets.all",
       "seq": 0,
-      "rows": []
+      "rows": [],
+      "status": { "kind": "live" }
     }
   },
   "alphaDelta": {
-    "protocol": 1,
+    "protocol": 3,
     "type": "event",
     "event": {
       "type": "delta",

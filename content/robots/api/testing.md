@@ -26,7 +26,7 @@ Capture the optimistic result immediately, settle the real engine, and fail if a
 
 Kind: function. Source: [packages/wheel/src/testing/parity.ts:95](../../../packages/wheel/src/testing/parity.ts#L95).
 
-Ask SQLite which tables a query plan reads, then compare that set with the handler's invalidation hints. This catches a query that reads a table but can never be re-run when that table changes.
+Ask SQLite which tables a query plan reads, then compare that set with the declaration's dependencies. This catches a query that reads a table but can never be re-run when that table changes.
 
 ## `fixedClock`
 
@@ -44,13 +44,13 @@ Inputs for one optimistic → authoritative parity assertion.
 
 Kind: interface. Source: [packages/wheel/src/testing/parity.ts:80](../../../packages/wheel/src/testing/parity.ts#L80).
 
-Inputs for a SQLite World query-read vs `rerunOn` assertion.
+Inputs for a SQLite World query-read vs `dependsOn` assertion.
 
 ## `replayFixture`
 
 Kind: function. Source: [packages/wheel/src/testing/simulate.ts:194](../../../packages/wheel/src/testing/simulate.ts#L194).
 
-Re-run a fixture's seed and fail loudly if any table's final rows differ.
+Re-run a fixture's seed and fail loudly if any collection's final rows differ.
 
 ## `ReplayFixture`
 
@@ -120,12 +120,12 @@ Options for {@link wheelDriver}.
 
 ## `World`
 
-Kind: class. Source: [packages/wheel/src/testing/world.ts:203](../../../packages/wheel/src/testing/world.ts#L203).
+Kind: class. Source: [packages/wheel/src/testing/world.ts:205](../../../packages/wheel/src/testing/world.ts#L205).
 
 The in-process harness: real engine + real clients on in-process SQLite with fixed clock, seeded ids, and a pausable network - if World can't reproduce it, the engine doesn't claim it.
 
 ## `WorldOptions`
 
-Kind: interface. Source: [packages/wheel/src/testing/world.ts:192](../../../packages/wheel/src/testing/world.ts#L192).
+Kind: interface. Source: [packages/wheel/src/testing/world.ts:194](../../../packages/wheel/src/testing/world.ts#L194).
 
 What a World needs: syncModules + server bindings, a setup(db) seeder, and an optional seed for determinism.

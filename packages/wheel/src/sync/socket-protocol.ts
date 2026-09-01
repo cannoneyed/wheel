@@ -1,7 +1,7 @@
-import type { MutateRequest, MutateResult, ServerEvent, Snapshot } from './protocol';
+import type { MutateGroupRequest, MutateResult, ServerEvent, Snapshot } from './protocol';
 
 /** The JSON WebSocket protocol. Increment only when one deployment cannot read the other deployment's frames. */
-export const SYNC_PROTOCOL_VERSION = 1 as const;
+export const SYNC_PROTOCOL_VERSION = 3 as const;
 
 interface RequestBase {
   readonly protocol: typeof SYNC_PROTOCOL_VERSION;
@@ -20,8 +20,8 @@ export type SyncSocketRequest =
       readonly subscriptionId: string;
     })
   | (RequestBase & {
-      readonly type: 'mutate';
-      readonly mutation: MutateRequest;
+      readonly type: 'mutateGroup';
+      readonly command: MutateGroupRequest;
     })
   | (RequestBase & {
       readonly type: 'presence';
@@ -40,7 +40,8 @@ export interface SyncSocketError {
 export type SyncSocketVersionMismatchReason =
   | 'client_outdated'
   | 'server_updating'
-  | 'protocol_mismatch';
+  | 'protocol_mismatch'
+  | 'row_schema_mismatch';
 
 /** Messages emitted by the sync server. */
 export type SyncSocketMessage =
@@ -60,6 +61,8 @@ export type SyncSocketMessage =
       readonly clientApplicationVersion: number;
       readonly serverApplicationVersion: number;
       readonly minimumClientVersion: number;
+      readonly clientRowSchemaFingerprint: string;
+      readonly serverRowSchemaFingerprint: string;
     }
   | {
       readonly protocol: typeof SYNC_PROTOCOL_VERSION;

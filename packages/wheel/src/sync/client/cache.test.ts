@@ -2,7 +2,7 @@
 /**
  * The row-immutability invariant, enforced unconditionally:
  *  - every row entering the cache (put/update) is deep-frozen, in production
- *    builds too — cloneTables shares row objects between base and effective
+ *    builds too — cloneCollections shares row objects between base and effective
  *    state, so an unfrozen row mutated in place would silently corrupt the
  *    client's copy of server truth;
  *  - a handler that mutates a row in place fails loudly (TypeError in strict
@@ -12,22 +12,22 @@
  */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { table } from '../declarations';
+import { collection } from '../declarations';
 import { t } from '../schema';
-import { OverlayCache, cloneTables, freezeRow, tableMap, type Tables } from './cache';
+import { OverlayCache, cloneCollections, freezeRow, collectionMap, type Collections } from './cache';
 
 const TodoRow = t.object({
   id: t.string(),
   text: t.string(),
   tags: t.array(t.string())
 });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 
-function seededTables(): Tables {
-  const tables: Tables = new Map();
-  const cache = new OverlayCache(tables);
+function seededTables(): Collections {
+  const collections: Collections = new Map();
+  const cache = new OverlayCache(collections);
   cache.put(todos, { id: 't1', text: 'buy milk', tags: ['errand'] });
-  return tables;
+  return collections;
 }
 
 describe('row freezing is unconditional', () => {
@@ -61,7 +61,7 @@ describe('row freezing is unconditional', () => {
   test('in-place mutation throws instead of silently corrupting shared base', () => {
     const base = seededTables();
     // Optimistic rebase shares row OBJECTS between base and the working view.
-    const working = cloneTables(base);
+    const working = cloneCollections(base);
     const cache = new OverlayCache(working);
     const row = cache.get(todos, 't1')!;
 
@@ -74,14 +74,14 @@ describe('row freezing is unconditional', () => {
     }).toThrow(TypeError);
 
     // ...and base (server truth) must be untouched.
-    const baseRow = tableMap(base, todos.name).get('t1')!;
+    const baseRow = collectionMap(base, todos.name).get('t1')!;
     expect(baseRow.text).toBe('buy milk');
     expect(baseRow.tags).toEqual(['errand']);
   });
 
-  test('optimistic puts reject empty and non-string table keys', () => {
-    const emptyKey = table({ name: 'empty_keys', type: TodoRow, key: () => '' });
-    const nonStringKey = table({
+  test('optimistic puts reject empty and non-string collection keys', () => {
+    const emptyKey = collection({ name: 'empty_keys', type: TodoRow, key: () => '' });
+    const nonStringKey = collection({
       name: 'number_keys',
       type: TodoRow,
       key: (() => 42) as unknown as (row: typeof TodoRow._output) => string
@@ -89,10 +89,10 @@ describe('row freezing is unconditional', () => {
     const cache = new OverlayCache(new Map());
 
     expect(() => cache.put(emptyKey, { id: 't1', text: 'x', tags: [] })).toThrow(
-      /table "empty_keys" must return a non-empty string/
+      /collection "empty_keys" must return a non-empty string/
     );
     expect(() => cache.put(nonStringKey, { id: 't1', text: 'x', tags: [] })).toThrow(
-      /table "number_keys" must return a non-empty string/
+      /collection "number_keys" must return a non-empty string/
     );
   });
 });

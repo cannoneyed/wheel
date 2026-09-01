@@ -10,8 +10,7 @@ import { addTodo, todoList, toggleTodo } from './todos.sync';
 export const todoServers = {
   todoListServer: serveQuery({
     query: todoList,
-    sql: () => sql`select id, title, done, position from todos order by position`,
-    rerunOn: ['todos']
+    sql: () => sql`select id, title, done, position from todos order by position`
   }),
   addTodoServer: serveMutation({
     mutation: addTodo,

@@ -12,7 +12,7 @@ Full documentation: https://wheel.dev/docs/
 ## 1. Install
 
 ```sh
-bun add wheel@npm:@cannoneyed/wheel@0.1.0 solid-js
+bun add wheel@npm:@cannoneyed/wheel@0.2.0 solid-js
 ```
 
 `wheel` is the local npm alias for `@cannoneyed/wheel`. Keep all imports under
@@ -141,7 +141,7 @@ service tree and `Service` classes work unchanged.
 ## 4. Sync, if the app has a server
 
 A sync module is imported by BOTH the client and the server, so the wire types
-cannot drift. Declare tables, queries, and mutations there; bind the server
+cannot drift. Declare collections, queries, and mutations there; bind the server
 handlers in a `.server.ts` beside it.
 
 The server is the only truth. Clients write optimistically and every guess is

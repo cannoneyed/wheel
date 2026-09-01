@@ -9,7 +9,7 @@
  * pruning (server-side, rowImages: true) skips re-running an issue's feed
  * when the touched activity rows belong to OTHER issues.
  */
-import { query, t, table, type Infer } from 'wheel/sync';
+import { query, t, collection, type Infer } from 'wheel/sync';
 
 /** One activity entry. `detail` is a short display string built server-side. */
 export const ActivityRow = t.object({
@@ -21,8 +21,8 @@ export const ActivityRow = t.object({
   createdAt: t.number()
 });
 
-/** The activity table. */
-export const activity = table({ name: 'activity', type: ActivityRow, key: (row) => row.id });
+/** The activity collection. */
+export const activity = collection({ name: 'activity', type: ActivityRow, key: (row) => row.id });
 
 /** One issue's newest 50 activity entries (newest first). No projection — server-authored. */
 export const activityByIssue = query({

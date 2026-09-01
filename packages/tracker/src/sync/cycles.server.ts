@@ -6,7 +6,7 @@ import { sql } from 'wheel/sync';
 import { serveQuery } from 'wheel/sync/server/cloudflare';
 import { cycleStatsByTeam, cyclesByTeam } from './cycles.sync';
 
-/** DDL for the cycles table (cycle_stats is virtual — no DDL). */
+/** DDL for the cycles table (`cycle_stats` has no matching table). */
 export const CYCLES_DDL = [
   `create table if not exists cycles (
      id text primary key,
@@ -23,11 +23,10 @@ export const cyclesByTeamServer = serveQuery({
   sql: (params) =>
     sql`select id, team_id as "teamId", number, starts_at as "startsAt", ends_at as "endsAt"
         from cycles where team_id = ${params.teamId}
-        order by number desc, id`,
-  rerunOn: ['cycles']
+        order by number desc, id`
 });
 
-/** cycle_stats.byTeam — derived progress per cycle (virtual; watch list only). */
+/** cycle_stats.byTeam — derived progress per cycle through declared dependencies. */
 export const cycleStatsByTeamServer = serveQuery({
   query: cycleStatsByTeam,
   sql: (params) =>
@@ -40,6 +39,5 @@ export const cycleStatsByTeamServer = serveQuery({
         left join workflow_states ws on ws.id = i.state_id
         where c.team_id = ${params.teamId}
         group by c.id
-        order by c.id`,
-  rerunOn: ['cycles', 'issues', 'workflow_states']
+        order by c.id`
 });

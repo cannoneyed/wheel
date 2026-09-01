@@ -4,7 +4,7 @@
  * deterministic. These are the tests the todo demo app's suite builds on.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { mutation, orphan, presence, query, table } from '../sync/declarations';
+import { mutation, orphan, presence, query, collection } from '../sync/declarations';
 import { ServiceContext } from '../core/services';
 import { SyncService } from '../sync/sync-service';
 import { t } from '../sync/schema';
@@ -21,7 +21,7 @@ const TodoRow = t.object({
   position: t.number()
 });
 
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 
 const todosByList = query({
   name: 'todos.byList',
@@ -75,8 +75,7 @@ const servers = {
     sql: (params) => sql`
       select id, list_id as "listId", text, done, position
       from todos where list_id = ${params.listId}
-      order by position`,
-    rerunOn: ['todos']
+      order by position`
   }),
   addTodoServer: serveMutation({
   mutation: addTodo,
@@ -144,11 +143,11 @@ describe('the todo vertical', () => {
         binding: servers.todosByListServer,
         params: { listId: 'l_1' }
       })
-    ).resolves.toEqual({ reads: ['todos'], rerunOn: ['todos'] });
+    ).resolves.toEqual({ reads: ['todos'], dependsOn: ['todos'] });
 
     const wrongBinding = {
       ...servers.todosByListServer,
-      handler: { ...servers.todosByListServer.handler, rerunOn: ['notes'] }
+      query: { ...todosByList, dependsOn: ['notes'] }
     };
     await expect(
       expectQueryInvalidation({
@@ -156,7 +155,7 @@ describe('the todo vertical', () => {
         binding: wrongBinding,
         params: { listId: 'l_1' }
       })
-    ).rejects.toThrow(/SQLite reads \[todos\], but rerunOn is \[notes\]/);
+    ).rejects.toThrow(/SQLite reads \[todos\], but dependsOn is \[notes\]/);
   });
 
   test('toggle is optimistic, then confirmed by the server', async () => {

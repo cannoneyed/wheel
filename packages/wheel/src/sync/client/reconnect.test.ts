@@ -8,7 +8,7 @@
  */
 import { describe, expect, test } from 'vitest';
 
-import { mutation, query, table } from '../declarations';
+import { mutation, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from '../server/serve';
@@ -25,7 +25,7 @@ const TodoRow = t.object({
   done: t.boolean(),
   position: t.number()
 });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 const todosByList = query({
   name: 'todos.byList',
   params: t.object({ listId: t.string() }),
@@ -56,8 +56,7 @@ const servers = {
     sql: (params) => sql`
       select id, list_id as "listId", text, done, position
       from todos where list_id = ${params.listId}
-      order by position`,
-    rerunOn: ['todos']
+      order by position`
   }),
   addTodoServer: serveMutation({
     mutation: addTodo,
@@ -119,10 +118,10 @@ function scriptedTransport(world: World, options: { holdSubscribes?: boolean } =
       if (state.offline || !conn.current) throw new TypeError('fetch failed');
       conn.current.unsubscribe(subscriptionId);
     },
-    async mutate(request) {
+    async mutateGroup(request) {
       if (state.offline) throw new TypeError('fetch failed');
       if (!conn.current) throw new TypeError('fetch failed');
-      return world.server.mutate(request, conn.current.principal);
+      return world.server.mutateGroup(request, conn.current.principal);
     },
     async setPresence(): Promise<void> {},
     close(): void {
@@ -139,6 +138,7 @@ function makeClient(world: World, clientId: string, transport: SyncTransport, se
     actor: 'tester',
     clock: fixedClock(1_700_000_000_000, 1),
     randomBytes: seededRandomBytes(seed),
+    syncModules: [syncModule],
     localCache: new MemoryCache()
   });
 }
@@ -222,6 +222,7 @@ describe('stale flag across rebootstrap', () => {
       actor: 'tester',
       clock: fixedClock(1_700_000_000_000, 1),
       randomBytes: seededRandomBytes(51),
+      syncModules: [syncModule],
       localCache: cache
     });
     await seeder.subscribe(todosByList, { listId: 'l_1' });
@@ -238,6 +239,7 @@ describe('stale flag across rebootstrap', () => {
       actor: 'tester',
       clock: fixedClock(1_700_000_000_000, 1),
       randomBytes: seededRandomBytes(52),
+      syncModules: [syncModule],
       localCache: cache
     });
     const handle = await client.subscribe(todosByList, { listId: 'l_1' });

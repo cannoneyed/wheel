@@ -12,6 +12,7 @@ import {
   type SyncSocketRequest
 } from 'wheel/sync';
 import { TRACKER_MIGRATIONS } from '../packages/tracker/server/schema';
+import { ROW_SCHEMA_FINGERPRINT } from '../packages/tracker/row-schema.generated';
 import {
   fetchTracker,
   TRACKER_APPLICATION_VERSION,
@@ -80,12 +81,17 @@ async function openSyncSocket(
     session?: string;
     version?: number;
     protocol?: number;
+    rowSchemaFingerprint?: string;
   }
 ): Promise<SocketInbox> {
   const url = new URL('https://tracker.test/sync/websocket');
   url.searchParams.set('client', options.client);
   url.searchParams.set('version', String(options.version ?? TRACKER_APPLICATION_VERSION));
   url.searchParams.set('protocol', String(options.protocol ?? SYNC_PROTOCOL_VERSION));
+  url.searchParams.set(
+    'rowSchemaFingerprint',
+    options.rowSchemaFingerprint ?? ROW_SCHEMA_FINGERPRINT
+  );
   const response = await stub.fetch(
     new Request(url, {
       headers: {
@@ -129,8 +135,14 @@ test('WebSockets retain subscriptions and presence through Durable Object hibern
   const socketB = await openSyncSocket(stub, { client: 'client-b', session: 'session:second' });
   const helloA = await socketA.next((message) => message.type === 'hello');
   const helloB = await socketB.next((message) => message.type === 'hello');
-  expect(helloA).toMatchObject({ applicationVersion: 1, schemaVersion: 1 });
-  expect(helloB).toMatchObject({ applicationVersion: 1, schemaVersion: 1 });
+  expect(helloA).toMatchObject({
+    applicationVersion: 1,
+    schemaVersion: 1
+  });
+  expect(helloB).toMatchObject({
+    applicationVersion: 1,
+    schemaVersion: 1
+  });
 
   socketA.send(request('subscribe', 'subscribe-a', { query: 'teams.all', params: {} }));
   socketB.send(request('subscribe', 'subscribe-b', { query: 'teams.all', params: {} }));
@@ -160,16 +172,18 @@ test('WebSockets retain subscriptions and presence through Durable Object hibern
   await evictDurableObject(stub, { webSockets: 'hibernate' });
 
   socketA.send(
-    request('mutate', 'mutate-after-wake', {
-      mutation: {
+    request('mutateGroup', 'mutate-after-wake', {
+      command: {
         clientId: 'untrusted-client-id',
         mutationId: 'm_0190b62e-0000-7000-8000-000000000001',
-        name: 'teams.update',
-        args: {
-          teamId: 'team_0190b62e-0000-7000-8000-00000000t001',
-          patch: { name: 'Cloud Team' }
-        },
-        ids: []
+        calls: [{
+          name: 'teams.update',
+          args: {
+            teamId: 'team_0190b62e-0000-7000-8000-00000000t001',
+            patch: { name: 'Cloud Team' }
+          },
+          ids: []
+        }]
       }
     })
   );
@@ -214,17 +228,23 @@ test('WebSockets retain subscriptions and presence through Durable Object hibern
 test('version handshakes separate rolling deploys from outdated clients', async () => {
   const namespace = env.TRACKER_WORKSPACES as unknown as DurableObjectNamespace<TrackerWorkspace>;
   const stub = namespace.getByName('tracker-version-handshake');
+  const mismatchedFingerprint = `wheel-rows-sha256:${'0'.repeat(64)}`;
 
   const newerClient = await openSyncSocket(stub, {
     client: 'newer-client',
-    version: TRACKER_APPLICATION_VERSION + 1
+    version: TRACKER_APPLICATION_VERSION + 1,
+    rowSchemaFingerprint: mismatchedFingerprint
   });
   expect(await newerClient.next((message) => message.type === 'version_mismatch')).toMatchObject({
     reason: 'server_updating',
     serverApplicationVersion: TRACKER_APPLICATION_VERSION
   });
 
-  const olderClient = await openSyncSocket(stub, { client: 'older-client', version: 0 });
+  const olderClient = await openSyncSocket(stub, {
+    client: 'older-client',
+    version: 0,
+    rowSchemaFingerprint: mismatchedFingerprint
+  });
   expect(await olderClient.next((message) => message.type === 'version_mismatch')).toMatchObject({
     reason: 'client_outdated',
     minimumClientVersion: 1
@@ -232,11 +252,21 @@ test('version handshakes separate rolling deploys from outdated clients', async 
 
   const changedProtocol = await openSyncSocket(stub, {
     client: 'changed-protocol',
-    protocol: SYNC_PROTOCOL_VERSION + 1
+    protocol: SYNC_PROTOCOL_VERSION + 1,
+    rowSchemaFingerprint: mismatchedFingerprint
   });
   expect(await changedProtocol.next((message) => message.type === 'version_mismatch')).toMatchObject({
     reason: 'protocol_mismatch',
     serverProtocol: SYNC_PROTOCOL_VERSION
+  });
+
+  const rowSchema = await openSyncSocket(stub, {
+    client: 'changed-row-schema',
+    rowSchemaFingerprint: mismatchedFingerprint
+  });
+  expect(await rowSchema.next((message) => message.type === 'version_mismatch')).toMatchObject({
+    reason: 'row_schema_mismatch',
+    serverRowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
   });
 });
 
@@ -279,6 +309,33 @@ test('hibernation refuses an attachment from another schema version', async () =
   );
   await evictDurableObject(stub, { webSockets: 'hibernate' });
   client.send(request('presence', 'wake-with-new-schema', { state: null }));
+  await expect(closed).resolves.toMatchObject({ code: 1012, reason: 'deployment_changed' });
+});
+
+test('hibernation refuses an attachment from another row contract', async () => {
+  const namespace = env.TRACKER_WORKSPACES as unknown as DurableObjectNamespace<TrackerWorkspace>;
+  const stub = namespace.getByName('tracker-hibernation-row-schema-change');
+  const client = await openSyncSocket(stub, { client: 'row-schema-change-client' });
+  await client.next((message) => message.type === 'hello');
+
+  await runInDurableObject(stub, (_instance, state) => {
+    const [serverSocket] = state.getWebSockets();
+    if (!serverSocket) throw new Error('Expected one accepted server WebSocket.');
+    const attachment = serverSocket.deserializeAttachment();
+    if (typeof attachment !== 'object' || attachment === null) {
+      throw new Error('Expected a hibernation attachment.');
+    }
+    serverSocket.serializeAttachment({
+      ...attachment,
+      rowSchemaFingerprint: `wheel-rows-sha256:${'0'.repeat(64)}`
+    });
+  });
+
+  const closed = new Promise<CloseEvent>((resolve) =>
+    client.socket.addEventListener('close', resolve, { once: true })
+  );
+  await evictDurableObject(stub, { webSockets: 'hibernate' });
+  client.send(request('presence', 'wake-with-new-row-schema', { state: null }));
   await expect(closed).resolves.toMatchObject({ code: 1012, reason: 'deployment_changed' });
 });
 

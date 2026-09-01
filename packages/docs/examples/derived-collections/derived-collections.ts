@@ -1,5 +1,5 @@
 // #region declaration
-import { query, sql, t, table } from 'wheel/sync';
+import { query, sql, t, collection } from 'wheel/sync';
 
 const ProjectCountsRow = t.object({
   projectId: t.string(),
@@ -7,18 +7,18 @@ const ProjectCountsRow = t.object({
   completed: t.number()
 });
 
-export const projectCounts = table({
+export const projectCounts = collection({
   name: 'project_counts',
   type: ProjectCountsRow,
   key: (row) => row.projectId,
-  keySpec: { fields: ['projectId'] },
-  virtual: true
+  keySpec: { fields: ['projectId'] }
 });
 
 export const projectCountsAll = query({
   name: 'project_counts.all',
   params: t.object({}),
-  into: projectCounts
+  into: projectCounts,
+  dependsOn: ['projects', 'issues']
 });
 // #endregion declaration
 
@@ -38,8 +38,7 @@ export const projectCountsServer = serveQuery({
     from projects p
     left join issues i on i.project_id = p.id
     group by p.id
-  `,
-  rerunOn: ['projects', 'issues']
+  `
 });
 // #endregion binding
 
@@ -48,16 +47,16 @@ const SearchResult = t.object({
   id: t.string(),
   rank: t.number()
 });
-const searchResults = table({
+const searchResults = collection({
   name: 'search_results',
   type: SearchResult,
-  key: (row) => row.id,
-  virtual: true
+  key: (row) => row.id
 });
 const searchQuery = query({
   name: 'search_results.all',
   params: t.object({ q: t.string() }),
-  into: searchResults
+  into: searchResults,
+  dependsOn: ['issues', 'comments']
 });
 const listeners = new Set<() => void>();
 
@@ -66,7 +65,6 @@ export const searchHandler: QueryHandler<
   t.infer<typeof SearchResult>
 > = {
   kind: 'search',
-  rerunOn: ['issues', 'comments'],
   subscribe(_params, invalidate) {
     listeners.add(invalidate);
     return () => listeners.delete(invalidate);

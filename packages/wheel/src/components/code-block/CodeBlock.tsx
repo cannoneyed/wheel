@@ -9,7 +9,6 @@ export function CodeBlock(componentProps: CodeBlock.Props): JSX.Element {
     'class',
     'style',
     'as',
-    'asChild',
     'code',
     'highlightedHtml',
     'label',
@@ -56,7 +55,6 @@ export function Code(componentProps: Code.Props): JSX.Element {
     'class',
     'style',
     'as',
-    'asChild',
     'code',
     'highlightedHtml',
     'language',
@@ -90,7 +88,7 @@ export interface CodeBlockState {
 }
 
 export interface CodeBlockProps
-  extends Omit<BaseUIComponentProps<'pre', CodeBlockState>, 'children'> {
+  extends Omit<BaseUIComponentProps<'pre', CodeBlockState>, 'children' | 'asChild'> {
   /** Plain source preserved as accessible text and as the fallback when no token markup is given. */
   code: string;
   /** Trusted syntax-token HTML generated from `code`. */
@@ -107,7 +105,8 @@ export interface CodeState {
   readonly language: string | undefined;
 }
 
-export interface CodeProps extends Omit<BaseUIComponentProps<'code', CodeState>, 'children'> {
+export interface CodeProps
+  extends Omit<BaseUIComponentProps<'code', CodeState>, 'children' | 'asChild'> {
   /** Plain inline source. */
   code: string;
   /** Trusted syntax-token HTML generated from `code`. */

@@ -13,4 +13,3 @@
 - Thumb motion uses the shared short state token. Checked state updates before motion completes.
 - Initial render shows the final thumb position and never slides in from the opposite value.
 - Reduced motion moves Thumb immediately. Forced colors preserves track boundary, Thumb, checked state, and focus.
-- Browser proof covers repeated pointer and Space toggles, controlled state, constraints, form reset, and themes.

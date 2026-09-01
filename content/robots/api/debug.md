@@ -164,7 +164,7 @@ The per-app bridge surface — every method returns plain JSON.
 
 Kind: function. Source: [packages/wheel/src/debug/debug-panel.tsx:127](../../../packages/wheel/src/debug/debug-panel.tsx#L127).
 
-The drop-in runtime audit widget (🐛, fixed bottom-right): registry state tree with live values, component manifests, and — when the provider is client-backed — the table cache and the color-coded provenance change stream. Clientless ServiceProviders get the registry sections only.
+The drop-in runtime audit widget (🐛, fixed bottom-right): registry state tree with live values, component manifests, and — when the provider is client-backed — the collection cache and the color-coded provenance change stream. Clientless ServiceProviders get the registry sections only.
 
 ## `WheelGlobal`
 

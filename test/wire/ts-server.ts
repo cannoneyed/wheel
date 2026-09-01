@@ -10,6 +10,7 @@ import {
   type SyncSocketHandshake
 } from '../../packages/wheel/src/sync/server';
 import { WIRE_SCHEMA, WIRE_SERVERS, WIRE_SYNC_MODULE } from './fixture-app';
+import { ROW_SCHEMA_FINGERPRINT } from './fixtures/row-schema.generated';
 
 export const WIRE_APPLICATION_VERSION = 3;
 export const WIRE_MINIMUM_CLIENT_VERSION = 2;
@@ -51,6 +52,7 @@ async function bootRuntime(): Promise<Runtime> {
     applicationVersion: WIRE_APPLICATION_VERSION,
     minimumClientVersion: WIRE_MINIMUM_CLIENT_VERSION,
     schemaVersion: WIRE_SCHEMA_VERSION,
+    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
     detailedErrors: true,
     onError: () => {}
   });

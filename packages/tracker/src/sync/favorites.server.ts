@@ -27,8 +27,7 @@ export const favoritesMineServer = serveQuery({
         from favorites
         where user_id = ${params.userId}
           and ${params.userId} = ${principal.actor.replace(/^user:/, '')}
-        order by position, id`,
-  rerunOn: ['favorites']
+        order by position, id`
 });
 
 async function requireOwner(

@@ -15,7 +15,7 @@
  * - Undo model: every mutation declares `invert`; ids for created rows are
  *   ARGS-BORNE (minted via client.newId) so inverts can name them.
  */
-import { mutation, orphan, positionBetween, presence, query, t, table, type Infer, type InverseSpec } from 'wheel/sync';
+import { mutation, orphan, positionBetween, presence, query, t, collection, type Infer, type InverseSpec } from 'wheel/sync';
 
 /** The block kinds the editor renders (D5 — deliberately simple). */
 export const BlockKind = t.enum([
@@ -46,7 +46,7 @@ type Block = Infer<typeof BlockRow>;
 export type { Block };
 export type Kind = Infer<typeof BlockKind>;
 
-export const blocks = table({ name: 'blocks', type: BlockRow, key: (row) => row.id });
+export const blocks = collection({ name: 'blocks', type: BlockRow, key: (row) => row.id });
 
 /**
  * Ephemeral per-client editing state (008 P2/P3): which block, caret +

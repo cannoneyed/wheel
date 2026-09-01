@@ -8,7 +8,6 @@ import { avatarStateAttributesMapping } from '../stateAttributesMapping';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 export type AvatarShape = 'circle' | 'rounded' | 'square';
-export type AvatarStatus = 'online' | 'busy' | 'away' | 'offline';
 
 /**
  * Displays a user's profile picture, initials, or fallback icon.
@@ -25,13 +24,11 @@ export function AvatarRoot(componentProps: AvatarRoot.Props) {
     'children',
     'size',
     'shape',
-    'status',
   ]);
 
   const [imageLoadingStatus, setImageLoadingStatus] = createSignal<ImageLoadingStatus>('idle');
   const size = (): AvatarSize => componentProps.size ?? 'md';
   const shape = (): AvatarShape => componentProps.shape ?? 'circle';
-  const status = () => componentProps.status;
 
   const state: AvatarRoot.State = {
     get imageLoadingStatus() {
@@ -43,19 +40,16 @@ export function AvatarRoot(componentProps: AvatarRoot.Props) {
     get shape() {
       return shape();
     },
-    get status() {
-      return status();
-    },
   };
 
   return (
-    <AvatarRootContext.Provider value={{ imageLoadingStatus, setImageLoadingStatus, size, shape, status }}>
+    <AvatarRootContext.Provider value={{ imageLoadingStatus, setImageLoadingStatus, size, shape }}>
       {renderElement('span', componentProps, {
         defaultClass: 'wheel-Avatar-Root',
         slot: 'avatar-root',
         state,
         props: [
-          () => ({ 'data-size': size(), 'data-shape': shape(), 'data-status': status() }),
+          () => ({ 'data-size': size(), 'data-shape': shape() }),
           elementProps as Record<string, any>,
         ],
         stateAttributesMapping: avatarStateAttributesMapping,
@@ -73,7 +67,6 @@ export interface AvatarRootState {
   imageLoadingStatus: ImageLoadingStatus;
   size: AvatarSize;
   shape: AvatarShape;
-  status: AvatarStatus | undefined;
 }
 
 export interface AvatarRootProps extends BaseUIComponentProps<'span', AvatarRootState> {
@@ -81,8 +74,6 @@ export interface AvatarRootProps extends BaseUIComponentProps<'span', AvatarRoot
   size?: AvatarSize | undefined;
   /** Clipping shape. @default 'circle' */
   shape?: AvatarShape | undefined;
-  /** Optional availability state. */
-  status?: AvatarStatus | undefined;
 }
 
 export namespace AvatarRoot {

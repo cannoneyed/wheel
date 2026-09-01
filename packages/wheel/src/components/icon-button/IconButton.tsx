@@ -19,7 +19,8 @@ export function IconButton(componentProps: IconButton.Props): JSX.Element {
   });
 }
 
-export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'icon' | 'endContent'> {
+export interface IconButtonProps
+  extends Omit<ButtonProps, 'children' | 'icon' | 'endContent' | 'asChild'> {
   /** Accessible name for the icon-only action. */
   label: string;
   /** Icon rendered inside the square button. */

@@ -11,4 +11,3 @@
 - Portal content retains the logical direction of its owning component even when mounted under document body.
 - Server and client direction resolve to the same initial value to avoid hydration changes.
 - Provider has no visual recipe or motion.
-- Unit proof covers inheritance, nesting, live changes, portal descendants, and absence outside a provider.

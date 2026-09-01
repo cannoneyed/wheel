@@ -158,6 +158,27 @@ describe('<Button />', () => {
     expect(button).not.toHaveAttribute('data-loading');
   });
 
+  it('clears pending state when an action rejects', async () => {
+    const user = userEvent.setup();
+    let rejectAction!: (error: Error) => void;
+    const action = new Promise<void>((_, reject) => {
+      rejectAction = reject;
+    });
+    const handledAction = action.catch(() => undefined);
+    const { getByRole } = render(() => (
+      <Button clickAction={() => action}>Save</Button>
+    ));
+    const button = getByRole('button', { name: /Save/ });
+
+    await user.click(button);
+    expect(button).toHaveAttribute('data-loading');
+
+    rejectAction(new Error('save failed'));
+    await handledAction;
+    await Promise.resolve();
+    expect(button).not.toHaveAttribute('data-loading');
+  });
+
   it('exposes resolved state to class functions', () => {
     const { getByRole } = render(() => (
       <Button variant="primary" size="sm" loading class={(state) => `${state.variant}-${state.size}-${state.loading}`}>

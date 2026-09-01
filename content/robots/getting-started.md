@@ -5,7 +5,7 @@ Human page: [Getting Started](../docs/getting-started.mdx).
 Install the exact alpha release under the local package name `wheel`:
 
 ```sh
-bun add wheel@npm:@cannoneyed/wheel@0.1.0 solid-js
+bun add wheel@npm:@cannoneyed/wheel@0.2.0 solid-js
 ```
 
 Keep imports under `wheel/...`. The scoped registry name appears only in the dependency specification.

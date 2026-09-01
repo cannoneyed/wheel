@@ -239,7 +239,7 @@ try {
       ['auth', 'defineAuthenticator'],
       ['config', 'defineConfig'],
       ['core', 'Service'],
-      ['sync', 'table'],
+      ['sync', 'collection'],
       ['sync/server', 'createSyncServer'],
       ['sync/server/cloudflare', 'createCloudflareSyncBackend'],
       ['sync/server/testing', 'runBackendConformance'],
@@ -317,7 +317,7 @@ try {
     `import { defineAuthenticator } from 'wheel/auth';
 import { defineConfig, z } from 'wheel/config';
 import { Service } from 'wheel/core';
-import { table } from 'wheel/sync';
+import { collection } from 'wheel/sync';
 import { createSyncServer } from 'wheel/sync/server';
 import type { DurableObjectStorageLike } from 'wheel/sync/server/cloudflare';
 import { runBackendConformance, type ConformanceHarness, type ConformanceTestApi } from 'wheel/sync/server/testing';
@@ -331,7 +331,7 @@ import { wheelDevTools } from 'wheel/vite';
 
 type PublicServerTypes = DurableObjectStorageLike | ConformanceHarness | ConformanceTestApi;
 
-void [defineAuthenticator, defineConfig, z, Service, table, createSyncServer, runBackendConformance, DialogService, Button, Accordion, InspectorService, World, createBehaviorHarness, wheelDevTools];
+void [defineAuthenticator, defineConfig, z, Service, collection, createSyncServer, runBackendConformance, DialogService, Button, Accordion, InspectorService, World, createBehaviorHarness, wheelDevTools];
 void (undefined as PublicServerTypes | undefined);
 `
   );
@@ -418,7 +418,7 @@ export default { plugins: [wheelDevTools()] };
     join(consumerRoot, 'src/main.ts'),
     `import { defineConfig, z } from 'wheel/config';
 import { Service } from 'wheel/core';
-import { table } from 'wheel/sync';
+import { collection } from 'wheel/sync';
 import { DialogService } from 'wheel/kit';
 import { Button } from 'wheel/components';
 import 'wheel/components/styles';
@@ -426,7 +426,7 @@ import { memoryHistory } from 'wheel/router';
 import { InspectorService } from 'wheel/debug';
 
 document.querySelector('#app').textContent =
-  [defineConfig, z.object, Service, table, DialogService, Button, memoryHistory, InspectorService]
+  [defineConfig, z.object, Service, collection, DialogService, Button, memoryHistory, InspectorService]
     .map((value) => value.name)
     .join(',');
 `

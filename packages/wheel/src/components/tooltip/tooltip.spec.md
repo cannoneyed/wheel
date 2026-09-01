@@ -14,4 +14,3 @@
 - Entry is immediate after the intent delay. The delay never runs a fade-in.
 - Closing uses the shared 100 ms fade-out. Reduced motion removes the fade.
 - Forced colors preserves Popup boundary, text, Arrow, and Trigger focus.
-- Browser proof covers focus, hover intent, delay groups, Escape, disabled state, collision, touch, and repeated triggers.

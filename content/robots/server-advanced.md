@@ -22,12 +22,11 @@ Append versions. Never edit applied DDL. Keep each domain's DDL beside its serve
 ```ts
 serveQuery({
   query: issuesByTeam,
-  sql: (params, principal) => sql`select ...`,
-  rerunOn: ['issues'],
+  sql: (params, principal) => sql`select ...`
 });
 ```
 
-Pass `handler` for a custom `QueryHandler`. A handler must define `run` and at least one invalidation source: non-empty `rerunOn` or `subscribe()`.
+Pass `handler` for a custom `QueryHandler`. A handler must define `run`. Its query needs non-empty `dependsOn` or the handler must define `subscribe()`.
 
 `QueryHandlerCtx.query()` provides read-only access. `ctx.principal` carries trusted identity.
 

@@ -18,7 +18,7 @@
  */
 import { canonicalParams } from '../../core/params';
 import type { AuthPrincipal } from '../../auth/index';
-import { validateTableKey } from '../declarations';
+import { validateCollectionKey } from '../declarations';
 import type { Clock, IdGen } from '../ids';
 import { createIdGen, isValidId } from '../ids';
 import { buildRegistry, type Registry } from './registry';
@@ -26,17 +26,36 @@ import { JsonValueError, jsonParseIsIdentity, validateJsonValue, validateRow } f
 import type { RowSchema } from '../schema';
 import type { RandomBytes } from '../ids';
 import { monotonicNowMs, systemClock, systemRandomBytes } from '../../core/runtime-defaults';
+import { logger } from '../../core/logger';
 import type { DbRow } from '../protocol';
 import { SyncServerError } from './errors';
-import type { SyncBackend } from './sync-backend';
+import type { BackendMutationCall, SyncBackend } from './sync-backend';
 import type { ServeMutationBinding, ServeQueryBinding, ServerMutationCtx } from './serve';
 import type { RowImage } from './query-handler';
 import type { SqlFragment } from '../sql';
 // The wire-protocol types are the shared client/server contract; they live in
 // sync so the browser client can name them without importing this server
 // module. The engine imports and re-exports them.
-import type { MutateRequest, MutateResult, ServerEvent, Snapshot } from '../protocol';
-export type { MutateRequest, MutateResult, MutationError, RowDelta, ServerEvent, Snapshot } from '../protocol';
+import type {
+  MutateGroupRequest,
+  MutateResult,
+  ServerEvent,
+  Snapshot,
+  SyncQueryError,
+  SyncQueryStatus
+} from '../protocol';
+export type {
+  MutateGroupRequest,
+  MutateCallRequest,
+  MutateResult,
+  MutationError,
+  QueryStatusEvent,
+  RowDelta,
+  ServerEvent,
+  Snapshot,
+  SyncQueryError,
+  SyncQueryStatus
+} from '../protocol';
 // SyncServerError lives outside the engine so backends can throw it without a
 // circular import. Re-export it from this entry point.
 export { SyncServerError } from './errors';
@@ -65,16 +84,17 @@ const formatRerun = (rerun: RerunStats): string =>
         .map((entry) => `${entry.query}=${entry.rows}r${entry.subscribers > 1 ? `x${entry.subscribers}` : ''}`)
         .join(', ')})`;
 
-/** One row of the /sync/_debug/subscriptions table: params, watch list, row count, run stats. */
+/** One row of the /sync/_debug/subscriptions table: params, dependencies, row count, run stats. */
 export interface SubscriptionDebugInfo {
   readonly id: string;
   readonly clientId: string;
   readonly query: string;
   readonly params: unknown;
-  readonly rerunOn: readonly string[];
+  readonly dependsOn: readonly string[];
   readonly handlerKind: string;
   readonly rows: number;
   readonly lastSeq: number;
+  readonly status: SyncQueryStatus;
   readonly runs: number;
   readonly lastRunMs: number;
 }
@@ -109,6 +129,7 @@ interface Subscription {
   canonicalKey: string;
   lastRows: Map<string, { row: DbRow; canonical: string }>;
   lastSeq: number;
+  status: SyncQueryStatus;
   runs: number;
   lastRunMs: number;
   /** Tears down the handler's push channel (QueryHandler.subscribe), when one exists. */
@@ -216,7 +237,9 @@ export class SyncServer {
     // re-run watchers on the writer loop, like externalWrite. Current SQLite
     // backends do not fire this feed.
     this.releaseExternal = this.backend.onExternalChange((touched) => {
-      void this.externalWrite({ tables: [...touched], source: 'backend:external' });
+      void this.externalWrite({ tables: [...touched], source: 'backend:external' }).catch((error) => {
+        logger.error('wheel: backend external change failed', { touched: [...touched] }, error);
+      });
     });
   }
 
@@ -235,19 +258,13 @@ export class SyncServer {
     return this.lastSeq;
   }
 
-  /** Physical names of every non-virtual declared table — the set the backend installs tracking on. */
+  /** Physical table names derived from every query dependency. */
   syncedTables(): string[] {
-    const names: string[] = [];
-    for (const [tableName, tableDecl] of this.registry.tables) {
-      if (!tableDecl.virtual) {
-        names.push(tableName);
-      }
-    }
-    return names;
+    return [...new Set([...this.registry.queries.values()].flatMap((query) => query.dependsOn))];
   }
 
   /**
-   * Each non-virtual table's zod row schema (name → schema). Handed to the
+   * Each physical source table's row schema (name → schema). Handed to the
    * backend at boot so a backend whose storage drifts from what the schemas
    * validate can repair rows at its read seam (the SQLite backend turns integer
    * 0/1 back into real booleans); backends that already return schema-shaped
@@ -255,10 +272,9 @@ export class SyncServer {
    */
   private syncedTableSchemas(): Map<string, RowSchema> {
     const schemas = new Map<string, RowSchema>();
-    for (const [tableName, tableDecl] of this.registry.tables) {
-      if (!tableDecl.virtual) {
-        schemas.set(tableName, tableDecl.schema);
-      }
+    for (const tableName of this.syncedTables()) {
+      const collection = this.registry.collections.get(tableName);
+      if (collection) schemas.set(tableName, collection.schema);
     }
     return schemas;
   }
@@ -422,13 +438,20 @@ export class SyncServer {
         canonicalKey: `${queryName}|${canonicalParams(params)}|${canonicalParams(connection.principal)}`,
         lastRows: new Map(),
         lastSeq: this.lastSeq,
+        status: { kind: 'live' },
         runs: 0,
         lastRunMs: 0
       };
-      const rows = await this.runQuery(subscription);
+      let rows: Map<string, { row: DbRow; canonical: string }>;
+      try {
+        rows = await this.runQuery(subscription);
+      } catch (error) {
+        rows = new Map();
+        subscription.status = { kind: 'error', error: this.publicQueryError(error) };
+        this.logQueryFailure(subscription, error, 'initial');
+      }
       subscription.lastRows = rows;
       subscription.lastSeq = this.lastSeq;
-      connection.addSubscription(subscription);
       // Push-based invalidation: the handler signals "may have changed"; the
       // engine coalesces onto the writer loop and re-runs + diffs there.
       if (binding.handler.subscribe) {
@@ -438,11 +461,13 @@ export class SyncServer {
           connection.principal
         );
       }
+      connection.addSubscription(subscription);
       return {
         subscriptionId: subscription.id,
         query: queryName,
         seq: this.lastSeq,
-        rows: [...rows.values()].map((entry) => entry.row)
+        rows: [...rows.values()].map((entry) => entry.row),
+        status: subscription.status
       };
     });
   }
@@ -470,31 +495,37 @@ export class SyncServer {
         for (const connection of this.connections.values()) {
           for (const subscription of connection.subscriptions()) {
             if (subscription.id === id) {
-              const nextRows = await this.runQuery(subscription);
-              // A push source can change data OUT OF BAND — nothing wrote the
-              // sync log, so this.lastSeq still names the old state. A delta
-              // stamped with it would be refused by every client's
-              // stale-delta guard (`delta.seq <= lastDeltaSeq`) and the
-              // change would be invisible. Mint one external seq for the
-              // changed result BEFORE emitting. The synthetic row carries an
-              // EMPTY touched list: it mints ordering only, so recording a
-              // push never re-triggers watcher re-runs — the diff below is
-              // the sole emission, no feedback loop.
-              if (this.rowsDiffer(subscription.lastRows, nextRows)) {
-                this.lastSeq = await this.backend.recordExternalChange({
-                  mutationId: this.idGen.newId('m'),
-                  mutationName: `push:${subscription.binding.name}`,
-                  actor: 'system:push',
-                  clientId: 'server:push',
-                  committedMs: this.clock.now(),
-                  touched: []
-                });
+              try {
+                const nextRows = await this.runQuery(subscription);
+                // A push source can change data OUT OF BAND — nothing wrote the
+                // sync log, so this.lastSeq still names the old state. A delta
+                // stamped with it would be refused by every client's
+                // stale-delta guard (`delta.seq <= lastDeltaSeq`) and the
+                // change would be invisible. Mint one external seq for the
+                // changed result BEFORE emitting. The synthetic row carries an
+                // EMPTY touched list: it mints ordering only, so recording a
+                // push never re-triggers watcher re-runs — the diff below is
+                // the sole emission, no feedback loop.
+                if (this.rowsDiffer(subscription.lastRows, nextRows)) {
+                  this.lastSeq = await this.backend.recordExternalChange({
+                    mutationId: this.idGen.newId('m'),
+                    mutationName: `push:${subscription.binding.name}`,
+                    actor: 'system:push',
+                    clientId: 'server:push',
+                    committedMs: this.clock.now(),
+                    touched: []
+                  });
+                }
+                this.diffAndEmit(connection, subscription, nextRows);
+                this.recoverQuery(connection, subscription);
+              } catch (error) {
+                this.failQueryRerun(connection, subscription, error);
               }
-              this.diffAndEmit(connection, subscription, nextRows);
             }
           }
         }
       }
+      this.emitCheckpoint();
     });
   }
 
@@ -504,6 +535,7 @@ export class SyncServer {
     next: Map<string, { row: DbRow; canonical: string }>
   ): boolean {
     if (previous.size !== next.size) return true;
+    if (!this.sameOrder(previous, next)) return true;
     for (const [id, entry] of next) {
       const before = previous.get(id);
       if (!before || before.canonical !== entry.canonical) return true;
@@ -511,20 +543,94 @@ export class SyncServer {
     return false;
   }
 
+  private sameOrder(
+    previous: ReadonlyMap<string, unknown>,
+    next: ReadonlyMap<string, unknown>
+  ): boolean {
+    if (previous.size !== next.size) return false;
+    const previousIds = previous.keys();
+    const nextIds = next.keys();
+    for (;;) {
+      const previousId = previousIds.next();
+      const nextId = nextIds.next();
+      if (previousId.done || nextId.done) return previousId.done === nextId.done;
+      if (previousId.value !== nextId.value) return false;
+    }
+  }
+
+  private publicQueryError(_error: unknown): SyncQueryError {
+    return {
+      code: 'query_error',
+      message: 'The live query failed.'
+    };
+  }
+
+  private logQueryFailure(subscription: Subscription, error: unknown, phase: 'initial' | 'rerun'): void {
+    logger.error('wheel: live query failed', {
+      phase,
+      workspaceId: subscription.principal.workspaceId,
+      query: subscription.binding.name,
+      params: subscription.params,
+      subscriptionId: subscription.id
+    }, error);
+  }
+
+  private emitQueryStatus(
+    connection: ConnectionImpl,
+    subscription: Subscription,
+    status: SyncQueryStatus
+  ): void {
+    subscription.status = status;
+    connection.emit({
+      type: 'query_status',
+      status: {
+        subscriptionId: subscription.id,
+        query: subscription.binding.name,
+        seq: this.lastSeq,
+        status
+      }
+    });
+  }
+
+  private failQueryRerun(
+    connection: ConnectionImpl,
+    subscription: Subscription,
+    error: unknown
+  ): void {
+    const detail = this.publicQueryError(error);
+    const status: SyncQueryStatus = subscription.status.kind === 'error'
+      ? { kind: 'error', error: detail }
+      : { kind: 'stale', error: detail };
+    this.logQueryFailure(subscription, error, 'rerun');
+    this.emitQueryStatus(connection, subscription, status);
+  }
+
+  private recoverQuery(connection: ConnectionImpl, subscription: Subscription): void {
+    if (subscription.status.kind !== 'live') {
+      this.emitQueryStatus(connection, subscription, { kind: 'live' });
+    }
+  }
+
+  private emitCheckpoint(): void {
+    for (const connection of this.connections.values()) {
+      connection.emit({ type: 'checkpoint', seq: this.lastSeq });
+    }
+  }
+
   /** Validate + freeze + key one query's raw rows — the boundary net: no row reaches a client unvalidated. */
   private keyRows(binding: ServeQueryBinding, rawRows: readonly DbRow[]): Map<string, { row: DbRow; canonical: string }> {
-    const table = binding.query.into;
+    const collection = binding.query.into;
     const keyed = new Map<string, { row: DbRow; canonical: string }>();
     const firstIndexes = new Map<string, number>();
     for (const [index, raw] of rawRows.entries()) {
-      const row = validateRow(`query ${binding.name}`, table.schema, raw);
+      const row = validateRow(`query ${binding.name}`, collection.schema, raw);
       const frozen = Object.freeze(row);
-      const key = validateTableKey(table, frozen, `Query "${binding.name}" row ${index}`);
+      const key = validateCollectionKey(collection, frozen, `Query "${binding.name}" row ${index}`);
       const firstIndex = firstIndexes.get(key);
       if (firstIndex !== undefined) {
         throw new SyncServerError(
           'duplicate_row_key',
-          `Query "${binding.name}" returned duplicate key ${JSON.stringify(key)} for table "${table.name}" at rows ${firstIndex} and ${index}.`
+          `Query "${binding.name}" returned duplicate key ${JSON.stringify(key)} for collection "${collection.name}" at rows ${firstIndex} and ${index}.`
         );
       }
       firstIndexes.set(key, index);
@@ -551,8 +657,8 @@ export class SyncServer {
     return keyed;
   }
 
-  /** Run one mutation through the writer loop: validate, delegate to the backend, re-run watchers. */
-  async mutate(request: MutateRequest, principal: AuthPrincipal): Promise<MutateResult> {
+  /** Run one atomic mutation command through the writer loop. */
+  async mutateGroup(request: MutateGroupRequest, principal: AuthPrincipal): Promise<MutateResult> {
     // Pre-validation verdicts are VALUES, not throws (see MutateResult's
     // doctrine): the server definitively refuses this request and would
     // refuse it identically on every retry.
@@ -560,40 +666,54 @@ export class SyncServer {
       ok: false,
       error: { kind: 'error', code, message }
     });
-    const binding = this.registry.mutationBindings.get(request.name) as ServeMutationBinding | undefined;
-    const decl = this.registry.mutations.get(request.name);
-    if (!binding || !decl) {
-      return fail('unknown_mutation', `No mutation named "${request.name}" is registered.`);
-    }
     if (!isValidId(request.mutationId, 'm')) {
       return fail('invalid_mutation_id', `Mutation id ${JSON.stringify(request.mutationId)} is not a valid m_<uuidv7>.`);
     }
-    for (const id of request.ids) {
-      if (!isValidId(id)) {
-        return fail('invalid_id', `Pre-generated id ${JSON.stringify(id)} is not a valid prefixed UUIDv7.`);
+    if (request.calls.length === 0) {
+      return fail('empty_mutation_group', 'A mutation group must contain at least one member.');
+    }
+    if (request.calls.length > 128) {
+      return fail('group_too_large', 'A mutation group may contain at most 128 members.');
+    }
+
+    const prepared: Array<{
+      binding: ServeMutationBinding;
+      args: Record<string, unknown>;
+      ids: readonly string[];
+    }> = [];
+    for (const call of request.calls) {
+      const binding = this.registry.mutationBindings.get(call.name) as ServeMutationBinding | undefined;
+      const decl = this.registry.mutations.get(call.name);
+      if (!binding || !decl) {
+        return fail('unknown_mutation', `No mutation named "${call.name}" is registered.`);
       }
-    }
-    try {
-      validateJsonValue(`Args for mutation "${request.name}"`, request.args);
-    } catch (error) {
-      if (error instanceof JsonValueError) {
-        return fail('invalid_args', error.message);
+      for (const id of call.ids) {
+        if (!isValidId(id)) {
+          return fail('invalid_id', `Pre-generated id ${JSON.stringify(id)} is not a valid prefixed UUIDv7.`);
+        }
       }
-      throw error;
-    }
-    const parsed = decl.args.safeParse(request.args);
-    if (!parsed.success) {
-      return fail(
-        'invalid_args',
-        `Args for mutation "${request.name}" are invalid: ${parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')}`
-      );
-    }
-    const args = parsed.data;
-    if (!jsonParseIsIdentity(request.args, args)) {
-      return fail(
-        'invalid_args',
-        `Args for mutation "${request.name}" contain fields or parse-time normalization outside its JSON Schema contract.`
-      );
+      try {
+        validateJsonValue(`Args for mutation "${call.name}"`, call.args);
+      } catch (error) {
+        if (error instanceof JsonValueError) return fail('invalid_args', error.message);
+        throw error;
+      }
+      const parsed = decl.args.safeParse(call.args);
+      if (!parsed.success) {
+        return fail(
+          'invalid_args',
+          `Args for mutation "${call.name}" are invalid: ${parsed.error.issues
+            .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+            .join('; ')}`
+        );
+      }
+      if (!jsonParseIsIdentity(call.args, parsed.data)) {
+        return fail(
+          'invalid_args',
+          `Args for mutation "${call.name}" contain fields or parse-time normalization outside its JSON Schema contract.`
+        );
+      }
+      prepared.push({ binding, args: parsed.data, ids: call.ids });
     }
 
     const timing = liveTimingEnabled();
@@ -607,44 +727,54 @@ export class SyncServer {
       if (alreadyCommitted) {
         return { ok: true as const, seq: alreadyCommitted.seq };
       }
-      // The deterministic id stream: the handler consumes ctx.newId in call
-      // order; a prefix mismatch/exhaustion fails loudly (conformance rule 4).
-      // Built HERE (backend-agnostic) and handed to the backend to run.
-      let nextId = 0;
-      const ctx: ServerMutationCtx = {
-        mutationId: request.mutationId,
-        clientId: request.clientId,
-        actor: principal.actor,
-        workspaceId: principal.workspaceId,
-        sessionId: principal.sessionId,
-        now: () => this.clock.now(),
-        newId: (prefix: string) => {
-          const id = request.ids[nextId];
-          nextId += 1;
-          if (id === undefined) {
-            throw new SyncServerError(
-              'id_stream_exhausted',
-              `Mutation "${request.name}" asked for more ids than the client pre-generated (${request.ids.length}). ` +
-                'The optimistic handler and server handler must request ids in the same order.'
-            );
+      const backendCalls: BackendMutationCall[] = prepared.map((call) => {
+        let nextId = 0;
+        const ctx: ServerMutationCtx = {
+          mutationId: request.mutationId,
+          clientId: request.clientId,
+          actor: principal.actor,
+          workspaceId: principal.workspaceId,
+          sessionId: principal.sessionId,
+          now: () => this.clock.now(),
+          newId: (prefix: string) => {
+            const id = call.ids[nextId++];
+            if (id === undefined) {
+              throw new SyncServerError(
+                'id_stream_exhausted',
+                `Mutation "${call.binding.name}" asked for more ids than the client pre-generated ` +
+                  `for this group member (${call.ids.length}).`
+              );
+            }
+            if (!id.startsWith(`${prefix}_`)) {
+              throw new SyncServerError(
+                'id_stream_mismatch',
+                `Mutation "${call.binding.name}" id #${nextId} has prefix "${id.split('_')[0]}" but the server asked for "${prefix}".`
+              );
+            }
+            return id;
           }
-          if (!id.startsWith(`${prefix}_`)) {
-            throw new SyncServerError(
-              'id_stream_mismatch',
-              `Mutation "${request.name}" id #${nextId} has prefix "${id.split('_')[0]}" but the server asked for "${prefix}". ` +
-                'The optimistic handler and server handler must request ids in the same order.'
-            );
+        };
+        return {
+          binding: call.binding,
+          args: call.args,
+          ctx,
+          assertIdsConsumed: () => {
+            if (nextId !== call.ids.length) {
+              throw new SyncServerError(
+                'id_stream_unused',
+                `Mutation "${call.binding.name}" consumed ${nextId} of ${call.ids.length} deterministic ids.`
+              );
+            }
           }
-          return id;
-        }
-      };
+        };
+      });
 
       let result;
       try {
         // The backend runs the handler + appends the sync-log record
         // atomically, and (for echo-capable backends) records the self-echo
         // marker before this resolves (conformance rule 5).
-        result = await this.backend.runMutation(binding, args, ctx);
+        result = await this.backend.runMutation(backendCalls);
       } catch (error) {
         // Exactly-once replay: the outbox may re-send a mutation whose commit
         // landed but whose ack was lost (crash between commit and outbox
@@ -677,7 +807,8 @@ export class SyncServer {
         const finishedAt = monotonicNow();
         // wheel-console: WHEEL_TIMING=1 diagnostics print to the server process stdout
         console.log(
-          `[live-timing] mutate ${request.name} queueWait=${formatMs(startedAt - queuedAt)} ` +
+          `[live-timing] mutateGroup [${request.calls.map((call) => call.name).join(', ')}] ` +
+            `queueWait=${formatMs(startedAt - queuedAt)} ` +
             `txn=${formatMs(committedAt - startedAt)} ${formatRerun(rerun)} ` +
             `total=${formatMs(finishedAt - queuedAt)}`
         );
@@ -740,6 +871,7 @@ export class SyncServer {
   ): Promise<RerunStats> {
     const stats: RerunStats = { ms: 0, queries: [] };
     if (touched.length === 0) {
+      this.emitCheckpoint();
       return stats;
     }
     const touchedSet = new Set(touched);
@@ -747,7 +879,8 @@ export class SyncServer {
     for (const connection of this.connections.values()) {
       for (const subscription of connection.subscriptions()) {
         const handler = subscription.binding.handler;
-        if (!handler.rerunOn?.some((table) => touchedSet.has(table))) {
+        const dependencies = subscription.binding.query.dependsOn;
+        if (!dependencies.some((table) => touchedSet.has(table))) {
           continue;
         }
         // Tier-1 pruning: with row images available and a prune predicate on
@@ -757,7 +890,7 @@ export class SyncServer {
         if (handler.prune && Array.isArray(images)) {
           const relevant = images.some(
             (image) =>
-              handler.rerunOn!.includes(image.t) &&
+              dependencies.includes(image.t) &&
               handler.prune!(image, subscription.params, subscription.principal)
           );
           if (!relevant) {
@@ -768,6 +901,7 @@ export class SyncServer {
       }
     }
     if (targets.length === 0) {
+      this.emitCheckpoint();
       return stats;
     }
 
@@ -777,36 +911,71 @@ export class SyncServer {
     const sqlTargets = targets.filter(({ subscription }) => subscription.binding.handler.sql !== undefined);
     const genericTargets = targets.filter(({ subscription }) => subscription.binding.handler.sql === undefined);
 
-    const groups = new Map<string, { source: SqlFragment; subscriptions: Subscription[] }>();
+    const groups = new Map<string, { subscriptions: Subscription[] }>();
     for (const { subscription } of sqlTargets) {
       const group = groups.get(subscription.canonicalKey);
       if (group) {
         group.subscriptions.push(subscription);
         continue;
       }
-      const source = subscription.binding.handler.sql!(
-        subscription.params,
-        subscription.principal
-      );
-      groups.set(subscription.canonicalKey, { source, subscriptions: [subscription] });
+      groups.set(subscription.canonicalKey, { subscriptions: [subscription] });
     }
-    const ordered = [...groups.values()];
-    const resultSets = ordered.length > 0 ? await this.readMany(ordered) : [];
-
-    // Validate once per distinct query; every subscriber shares the (frozen,
-    // read-only) keyed map exactly as if it had run the query itself.
     const nextBySubscription = new Map<Subscription, Map<string, { row: DbRow; canonical: string }>>();
-    ordered.forEach((group, index) => {
-      const keyed = this.keyRows(group.subscriptions[0]!.binding, resultSets[index] ?? []);
-      stats.queries.push({ query: group.subscriptions[0]!.binding.name, rows: keyed.size, subscribers: group.subscriptions.length });
-      for (const subscription of group.subscriptions) {
-        nextBySubscription.set(subscription, keyed);
+    const failures = new Map<Subscription, unknown>();
+    const ordered: Array<{ source: SqlFragment; subscriptions: Subscription[] }> = [];
+    for (const group of groups.values()) {
+      const subscription = group.subscriptions[0]!;
+      try {
+        ordered.push({
+          source: subscription.binding.handler.sql!(subscription.params, subscription.principal),
+          subscriptions: group.subscriptions
+        });
+      } catch (error) {
+        for (const member of group.subscriptions) failures.set(member, error);
       }
-    });
+    }
+
+    const acceptSqlResult = (
+      group: { source: SqlFragment; subscriptions: Subscription[] },
+      rows: readonly DbRow[]
+    ): void => {
+      try {
+        const keyed = this.keyRows(group.subscriptions[0]!.binding, rows);
+        stats.queries.push({
+          query: group.subscriptions[0]!.binding.name,
+          rows: keyed.size,
+          subscribers: group.subscriptions.length
+        });
+        for (const subscription of group.subscriptions) nextBySubscription.set(subscription, keyed);
+      } catch (error) {
+        for (const subscription of group.subscriptions) failures.set(subscription, error);
+      }
+    };
+
+    if (ordered.length > 0) {
+      try {
+        const resultSets = await this.readMany(ordered);
+        ordered.forEach((group, index) => acceptSqlResult(group, resultSets[index] ?? []));
+      } catch {
+        for (const group of ordered) {
+          try {
+            const [rows = []] = await this.readMany([group]);
+            acceptSqlResult(group, rows);
+          } catch (error) {
+            for (const subscription of group.subscriptions) failures.set(subscription, error);
+          }
+        }
+      }
+    }
+
     for (const { subscription } of genericTargets) {
-      const keyed = await this.runQuery(subscription);
-      stats.queries.push({ query: subscription.binding.name, rows: keyed.size, subscribers: 1 });
-      nextBySubscription.set(subscription, keyed);
+      try {
+        const keyed = await this.runQuery(subscription);
+        stats.queries.push({ query: subscription.binding.name, rows: keyed.size, subscribers: 1 });
+        nextBySubscription.set(subscription, keyed);
+      } catch (error) {
+        failures.set(subscription, error);
+      }
     }
     const elapsedMs = monotonicNow() - startedAt;
     for (const { subscription } of sqlTargets) {
@@ -818,8 +987,16 @@ export class SyncServer {
     // Diff + emit in the original connection/subscription order — delta
     // ordering on the wire is unchanged from the sequential implementation.
     for (const { connection, subscription } of targets) {
-      this.diffAndEmit(connection, subscription, nextBySubscription.get(subscription)!);
+      if (failures.has(subscription)) {
+        this.failQueryRerun(connection, subscription, failures.get(subscription));
+        continue;
+      }
+      const nextRows = nextBySubscription.get(subscription);
+      if (!nextRows) continue;
+      this.diffAndEmit(connection, subscription, nextRows);
+      this.recoverQuery(connection, subscription);
     }
+    this.emitCheckpoint();
     return stats;
   }
 
@@ -855,9 +1032,10 @@ export class SyncServer {
         deletes.push(id);
       }
     }
+    const orderChanged = !this.sameOrder(subscription.lastRows, nextRows);
     subscription.lastRows = nextRows;
     subscription.lastSeq = this.lastSeq;
-    if (puts.length > 0 || deletes.length > 0) {
+    if (puts.length > 0 || deletes.length > 0 || orderChanged) {
       connection.emit({
         type: 'delta',
         delta: {
@@ -872,7 +1050,7 @@ export class SyncServer {
     }
   }
 
-  /** Every live subscription with params, rerun hints, handler kind, and run stats. */
+  /** Every live subscription with params, dependencies, handler kind, and run stats. */
   debugSubscriptions(): SubscriptionDebugInfo[] {
     const infos: SubscriptionDebugInfo[] = [];
     for (const connection of this.connections.values()) {
@@ -882,10 +1060,11 @@ export class SyncServer {
           clientId: subscription.clientId,
           query: subscription.binding.name,
           params: subscription.params,
-          rerunOn: subscription.binding.handler.rerunOn ?? [],
+          dependsOn: subscription.binding.query.dependsOn,
           handlerKind: subscription.binding.handler.kind,
           rows: subscription.lastRows.size,
           lastSeq: subscription.lastSeq,
+          status: subscription.status,
           runs: subscription.runs,
           lastRunMs: subscription.lastRunMs
         });

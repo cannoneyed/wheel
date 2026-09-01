@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
-import { mutation, query, table } from '../declarations';
+import { mutation, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from './serve';
@@ -15,7 +15,7 @@ import { createSyncServer } from './node-engine';
 import { betterSqlite3Driver, type SqliteDriver } from './backends/sqlite-driver';
 
 const TodoRow = t.object({ id: t.string(), listId: t.string(), text: t.string() });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
 const todosByList = query({
   name: 'todos.byList',
   params: t.object({ listId: t.string() }),
@@ -30,7 +30,6 @@ const servers = {
     query: todosByList,
     handler: SqlQueryHandler({
       sql: (params) => sql`select id, list_id as "listId", text from todos where list_id = ${params.listId} order by id`,
-      rerunOn: ['todos'],
       // Raw table shape (snake_case) — deliberately not the projected row.
       prune: (image, params) =>
         image.o?.list_id === params.listId || image.n?.list_id === params.listId
@@ -89,13 +88,15 @@ describe('row-image pruning fallback', () => {
     const runsB = runsOf('list_b');
 
     // SQLite has no images, so both subscriptions re-run.
-    await server.mutate(
+    await server.mutateGroup(
       {
         clientId: 'web_prune',
         mutationId: 'm_0190b62e-0000-7000-8000-0000000000b1',
-        name: 'todos.add',
-        args: { listId: 'list_b', text: 'for b' },
-        ids: ['todo_0190b62e-0000-7000-8000-0000000000b2']
+        calls: [{
+          name: 'todos.add',
+          args: { listId: 'list_b', text: 'for b' },
+          ids: ['todo_0190b62e-0000-7000-8000-0000000000b2']
+        }]
       },
       principal
     );
@@ -105,13 +106,15 @@ describe('row-image pruning fallback', () => {
     expect(deltas).toEqual([subB.subscriptionId]);
 
     // The second write again re-runs both subscriptions.
-    await server.mutate(
+    await server.mutateGroup(
       {
         clientId: 'web_prune',
         mutationId: 'm_0190b62e-0000-7000-8000-0000000000a1',
-        name: 'todos.add',
-        args: { listId: 'list_a', text: 'for a' },
-        ids: ['todo_0190b62e-0000-7000-8000-0000000000a2']
+        calls: [{
+          name: 'todos.add',
+          args: { listId: 'list_a', text: 'for a' },
+          ids: ['todo_0190b62e-0000-7000-8000-0000000000a2']
+        }]
       },
       principal
     );

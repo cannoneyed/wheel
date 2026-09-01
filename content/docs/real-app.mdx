@@ -42,13 +42,13 @@ All from the repo root:
 
 | # | File | What it shows |
 | --- | --- | --- |
-| 1 | `src/sync/issues.sync.ts` | The contract: tables, queries, every mutation with its guess and its `invert` |
+| 1 | `src/sync/issues.sync.ts` | The contract: collections, queries, every mutation with its guess and its `invert` |
 | 2 | `src/sync/issues.server.ts` | The truth: the same mutations bound to SQL |
 | 3 | `src/services/issue-service.ts` | Where state lives: keyed views, keyed derivations, failed-write toasts |
 | 4 | `src/components/list/issue-list.tsx` | A connected component, complete, in fifty lines |
 | 5 | `src/services/issue-interaction-service.ts` | How to get past the three-service connect cap |
 
-**1. `src/sync/issues.sync.ts`.** One file declares the table shape, the queries, and every mutation with its optimistic guess and its `invert`. Read the module comment first: it explains why a new issue's id travels *in the args* (`invert` runs before the optimistic apply, so a create can only name its own inverse if the id already exists) and why the `number` field starts at the sentinel `0` (the `ENG-42` sequence is per-team and only the server can assign it race-free).
+**1. `src/sync/issues.sync.ts`.** One file declares the collection shapes, the queries, and every mutation with its optimistic guess and its `invert`. Read the module comment first: it explains why a new issue's id travels *in the args* (`invert` runs before the optimistic apply, so a create can only name its own inverse if the id already exists) and why the `number` field starts at the sentinel `0` (the `ENG-42` sequence is per-team and only the server can assign it race-free).
 
 **2. `src/sync/issues.server.ts`.** Two things to notice: the create handler computes `max(number) + 1` for the team, which is the field the client deliberately guessed wrong; and `requireActive(tx, issueId)` is a shared guard that throws `rejection('archived', …)`. Business rules live in small reusable helpers, not inline in each handler:
 
@@ -96,13 +96,13 @@ private watch(handle: MutationHandle, verb: string): MutationHandle {
 
 **8. `jobs/rollover.ts`.** The cycle rollover job runs raw SQL directly against the database, then calls `server.externalWrite({ tables: ['cycles', 'issues'] })`. The engine never saw a mutation; it learns which tables changed, re-runs the affected queries, and every subscribed client converges. `now` is a function argument so tests can pass a fixed clock, and ids are derived deterministically with `on conflict do nothing` so a rerun is a no-op. A webhook consumer or a cron worker writes through this same path.
 
-**9. `src/sync/search.server.ts`.** No sugar: a raw `QueryHandler` with SQLite FTS5, bm25 ranking, and *two* invalidation channels — `rerunOn: ['issues', 'comments']` for writes the engine can see, plus a `subscribe` push channel for changes it cannot. Read `toMatchExpr` for how user input becomes a safe MATCH expression.
+**9. `src/sync/search.server.ts`.** No sugar: a raw `QueryHandler` with SQLite FTS5, bm25 ranking, and *two* invalidation channels — `dependsOn: ['issues', 'comments']` in the shared query declaration for writes the engine can see, plus a `subscribe` push channel for changes it cannot. Read `toMatchExpr` for how user input becomes a safe MATCH expression.
 
 **10. `test/m5-fuzz.test.ts`.** Seeded weighted operations across three clients with network chaos, then four invariants checked at quiescence: every client holds identical rows, the sync log has no gaps, every write has a known cause, and no optimistic mutation is left pending. The same seed reproduces the same run forever, so a failing seed becomes a permanent fixture.
 
 ## The full walkthrough
 
-`packages/tracker/TOUR.md` is the long-form tour — the architecture in one breath, the war stories behind the four-outcome mutation model and the id-stream rules, split view, the keyboard layer, virtual tables, provenance UI, and what the app gave back to the framework. Read it with the app running and the five files above open.
+`packages/tracker/TOUR.md` is the long-form tour — the architecture in one breath, the war stories behind the four-outcome mutation model and the id-stream rules, split view, the keyboard layer, derived collections, provenance UI, and what the app gave back to the framework. Read it with the app running and the five files above open.
 
 Two more files worth a look once you are oriented: `src/machines/drag-machine.ts` is a hand-written state machine with the DOM kept entirely at its edges, unit-tested with no browser; and `src/components/shell/app-shell.tsx` is the whole layout in one screen of JSX.
 

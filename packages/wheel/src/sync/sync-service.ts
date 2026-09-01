@@ -13,13 +13,14 @@ import { canonicalParams } from '../core/params';
 import { captureDeclSite } from '../core/decl-site';
 import type { DebugMeta } from '../core/debug-registry';
 import { Service, INHERIT_SCOPE, type ComputedAccessor, type ComputedFor } from '../core/services';
-import type { MutationDecl, QueryDecl } from './declarations';
+import type { MutationCall, MutationDecl, QueryDecl } from './declarations';
 import type { SyncClient, MutationHandle, QueryHandle } from './client/client';
 
 /** Query subscription lifecycle, surfaced as a value. Errors are sticky. */
 export type QueryStatus =
   | { kind: 'loading' }
   | { kind: 'live' }
+  | { kind: 'stale'; error?: unknown }
   | { kind: 'error'; error: unknown };
 
 /** Live rows + status for one (query, params) subscription. */
@@ -105,19 +106,19 @@ export abstract class SyncService extends Service {
           return;
         }
         handle = h;
-        // Arrival is client-data invalidation for THIS query's table: bump
+        // Arrival is client-data invalidation for THIS query's collection: bump
         // its channel (and the coarse one for status readers).
-        context.bumpTables(new Set([query.into.name]));
+        context.bumpCollections(new Set([query.into.name]));
       })
       .catch((e) => {
         if (released) return;
         error = e;
-        context.bumpTables(new Set([query.into.name]));
+        context.bumpCollections(new Set([query.into.name]));
       });
 
     // IDENTITY-STABLE ROWS. The getter tracks only this query's TABLE
     // channel, and rebuilds the array only when that channel moved. Two
-    // consequences, both load-bearing: a write to another table re-derives
+    // consequences, both load-bearing: a write to another collection re-derives
     // nothing (the old shape re-ran every mounted rows consumer on every
     // change anywhere), and between changes every read returns the SAME
     // array, so a memo's `===` cut actually holds.
@@ -127,10 +128,10 @@ export abstract class SyncService extends Service {
       get status(): QueryStatus {
         context.trackVersion();
         if (error !== null) return { kind: 'error', error };
-        return handle ? { kind: 'live' } : { kind: 'loading' };
+        return handle ? handle.status() : { kind: 'loading' };
       },
       get rows(): readonly RowT[] {
-        const version = context.trackTable(query.into.name);
+        const version = context.trackCollection(query.into.name);
         if (cachedRows === null || cachedVersion !== version) {
           cachedRows = handle ? handle.rows() : [];
           cachedVersion = version;
@@ -256,5 +257,10 @@ export abstract class SyncService extends Service {
     args: Args
   ): MutationHandle {
     return this.client.mutate(mutation, args);
+  }
+
+  /** Fire several existing mutations as one atomic command. */
+  protected mutateGroup(calls: ReadonlyArray<MutationCall<any>>): MutationHandle {
+    return this.client.mutateGroup(calls);
   }
 }

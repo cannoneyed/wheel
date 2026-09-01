@@ -1,6 +1,6 @@
 {
   "name": "@cannoneyed/wheel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A local-first Solid application framework with observable services, sync, UI primitives, and deterministic test tools.",
   "type": "module",
   "license": "UNLICENSED",

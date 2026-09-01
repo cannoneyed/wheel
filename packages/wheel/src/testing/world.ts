@@ -15,7 +15,7 @@ import type { MutationRejection } from '../sync/declarations';
 import { SyncClient } from '../sync/client/client';
 import { MemoryCache } from '../sync/client/local-cache';
 import type { SyncTransport } from '../sync/client/transport';
-import type { MutateRequest, MutateResult, ServerEvent, Snapshot } from '../sync/protocol';
+import type { MutateGroupRequest, MutateResult, ServerEvent, Snapshot } from '../sync/protocol';
 import type { SyncConnection, SyncServer } from '../sync/server/engine';
 import { createSyncServer } from '../sync/server/node-engine';
 import type { DbRow } from '../sync/protocol';
@@ -139,9 +139,11 @@ class InProcessTransport implements SyncTransport {
     });
   }
 
-  mutate(request: MutateRequest): Promise<MutateResult> {
+  mutateGroup(request: MutateGroupRequest): Promise<MutateResult> {
     return this.network.run(request.clientId, async () => {
-      const scripted = this.rejections.findIndex((entry) => entry.mutation === request.name);
+      const scripted = this.rejections.findIndex((entry) =>
+        request.calls.some((call) => call.name === entry.mutation)
+      );
       if (scripted >= 0) {
         const [{ rejection }] = this.rejections.splice(scripted, 1);
         return { ok: false as const, rejection };
@@ -150,7 +152,7 @@ class InProcessTransport implements SyncTransport {
       if (!connection) {
         throw new Error(`World transport: client "${request.clientId}" is not connected.`);
       }
-      return this.server.mutate(request, connection.principal);
+      return this.server.mutateGroup(request, connection.principal);
     });
   }
 
@@ -219,6 +221,7 @@ export class World {
     readonly db: WorldDb,
     readonly server: SyncServer,
     private readonly seed: number,
+    private readonly syncModules: readonly object[],
     /** Release the database resources the World owns (no-op when the backend closes them on `server.close`). */
     private readonly disposeDb: () => Promise<void>
   ) {
@@ -251,7 +254,7 @@ export class World {
     });
     // The SqliteSyncBackend closes the shared driver on `server.close`, so the
     // World's own db-dispose is a no-op (closing twice would throw).
-    return new World(db, server, seed, () => Promise.resolve());
+    return new World(db, server, seed, options.syncModules, () => Promise.resolve());
   }
 
   /** Create (or fetch) a deterministic client with its own seeded ids. */
@@ -267,6 +270,7 @@ export class World {
       actor: options.actor ?? `user:${clientId}`,
       clock: fixedClock(WORLD_EPOCH + 1_000 * this.clientCounter, 1),
       randomBytes: seededRandomBytes(this.seed + this.clientCounter * 7919),
+      syncModules: this.syncModules,
       localCache: new MemoryCache()
     });
     await client.connect();

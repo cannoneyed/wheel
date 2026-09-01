@@ -14,4 +14,3 @@
 - `sm`, `md`, and `lg` change popup and every row slot together.
 - Disabled items remain visible, are skipped by navigation, and never activate.
 - Popup entry is immediate. Every closing level uses only the shared 100 ms fade-out.
-- Browser proof covers pointer, keyboard, typeahead, links, selection items, submenus, collision, RTL, and repeated openings.

@@ -1,5 +1,5 @@
 /**
- * The sync-side vocabulary: table / query / mutation declarations.
+ * The sync-side vocabulary: collection / query / mutation declarations.
  * Declarations are pure data + pure functions with zero dependencies beyond
  * Zod — safe in any bundle. Server implementations live in *.server.ts files
  * and are bound to these declarations by name (the split-file convention),
@@ -11,74 +11,72 @@ import { captureDeclSite } from '../core/decl-site';
 
 export { captureDeclSite };
 
-const TABLE_NAME = /^[a-z][a-z0-9_]*$/;
+const COLLECTION_NAME = /^[a-z][a-z0-9_]*$/;
 // Operation grammar: `<namespace>.<op>`. A query namespace must equal its
-// target table name. Mutation namespaces are organizational: one mutation may
-// touch several tables, so its name cannot prove a single target.
+// target collection name. Mutation namespaces are organizational: one mutation may
+// touch several collections, so its name cannot prove a single target.
 // The op segment stays camelCase for verb phrases (`byTeam`, `setRead`,
 // `bulkUpdate`). Plurality itself isn't regex-checkable — the namespace tracks
-// whatever the table is actually named (already plural/snake_case).
+// whatever the collection is actually named (already plural/snake_case).
 const OPERATION_NAME = /^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$/;
 
-/** Language-neutral description of how a table row becomes its wire/cache identity. */
-export interface TableKeySpec {
+/** Language-neutral description of how a collection row becomes its wire/cache identity. */
+export interface CollectionKeySpec {
   /** Top-level row fields read in order. One field is a simple key; several are joined. */
   readonly fields: readonly string[];
   /** Separator used only when `fields` contains more than one entry. */
   readonly separator: string;
 }
 
-/** A declared synced table: name, row schema, and key extractor - the unit the client cache pools rows by. */
-export interface TableDecl<Row extends Record<string, unknown> = Record<string, unknown>> {
-  readonly kind: 'table';
+/** A declared synced collection: name, row schema, and key extractor. */
+export interface CollectionDecl<Row extends Record<string, unknown> = Record<string, unknown>> {
+  readonly kind: 'collection';
   readonly name: string;
   readonly schema: RowSchema<Row>;
   readonly key: (row: Row) => string;
   /** Serializable equivalent of `key`, consumed by non-TypeScript sync engines. */
-  readonly keySpec: TableKeySpec;
-  /** True for derived tables: no physical table, no touch trigger; queries into it re-run via their watch lists. */
-  readonly virtual: boolean;
+  readonly keySpec: CollectionKeySpec;
   readonly declSite: string;
 }
 
-/** Run a table's key extractor and enforce the cache identity contract. */
-export function validateTableKey<Row extends Record<string, unknown>>(
-  table: TableDecl<Row>,
+/** Run a collection's key extractor and enforce the cache identity contract. */
+export function validateCollectionKey<Row extends Record<string, unknown>>(
+  collection: CollectionDecl<Row>,
   row: Row,
   source: string
 ): string {
   let key: unknown;
   try {
-    key = table.key(row);
+    key = collection.key(row);
   } catch (error) {
     throw new Error(
-      `${source}: key extractor for table "${table.name}" threw: ${String((error as Error)?.message ?? error)}`
+      `${source}: key extractor for collection "${collection.name}" threw: ${String((error as Error)?.message ?? error)}`
     );
   }
   if (typeof key !== 'string' || key.trim() === '') {
     throw new Error(
-      `${source}: key extractor for table "${table.name}" must return a non-empty string; received ${JSON.stringify(key)}.`
+      `${source}: key extractor for collection "${collection.name}" must return a non-empty string; received ${JSON.stringify(key)}.`
     );
   }
-  const keyParts = table.keySpec.fields.map((field) => row[field]);
+  const keyParts = collection.keySpec.fields.map((field) => row[field]);
   if (!keyParts.every((part) => typeof part === 'string')) {
     throw new Error(
-      `${source}: key spec for table "${table.name}" requires string fields ` +
-        `${table.keySpec.fields.map((field) => JSON.stringify(field)).join(', ')}.`
+      `${source}: key spec for collection "${collection.name}" requires string fields ` +
+        `${collection.keySpec.fields.map((field) => JSON.stringify(field)).join(', ')}.`
     );
   }
-  const declaredKey = (keyParts as string[]).join(table.keySpec.separator);
+  const declaredKey = (keyParts as string[]).join(collection.keySpec.separator);
   if (key !== declaredKey) {
     throw new Error(
-      `${source}: key extractor for table "${table.name}" returned ${JSON.stringify(key)}, ` +
+      `${source}: key extractor for collection "${collection.name}" returned ${JSON.stringify(key)}, ` +
         `but its key spec produced ${JSON.stringify(declaredKey)}.`
     );
   }
   return key;
 }
 
-/** Declare a synced table of immutable rows (sync-side; single options object). */
-export function table<Schema extends t.ZodType<Record<string, unknown>>>(options: {
+/** Declare a synced collection of immutable rows. */
+export function collection<Schema extends t.ZodType<Record<string, unknown>>>(options: {
   name: string;
   type: Schema;
   key: (row: Infer<Schema>) => string;
@@ -87,15 +85,11 @@ export function table<Schema extends t.ZodType<Record<string, unknown>>>(options
     fields: readonly string[];
     separator?: string;
   };
-  /**
-   * Derived table: the name maps to no physical table (a second row contract
-   * over an existing one, or a join). The engine installs no touch trigger;
-   * queries into it re-run purely through their watch lists.
-   */
-  virtual?: boolean;
-}): TableDecl<Infer<Schema>> {
-  if (!TABLE_NAME.test(options.name)) {
-    throw new Error(`Invalid table name ${JSON.stringify(options.name)}: must match ${TABLE_NAME}.`);
+}): CollectionDecl<Infer<Schema>> {
+  if (!COLLECTION_NAME.test(options.name)) {
+    throw new Error(
+      `Invalid collection name ${JSON.stringify(options.name)}: must match ${COLLECTION_NAME}.`
+    );
   }
   const fields = options.keySpec?.fields ?? ['id'];
   if (
@@ -103,22 +97,21 @@ export function table<Schema extends t.ZodType<Record<string, unknown>>>(options
     fields.some((field) => typeof field !== 'string' || field.trim() === '' || field.includes('.'))
   ) {
     throw new Error(
-      `Invalid key spec for table ${JSON.stringify(options.name)}: fields must be non-empty top-level property names.`
+      `Invalid key spec for collection ${JSON.stringify(options.name)}: fields must be non-empty top-level property names.`
     );
   }
   const separator = options.keySpec?.separator ?? ':';
   if (typeof separator !== 'string' || (fields.length > 1 && separator === '')) {
     throw new Error(
-      `Invalid key spec for table ${JSON.stringify(options.name)}: composite keys require a non-empty separator.`
+      `Invalid key spec for collection ${JSON.stringify(options.name)}: composite keys require a non-empty separator.`
     );
   }
   return {
-    kind: 'table',
+    kind: 'collection',
     name: options.name,
     schema: options.type as unknown as RowSchema<Infer<Schema>>,
     key: options.key,
     keySpec: Object.freeze({ fields: Object.freeze([...fields]), separator }),
-    virtual: options.virtual ?? false,
     declSite: captureDeclSite()
   };
 }
@@ -143,8 +136,8 @@ export function presence<Schema extends t.ZodType<Record<string, unknown>>>(opti
   name: string;
   state: Schema;
 }): PresenceDecl<Infer<Schema>> {
-  if (!TABLE_NAME.test(options.name)) {
-    throw new Error(`Invalid presence name ${JSON.stringify(options.name)}: must match ${TABLE_NAME}.`);
+  if (!COLLECTION_NAME.test(options.name)) {
+    throw new Error(`Invalid presence name ${JSON.stringify(options.name)}: must match ${COLLECTION_NAME}.`);
   }
   return {
     kind: 'presence',
@@ -165,17 +158,17 @@ export function presence<Schema extends t.ZodType<Record<string, unknown>>>(opti
  * mode and would otherwise silently corrupt the shared base state.
  */
 export interface OptimisticCache {
-  get<Row extends Record<string, unknown>>(table: TableDecl<Row>, id: string): Row | undefined;
-  list<Row extends Record<string, unknown>>(table: TableDecl<Row>): readonly Row[];
-  put<Row extends Record<string, unknown>>(table: TableDecl<Row>, row: Row): void;
-  update<Row extends Record<string, unknown>>(table: TableDecl<Row>, id: string, patch: Partial<Row>): void;
-  delete<Row extends Record<string, unknown>>(table: TableDecl<Row>, id: string): void;
+  get<Row extends Record<string, unknown>>(collection: CollectionDecl<Row>, id: string): Row | undefined;
+  list<Row extends Record<string, unknown>>(collection: CollectionDecl<Row>): readonly Row[];
+  put<Row extends Record<string, unknown>>(collection: CollectionDecl<Row>, row: Row): void;
+  update<Row extends Record<string, unknown>>(collection: CollectionDecl<Row>, id: string, patch: Partial<Row>): void;
+  delete<Row extends Record<string, unknown>>(collection: CollectionDecl<Row>, id: string): void;
 }
 
 /** Read-only view of the effective client state — what invert() captures old values from. */
 export interface CacheReader {
-  get<Row extends Record<string, unknown>>(table: TableDecl<Row>, id: string): Row | undefined;
-  list<Row extends Record<string, unknown>>(table: TableDecl<Row>): readonly Row[];
+  get<Row extends Record<string, unknown>>(collection: CollectionDecl<Row>, id: string): Row | undefined;
+  list<Row extends Record<string, unknown>>(collection: CollectionDecl<Row>): readonly Row[];
 }
 
 /**
@@ -215,7 +208,7 @@ export interface QueryProjection<Params extends Record<string, unknown>, Row ext
   readonly sort?: (a: Row, b: Row) => number;
 }
 
-/** A declared live query: named + typed params, target table, and optional client projection. SQL lives in the *.server.ts binding. */
+/** A declared live query: named, typed, and linked to one target collection. */
 export interface QueryDecl<
   Params extends Record<string, unknown> = Record<string, unknown>,
   Row extends Record<string, unknown> = Record<string, unknown>
@@ -223,7 +216,9 @@ export interface QueryDecl<
   readonly kind: 'query';
   readonly name: string;
   readonly params: t.ZodType<Params>;
-  readonly into: TableDecl<Row>;
+  readonly into: CollectionDecl<Row>;
+  /** Physical storage tables whose committed writes may change this query's answer. */
+  readonly dependsOn: readonly string[];
   readonly projection?: QueryProjection<Params, Row>;
   readonly declSite: string;
 }
@@ -232,7 +227,9 @@ export interface QueryDecl<
 export function query<ParamsSchema extends t.ZodType<Record<string, unknown>>, Row extends Record<string, unknown>>(options: {
   name: string;
   params: ParamsSchema;
-  into: TableDecl<Row>;
+  into: CollectionDecl<Row>;
+  /** Defaults to `into`. Derived collections name their physical sources; push-only sources use `[]`. */
+  dependsOn?: readonly string[];
   projection?: QueryProjection<Infer<ParamsSchema>, Row>;
 }): QueryDecl<Infer<ParamsSchema>, Row> {
   if (!OPERATION_NAME.test(options.name)) {
@@ -241,14 +238,22 @@ export function query<ParamsSchema extends t.ZodType<Record<string, unknown>>, R
   const namespace = options.name.slice(0, options.name.indexOf('.'));
   if (namespace !== options.into.name) {
     throw new Error(
-      `Invalid query name ${JSON.stringify(options.name)}: namespace "${namespace}" must equal target table "${options.into.name}".`
+      `Invalid query name ${JSON.stringify(options.name)}: namespace "${namespace}" must equal target collection "${options.into.name}".`
     );
+  }
+  const dependsOn = [...(options.dependsOn ?? [options.into.name])];
+  if (dependsOn.some((source) => !COLLECTION_NAME.test(source))) {
+    throw new Error(`Query ${JSON.stringify(options.name)} declares an invalid dependsOn source name.`);
+  }
+  if (new Set(dependsOn).size !== dependsOn.length) {
+    throw new Error(`Query ${JSON.stringify(options.name)} declares a duplicate dependsOn source.`);
   }
   return {
     kind: 'query',
     name: options.name,
     params: options.params as unknown as t.ZodType<Infer<ParamsSchema>>,
     into: options.into,
+    dependsOn: Object.freeze(dependsOn),
     projection: options.projection as unknown as QueryProjection<Infer<ParamsSchema>, Row> | undefined,
     declSite: captureDeclSite()
   };
@@ -263,6 +268,12 @@ export interface MutationDecl<Args extends Record<string, unknown> = Record<stri
   /** Declares this mutation undoable: capture the inverse BEFORE the optimistic apply (null = not invertible right now). */
   readonly invert?: (reader: CacheReader, args: Args) => InverseSpec | null;
   readonly declSite: string;
+}
+
+/** One existing mutation declaration and its arguments inside an atomic command. */
+export interface MutationCall<Args extends Record<string, unknown> = Record<string, unknown>> {
+  readonly mutation: MutationDecl<Args>;
+  readonly args: Args;
 }
 
 /** Declare a mutation (sync-side). The server handler binds to it by name in *.server.ts. */
@@ -294,7 +305,7 @@ export function mutation<ArgsSchema extends t.ZodType<Record<string, unknown>>>(
  *   export const projectUpdate = patchMutation({
  *     name: 'projects.update',
  *     args: t.object({ projectId: t.string(), patch: ProjectPatch }),
- *     table: projects,
+ *     collection: projects,
  *     id: (args) => args.projectId,
  *     description: 'edit project'
  *   });
@@ -315,7 +326,7 @@ export function patchMutation<
 >(options: {
   name: string;
   args: t.ZodType<Args>;
-  table: TableDecl<Row>;
+  collection: CollectionDecl<Row>;
   /** Which row this mutation patches, from its args. */
   id: (args: Args) => string;
   /** Extra fields merged into every apply (never restored by the inverse). */
@@ -325,7 +336,7 @@ export function patchMutation<
   /** Message for the orphan thrown when the row is already gone. */
   orphanMessage?: (id: string) => string;
 }): MutationDecl<Args> {
-  const { table, id } = options;
+  const { collection, id } = options;
   // Self-reference: `invert` runs long after this const initializes, so naming
   // `decl` inside it is safe (the same pattern hand-written inverses used).
   const decl = mutation({
@@ -333,13 +344,13 @@ export function patchMutation<
     args: options.args,
     optimistic: (cache, args, ctx) => {
       const rowId = id(args);
-      const row = cache.get(table, rowId);
-      if (!row) throw orphan(options.orphanMessage?.(rowId) ?? `${table.name} ${rowId} is gone`);
+      const row = cache.get(collection, rowId);
+      if (!row) throw orphan(options.orphanMessage?.(rowId) ?? `${collection.name} ${rowId} is gone`);
       const stamped = options.stamp ? options.stamp(ctx, args, row) : undefined;
-      cache.update(table, rowId, { ...(args.patch as Partial<Row>), ...stamped });
+      cache.update(collection, rowId, { ...(args.patch as Partial<Row>), ...stamped });
     },
     invert: (reader, args): InverseSpec | null => {
-      const row = reader.get(table, id(args));
+      const row = reader.get(collection, id(args));
       if (!row) return null;
       const prior: Record<string, unknown> = {};
       for (const field of Object.keys(args.patch)) prior[field] = row[field];

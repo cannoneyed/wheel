@@ -38,8 +38,7 @@ export const TEAMS_DDL = [
 
 export const usersAllServer = serveQuery({
   query: usersAll,
-  sql: () => sql`select id, name, initials, avatar_color as "avatarColor" from users order by name`,
-  rerunOn: ['users']
+  sql: () => sql`select id, name, initials, avatar_color as "avatarColor" from users order by name`
 });
 
 export const teamsAllServer = serveQuery({
@@ -48,16 +47,14 @@ export const teamsAllServer = serveQuery({
                         cycle_length_weeks as "cycleLengthWeeks",
                         estimates_enabled as "estimatesEnabled",
                         position
-                 from teams order by position`,
-  rerunOn: ['teams']
+                 from teams order by position`
 });
 
 export const statesByTeamServer = serveQuery({
   query: statesByTeam,
   sql: (params) => sql`select id, team_id as "teamId", name, type, color, position
                        from workflow_states where team_id = ${params.teamId}
-                       order by position`,
-  rerunOn: ['workflow_states']
+                       order by position`
 });
 
 export const teamUpdateServer = serveMutation({

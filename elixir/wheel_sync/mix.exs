@@ -4,7 +4,7 @@ defmodule WheelSync.MixProject do
   def project do
     [
       app: :wheel_sync,
-      version: "0.1.0",
+      version: "0.2.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -28,6 +28,7 @@ defmodule WheelSync.MixProject do
       {:jason, "~> 1.4"},
       {:jsv, "~> 0.22"},
       {:postgrex, "~> 0.22"},
+      {:telemetry, "~> 1.0"},
       {:websock_adapter, "~> 0.5"}
     ]
   end

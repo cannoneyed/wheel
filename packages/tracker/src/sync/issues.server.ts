@@ -89,8 +89,7 @@ export const issuesByTeamServer = serveQuery({
                archived_at as "archivedAt", created_at as "createdAt", updated_at as "updatedAt"
         from issues
         where team_id = ${params.teamId}
-        order by sort_order, id`,
-  rerunOn: ['issues']
+        order by sort_order, id`
 });
 
 /** issues.byProject — a project's issues across teams. */
@@ -105,8 +104,7 @@ export const issuesByProjectServer = serveQuery({
                archived_at as "archivedAt", created_at as "createdAt", updated_at as "updatedAt"
         from issues
         where project_id = ${params.projectId}
-        order by sort_order, id`,
-  rerunOn: ['issues']
+        order by sort_order, id`
 });
 
 /** issue_relations.byTeam — both directions live in one per-team subscription. */
@@ -115,8 +113,7 @@ export const relationsByTeamServer = serveQuery({
   sql: (params) =>
     sql`select id, team_id as "teamId", issue_id as "issueId", related_id as "relatedId", kind
         from issue_relations where team_id = ${params.teamId}
-        order by id`,
-  rerunOn: ['issue_relations']
+        order by id`
 });
 
 /** labels.forTeam — team labels plus workspace-level (team_id null) labels. */
@@ -125,8 +122,7 @@ export const labelsForTeamServer = serveQuery({
   sql: (params) =>
     sql`select id, team_id as "teamId", name, color from labels
         where team_id = ${params.teamId} or team_id is null
-        order by name, id`,
-  rerunOn: ['labels']
+        order by name, id`
 });
 
 /** issue_labels.byTeam — the join rows, denormalized by team. */
@@ -135,8 +131,7 @@ export const issueLabelsByTeamServer = serveQuery({
   sql: (params) =>
     sql`select issue_id as "issueId", label_id as "labelId", team_id as "teamId"
         from issue_labels where team_id = ${params.teamId}
-        order by issue_id, label_id`,
-  rerunOn: ['issue_labels']
+        order by issue_id, label_id`
 });
 
 /** Reject with a typed code unless the issue exists and is not archived. */

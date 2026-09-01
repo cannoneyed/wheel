@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Projects & cycles: virtual tables recompute through watch lists, the
+ * Projects & cycles: derived collections recompute through declared dependencies, the
  * rollover job's externalWrite reaches subscribed clients, and project flows
  * (create/assign/delete-unassigns) converge. Written without any
  * subscription polling — settle() covers lazy subscribes.
@@ -97,7 +97,7 @@ describe('projects & cycles', () => {
     await world.close();
   });
 
-  test('project_counts (virtual) recomputes when an issue completes — pure watch-list rerun', async () => {
+  test('project_counts recomputes when an issue completes through declared dependencies', async () => {
     const world = await makeWorld();
     const session = await primedSession(world, 'web_b');
     const projectId = SEED_PROJECTS[0].id;
@@ -119,7 +119,7 @@ describe('projects & cycles', () => {
     await world.close();
   });
 
-  test('cycle_stats (virtual) tracks scope and completion per cycle', async () => {
+  test('cycle_stats derived collection tracks scope and completion per cycle', async () => {
     const world = await makeWorld();
     const session = await primedSession(world, 'web_c');
     const activeCycle = seedCycleId(0, 2);

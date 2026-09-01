@@ -52,7 +52,7 @@ process that never touched a mutation. We'll get to how.
 Axle is three layers, each with one job:
 
 ```
-*.sync.ts  ──  the CONTRACT: tables, queries, mutations (shared client/server, Zod-typed)
+*.sync.ts  ──  the CONTRACT: collections, queries, mutations (shared client/server, Zod-typed)
 services/  ──  the STATE: singleton services own every subscription and every mutation call
 components ──  the VIEW: each component declares its exact data needs through connect()
 ```
@@ -245,16 +245,16 @@ swallow) are the written brief for the framework's future `machine()` primitive.
 
 ---
 
-## Derived tables and foreign writers
+## Derived collections and foreign writers
 
-Three tables in Axle have no physical existence. `project_counts`, `cycle_stats`, and
-`search_results` are **virtual**: their queries compute rows (a `GROUP BY` over issues, a
-`ts_rank` over text) and re-run purely through watch lists. Complete an issue and a project
+Three collections in Axle have no matching storage table. `project_counts`, `cycle_stats`, and
+`search_results` are **derived**: their queries compute rows (a `GROUP BY` over issues, a
+`ts_rank` over text) and re-run through declared dependencies. Complete an issue and a project
 progress bar updates on every client — no table written, no trigger fired, just a query
 whose answer changed.
 
 Search goes further: it's a fully hand-built `QueryHandler` (no sugar) with *two*
-invalidation channels — table hints for engine writes, and a push channel
+invalidation channels — declared dependencies for engine writes, and a push channel
 (`searchInvalidation.notify()`) for changes the engine can't see. The push channel's first
 real exercise found a genuine engine bug: push-triggered reruns emitted deltas at a stale
 sequence number that every client silently discarded. The engine now mints an audit-logged
@@ -332,7 +332,7 @@ within minutes.
 
 ## What it proved
 
-Axle covers the complete product-shaped path: multiple sync domains, projected and virtual
+Axle covers the complete product-shaped path: multiple sync domains, projected and derived
 queries, local and live services, connected component roots, a self-documenting keyboard
 map, undo, presence, provenance, and deterministic integration/fuzz/backend suites. The
 repository's tests and lint configuration are the source of those inventories; this tour

@@ -1,9 +1,94 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { SEED } from '../seed/seed';
 
 const actorId = SEED.users[0].id;
 const team = SEED.teams[0];
+
+async function seedPreviousContractCache(
+  page: Page,
+  names: { readonly stale: string; readonly queued: string }
+): Promise<{ readonly snapshotKey: string; readonly outboxKey: string }> {
+  return page.evaluate(
+    async ({ teamRow, staleName, queuedName }) => {
+      const storeScope = localStorage.getItem('axle.storeId');
+      if (!storeScope) throw new Error('Tracker did not create its cache scope.');
+      const snapshotScope = `${storeScope}|snapshots:v1`;
+      const outboxScope = `${storeScope}|outbox`;
+      const snapshotKey = `${snapshotScope}|teams.all|{}`;
+      const mutationId = 'm_0190b62e-0000-7000-8000-00000000beef';
+      const outboxKey = `${outboxScope}|${mutationId}`;
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('wheel:axle');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      await new Promise<void>((resolve, reject) => {
+        const transaction = database.transaction(['subscriptions', 'outbox'], 'readwrite');
+        transaction.objectStore('subscriptions').put({
+          storageKey: snapshotKey,
+          scope: snapshotScope,
+          key: 'teams.all|{}',
+          subscriptionId: 'old-contract-teams',
+          seq: 99,
+          rows: [{ ...teamRow, name: staleName }],
+          order: [teamRow.id]
+        });
+        transaction.objectStore('outbox').put({
+          storageKey: outboxKey,
+          scope: outboxScope,
+          mutationId,
+          calls: [
+            {
+              mutation: 'teams.update',
+              args: { teamId: teamRow.id, patch: { name: queuedName } },
+              ids: []
+            }
+          ],
+          preview: [
+            {
+              collection: 'teams',
+              rowId: teamRow.id,
+              value: { ...teamRow, name: queuedName }
+            }
+          ],
+          enqueuedAt: Date.now()
+        });
+        transaction.oncomplete = () => resolve();
+        transaction.onabort = () => reject(transaction.error);
+        transaction.onerror = () => reject(transaction.error);
+      });
+      database.close();
+      return { snapshotKey, outboxKey };
+    },
+    { teamRow: team, staleName: names.stale, queuedName: names.queued }
+  );
+}
+
+async function cacheRowsExist(
+  page: Page,
+  keys: { readonly snapshotKey: string; readonly outboxKey: string }
+): Promise<{ readonly snapshot: boolean; readonly outbox: boolean }> {
+  return page.evaluate(async ({ snapshotKey, outboxKey }) => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('wheel:axle');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const read = (store: string, key: string) =>
+      new Promise<boolean>((resolve, reject) => {
+        const request = database.transaction(store, 'readonly').objectStore(store).get(key);
+        request.onsuccess = () => resolve(request.result !== undefined);
+        request.onerror = () => reject(request.error);
+      });
+    const [snapshot, outbox] = await Promise.all([
+      read('subscriptions', snapshotKey),
+      read('outbox', outboxKey)
+    ]);
+    database.close();
+    return { snapshot, outbox };
+  }, keys);
+}
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((id) => {
@@ -65,6 +150,28 @@ test('boot, navigation, issue edit, keyboard, dialog focus, and offline state', 
   await expect(page.getByTestId('sync-badge')).toContainText('connected', {
     timeout: 15_000
   });
+});
+
+test('a row-contract upgrade retires snapshots and replays the stable outbox', async ({ page }) => {
+  const staleName = `${team.name} from an old row contract`;
+  const queuedName = `${team.name} after queued replay`;
+  const keys = await seedPreviousContractCache(page, { stale: staleName, queued: queuedName });
+
+  let blockSockets = true;
+  await page.routeWebSocket('**/sync/websocket**', (socket) => {
+    if (blockSockets) return socket.close({ code: 1012, reason: 'contract-upgrade-test' });
+    socket.connectToServer();
+  });
+
+  await page.reload();
+  await expect.poll(() => cacheRowsExist(page, keys)).toEqual({ snapshot: false, outbox: true });
+  await expect(page.getByText(staleName, { exact: true })).toHaveCount(0);
+
+  blockSockets = false;
+  await page.reload();
+  await expect(page.getByTestId('sync-badge')).toContainText('connected');
+  await expect(page.getByRole('heading', { name: queuedName })).toBeVisible();
+  await expect.poll(() => cacheRowsExist(page, keys)).toEqual({ snapshot: false, outbox: false });
 });
 
 test('framing resizes, restores, responds to its container, and accepts touch input', async ({

@@ -1,93 +1,208 @@
 {
   "subscribe": {
-    "protocol": 1,
+    "protocol": 3,
     "type": "subscribe",
     "requestId": "subscribe",
     "query": "widgets.all",
     "params": {}
   },
   "createAlpha": {
-    "protocol": 1,
-    "type": "mutate",
+    "protocol": 3,
+    "type": "mutateGroup",
     "requestId": "create-alpha",
-    "mutation": {
+    "command": {
       "clientId": "untrusted-client-id",
       "mutationId": "m_0190b62e-0000-7000-8000-000000000001",
-      "name": "widgets.create",
-      "args": {
-        "title": "Alpha λ",
-        "position": 1.25,
-        "active": true,
-        "note": null
-      },
-      "ids": ["widget_0190b62e-0000-7000-8000-000000000001"]
+      "calls": [
+        {
+          "name": "widgets.create",
+          "args": {
+            "title": "Alpha λ",
+            "position": 1.25,
+            "active": true,
+            "note": null
+          },
+          "ids": [
+            "widget_0190b62e-0000-7000-8000-000000000001"
+          ]
+        }
+      ]
     }
   },
   "createBeta": {
-    "protocol": 1,
-    "type": "mutate",
+    "protocol": 3,
+    "type": "mutateGroup",
     "requestId": "create-beta",
-    "mutation": {
+    "command": {
       "clientId": "untrusted-client-id",
       "mutationId": "m_0190b62e-0000-7000-8000-000000000002",
-      "name": "widgets.create",
-      "args": {
-        "title": "Béta",
-        "position": 2.5,
-        "active": false,
-        "note": ""
-      },
-      "ids": ["widget_0190b62e-0000-7000-8000-000000000002"]
+      "calls": [
+        {
+          "name": "widgets.create",
+          "args": {
+            "title": "Béta",
+            "position": 2.5,
+            "active": false,
+            "note": ""
+          },
+          "ids": [
+            "widget_0190b62e-0000-7000-8000-000000000002"
+          ]
+        }
+      ]
     }
   },
   "moveBetaFirst": {
-    "protocol": 1,
-    "type": "mutate",
+    "protocol": 3,
+    "type": "mutateGroup",
     "requestId": "move-beta",
-    "mutation": {
+    "command": {
       "clientId": "ignored",
       "mutationId": "m_0190b62e-0000-7000-8000-000000000003",
-      "name": "widgets.move",
-      "args": {
-        "widgetId": "widget_0190b62e-0000-7000-8000-000000000002",
-        "position": 0.5
-      },
-      "ids": []
+      "calls": [
+        {
+          "name": "widgets.move",
+          "args": {
+            "widgetId": "widget_0190b62e-0000-7000-8000-000000000002",
+            "position": 0.5
+          },
+          "ids": []
+        }
+      ]
+    }
+  },
+  "reorderBetaFirst": {
+    "protocol": 3,
+    "type": "mutateGroup",
+    "requestId": "reorder-beta",
+    "command": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000011",
+      "calls": [
+        {
+          "name": "widgets.reorder",
+          "args": {
+            "widgetId": "widget_0190b62e-0000-7000-8000-000000000002",
+            "sortOrder": 0.5
+          },
+          "ids": []
+        }
+      ]
     }
   },
   "deleteAlpha": {
-    "protocol": 1,
-    "type": "mutate",
+    "protocol": 3,
+    "type": "mutateGroup",
     "requestId": "delete-alpha",
-    "mutation": {
+    "command": {
       "clientId": "ignored",
       "mutationId": "m_0190b62e-0000-7000-8000-000000000004",
-      "name": "widgets.delete",
-      "args": {
-        "widgetId": "widget_0190b62e-0000-7000-8000-000000000001"
-      },
-      "ids": []
+      "calls": [
+        {
+          "name": "widgets.delete",
+          "args": {
+            "widgetId": "widget_0190b62e-0000-7000-8000-000000000001"
+          },
+          "ids": []
+        }
+      ]
     }
   },
   "pair": {
-    "protocol": 1,
-    "type": "mutate",
+    "protocol": 3,
+    "type": "mutateGroup",
     "requestId": "pair",
-    "mutation": {
+    "command": {
       "clientId": "ignored",
       "mutationId": "m_0190b62e-0000-7000-8000-000000000005",
-      "name": "widgets.pair",
-      "args": { "first": "First", "second": "Second" },
-      "ids": [
-        "widget_0190b62e-0000-7000-8000-000000000005",
-        "widget_0190b62e-0000-7000-8000-000000000006"
+      "calls": [
+        {
+          "name": "widgets.pair",
+          "args": {
+            "first": "First",
+            "second": "Second"
+          },
+          "ids": [
+            "widget_0190b62e-0000-7000-8000-000000000005",
+            "widget_0190b62e-0000-7000-8000-000000000006"
+          ]
+        }
+      ]
+    }
+  },
+  "touchAlpha": {
+    "protocol": 3,
+    "type": "mutateGroup",
+    "requestId": "touch-alpha",
+    "command": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000012",
+      "calls": [
+        {
+          "name": "widgets.touch",
+          "args": {
+            "widgetId": "widget_0190b62e-0000-7000-8000-000000000001"
+          },
+          "ids": []
+        }
+      ]
+    }
+  },
+  "noop": {
+    "protocol": 3,
+    "type": "mutateGroup",
+    "requestId": "noop",
+    "command": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000013",
+      "calls": [
+        {
+          "name": "system.noop",
+          "args": {},
+          "ids": []
+        }
+      ]
+    }
+  },
+  "breakQuery": {
+    "protocol": 3,
+    "type": "mutateGroup",
+    "requestId": "break-query",
+    "command": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000014",
+      "calls": [
+        {
+          "name": "widgets.breakQuery",
+          "args": {},
+          "ids": []
+        }
+      ]
+    }
+  },
+  "recoverQuery": {
+    "protocol": 3,
+    "type": "mutateGroup",
+    "requestId": "recover-query",
+    "command": {
+      "clientId": "ignored",
+      "mutationId": "m_0190b62e-0000-7000-8000-000000000015",
+      "calls": [
+        {
+          "name": "widgets.recoverQuery",
+          "args": {},
+          "ids": []
+        }
       ]
     }
   },
   "presence": {
-    "protocol": 1,
+    "protocol": 3,
     "type": "presence",
     "requestId": "presence",
-    "state": { "route": "/widgets", "cursor": null }
+    "state": {
+      "route": "/widgets",
+      "cursor": null
+    }
   }
 }

@@ -30,7 +30,7 @@ The DDL itself lives next to the bindings that use it — each `*.server.ts` exp
 
 A query binding answers two questions: *what are this query's rows right now*, and *when might that answer have changed*. Everything else — diffing, `seq`, whole-row deltas, schema validation — stays with the engine.
 
-`serveQuery({ query, sql, rerunOn })` is sugar. It desugars to `SqlQueryHandler`, which is useful when you want the third option, `prune`:
+`serveQuery({ query, sql })` is sugar. It desugars to `SqlQueryHandler`, which is useful when you want the third option, `prune`:
 
 ```ts
 // Excerpt: activityByIssue and Activity come from the matching .sync.ts module.
@@ -39,13 +39,12 @@ export const activityByIssueServer = serveQuery({
   handler: SqlQueryHandler<{ issueId: string }, Activity>({
     sql: (params) => sql`select id, issue_id as "issueId", detail from activity
                          where issue_id = ${params.issueId} order by created_at desc limit 50`,
-    rerunOn: ['activity'],
     prune: (image, params) => (image.n?.issue_id ?? image.o?.issue_id) === params.issueId
   })
 });
 ```
 
-`rerunOn: ['activity']` is coarse: *any* write to `activity` re-runs *every* open activity query. `prune` narrows that. It receives one touched row's before/after images — `image.o` and `image.n`, raw table shape with snake_case columns, not the query's projected row — and returns whether that write could possibly matter to this subscription. Return `false` for every touched row and the re-run is skipped entirely.
+The query's default `dependsOn: ['activity']` is coarse: *any* write to `activity` re-runs *every* open activity query. `prune` narrows that. It receives one touched row's before/after images — `image.o` and `image.n`, raw table shape with snake_case columns, not the query's projected row — and returns whether that write could possibly matter to this subscription. Return `false` for every touched row and the re-run is skipped entirely.
 
 <Aside kind="warning">
   <strong><code>prune</code> is an optimization, never authorization.</strong> It requires
@@ -57,13 +56,12 @@ export const activityByIssueServer = serveQuery({
   <code>principal</code>.
 </Aside>
 
-When SQL alone can't answer, drop to a hand-built `QueryHandler`. The tracker's full-text search is the reference (`packages/tracker/src/sync/search.server.ts`): FTS5 tables kept fresh by triggers, ranked by `bm25`, invalidated by *both* table hints and a push channel:
+When SQL alone can't answer, drop to a hand-built `QueryHandler`. The tracker's full-text search is the reference (`packages/tracker/src/sync/search.server.ts`): FTS5 tables kept fresh by triggers, ranked by `bm25`, invalidated by *both* declared dependencies and a push channel:
 
 ```ts
 // Intentionally condensed: search.server.ts builds a safer FTS5 match expression than this.
 export const searchHandler: QueryHandler<{ q: string }, SearchResult> = {
   kind: 'tracker-search',
-  rerunOn: ['issues', 'comments'],
   subscribe(_params, invalidate) {
     searchInvalidation.listeners.add(invalidate);
     return () => searchInvalidation.listeners.delete(invalidate);
@@ -74,7 +72,7 @@ export const searchHandler: QueryHandler<{ q: string }, SearchResult> = {
 };
 ```
 
-`ctx.query(text, params)` is read-only database access; `ctx.principal` is the identity authenticated when this subscription's connection opened. `subscribe(params, invalidate)` returns its own unsubscribe — call `invalidate()` whenever the answer *may* have changed and the engine coalesces one re-run plus diff onto its writer loop. A no-op change emits nothing, so over-notifying is cheap. An external index — Meilisearch, a materialized view, a webhook feed — plugs in here. At least one of `rerunOn` or `subscribe` is required; `serveQuery` throws at declaration time otherwise.
+`ctx.query(text, params)` is read-only database access; `ctx.principal` is the identity authenticated when this subscription's connection opened. `subscribe(params, invalidate)` returns its own unsubscribe — call `invalidate()` whenever the answer *may* have changed and the engine coalesces one re-run plus diff onto its writer loop. A no-op change emits nothing, so over-notifying is cheap. An external index — Meilisearch, a materialized view, a webhook feed — plugs in here. The query needs a non-empty `dependsOn` list or a handler `subscribe`; `serveQuery` throws at declaration time otherwise.
 
 Mutation handlers reject with `rejection(code, message)` from `wheel/sync` — a typed refusal the client surfaces as `info.rejection`, distinct from a crash. Pull repeated business rules into a guard helper and call it first:
 
@@ -192,6 +190,6 @@ The reference apps target SQLite. Three details show up in nearly every binding:
 
 ## Next
 
-- [Virtual tables](#/virtual-tables) — rows that never come from a table of their own.
+- [Derived collections](#/derived-collections) — rows that never come from a table of their own.
 - [A Real App](#/real-app) — `packages/tracker/src/sync/`, ten `.sync.ts` / `.server.ts` pairs with every rule above in production use.
 - [Live State](#/live-state) — what the engine does with the rows your handler returns.

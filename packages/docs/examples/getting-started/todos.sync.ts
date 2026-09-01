@@ -1,4 +1,4 @@
-import { mutation, orphan, query, t, table } from 'wheel/sync';
+import { mutation, orphan, query, t, collection } from 'wheel/sync';
 
 export const TodoRow = t.object({
   id: t.string(),
@@ -7,7 +7,7 @@ export const TodoRow = t.object({
   position: t.number()
 });
 
-export const todos = table({
+export const todos = collection({
   name: 'todos',
   type: TodoRow,
   key: (row) => row.id

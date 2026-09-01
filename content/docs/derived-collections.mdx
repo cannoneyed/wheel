@@ -1,0 +1,54 @@
+---
+title: Derived Collections
+---
+
+import { Aside } from '@docs/components/Aside';
+import { CodeExample } from '@docs/components/CodeExample';
+import derivedCollectionsSource from '@docs/examples/derived-collections/derived-collections.ts?example';
+
+# Derived collections
+
+Counts, ranks, and join results sync as rows even when no table stores them.
+
+A **derived collection** is a synced row contract with no matching storage table. A server query computes its rows. The query re-runs through its declared invalidation channels. Complete an issue and every client's progress bar updates: no count table, no count trigger, only a query whose answer changed.
+
+## Declare one
+
+Declare the row contract with `collection()`. Its query names physical source tables in `dependsOn`, or uses `[]` for a push-only source. Wheel derives the set of physical tables from every query's `dependsOn`; it does not need a second flag:
+
+<CodeExample example={derivedCollectionsSource} region="declaration" />
+
+The server binding is ordinary SQL that produces the derived rows. The shared query declaration owns the dependency list, so TypeScript and Elixir read the same data:
+
+<CodeExample example={derivedCollectionsSource} region="binding" />
+
+<Aside kind="note">
+  Do not write server-owned derived values from optimistic handlers. A count or rank is the
+  server's arithmetic. Optimistically update the source collection instead; the derived value
+  catches up after the server computes it.
+</Aside>
+
+## Push channels
+
+`dependsOn` covers writes the engine authored. When something outside the engine changes a derived query's answer — a background reindex, a foreign write — a hand-built `QueryHandler` adds a **push channel** through `subscribe`. The tracker's full-text search uses both:
+
+<CodeExample example={derivedCollectionsSource} region="push" />
+
+## Invalidation channels
+
+A query must offer at least one channel. `serveQuery` throws at boot when `dependsOn` is empty and the handler has no `subscribe`, so a query that can never update cannot ship by accident.
+
+| Channel | Declared with | Re-runs the query when |
+| --- | --- | --- |
+| Physical dependency | `dependsOn: ['issues']` on `query()` | The engine writes one of the named tables |
+| Push | `subscribe(params, invalidate)` | Your code calls `invalidate()` |
+
+## When a delta reaches clients
+
+`dependsOn` decides when to **re-check**. The diff decides whether clients hear anything. A re-run that produces the same rows emits nothing, so a coarse dependency costs wasted server re-runs — never a spurious client update.
+
+## Next
+
+- [Live State](#/live-state) — the full delta pipeline these re-runs feed.
+- [Server handlers](#/server-advanced) — the handler contract, id rules, and SQLite dialect notes.
+- [A Real App](#/real-app) — the tracker's search and count queries at production size.

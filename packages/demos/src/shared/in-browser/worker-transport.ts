@@ -126,8 +126,8 @@ export function createWorkerSyncTransport(options: WorkerTransportOptions): Sync
     async unsubscribe(clientId, subscriptionId) {
       await call({ op: 'unsubscribe', demo, clientId, subscriptionId });
     },
-    mutate(request) {
-      return call({ op: 'mutate', demo, request });
+    mutateGroup(request) {
+      return call({ op: 'mutateGroup', demo, request });
     },
     async setPresence(clientId, state) {
       await call({ op: 'presence', demo, clientId, state });

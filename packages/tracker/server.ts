@@ -34,6 +34,7 @@ import {
   TRACKER_APPLICATION_VERSION,
   TRACKER_MINIMUM_CLIENT_VERSION
 } from './sync-version';
+import { ROW_SCHEMA_FINGERPRINT } from './row-schema.generated';
 
 const config = loadTrackerServerConfig(process.env, process.argv[2]);
 if (config.databaseFilename !== ':memory:') {
@@ -69,6 +70,7 @@ const sockets = new SyncSocketServer({
   applicationVersion: TRACKER_APPLICATION_VERSION,
   minimumClientVersion: TRACKER_MINIMUM_CLIENT_VERSION,
   schemaVersion: TRACKER_MIGRATIONS.length,
+  rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
   maxMessageBytes: config.maxBodyBytes,
   messagesPerMinute: config.requestsPerMinute,
   detailedErrors: config.mode === 'demo'

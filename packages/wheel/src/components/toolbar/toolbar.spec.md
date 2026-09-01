@@ -13,4 +13,3 @@
 - Nested menus, popovers, and selects return focus to their owning Toolbar control.
 - Toolbar appears immediately and has no container motion.
 - Forced colors preserves group boundaries, separators, selected toggles, and focus rings.
-- Browser proof covers mixed controls, editing exceptions, RTL, orientation, nested popups, and dynamic insertion.

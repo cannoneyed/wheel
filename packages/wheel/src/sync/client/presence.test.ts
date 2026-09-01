@@ -40,7 +40,7 @@ function makeClient() {
     },
     subscribe: async () => ({ subscriptionId: 'sub_1', query: 'q', seq: 0, rows: [] }),
     unsubscribe: async () => {},
-    mutate: async () => ({ ok: true, seq: 1 }),
+    mutateGroup: async () => ({ ok: true, seq: 1 }),
     setPresence: async (_clientId, state) => {
       sends.push(state);
     },
@@ -52,6 +52,7 @@ function makeClient() {
     actor: 'user:test',
     clock: fixedClock(1_700_000_000_000, 1),
     randomBytes: seededRandomBytes(7),
+    syncModules: [{ editorPresence, counterPresence, cursorPresence, loosePresence }],
     localCache: new MemoryCache()
   });
   return { client, sends, pushEvent: (event: ServerEvent) => pushEvent(event) };

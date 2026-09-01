@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { mutation, query, rejection, table } from '../declarations';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { mutation, query, rejection, collection } from '../declarations';
 import { createIdGen, fixedClock, seededRandomBytes, type IdGen } from '../ids';
 import { t } from '../schema';
 import { sql } from '../sql';
@@ -15,8 +15,8 @@ const TodoRow = t.object({
   text: t.string(),
   done: t.boolean()
 });
-const todos = table({ name: 'todos', type: TodoRow, key: (row) => row.id });
-const notes = table({ name: 'notes', type: t.object({ id: t.string(), body: t.string() }), key: (row) => row.id });
+const todos = collection({ name: 'todos', type: TodoRow, key: (row) => row.id });
+const notes = collection({ name: 'notes', type: t.object({ id: t.string(), body: t.string() }), key: (row) => row.id });
 
 const todosByList = query({
   name: 'todos.byList', params: t.object({ listId: t.string() }), into: todos });
@@ -36,7 +36,13 @@ const driftedQuery = query({
   name: 'todos.drifted', params: t.object({}), into: todos });
 const duplicateTodos = query({
   name: 'todos.duplicates', params: t.object({}), into: todos });
+const brokenTodos = query({
+  name: 'todos.broken', params: t.object({}), into: todos });
+const flakyTodos = query({
+  name: 'todos.flaky', params: t.object({ listId: t.string() }), into: todos });
 let addHandlerRuns = 0;
+let flakyQueryFails = false;
+let flakySubscribeFails = false;
 
 const syncModule = {
   todos,
@@ -44,6 +50,8 @@ const syncModule = {
   todosByList,
   notesAll,
   duplicateTodos,
+  brokenTodos,
+  flakyTodos,
   addTodo,
   toggleTodo,
   deleteTodo,
@@ -55,27 +63,44 @@ const syncModule = {
 const servers = {
   todosByListServer: serveQuery({
   query: todosByList,
-    sql: (params) => sql`select id, list_id as "listId", text, done from todos where list_id = ${params.listId} order by id`,
-    rerunOn: ['todos']
+    sql: (params) => sql`select id, list_id as "listId", text, done from todos where list_id = ${params.listId} order by sort_rank, id`
   }),
   notesAllServer: serveQuery({
   query: notesAll,
-    sql: () => sql`select id, body from notes order by id`,
-    rerunOn: ['notes']
+    sql: () => sql`select id, body from notes order by id`
   }),
   driftedServer: serveQuery({
   query: driftedQuery,
     // Deliberately forgets `as "listId"` — the boundary net must catch this.
-    sql: () => sql`select id, list_id, text, done from todos order by id`,
-    rerunOn: ['todos']
+    sql: () => sql`select id, list_id, text, done from todos order by id`
   }),
   duplicateTodosServer: serveQuery({
     query: duplicateTodos,
     sql: () => sql`
       select id, list_id as "listId", text, done from todos
       union all
-      select id, list_id as "listId", text, done from todos`,
-    rerunOn: ['todos']
+      select id, list_id as "listId", text, done from todos`
+  }),
+  brokenTodosServer: serveQuery({
+    query: brokenTodos,
+    sql: () => sql`select id, list_id as "listId", text, done from missing_todos`
+  }),
+  flakyTodosServer: serveQuery({
+    query: flakyTodos,
+    handler: {
+      kind: 'test-flaky',
+      async run(params, ctx) {
+        if (flakyQueryFails) throw new Error('fixture query failed with private detail');
+        return ctx.query(
+          'select id, list_id as "listId", text, done from todos where list_id = ? order by sort_rank, id',
+          [params.listId]
+        ) as Promise<Array<typeof TodoRow._output>>;
+      },
+      subscribe() {
+        if (flakySubscribeFails) throw new Error('fixture subscribe failed');
+        return () => {};
+      }
+    }
   }),
   addTodoServer: serveMutation({
   mutation: addTodo,
@@ -122,13 +147,11 @@ const principal = {
 };
 
 async function mutate(name: string, args: unknown, generated: string[] = []) {
-  return server.mutate(
+  return server.mutateGroup(
     {
       clientId: 'test_client',
       mutationId: ids.newId('m'),
-      name,
-      args,
-      ids: generated
+      calls: [{ name, args, ids: generated }]
     },
     principal
   );
@@ -136,11 +159,20 @@ async function mutate(name: string, args: unknown, generated: string[] = []) {
 
 beforeEach(async () => {
   addHandlerRuns = 0;
+  flakyQueryFails = false;
+  flakySubscribeFails = false;
+  vi.spyOn(console, 'error').mockImplementation(() => {});
   driver = betterSqlite3Driver(':memory:');
   db = {
     query: (text, params) => Promise.resolve(driver.all(text, params))
   };
-  await db.query(`create table todos (id text primary key, list_id text not null, text text not null, done boolean not null)`);
+  await db.query(`create table todos (
+    id text primary key,
+    list_id text not null,
+    text text not null,
+    done boolean not null,
+    sort_rank real not null default 0
+  )`);
   await db.query(`create table notes (id text primary key, body text not null)`);
   ids = createIdGen({ clock: fixedClock(1_700_000_000_000, 1), randomBytes: seededRandomBytes(7) });
   server = await createSyncServer({
@@ -154,6 +186,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await server.close();
+  vi.restoreAllMocks();
 });
 
 function collectEvents(connection: ReturnType<SyncServer['connect']>): ServerEvent[] {
@@ -174,6 +207,7 @@ describe('subscribe + snapshot', () => {
     expect(snapshot.rows).toHaveLength(1);
     expect(snapshot.rows[0]).toMatchObject({ listId: 'l_1', text: 'first', done: false });
     expect(snapshot.seq).toBe(server.seq());
+    expect(snapshot.status).toEqual({ kind: 'live' });
   });
 
   test('unknown query and invalid params fail loudly', async () => {
@@ -183,6 +217,22 @@ describe('subscribe + snapshot', () => {
     await expect(
       connection.subscribe('todos.byList', { listId: 'l_1', extra: true })
     ).rejects.toThrow(/outside its JSON Schema contract/);
+  });
+
+  test('a failed source subscription leaves no connection state', async () => {
+    const connection = connect();
+    flakySubscribeFails = true;
+
+    await expect(connection.subscribe('todos.flaky', { listId: 'l_1' })).rejects.toThrow(
+      'fixture subscribe failed'
+    );
+    expect(connection.state().subscriptions).toEqual([]);
+
+    flakySubscribeFails = false;
+    await expect(connection.subscribe('todos.flaky', { listId: 'l_1' })).resolves.toMatchObject({
+      query: 'todos.flaky'
+    });
+    expect(connection.state().subscriptions).toHaveLength(1);
   });
 
   test('a hibernated connection restores subscription ids, baselines, and presence', async () => {
@@ -295,6 +345,112 @@ describe('mutation → sync log → delta', () => {
     expect(events.filter((event) => event.type === 'delta')).toHaveLength(0);
   });
 
+  test('an order-only change emits an empty delta with the new full order', async () => {
+    await mutate('todos.add', { listId: 'l_1', text: 'first' }, [ids.newId('todo')]);
+    await mutate('todos.add', { listId: 'l_1', text: 'second' }, [ids.newId('todo')]);
+    const connection = connect();
+    const events = collectEvents(connection);
+    const snapshot = await connection.subscribe('todos.byList', { listId: 'l_1' });
+    const [firstId, secondId] = snapshot.rows.map((row) => String(row.id));
+
+    await db.query('update todos set sort_rank = -1 where id = ?', [secondId]);
+    const seq = await server.externalWrite({ tables: ['todos'], source: 'test:reorder' });
+
+    expect(events).toContainEqual({
+      type: 'delta',
+      delta: {
+        subscriptionId: snapshot.subscriptionId,
+        query: todosByList.name,
+        seq,
+        puts: [],
+        deletes: [],
+        order: [secondId, firstId]
+      }
+    });
+  });
+
+  test('changed, unchanged, and unrelated commits each emit a checkpoint', async () => {
+    const connection = connect();
+    const events = collectEvents(connection);
+    await connection.subscribe('todos.byList', { listId: 'l_1' });
+
+    await mutate('todos.add', { listId: 'l_1', text: 'visible' }, [ids.newId('todo')]);
+    await mutate('todos.add', { listId: 'l_other', text: 'unchanged' }, [ids.newId('todo')]);
+    await mutate('notes.add', { body: 'unrelated' }, [ids.newId('note')]);
+
+    expect(events.filter((event) => event.type === 'checkpoint')).toEqual([
+      { type: 'checkpoint', seq: 1 },
+      { type: 'checkpoint', seq: 2 },
+      { type: 'checkpoint', seq: 3 }
+    ]);
+  });
+
+  test('a failed SQL group does not block a healthy group or the committed mutation', async () => {
+    const connection = connect();
+    const events = collectEvents(connection);
+    const healthy = await connection.subscribe('todos.byList', { listId: 'l_1' });
+    const broken = await connection.subscribe('todos.broken', {});
+    expect(broken.status).toMatchObject({ kind: 'error', error: { code: 'query_error' } });
+
+    const result = await mutate('todos.add', { listId: 'l_1', text: 'committed' }, [ids.newId('todo')]);
+
+    expect(result).toEqual({ ok: true, seq: 1 });
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'delta',
+      delta: expect.objectContaining({ subscriptionId: healthy.subscriptionId, seq: 1 })
+    }));
+    expect(events).toContainEqual({
+      type: 'query_status',
+      status: {
+        subscriptionId: broken.subscriptionId,
+        query: brokenTodos.name,
+        seq: 1,
+        status: {
+          kind: 'error',
+          error: { code: 'query_error', message: 'The live query failed.' }
+        }
+      }
+    });
+    expect(events).toContainEqual({ type: 'checkpoint', seq: 1 });
+  });
+
+  test('a failed rerun keeps rows stale and a later success returns live', async () => {
+    await mutate('todos.add', { listId: 'l_1', text: 'kept' }, [ids.newId('todo')]);
+    const connection = connect();
+    const events = collectEvents(connection);
+    const snapshot = await connection.subscribe('todos.flaky', { listId: 'l_1' });
+    expect(snapshot.rows).toHaveLength(1);
+
+    flakyQueryFails = true;
+    const failedRerun = await mutate('todos.add', { listId: 'l_other', text: 'trigger' }, [ids.newId('todo')]);
+    expect(failedRerun).toEqual({ ok: true, seq: 2 });
+    expect(events).toContainEqual({
+      type: 'query_status',
+      status: {
+        subscriptionId: snapshot.subscriptionId,
+        query: flakyTodos.name,
+        seq: 2,
+        status: {
+          kind: 'stale',
+          error: { code: 'query_error', message: 'The live query failed.' }
+        }
+      }
+    });
+    expect(server.debugSubscriptions().find((entry) => entry.id === snapshot.subscriptionId)?.rows).toBe(1);
+
+    flakyQueryFails = false;
+    await mutate('todos.add', { listId: 'l_other', text: 'recover' }, [ids.newId('todo')]);
+    expect(events).toContainEqual({
+      type: 'query_status',
+      status: {
+        subscriptionId: snapshot.subscriptionId,
+        query: flakyTodos.name,
+        seq: 3,
+        status: { kind: 'live' }
+      }
+    });
+  });
+
   test('seq is strictly monotonic across mutations', async () => {
     const seqs: number[] = [];
     for (let index = 0; index < 5; index += 1) {
@@ -309,12 +465,10 @@ describe('mutation → sync log → delta', () => {
     const request = {
       clientId: 'test_client',
       mutationId: ids.newId('m'),
-      name: 'todos.add',
-      args: { listId: 'l_1', text: 'once' },
-      ids: [ids.newId('todo')]
+      calls: [{ name: 'todos.add', args: { listId: 'l_1', text: 'once' }, ids: [ids.newId('todo')] }]
     };
-    const first = await server.mutate(request, principal);
-    const second = await server.mutate(request, principal);
+    const first = await server.mutateGroup(request, principal);
+    const second = await server.mutateGroup(request, principal);
     expect(first).toEqual(second);
     expect(addHandlerRuns).toBe(1);
   });
@@ -326,6 +480,53 @@ describe('mutation → sync log → delta', () => {
       error: { code: 'invalid_args' }
     });
     expect(addHandlerRuns).toBe(0);
+  });
+
+  test('validates every group member before running the first handler', async () => {
+    const result = await server.mutateGroup(
+      {
+        clientId: 'test_client',
+        mutationId: ids.newId('m'),
+        calls: [
+          { name: 'todos.add', args: { listId: 'l_1', text: 'first' }, ids: [ids.newId('todo')] },
+          { name: 'todos.add', args: { listId: 'l_1', text: 42 }, ids: [ids.newId('todo')] },
+          { name: 'todos.add', args: { listId: 'l_1', text: 'third' }, ids: [ids.newId('todo')] }
+        ]
+      },
+      principal
+    );
+    expect(result).toMatchObject({ ok: false, error: { code: 'invalid_args' } });
+    expect(addHandlerRuns).toBe(0);
+    expect(await db.query('select * from wheel_sync_log')).toHaveLength(0);
+  });
+
+  test('commits three group members under one sequence and one log row', async () => {
+    const result = await server.mutateGroup(
+      {
+        clientId: 'test_client',
+        mutationId: ids.newId('m'),
+        calls: ['first', 'second', 'third'].map((text) => ({
+          name: 'todos.add',
+          args: { listId: 'l_1', text },
+          ids: [ids.newId('todo')]
+        }))
+      },
+      principal
+    );
+    expect(result).toEqual({ ok: true, seq: 1 });
+    expect(addHandlerRuns).toBe(3);
+    expect(await db.query('select text from todos order by sort_rank')).toHaveLength(3);
+    expect(await db.query('select * from wheel_sync_log')).toHaveLength(1);
+  });
+
+  test('rejects 129 group members without running a handler', async () => {
+    const call = { name: 'todos.toggle', args: { todoId: 'todo_none' }, ids: [] };
+    const result = await server.mutateGroup(
+      { clientId: 'test_client', mutationId: ids.newId('m'), calls: Array.from({ length: 129 }, () => call) },
+      principal
+    );
+    expect(result).toMatchObject({ ok: false, error: { code: 'group_too_large' } });
+    expect(await db.query('select * from wheel_sync_log')).toHaveLength(0);
   });
 });
 
@@ -341,6 +542,27 @@ describe('rejection and rollback (typed values, not wire exceptions)', () => {
     expect(await db.query('select * from wheel_sync_log')).toHaveLength(0);
     expect(server.seq()).toBe(0);
   });
+
+  test('a later rejection rolls earlier group members back', async () => {
+    const result = await server.mutateGroup(
+      {
+        clientId: 'test_client',
+        mutationId: ids.newId('m'),
+        calls: [
+          {
+            name: 'todos.add',
+            args: { listId: 'l_1', text: 'must roll back' },
+            ids: [ids.newId('todo')]
+          },
+          { name: 'todos.forbidden', args: {}, ids: [] }
+        ]
+      },
+      principal
+    );
+    expect(result).toMatchObject({ ok: false, rejection: { code: 'forbidden' } });
+    expect(await db.query("select * from todos where text = 'must roll back'")).toHaveLength(0);
+    expect(await db.query('select * from wheel_sync_log')).toHaveLength(0);
+  });
 });
 
 describe('id replay', () => {
@@ -354,7 +576,7 @@ describe('id replay', () => {
   // These are VERDICTS about a broken mutation, not throws — a throw
   // would make clients park-and-retry a mutation that breaks identically
   // forever. Loud now means a typed, terminal error result.
-  function expectError(result: Awaited<ReturnType<typeof server.mutate>>, code: string, pattern: RegExp): void {
+  function expectError(result: Awaited<ReturnType<typeof server.mutateGroup>>, code: string, pattern: RegExp): void {
     if (result.ok || !('error' in result)) {
       throw new Error(`expected an error verdict, got ${JSON.stringify(result)}`);
     }
@@ -380,8 +602,8 @@ describe('id replay', () => {
 
   test('malformed mutation ids and row ids are refused', async () => {
     expectError(
-      await server.mutate(
-        { clientId: 'c', mutationId: 'not-an-id', name: 'todos.add', args: {}, ids: [] },
+      await server.mutateGroup(
+        { clientId: 'c', mutationId: 'not-an-id', calls: [{ name: 'todos.add', args: {}, ids: [] }] },
         principal
       ),
       'invalid_mutation_id',
@@ -392,19 +614,26 @@ describe('id replay', () => {
 });
 
 describe('the boundary net', () => {
-  test('snake_case drift in server SQL fails loudly, naming query and column', async () => {
+  test('snake_case drift returns an initial query error without exposing detail', async () => {
     await mutate('todos.add', { listId: 'l_1', text: 'x' }, [ids.newId('todo')]);
     const connection = connect();
-    await expect(connection.subscribe('todos.drifted', {})).rejects.toThrow(/todos\.drifted.*listId/s);
+    const snapshot = await connection.subscribe('todos.drifted', {});
+    expect(snapshot.rows).toEqual([]);
+    expect(snapshot.status).toEqual({
+      kind: 'error',
+      error: { code: 'query_error', message: 'The live query failed.' }
+    });
   });
 
-  test('duplicate result keys fail loudly with query, table, key, and row indexes', async () => {
+  test('duplicate result keys return an initial query error without exposing detail', async () => {
     await mutate('todos.add', { listId: 'l_1', text: 'duplicate me' }, [ids.newId('todo')]);
     const connection = connect();
-
-    await expect(connection.subscribe('todos.duplicates', {})).rejects.toThrow(
-      /Query "todos\.duplicates" returned duplicate key .* table "todos" at rows 0 and 1/
-    );
+    const snapshot = await connection.subscribe('todos.duplicates', {});
+    expect(snapshot.rows).toEqual([]);
+    expect(snapshot.status).toEqual({
+      kind: 'error',
+      error: { code: 'query_error', message: 'The live query failed.' }
+    });
   });
 });
 
@@ -429,7 +658,7 @@ describe('debug surface', () => {
     await connection.subscribe('todos.byList', { listId: 'l_1' });
     await mutate('todos.add', { listId: 'l_1', text: 'x' }, [ids.newId('todo')]);
     const [info] = server.debugSubscriptions();
-    expect(info).toMatchObject({ clientId: 'web_1', query: 'todos.byList', rows: 1, rerunOn: ['todos'] });
+    expect(info).toMatchObject({ clientId: 'web_1', query: 'todos.byList', rows: 1, dependsOn: ['todos'] });
     expect(info.runs).toBeGreaterThanOrEqual(2); // snapshot + rerun
     expect(info.lastSeq).toBe(server.seq());
   });

@@ -4,7 +4,7 @@
  * WebSocket (the browser). The client cannot tell them apart — that is
  * what makes World tests honest.
  */
-import type { MutateRequest, MutateResult, ServerEvent, Snapshot } from '../protocol';
+import type { MutateGroupRequest, MutateResult, ServerEvent, Snapshot } from '../protocol';
 
 /** Connection lifecycle shared by network and in-browser transports. */
 export type SyncConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'offline';
@@ -34,7 +34,9 @@ export interface SyncTransport {
   subscribe(clientId: string, queryName: string, params: unknown): Promise<Snapshot>;
   /** Immediately release one server subscription; local cache retention is separate. */
   unsubscribe(clientId: string, subscriptionId: string): Promise<void>;
-  mutate(request: MutateRequest): Promise<MutateResult>;
+  mutateGroup(request: MutateGroupRequest): Promise<MutateResult>;
+  /** Report that the connected server predates this command protocol. */
+  onIncompatibleServer?(listener: (message: string) => void): () => void;
   /** Ephemeral presence update — fire-and-forget, no seq, dies with the connection. */
   setPresence(clientId: string, state: Record<string, unknown> | null): Promise<void>;
   close(clientId: string): void;

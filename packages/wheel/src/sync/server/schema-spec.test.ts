@@ -1,13 +1,18 @@
 import { describe, expect, test } from 'vitest';
 
-import { mutation, presence, query, table } from '../declarations';
+import { mutation, presence, query, collection } from '../declarations';
 import { t } from '../schema';
 import { sql } from '../sql';
 import { serveMutation, serveQuery } from './serve';
-import { createSchemaSpec, stringifySchemaSpec } from './schema-spec';
+import {
+  createSchemaSpec,
+  fingerprintSnapshotRows,
+  stringifySchemaSpec,
+  type WheelSchemaSpec
+} from './schema-spec';
 
 function fixture() {
-  const memberships = table({
+  const memberships = collection({
     name: 'memberships',
     type: t.object({ orgId: t.string(), userId: t.string(), role: t.string() }),
     key: (row) => `${row.orgId}:${row.userId}`,
@@ -26,8 +31,7 @@ function fixture() {
   const servers = {
     allServer: serveQuery({
       query: all,
-      sql: () => sql`select org_id, user_id, role from memberships`,
-      rerunOn: ['memberships']
+      sql: () => sql`select org_id, user_id, role from memberships`
     }),
     addServer: serveMutation({ mutation: add, handler: async () => {} })
   };
@@ -35,26 +39,26 @@ function fixture() {
 }
 
 describe('createSchemaSpec', () => {
-  test('emits schemas, composite keys, rerun hints, and presence', () => {
+  test('emits schemas, composite keys, query dependencies, and presence', async () => {
     const { syncModule, servers } = fixture();
-    const spec = createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
+    const spec = await createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
     expect(spec).toMatchObject({
-      schemaSpecVersion: 1,
-      protocolVersion: 1,
-      tables: [
+      schemaSpecVersion: 4,
+      protocolVersion: 3,
+      rowSchemaFingerprint: expect.stringMatching(/^wheel-rows-sha256:[0-9a-f]{64}$/),
+      collections: [
         {
           name: 'memberships',
-          virtual: false,
           key: { fields: ['orgId', 'userId'], separator: ':' }
         }
       ],
       queries: [
-        { name: 'memberships.all', into: 'memberships', rerunOn: ['memberships'] }
+        { name: 'memberships.all', into: 'memberships', dependsOn: ['memberships'] }
       ],
       mutations: [{ name: 'memberships.add' }],
       presence: { name: 'cursors' }
     });
-    expect(spec.tables[0]!.jsonSchema).toMatchObject({
+    expect(spec.collections[0]!.jsonSchema).toMatchObject({
       type: 'object',
       additionalProperties: false,
       required: ['orgId', 'userId', 'role']
@@ -62,34 +66,120 @@ describe('createSchemaSpec', () => {
     expect(stringifySchemaSpec(spec).endsWith('\n')).toBe(true);
   });
 
-  test('fails on Zod parse behavior that plain JSON Schema cannot reproduce', () => {
+  test('fingerprints cached row shape, identity, and query ownership only', async () => {
+    const { syncModule, servers } = fixture();
+    const spec = await createSchemaSpec({ syncModules: [syncModule], servers: [servers] });
+    const original = spec.rowSchemaFingerprint;
+    const collection = spec.collections[0]!;
+    const query = spec.queries[0]!;
+    const schema = collection.jsonSchema as Record<string, unknown>;
+    const properties = schema.properties as Record<string, unknown>;
+    const required = schema.required as string[];
+
+    const reordered: WheelSchemaSpec = {
+      ...spec,
+      collections: [
+        {
+          ...collection,
+          jsonSchema: {
+            ...Object.fromEntries(Object.entries(schema).reverse()),
+            properties: Object.fromEntries(Object.entries(properties).reverse()),
+            required: [...required].reverse()
+          }
+        }
+      ]
+    };
+    await expect(fingerprintSnapshotRows(reordered)).resolves.toBe(original);
+
+    const archiveCollection = { ...collection, name: 'memberships_archive' };
+    const archiveQuery = { ...query, name: 'memberships.archive', into: archiveCollection.name };
+    const twoContracts = { collections: [collection, archiveCollection], queries: [query, archiveQuery] };
+    expect(
+      await fingerprintSnapshotRows({
+        collections: [...twoContracts.collections].reverse(),
+        queries: [...twoContracts.queries].reverse()
+      })
+    ).toBe(await fingerprintSnapshotRows(twoContracts));
+
+    const unrelated = {
+      ...spec,
+      queries: [{ ...query, paramsSchema: { type: 'string' }, dependsOn: ['other'] }],
+      mutations: [{ name: 'memberships.changed', argsSchema: { type: 'string' } }],
+      presence: { name: 'changed', stateSchema: { type: 'string' } }
+    };
+    await expect(fingerprintSnapshotRows(unrelated)).resolves.toBe(original);
+
+    const withField = {
+      ...spec,
+      collections: [
+        {
+          ...collection,
+          jsonSchema: {
+            ...schema,
+            properties: { ...properties, tag: { type: 'string' } },
+            required: [...required, 'tag']
+          }
+        }
+      ]
+    };
+    await expect(fingerprintSnapshotRows(withField)).resolves.not.toBe(original);
+    await expect(
+      fingerprintSnapshotRows({
+        ...spec,
+        collections: [{ ...collection, name: 'renamed_memberships' }]
+      })
+    ).resolves.not.toBe(original);
+    await expect(
+      fingerprintSnapshotRows({
+        ...spec,
+        collections: [{ ...collection, jsonSchema: { ...schema, required: required.slice(0, -1) } }]
+      })
+    ).resolves.not.toBe(original);
+    await expect(
+      fingerprintSnapshotRows({
+        ...spec,
+        collections: [{ ...collection, key: { ...collection.key, fields: [...collection.key.fields].reverse() } }]
+      })
+    ).resolves.not.toBe(original);
+    await expect(
+      fingerprintSnapshotRows({
+        ...spec,
+        collections: [{ ...collection, key: { ...collection.key, separator: '|' } }]
+      })
+    ).resolves.not.toBe(original);
+    await expect(
+      fingerprintSnapshotRows({ ...spec, queries: [{ ...query, into: 'other_table' }] })
+    ).resolves.not.toBe(original);
+  });
+
+  test('fails on Zod parse behavior that plain JSON Schema cannot reproduce', async () => {
     const { syncModule, servers } = fixture();
     const bad = mutation({
       name: 'memberships.defaulted',
       args: t.object({ role: t.string().default('member') })
     });
     const badServer = serveMutation({ mutation: bad, handler: async () => {} });
-    expect(() =>
+    await expect(
       createSchemaSpec({
         syncModules: [{ ...syncModule, bad }],
         servers: [{ ...servers, badServer }]
       })
-    ).toThrow(/input and output shapes differ/);
+    ).rejects.toThrow(/input and output shapes differ/);
   });
 
-  test('fails when key metadata does not name required string fields', () => {
+  test('fails when key metadata does not name required string fields', async () => {
     const { syncModule, servers } = fixture();
-    const invalid = table({
+    const invalid = collection({
       name: 'invalid_keys',
       type: t.object({ id: t.number() }),
       key: (row) => String(row.id),
       keySpec: { fields: ['id'] }
     });
-    expect(() =>
+    await expect(
       createSchemaSpec({
         syncModules: [{ ...syncModule, invalid }],
         servers: [servers]
       })
-    ).toThrow(/key field "id" must be a string/);
+    ).rejects.toThrow(/key field "id" must be a string/);
   });
 });
