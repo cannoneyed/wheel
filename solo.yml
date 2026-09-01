@@ -69,6 +69,20 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  spoke:server:
+    command: bun run dev:spoke:server
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  spoke:dev:
+    command: bun run dev:spoke
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
   docs:
     command: bun run dev:docs
     working_dir: null

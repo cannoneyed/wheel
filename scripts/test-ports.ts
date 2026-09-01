@@ -41,7 +41,13 @@ export const TEST_PORTS = {
   /** The Chalk SQLite server or Durable Object worker. */
   chalkSync: 4904,
   /** The Chalk production build under `vite preview`. */
-  chalkPreview: 4905
+  chalkPreview: 4905,
+  /** The Spoke SQLite server or backend worker. */
+  spokeSync: 4906,
+  /** The Spoke production build under `vite preview`. */
+  spokePreview: 4907,
+  /** The second Spoke server node. */
+  spokeSecondSync: 4908
 } as const;
 
 /** `http://127.0.0.1:<port>` for one reserved test port. */

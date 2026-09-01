@@ -131,6 +131,10 @@ Record dated decisions that change the plan. Update the plan in the same change.
   before extending the required path.
 - 2026-08-31: Do not tag the single-client Tracker smoke as `conv-basic`. Phase 2 adds the real
   two-client proof and runs it on SQLite and Durable Objects.
+- 2026-09-01: Name Spoke read and unread queries `channel_reads.forMember` and
+  `unread_counts.forMember`. Wheel requires a query namespace to match its target collection.
+  Keep `channel_members` as an internal collection because it drives invalidation but must never
+  materialize on a client.
 
 ## Wheel library changes
 

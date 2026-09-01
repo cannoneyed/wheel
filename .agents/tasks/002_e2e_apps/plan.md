@@ -144,8 +144,9 @@ comment threads are outside this plan. Add one only when it proves a missing Whe
 Spoke exercises append-heavy streams, several workspaces, and principal-dependent results.
 
 - Collections: `members`, `channels`, `messages`, `channel_reads`; derived
-  `unread_counts`.
-- Queries: `channels.forMember`, `messages.byChannel`, `unread.forMember`.
+  `unread_counts`; internal invalidation-only `channel_members`.
+- Queries: `members.all`, `channels.forMember`, `messages.byChannel`,
+  `channel_reads.forMember`, `unread_counts.forMember`.
 - Mutations: `message.send`, `message.edit`, `message.delete`, `channel.create`,
   `channel.join`, `reads.mark`.
 - Presence: online members and typing state per channel.

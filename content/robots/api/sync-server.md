@@ -360,13 +360,13 @@ Backend install options — mirrors the engine's DB-shaped `createSyncServer` op
 
 ## `SyncConnection`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:155](../../../packages/wheel/src/sync/server/engine.ts#L155).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:161](../../../packages/wheel/src/sync/server/engine.ts#L161).
 
 One client's server-side presence: subscribe, events out, and death-drops-subscriptions.
 
 ## `SyncConnectionState`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:147](../../../packages/wheel/src/sync/server/engine.ts#L147).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:153](../../../packages/wheel/src/sync/server/engine.ts#L153).
 
 The connection state Cloudflare stores with a hibernatable WebSocket.
 
@@ -390,7 +390,7 @@ Server-owned lifecycle for one query scope.
 
 ## `SyncServer`
 
-Kind: class. Source: [packages/wheel/src/sync/server/engine.ts:178](../../../packages/wheel/src/sync/server/engine.ts#L178).
+Kind: class. Source: [packages/wheel/src/sync/server/engine.ts:184](../../../packages/wheel/src/sync/server/engine.ts#L184).
 
 The engine: ONE writer loop serializing subscribes, mutations, and re-runs - seq disorder and bootstrap races are unrepresentable (see module doc).
 
@@ -438,7 +438,7 @@ Version policy, limits, engine, and observability for one WebSocket server.
 
 ## `SyncSubscriptionState`
 
-Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:140](../../../packages/wheel/src/sync/server/engine.ts#L140).
+Kind: interface. Source: [packages/wheel/src/sync/server/engine.ts:146](../../../packages/wheel/src/sync/server/engine.ts#L146).
 
 One live-query descriptor that can rebuild its in-memory comparison baseline after hibernation.
 

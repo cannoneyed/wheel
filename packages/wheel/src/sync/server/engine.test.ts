@@ -43,6 +43,7 @@ const flakyTodos = query({
 let addHandlerRuns = 0;
 let flakyQueryFails = false;
 let flakySubscribeFails = false;
+let presenceAudience: ((recipientActor: string, state: Record<string, unknown>) => boolean) | null;
 
 const syncModule = {
   todos,
@@ -161,6 +162,7 @@ beforeEach(async () => {
   addHandlerRuns = 0;
   flakyQueryFails = false;
   flakySubscribeFails = false;
+  presenceAudience = null;
   vi.spyOn(console, 'error').mockImplementation(() => {});
   driver = betterSqlite3Driver(':memory:');
   db = {
@@ -180,7 +182,8 @@ beforeEach(async () => {
     syncModules: [syncModule],
     servers: [servers],
     clock: fixedClock(1_700_000_000_000, 1),
-    randomBytes: seededRandomBytes(42)
+    randomBytes: seededRandomBytes(42),
+    presenceFilter: ({ recipient, state }) => presenceAudience?.(recipient.actor, state) ?? true
   });
 });
 
@@ -198,6 +201,38 @@ function collectEvents(connection: ReturnType<SyncServer['connect']>): ServerEve
 function connect(clientId = 'web_1') {
   return server.connect(clientId, principal);
 }
+
+describe('presence visibility', () => {
+  test('filters bootstrap, updates, audience changes, and clears', async () => {
+    presenceAudience = (recipientActor, state) =>
+      state.channelId === 'public' || recipientActor === 'user:member';
+    const sender = server.connect('web_sender', { ...principal, actor: 'user:sender' });
+    const member = server.connect('web_member', { ...principal, actor: 'user:member' });
+    const outsider = server.connect('web_outsider', { ...principal, actor: 'user:outsider' });
+    const memberEvents = collectEvents(member);
+    const outsiderEvents = collectEvents(outsider);
+
+    server.setPresence(sender.clientId, { channelId: 'private', typing: true });
+    expect(memberEvents).toContainEqual(expect.objectContaining({ type: 'presence', state: { channelId: 'private', typing: true } }));
+    expect(outsiderEvents.some((event) => event.type === 'presence')).toBe(false);
+
+    const lateMember = server.connect('web_late_member', { ...principal, actor: 'user:member' });
+    const lateOutsider = server.connect('web_late_outsider', { ...principal, actor: 'user:outsider' });
+    const lateMemberEvents = collectEvents(lateMember);
+    const lateOutsiderEvents = collectEvents(lateOutsider);
+    await Promise.resolve();
+    expect(lateMemberEvents).toContainEqual(expect.objectContaining({ type: 'presence', state: { channelId: 'private', typing: true } }));
+    expect(lateOutsiderEvents.some((event) => event.type === 'presence')).toBe(false);
+
+    server.setPresence(sender.clientId, { channelId: 'public', typing: true });
+    expect(outsiderEvents).toContainEqual(expect.objectContaining({ type: 'presence', state: { channelId: 'public', typing: true } }));
+    server.setPresence(sender.clientId, { channelId: 'private', typing: false });
+    expect(outsiderEvents.at(-1)).toMatchObject({ type: 'presence', state: null });
+
+    sender.close();
+    expect(memberEvents.at(-1)).toMatchObject({ type: 'presence', state: null });
+  });
+});
 
 describe('subscribe + snapshot', () => {
   test('snapshot returns validated rows and the current seq', async () => {

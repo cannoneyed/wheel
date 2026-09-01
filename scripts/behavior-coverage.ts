@@ -30,7 +30,8 @@ const APP_DIRECTORIES: Record<BehaviorApp, string> = {
 const CI_STEPS: Partial<Record<`${BehaviorApp}/${BehaviorCatalogEntry['primary']['backend']}`, string>> = {
   'axle/sqlite': 'check-browser-apps-sqlite',
   'rounds/sqlite': 'check-browser-apps-sqlite',
-  'chalk/sqlite': 'check-browser-apps-sqlite'
+  'chalk/sqlite': 'check-browser-apps-sqlite',
+  'spoke/sqlite': 'check-browser-apps-sqlite'
 };
 
 function taggedTests(source: BehaviorSource): Array<{ readonly id: string; readonly file: string }> {

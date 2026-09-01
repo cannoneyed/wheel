@@ -111,6 +111,12 @@ export interface SyncServerOptions {
   servers: object[];
   clock?: Clock;
   randomBytes?: RandomBytes;
+  /** Restrict each presence payload to principals allowed to receive it. Errors fail closed. */
+  presenceFilter?: (input: {
+    readonly sender: AuthPrincipal;
+    readonly recipient: AuthPrincipal;
+    readonly state: PresenceState;
+  }) => boolean;
   /**
    * Opt-in Tier-1 pruning: install row-level triggers capturing old/new row
    * images per write, letting handlers with a `prune` predicate skip
@@ -300,7 +306,11 @@ export class SyncServer {
       connection.emit({ type: 'hello', clientId });
       // Ephemeral channel bootstrap: the newcomer learns everyone's current presence.
       for (const other of this.connections.values()) {
-        if (other !== connection && other.presence !== null) {
+        if (
+          other !== connection &&
+          other.presence !== null &&
+          this.presenceVisible(other.principal, connection.principal, other.presence)
+        ) {
           connection.emit({
             type: 'presence',
             clientId: other.clientId,
@@ -355,10 +365,10 @@ export class SyncServer {
 
   /** @internal */
   dropConnection(clientId: string): void {
-    const actor = this.connections.get(clientId)?.principal.actor;
+    const dropped = this.connections.get(clientId);
     this.connections.delete(clientId);
-    if (actor) {
-      this.broadcastPresence(clientId, null, actor);
+    if (dropped) {
+      this.broadcastPresence(clientId, dropped.principal, dropped.presence, null);
     }
   }
 
@@ -378,19 +388,37 @@ export class SyncServer {
         throw error;
       }
     }
+    const previous = connection.presence;
     connection.presence = state;
-    this.broadcastPresence(clientId, state, connection.principal.actor);
+    this.broadcastPresence(clientId, connection.principal, previous, state);
+  }
+
+  private presenceVisible(
+    sender: AuthPrincipal,
+    recipient: AuthPrincipal,
+    state: PresenceState
+  ): boolean {
+    if (!this.options.presenceFilter) return true;
+    try {
+      return this.options.presenceFilter({ sender, recipient, state });
+    } catch (error) {
+      logger.error('wheel: presence visibility check failed', { sender, recipient }, error);
+      return false;
+    }
   }
 
   private broadcastPresence(
     clientId: string,
-    state: PresenceState | null,
-    actor: string
+    sender: AuthPrincipal,
+    previous: PresenceState | null,
+    next: PresenceState | null
   ): void {
     for (const connection of this.connections.values()) {
-      if (connection.clientId !== clientId) {
-        connection.emit({ type: 'presence', clientId, actor, state });
-      }
+      if (connection.clientId === clientId) continue;
+      const sawPrevious = previous !== null && this.presenceVisible(sender, connection.principal, previous);
+      const seesNext = next !== null && this.presenceVisible(sender, connection.principal, next);
+      if (seesNext) connection.emit({ type: 'presence', clientId, actor: sender.actor, state: next });
+      else if (sawPrevious) connection.emit({ type: 'presence', clientId, actor: sender.actor, state: null });
     }
   }
 
