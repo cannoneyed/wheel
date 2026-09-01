@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
 import { TEST_PORTS, testOrigin } from '../../scripts/test-ports';
+import { behaviorReport } from '../../scripts/playwright-behavior-report';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const baseURL = process.env.ROUNDS_BROWSER_BASE_URL ?? testOrigin(TEST_PORTS.roundsPreview);
@@ -9,6 +10,7 @@ const syncOrigin = testOrigin(TEST_PORTS.roundsSync);
 const upgrade = process.env.ROUNDS_UPGRADE === '1';
 
 export default defineConfig({
+  ...behaviorReport(repoRoot, 'rounds', 'sqlite', upgrade ? 'upgrade' : 'default'),
   testDir: './browser',
   testIgnore: '**/support/**',
   grep: upgrade ? /@upgrade/ : undefined,
@@ -16,7 +18,6 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'line',
   globalSetup: fileURLToPath(new URL('../../scripts/verify-server-identity.ts', import.meta.url)),
   use: {
     ...devices['Desktop Chrome'],

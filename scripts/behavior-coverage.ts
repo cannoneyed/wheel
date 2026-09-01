@@ -37,6 +37,13 @@ const CI_STEPS: Partial<Record<`${BehaviorApp}/${BehaviorCatalogEntry['primary']
   'spoke/two-node-postgres': 'check-spoke-postgres'
 };
 
+const CI_STEP_OVERRIDES: Readonly<Record<string, string>> = {
+  'dur-epoch': 'check-rounds-upgrade',
+  'contract-retire': 'check-rounds-upgrade',
+  'contract-outbox': 'check-rounds-upgrade',
+  'contract-reload': 'check-rounds-upgrade'
+};
+
 function taggedTests(source: BehaviorSource): Array<{ readonly id: string; readonly file: string }> {
   const tags: Array<{ id: string; file: string }> = [];
   const testTitle = /\btest(?:\.(?:only|skip|fixme))?\(\s*(['"`])([^'"`\n]*)\1/g;
@@ -70,7 +77,7 @@ export function validateBehaviorCoverage(input: CoverageInput): string[] {
     }
 
     const pair = `${row.primary.app}/${row.primary.backend}` as const;
-    const ciStep = CI_STEPS[pair];
+    const ciStep = CI_STEP_OVERRIDES[row.id] ?? CI_STEPS[pair];
     if (!ciStep || !input.pipeline.includes(`key: "${ciStep}"`)) {
       errors.push(`primary behavior ${row.id} has no CI leg for ${pair}`);
     }
@@ -116,6 +123,7 @@ if (import.meta.main) {
     const required = BEHAVIOR_CATALOG.filter(
       (entry) => !entry.stretch && entry.phase <= BEHAVIOR_COVERAGE_PHASE
     ).length;
-    console.log(`behavior coverage: ${required} active primary tags; ${BEHAVIOR_CATALOG.length} catalog rows`);
+    const stretch = BEHAVIOR_CATALOG.filter((entry) => entry.stretch).length;
+    console.log(`behavior coverage: ${required} required primary tags; ${stretch} stretch tag`);
   }
 }

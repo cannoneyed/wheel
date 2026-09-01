@@ -106,6 +106,41 @@ private watch(handle: MutationHandle, verb: string): MutationHandle {
 
 Two more files worth a look once you are oriented: `src/machines/drag-machine.ts` is a hand-written state machine with the DOM kept entirely at its edges, unit-tested with no browser; and `src/components/shell/app-shell.tsx` is the whole layout in one screen of JSX.
 
+## Browser proof portfolio
+
+Axle is the broad product example. Three smaller applications force different sync shapes without copying its full feature set.
+
+| App | Product shape | Primary proof surface | Backend legs |
+| --- | --- | --- | --- |
+| Axle | Issue tracker | Separate-client convergence and overlapping queries | SQLite, Postgres, Durable Objects |
+| Rounds | Shared checklist | Offline replay, checkpoints, server resets, and row-contract upgrades | SQLite default and upgrade configurations |
+| Chalk | Document editor | Command groups, undo, rebase, server-owned order, comments, metadata, and presence | SQLite and Durable Objects |
+| Spoke | Team chat | Principal-scoped rows and presence, aggregates, external writes, workspace isolation, and node recovery | SQLite, Postgres, Durable Objects, and two Postgres nodes |
+
+The catalog in `test/behaviors/catalog.ts` assigns one primary app and backend to each behavior. A behavior needs one browser proof. An unchanged suite runs on another backend only when that backend adds a routing, storage, or delivery risk.
+
+The 31 required primary tags block the matrix. `ws-hibernate` is separate stretch coverage. Forced Durable Object eviction and stale-attachment tests remain required even when a deployed hibernation run is unavailable.
+
+### Run the app suites
+
+Buildkite runs the complete matrix. These commands run one local leg from the repository root:
+
+| Command | Leg |
+| --- | --- |
+| `bun run test:browser:tracker:sqlite` | Axle on SQLite |
+| `bun run test:browser:tracker:postgres` | Axle on Elixir/Postgres |
+| `bun run test:browser:tracker:do` | Axle on a local Durable Object |
+| `bun run test:browser:rounds` | Rounds default contract |
+| `bun run test:browser:rounds:upgrade` | Rounds contract upgrade |
+| `bun run test:browser:chalk:sqlite` | Chalk on SQLite |
+| `bun run test:browser:chalk:do` | Chalk on a local Durable Object |
+| `bun run test:browser:spoke:sqlite` | Spoke on SQLite |
+| `bun run test:browser:spoke:do` | Spoke on local Durable Objects |
+
+Rounds uses an external browser-test controller for restart, storage reset, and one-shot query failure. Browser code still owns browser network faults. The `wheel/no-browser-support-in-production` lint rule prevents production modules from importing the controller.
+
+Each behavior app writes Playwright JSON with its app, backend, and variant. The matrix joins those reports to the catalog. Missing, skipped, failed, or duplicate primary proofs fail the final coverage step and appear in its Buildkite annotation.
+
 ## Next
 
 - [Live State](#/live-state) — the sync module and server binding those first two files use.

@@ -22,8 +22,8 @@ behavior IDs, and results here before the next phase starts.
 | 4. Rounds upgrade and restart configurations | `M` | Complete | [Build 150](https://buildkite.com/cannoneyed/wheel/builds/150) |
 | 5. Promote the editor into Chalk | `L` | Complete | [Build 156](https://buildkite.com/cannoneyed/wheel/builds/156), [matrix 154](https://buildkite.com/cannoneyed/wheel/builds/154) |
 | 6. Spoke app and authorization behaviors | `L` | Complete | [Build 159](https://buildkite.com/cannoneyed/wheel/builds/159) |
-| 7. Spoke backend configurations | `L` | In progress | — |
-| 8. Runtime coverage gate and CI matrix | `M` | Not started | — |
+| 7. Spoke backend configurations | `L` | Complete | [Build 163](https://buildkite.com/cannoneyed/wheel/builds/163), [matrix 169](https://buildkite.com/cannoneyed/wheel/builds/169) |
+| 8. Runtime coverage gate and CI matrix | `M` | In progress | — |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`.
 Only one phase may be `In progress`.
@@ -89,14 +89,14 @@ Only one phase may be `In progress`.
 
 ### Phase 7
 
-- [ ] The same Spoke spec files run on Durable Objects and Postgres.
-- [ ] `ws-isolation` passes on Durable Objects.
-- [ ] `conv-external` passes on Postgres.
-- [ ] The two-node script starts one Postgres service and two Elixir nodes on explicit ports.
-- [ ] `node-delivery` and `node-recovery` pass.
-- [ ] The Elixir test-only path writes one durable log row without sending a notification.
-- [ ] Existing forced hibernation and stale-attachment worker tests remain required.
-- [ ] Deployed `ws-hibernate` is recorded as pass, fail, or unrun stretch work.
+- [x] The same Spoke spec files run on Durable Objects and Postgres.
+- [x] `ws-isolation` passes on Durable Objects.
+- [x] `conv-external` passes on Postgres.
+- [x] The two-node script starts one Postgres service and two Elixir nodes on explicit ports.
+- [x] `node-delivery` and `node-recovery` pass.
+- [x] The Elixir test-only path writes one durable log row without sending a notification.
+- [x] Existing forced hibernation and stale-attachment worker tests remain required.
+- [x] Deployed `ws-hibernate` is recorded as pass, fail, or unrun stretch work.
 
 ### Phase 8
 
@@ -143,6 +143,7 @@ changes out of this table.
 
 | Phase | Finding | Wheel change | State |
 |---|---|---|---|
+| 7 | The Elixir runtime had no equivalent of the TypeScript server's principal-scoped presence filter. | Added the same fail-closed `presence_filter` callback to `wheel_sync`. Bootstrap, audience changes, and disconnect clears use it. | Complete in [matrix 169](https://buildkite.com/cannoneyed/wheel/builds/169). |
 | 6 | Presence was workspace-wide, so a private-channel client could expose its state to non-members. | Added a fail-closed `presenceFilter` at the shared server broadcast boundary. Bootstrap, audience changes, and disconnect clears use the same policy. | Complete in [Build 159](https://buildkite.com/cannoneyed/wheel/builds/159). |
 | 3 | A socket-level reconnect reported `connected` before the engine generation event re-queued acknowledged commands. The first flush saw nothing, and the later event stranded the outbox. | Restarted the shared outbox flush when the engine hello queues prior-generation confirmations. Added the browser proof and reversed-order unit case. | Complete in [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147). |
 | 3 | A production entry could import browser fault controls without a static failure. | Added `wheel/no-browser-support-in-production`, its Linter API proof, repository wiring, and lint docs. | Complete in [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147). |
@@ -154,6 +155,24 @@ changes out of this table.
 ## Work log
 
 Newest entry first.
+
+### 2026-09-01: Phase 7, Spoke backend and node proofs
+
+- Commands: `bun run check:static`; `bun run test`; `bun run test:cloudflare`; Spoke Durable
+  Object, Postgres, and multi-node browser commands; Elixir format, compile, and Postgres tests.
+- Environment: local, [Buildkite build 163](https://buildkite.com/cannoneyed/wheel/builds/163),
+  and [matrix build 169](https://buildkite.com/cannoneyed/wheel/builds/169).
+- Behaviors proven: `ws-isolation` on Durable Objects, `conv-external` on Postgres, and
+  `node-delivery` plus `node-recovery` across two Elixir nodes.
+- Result: the unchanged five-test Spoke suite passes on Durable Objects and Postgres. Both
+  two-node browser tests pass against one Postgres database and fixed ports. The missed-write
+  control inserts one ordinary row and sync-log entry without `pg_notify`; periodic catch-up
+  reaches the other node once. Existing forced hibernation and stale-attachment worker tests
+  remain in the required Worker suite. Clean CI needed an explicit Elixir dependency bootstrap
+  and an origin allowlist for direct multi-node browser sockets. No new dependency was added.
+- Stretch: deployed `ws-hibernate` is unrun. Local Cloudflare credentials are absent, and matrix
+  jobs do not receive deployment secrets. The required forced-eviction proof passed instead.
+- Follow-ups: Phase 8. `solo.yml` contains two Elixir Spoke nodes; human Sync is pending.
 
 ### 2026-09-01: Phase 6, Spoke authorization proof
 

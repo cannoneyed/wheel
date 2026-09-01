@@ -50,7 +50,7 @@ steps:
 
   - label: ":chromium: Browser apps (SQLite)"
     key: "check-browser-apps-sqlite"
-    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard" || build.env("WHEEL_CI_MODE") == "matrix"
     timeout_in_minutes: 30
     plugins:
       - mise#v1.1.5:
@@ -82,6 +82,7 @@ steps:
       - "mkdir -p .artifacts && tar -czf .artifacts/wheel-dist.tgz -C packages/wheel dist"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.tracker.jsonc"
     artifact_paths:
+      - ".artifacts/behavior-results/*.json"
       - "test-results/**/*"
       - "playwright-report/**/*"
       - "packages/tracker/dist/**/*"
@@ -89,7 +90,7 @@ steps:
 
   - label: ":elixir: Browser apps (Elixir/Postgres) and behaviors"
     key: "check-browser-apps-postgres"
-    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard" || build.env("WHEEL_CI_MODE") == "matrix"
     timeout_in_minutes: 30
     plugins:
       - mise#v1.1.5:
@@ -104,12 +105,13 @@ steps:
         wait "$$behaviors_pid" || status=$$?
         exit "$$status"
     artifact_paths:
+      - ".artifacts/behavior-results/*.json"
       - "test-results/**/*"
       - "playwright-report/**/*"
 
   - label: ":cloudflare: Browser app (Durable Object)"
     key: "check-browser-apps-do"
-    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard" || build.env("WHEEL_CI_MODE") == "matrix"
     timeout_in_minutes: 30
     plugins:
       - mise#v1.1.5:
@@ -118,6 +120,7 @@ steps:
       - "bun install --frozen-lockfile"
       - "bun run test:browser:tracker:do"
     artifact_paths:
+      - ".artifacts/behavior-results/*.json"
       - "test-results/**/*"
       - "playwright-report/**/*"
 
@@ -251,6 +254,7 @@ steps:
       - "bun install --frozen-lockfile"
       - "bun run test:browser:rounds:upgrade"
     artifact_paths:
+      - ".artifacts/behavior-results/*.json"
       - "test-results/**/*"
       - "playwright-report/**/*"
 
@@ -265,6 +269,7 @@ steps:
       - "bun install --frozen-lockfile"
       - "bun run test:browser:chalk:do"
     artifact_paths:
+      - ".artifacts/behavior-results/*.json"
       - "test-results/**/*"
       - "playwright-report/**/*"
 
@@ -279,6 +284,7 @@ steps:
       - "bun install --frozen-lockfile"
       - "bun run test:browser:spoke:do"
     artifact_paths:
+      - ".artifacts/behavior-results/*.json"
       - "test-results/**/*"
       - "playwright-report/**/*"
 
@@ -293,8 +299,48 @@ steps:
       - "bun install --frozen-lockfile"
       - "bash scripts/ci/test-spoke-multinode.sh"
     artifact_paths:
+      - ".artifacts/behavior-results/*.json"
       - "test-results/**/*"
       - "playwright-report/**/*"
+
+  - label: ":bar_chart: Runtime behavior coverage"
+    key: "check-behavior-results"
+    if: build.env("WHEEL_CI_MODE") == "matrix"
+    depends_on:
+      - step: "check-browser-apps-sqlite"
+        allow_failure: true
+      - step: "check-browser-apps-postgres"
+        allow_failure: true
+      - step: "check-browser-apps-do"
+        allow_failure: true
+      - step: "check-rounds-upgrade"
+        allow_failure: true
+      - step: "check-chalk-do"
+        allow_failure: true
+      - step: "check-spoke-do"
+        allow_failure: true
+      - step: "check-spoke-postgres"
+        allow_failure: true
+    timeout_in_minutes: 10
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - |
+        mkdir -p .artifacts/behavior-results
+        for step in check-browser-apps-sqlite check-browser-apps-postgres check-browser-apps-do check-rounds-upgrade check-chalk-do check-spoke-do check-spoke-postgres; do
+          buildkite-agent artifact download '.artifacts/behavior-results/*.json' . --step "$$step" || true
+        done
+      - |
+        status=0
+        bun scripts/behavior-results.ts > .artifacts/behavior-coverage.md || status=$$?
+        style=success
+        if [ "$$status" -ne 0 ]; then style=error; fi
+        buildkite-agent annotate --context wheel-behavior-coverage --style "$$style" < .artifacts/behavior-coverage.md
+        exit "$$status"
+    artifact_paths:
+      - ".artifacts/behavior-coverage.md"
 
   - label: ":wastebasket: Cleanup branch Workers"
     key: "cleanup-branches"

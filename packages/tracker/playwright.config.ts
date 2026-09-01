@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
 import { TEST_PORTS, testOrigin } from "../../scripts/test-ports";
+import { behaviorReport } from "../../scripts/playwright-behavior-report";
 
 /**
  * Playwright resolves `webServer.cwd` against the CONFIG file, not the repo
@@ -47,11 +48,11 @@ const baseURL =
     : testOrigin(TEST_PORTS.trackerPreview));
 
 export default defineConfig({
+  ...behaviorReport(repoRoot, "axle", backend),
   testDir: "./browser",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "github" : "line",
   globalSetup: fileURLToPath(
     new URL("../../scripts/verify-server-identity.ts", import.meta.url),
   ),

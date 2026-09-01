@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
 import { TEST_PORTS, testOrigin } from '../../scripts/test-ports';
+import { behaviorReport } from '../../scripts/playwright-behavior-report';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const backend = process.env.CHALK_BROWSER_BACKEND ?? 'sqlite';
@@ -12,11 +13,11 @@ const syncOrigin = testOrigin(TEST_PORTS.chalkSync);
 const baseURL = override ?? (backend === 'do' ? syncOrigin : testOrigin(TEST_PORTS.chalkPreview));
 
 export default defineConfig({
+  ...behaviorReport(repoRoot, 'chalk', backend),
   testDir: './browser',
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'line',
   globalSetup: fileURLToPath(new URL('../../scripts/verify-server-identity.ts', import.meta.url)),
   use: {
     ...devices['Desktop Chrome'],

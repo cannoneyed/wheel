@@ -51,6 +51,14 @@ Persist a failing seed and operations as `ReplayFixture`. `replayFixture()` veri
 
 Repository demo behaviors run against standalone HTTP sync and embedded in-browser sync. Every active behavior spec id maps to one test and recording.
 
+## Real-app browser coverage
+
+`test/behaviors/catalog.ts` assigns each required behavior one primary app and backend. Axle, Rounds, Chalk, and Spoke use literal `@behavior:<id>` titles. `scripts/behavior-coverage.ts --check` validates the source assignment and Buildkite leg without claiming a test passed.
+
+CI reports pass coverage separately. Each app config adds `behaviorApp`, `behaviorBackend`, and `behaviorVariant` to Playwright JSON. The matrix downloads those reports and runs `scripts/behavior-results.ts`. Missing, skipped, failed, and duplicate primary proofs fail the matrix.
+
+The standard path runs the primary SQLite suites plus Axle Postgres and Durable Objects. `WHEEL_CI_MODE=matrix` adds Rounds upgrades, Chalk Durable Objects, Spoke Durable Objects, Spoke Postgres, and the two-node Spoke suite. `ws-hibernate` is a reported stretch proof; forced worker hibernation remains required.
+
 ## Deterministic utilities
 
 `fixedClock`, `seededRandomBytes`, `createIdGen`, and `manualScheduler` remove wall-clock and random schedule drift.

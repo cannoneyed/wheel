@@ -147,6 +147,22 @@ describe("Buildkite pipeline manifest", () => {
     ).toHaveLength(0);
   });
 
+  test("aggregates runtime behavior results in the full matrix", () => {
+    for (const key of [
+      "check-browser-apps-sqlite",
+      "check-browser-apps-postgres",
+      "check-browser-apps-do",
+    ]) {
+      expect(step(key)).toContain('build.env("WHEEL_CI_MODE") == "matrix"');
+      expect(step(key)).toContain('".artifacts/behavior-results/*.json"');
+    }
+
+    const coverage = step("check-behavior-results");
+    expect(coverage).toContain("bun scripts/behavior-results.ts");
+    expect(coverage).toContain("buildkite-agent annotate");
+    expect(coverage.match(/allow_failure: true/g)).toHaveLength(7);
+  });
+
   // Build 47 used the hosted image's Node 20 instead of .mise.toml. The native
   // SQLite dependency then tried to compile, but that image has no node-gyp.
   test("installs the repository toolchain before every Bun job", () => {
@@ -191,6 +207,10 @@ describe("Buildkite pipeline manifest", () => {
     expect(elixirBackends).toContain('cat /proc/1/comm');
     expect(elixirBackends).not.toContain("--network host");
     expect(elixirBackends).not.toContain("--publish 55432:5432");
+    expect(spokeMultinode).toContain('--publish "127.0.0.1:$port:$port"');
+    expect(spokeMultinode).toContain(
+      "SPOKE_ALLOWED_ORIGINS=http://127.0.0.1:4906,http://127.0.0.1:4907,http://127.0.0.1:4908",
+    );
   });
 
   test("injects Cloudflare secrets only into deploy and cleanup", () => {

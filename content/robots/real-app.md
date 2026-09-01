@@ -1,8 +1,21 @@
-# Real application: tracker
+# Real applications
 
 Human page: [A real app](../docs/real-app.mdx).
 
-The tracker application, Axle, exercises local-first sync, routing, framing, kit systems, components, authentication modes, jobs, search, tests, and production process controls.
+Axle is the broad product example. Rounds, Chalk, and Spoke provide focused browser proofs for sync behaviors that need distinct application shapes.
+
+## Portfolio
+
+| App | Role | Required configurations |
+| --- | --- | --- |
+| Axle (`packages/tracker`) | Product-scale tracker and baseline multi-client convergence | SQLite, Elixir/Postgres, Durable Objects |
+| Rounds (`packages/rounds`) | Offline durability and row-contract changes | SQLite default and upgrade |
+| Chalk (`packages/chalk`) | Collaborative editor groups, ordering, metadata, comments, undo, and presence | SQLite, Durable Objects |
+| Spoke (`packages/spoke`) | Authorization, aggregates, external writes, workspace routing, and multi-node delivery | SQLite, Elixir/Postgres, Durable Objects, two Postgres nodes |
+
+`test/behaviors/catalog.ts` owns the 31 required behavior IDs and the `ws-hibernate` stretch ID. Each row names one primary app and backend. Extra backend runs keep the same spec files and exist only for backend-specific risk.
+
+`scripts/behavior-coverage.ts --check` validates source tags and CI legs. Matrix browser jobs emit Playwright JSON through `scripts/playwright-behavior-report.ts`. `scripts/behavior-results.ts` rejects missing, skipped, failed, or duplicate primary proofs and renders the Buildkite annotation.
 
 ## Run
 
@@ -12,6 +25,24 @@ bun run tracker
 ```
 
 Default mode uses memory SQLite and demo identity. It resets on restart.
+
+Focused browser commands:
+
+```sh
+bun run test:browser:tracker:sqlite
+bun run test:browser:rounds
+bun run test:browser:rounds:upgrade
+bun run test:browser:chalk:sqlite
+bun run test:browser:chalk:do
+bun run test:browser:spoke:sqlite
+bun run test:browser:spoke:do
+```
+
+Use Buildkite for the full Postgres and two-node matrix. Those scripts own isolated databases, nodes, and explicit test ports.
+
+Rounds keeps restart, database reset, and one-shot query failure in `packages/rounds/browser/support/server-controller.ts`. Production imports from browser support fail lint.
+
+Forced Durable Object eviction and stale-attachment refusal remain required worker tests. A deployed `ws-hibernate` proof is stretch coverage and must be recorded as pass, fail, or unrun.
 
 ## Read in order
 
@@ -35,4 +66,4 @@ Default mode uses memory SQLite and demo identity. It resets on restart.
 
 ## Do not copy blindly
 
-Demo auth trusts local controls. Default storage is ephemeral. The tracker demonstrates framework patterns; application identity, provisioning, authorization policy, and operations remain product-specific.
+Demo auth trusts local controls. Default storage is ephemeral. These applications demonstrate framework patterns; identity, provisioning, authorization policy, and operations remain product-specific.
