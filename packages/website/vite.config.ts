@@ -45,6 +45,10 @@ export default defineConfig({
       { find: /^wheel\/auth$/, replacement: here('../wheel/src/auth/index.ts') },
       { find: /^wheel\/config$/, replacement: here('../wheel/src/config/index.ts') },
       { find: /^wheel\/core$/, replacement: here('../wheel/src/core/index.ts') },
+      {
+        find: /^wheel\/sync\/server\/cloudflare$/,
+        replacement: here('../wheel/src/sync/server/cloudflare.ts')
+      },
       { find: /^wheel\/sync\/server$/, replacement: here('../wheel/src/sync/server/index.ts') },
       { find: /^wheel\/sync$/, replacement: here('../wheel/src/sync/index.ts') },
       { find: /^wheel\/kit$/, replacement: here('../wheel/src/kit/index.ts') },
