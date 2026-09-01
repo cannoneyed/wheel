@@ -1,10 +1,14 @@
+import { ROW_SCHEMA_FINGERPRINT } from './row-schema.generated';
 import { ROUNDS_SERVERS } from './server/modules';
+import { ROUNDS_SYNC_MODULES } from './src/sync/modules';
 import { startRoundsServer } from './server/runtime';
 
 const runtime = await startRoundsServer({
   port: Number(process.env.ROUNDS_PORT ?? process.env.PORT) || 4802,
   databaseFilename: process.env.ROUNDS_DATABASE_FILENAME ?? ':memory:',
-  servers: [...ROUNDS_SERVERS]
+  syncModules: [...ROUNDS_SYNC_MODULES],
+  servers: [...ROUNDS_SERVERS],
+  rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

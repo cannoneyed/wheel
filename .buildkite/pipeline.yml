@@ -236,6 +236,20 @@ steps:
       - "bun install --frozen-lockfile"
       - "FUZZ_SEEDS=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 FUZZ_STEPS=500 bunx vitest run packages/tracker/test/m5-fuzz.test.ts"
 
+  - label: ":arrows_counterclockwise: Rounds contract upgrade"
+    key: "check-rounds-upgrade"
+    if: build.env("WHEEL_CI_MODE") == "matrix"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run test:browser:rounds:upgrade"
+    artifact_paths:
+      - "test-results/**/*"
+      - "playwright-report/**/*"
+
   - label: ":wastebasket: Cleanup branch Workers"
     key: "cleanup-branches"
     if: build.env("WHEEL_CI_MODE") == "cleanup"

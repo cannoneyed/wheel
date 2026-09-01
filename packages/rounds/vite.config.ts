@@ -16,11 +16,16 @@ const wheelFromSource = [
 
 const syncOrigin =
   process.env.ROUNDS_SYNC_ORIGIN ?? portlessOriginOr('wheel-rounds-sync', 'http://localhost:4802');
+const contract =
+  process.env.ROUNDS_CONTRACT === 'b'
+    ? here('browser/upgrade/contract-b.ts')
+    : here('src/rounds-contract.ts');
 
 export default defineConfig({
   root: here('.'),
-  resolve: { alias: wheelFromSource },
+  resolve: { alias: [{ find: './rounds-contract', replacement: contract }, ...wheelFromSource] },
   plugins: [solid(), wheelDevTools({ devModeInBuild: process.env.WHEEL_BROWSER_DEV_MODE === '1' })],
+  build: { outDir: process.env.ROUNDS_DIST_DIR ?? 'dist', emptyOutDir: true },
   server: {
     port: Number(process.env.PORT) || 4803,
     host: process.env.HOST || '127.0.0.1',

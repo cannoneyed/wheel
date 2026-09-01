@@ -11,7 +11,7 @@ import {
   sitesAll,
   type Checklist,
   type Item
-} from './sync/rounds.sync';
+} from './rounds-contract';
 
 const SITE_ID = 'site_north';
 const DEFAULT_CHECKLIST_ID = 'checklist_safety';

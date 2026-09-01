@@ -5,6 +5,11 @@ import {
 
 import { ROUNDS_SERVERS } from '../../server/modules';
 import { startRoundsServer } from '../../server/runtime';
+import { ROW_SCHEMA_FINGERPRINT } from '../../row-schema.generated';
+import { ROUNDS_SYNC_MODULES } from '../../src/sync/modules';
+import { ROW_SCHEMA_FINGERPRINT as ROW_SCHEMA_FINGERPRINT_B } from '../upgrade/row-schema-b.generated';
+import { ROUNDS_B_SERVERS } from '../upgrade/rounds-b.server';
+import { ROUNDS_B_SYNC_MODULES } from '../upgrade/rounds-b.sync';
 
 const faults = new Set<string>();
 type QueryBinding = ServeQueryBinding<Record<string, unknown>, Record<string, unknown>>;
@@ -27,7 +32,13 @@ function wrapQuery(binding: QueryBinding): QueryBinding {
   return { ...binding, handler };
 }
 
-const TEST_SERVERS = ROUNDS_SERVERS.map((server) =>
+const contract = process.env.ROUNDS_CONTRACT === 'b' ? 'b' : 'a';
+const servers = contract === 'b' ? ROUNDS_B_SERVERS : ROUNDS_SERVERS;
+const syncModules = contract === 'b' ? ROUNDS_B_SYNC_MODULES : ROUNDS_SYNC_MODULES;
+const rowSchemaFingerprint =
+  contract === 'b' ? ROW_SCHEMA_FINGERPRINT_B : ROW_SCHEMA_FINGERPRINT;
+
+const TEST_SERVERS = servers.map((server) =>
   Object.fromEntries(
     Object.entries(server).map(([name, value]) => [name, isQueryBinding(value) ? wrapQuery(value) : value])
   )
@@ -54,7 +65,9 @@ const databaseFilename = process.env.ROUNDS_DATABASE ?? ':memory:';
 const runtime = await startRoundsServer({
   port,
   databaseFilename,
+  syncModules,
   servers: TEST_SERVERS,
+  rowSchemaFingerprint,
   extraFetch: testControl
 });
 

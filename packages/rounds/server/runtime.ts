@@ -11,9 +11,7 @@ import {
   type SyncSocketHandshake
 } from 'wheel/sync/server';
 
-import { ROW_SCHEMA_FINGERPRINT } from '../row-schema.generated';
 import { applyRoundsSeed } from '../seed/seed';
-import { ROUNDS_SYNC_MODULES } from './modules';
 import { ROUNDS_DDL } from '../src/sync/rounds.server';
 
 interface SocketData {
@@ -25,7 +23,9 @@ interface SocketData {
 export interface RoundsRuntimeOptions {
   readonly port: number;
   readonly databaseFilename: string;
+  readonly syncModules: readonly object[];
   readonly servers: readonly object[];
+  readonly rowSchemaFingerprint: string;
   readonly extraFetch?: (request: Request) => Response | Promise<Response | undefined> | undefined;
 }
 
@@ -67,14 +67,14 @@ export async function startRoundsServer(options: RoundsRuntimeOptions): Promise<
 
   const live = await createSyncServer({
     sqlite: { driver },
-    syncModules: [...ROUNDS_SYNC_MODULES],
+    syncModules: [...options.syncModules],
     servers: [...options.servers]
   });
   const sockets = new SyncSocketServer({
     server: live,
     applicationVersion: 1,
     schemaVersion: 1,
-    rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
+    rowSchemaFingerprint: options.rowSchemaFingerprint,
     detailedErrors: true
   });
 

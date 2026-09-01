@@ -129,7 +129,7 @@ describe("Buildkite pipeline manifest", () => {
   });
 
   test("keeps all CI modes in Buildkite", () => {
-    for (const mode of ["fuzz", "cleanup"]) {
+    for (const mode of ["fuzz", "matrix", "cleanup"]) {
       expect(pipeline).toContain(`WHEEL_CI_MODE\") == \"${mode}`);
     }
   });

@@ -9,8 +9,7 @@ import {
 } from 'wheel/sync';
 import { logger } from 'wheel/core';
 
-import { ROW_SCHEMA_FINGERPRINT } from '../row-schema.generated';
-import { ROUNDS_SYNC_MODULES } from './sync/modules';
+import { ROW_SCHEMA_FINGERPRINT, ROUNDS_SYNC_MODULES } from './rounds-contract';
 
 let client: SyncClient | null = null;
 

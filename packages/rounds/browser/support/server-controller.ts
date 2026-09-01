@@ -1,13 +1,19 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const serverPort = Number(process.env.ROUNDS_PORT ?? '4902');
 const controllerPort = Number(process.env.ROUNDS_CONTROLLER_PORT ?? '4909');
 const serverOrigin = `http://127.0.0.1:${serverPort}`;
+const assetTarget = process.env.ROUNDS_ASSET_TARGET;
+const assetSources = {
+  a: process.env.ROUNDS_ASSET_SOURCE_A,
+  b: process.env.ROUNDS_ASSET_SOURCE_B
+} as const;
 const root = mkdtempSync(join(tmpdir(), 'wheel-rounds-'));
 let generation = 0;
 let databaseFilename = join(root, 'rounds.sqlite');
+let contract: 'a' | 'b' = 'a';
 let child: ReturnType<typeof Bun.spawn> | null = null;
 let operation = Promise.resolve();
 
@@ -39,7 +45,8 @@ async function startChild(): Promise<void> {
     env: {
       ...process.env,
       ROUNDS_PORT: String(serverPort),
-      ROUNDS_DATABASE: databaseFilename
+      ROUNDS_DATABASE: databaseFilename,
+      ROUNDS_CONTRACT: contract
     },
     stdout: 'inherit',
     stderr: 'inherit'
@@ -47,12 +54,21 @@ async function startChild(): Promise<void> {
   await waitUntilReady();
 }
 
-async function restart(storage: 'preserve' | 'reset'): Promise<void> {
+function installAssets(next: 'a' | 'b'): void {
+  if (!assetTarget) return;
+  const source = assetSources[next];
+  if (!source) throw new Error(`Missing Contract ${next.toUpperCase()} asset source.`);
+  cpSync(source, assetTarget, { recursive: true, force: true });
+}
+
+async function restart(storage: 'preserve' | 'reset', nextContract: 'a' | 'b', assets: 'a' | 'b'): Promise<void> {
   await stopChild();
   if (storage === 'reset') {
     generation += 1;
     databaseFilename = join(root, `rounds-${generation}.sqlite`);
   }
+  contract = nextContract;
+  installAssets(assets);
   await startChild();
 }
 
@@ -66,6 +82,10 @@ function serialized(work: () => Promise<void>): Promise<void> {
   return operation;
 }
 
+if (assetTarget) {
+  rmSync(assetTarget, { recursive: true, force: true });
+  installAssets('a');
+}
 await startChild();
 
 const controller = Bun.serve({
@@ -76,18 +96,25 @@ const controller = Bun.serve({
     if (request.method === 'GET' && url.pathname === '/readyz') {
       try {
         await waitUntilReady();
-        return Response.json({ ok: true, generation });
+        return Response.json({ ok: true, generation, contract });
       } catch (error) {
         return Response.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 503 });
       }
     }
     if (request.method === 'POST' && url.pathname === '/restart') {
-      const body = (await request.json()) as { storage?: unknown };
+      const body = (await request.json()) as { storage?: unknown; contract?: unknown; assets?: unknown };
       if (body.storage !== 'preserve' && body.storage !== 'reset') {
         return Response.json({ ok: false, error: 'storage must be preserve or reset' }, { status: 400 });
       }
-      await serialized(() => restart(body.storage as 'preserve' | 'reset'));
-      return Response.json({ ok: true, generation });
+      const nextContract = body.contract ?? 'a';
+      const assets = body.assets ?? nextContract;
+      if ((nextContract !== 'a' && nextContract !== 'b') || (assets !== 'a' && assets !== 'b')) {
+        return Response.json({ ok: false, error: 'contract and assets must be a or b' }, { status: 400 });
+      }
+      await serialized(() =>
+        restart(body.storage as 'preserve' | 'reset', nextContract, assets)
+      );
+      return Response.json({ ok: true, generation, contract });
     }
     if (request.method === 'POST' && url.pathname === '/fail-query') {
       const body = (await request.json()) as { name?: unknown };

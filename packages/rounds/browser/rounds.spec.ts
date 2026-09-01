@@ -1,12 +1,22 @@
 import { expect, test, type APIRequestContext, type Page, type WebSocketRoute } from '@playwright/test';
+import { wheelDriver } from 'wheel/testing';
 import { openWheelClients, type WheelBrowserClient } from 'wheel/testing/playwright';
 
 import { TEST_PORTS, testOrigin } from '../../../scripts/test-ports';
 
 const controllerOrigin = testOrigin(TEST_PORTS.roundsController);
 
-async function restart(request: APIRequestContext): Promise<void> {
-  const response = await request.post(`${controllerOrigin}/restart`, { data: { storage: 'reset' } });
+interface RestartOptions {
+  readonly storage: 'preserve' | 'reset';
+  readonly contract?: 'a' | 'b';
+  readonly assets?: 'a' | 'b';
+}
+
+async function restart(
+  request: APIRequestContext,
+  options: RestartOptions = { storage: 'reset' }
+): Promise<void> {
+  const response = await request.post(`${controllerOrigin}/restart`, { data: options });
   expect(response.ok()).toBe(true);
 }
 
@@ -40,20 +50,28 @@ function isCheckpoint(message: string | Buffer): boolean {
   }
 }
 
-async function outboxCount(page: Page): Promise<number> {
+async function indexedDbCount(page: Page, store: 'outbox' | 'subscriptions'): Promise<number> {
   return page.evaluate(
-    () =>
+    (storeName) =>
       new Promise<number>((resolve, reject) => {
         const open = indexedDB.open('wheel:rounds');
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {
-          const transaction = open.result.transaction('outbox', 'readonly');
-          const count = transaction.objectStore('outbox').count();
+          const transaction = open.result.transaction(storeName, 'readonly');
+          const count = transaction.objectStore(storeName).count();
           count.onerror = () => reject(count.error);
           count.onsuccess = () => resolve(count.result);
         };
-      })
+      }),
+    store
   );
+}
+
+const outboxCount = (page: Page): Promise<number> => indexedDbCount(page, 'outbox');
+
+async function itemRows(page: Page): Promise<readonly Record<string, unknown>[]> {
+  const collections = await wheelDriver(page).collections();
+  return collections.find((entry) => entry.collection === 'items')?.rows ?? [];
 }
 
 async function routeOfflineControl(page: Page): Promise<{ disconnect(): Promise<void>; reconnect(): Promise<void> }> {
@@ -316,4 +334,117 @@ test('an acknowledged command survives a pre-checkpoint disconnect @behavior:dur
   } finally {
     await observer.context.close();
   }
+});
+
+test('a reset server epoch replays pending work @upgrade @behavior:dur-epoch', async ({
+  browser,
+  page,
+  baseURL,
+  request
+}) => {
+  if (!baseURL) throw new Error('Rounds browser tests need a base URL.');
+  const network = await routeOfflineControl(page);
+  const [observer] = await openWheelClients(browser, 1);
+  try {
+    await openRounds(page);
+    await openRounds(observer.page, baseURL);
+    await page.getByTestId('note-item_exit').fill('Old server epoch');
+    await page.getByTestId('save-item_exit').click();
+    await expect(observer.page.getByTestId('note-item_exit')).toHaveValue('Old server epoch');
+
+    await network.disconnect();
+    await page.getByTestId('note-item_exit').fill('New server epoch');
+    await page.getByTestId('save-item_exit').click();
+    await expect.poll(() => outboxCount(page)).toBe(1);
+    await restart(request, { storage: 'reset', contract: 'a' });
+
+    await network.reconnect();
+    await expect.poll(() => outboxCount(page)).toBe(0);
+    await expect(page.getByTestId('note-item_exit')).toHaveValue('New server epoch');
+    await expect(observer.page.getByTestId('note-item_exit')).toHaveValue('New server epoch');
+    await expect(page.getByTestId('revision-item_exit')).toHaveText('revision 1');
+    await expect(observer.page.getByTestId('revision-item_exit')).toHaveText('revision 1');
+  } finally {
+    await observer.context.close();
+  }
+});
+
+test('contract B retires contract A snapshots @upgrade @behavior:contract-retire', async ({
+  page,
+  request
+}) => {
+  await openRounds(page);
+  await expect.poll(() => indexedDbCount(page, 'subscriptions')).toBeGreaterThan(0);
+  await page.goto('about:blank');
+  const network = await routeOfflineControl(page);
+  await network.disconnect();
+  await restart(request, { storage: 'preserve', contract: 'b' });
+
+  await page.goto('/');
+  await expect.poll(() => indexedDbCount(page, 'subscriptions')).toBe(0);
+  await expect(page.getByTestId('item-item_exit')).toHaveCount(0);
+  expect(await itemRows(page)).toEqual([]);
+  expect((await wheelDriver(page).writes()).filter((write) => write.collection === 'items')).toEqual([]);
+
+  await network.reconnect();
+  await openRounds(page);
+  await expect(page.getByTestId('item-item_exit')).toBeVisible();
+  expect(await itemRows(page)).toEqual(
+    expect.arrayContaining([expect.objectContaining({ id: 'item_exit', auditCode: null })])
+  );
+});
+
+test('an outbox crosses the row contract @upgrade @behavior:contract-outbox', async ({
+  browser,
+  page,
+  baseURL,
+  request
+}) => {
+  if (!baseURL) throw new Error('Rounds browser tests need a base URL.');
+  const network = await routeOfflineControl(page);
+  await openRounds(page);
+  await network.disconnect();
+  await page.getByTestId('note-item_exit').fill('Cross-contract note');
+  await page.getByTestId('save-item_exit').click();
+  await expect.poll(() => outboxCount(page)).toBe(1);
+  await page.goto('about:blank');
+  await restart(request, { storage: 'preserve', contract: 'b' });
+
+  await page.goto('/');
+  await expect.poll(() => outboxCount(page)).toBe(1);
+  await expect(page.getByTestId('outbox-state')).toContainText('queued 1');
+  await expect(page.getByTestId('save-state')).toHaveText('Saved locally');
+  await network.reconnect();
+  await expect.poll(() => outboxCount(page)).toBe(0);
+
+  const [observer] = await openWheelClients(browser, 1);
+  try {
+    await openRounds(observer.page, baseURL);
+    await expect(observer.page.getByTestId('note-item_exit')).toHaveValue('Cross-contract note');
+    await expect(observer.page.getByTestId('revision-item_exit')).toHaveText('revision 1');
+    expect(await itemRows(observer.page)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'item_exit', auditCode: null })])
+    );
+  } finally {
+    await observer.context.close();
+  }
+});
+
+test('a mismatched deployment reloads once @upgrade @behavior:contract-reload', async ({
+  page,
+  request
+}) => {
+  await page.addInitScript(() => {
+    const count = Number(sessionStorage.getItem('rounds.navigationCount') ?? '0');
+    sessionStorage.setItem('rounds.navigationCount', String(count + 1));
+  });
+  await openRounds(page);
+  await restart(request, { storage: 'preserve', contract: 'b', assets: 'a' });
+
+  await expect
+    .poll(() => page.evaluate(() => Number(sessionStorage.getItem('rounds.navigationCount'))))
+    .toBe(2);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => Number(sessionStorage.getItem('rounds.navigationCount')))).toBe(2);
+  await expect(page.getByTestId('connection-state')).not.toHaveText('connected');
 });
