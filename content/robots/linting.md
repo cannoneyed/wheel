@@ -48,6 +48,7 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `no-hardcoded-color`: application theme colors use tokens.
 - `no-barrel-icon-imports`: icons use per-icon entries.
 - `require-keep-names`: Wheel Vite consumers install `wheelDevTools()`.
+- `no-worker-data-exports`: Worker entries keep runtime data private and export only entry points.
 
 ## Package and proof rules
 
