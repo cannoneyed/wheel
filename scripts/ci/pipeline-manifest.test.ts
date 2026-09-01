@@ -120,6 +120,14 @@ describe("Buildkite pipeline manifest", () => {
     }
   });
 
+  test("replaces the Tracker browser build before branch deployment", () => {
+    const sqlite = step("check-browser-apps-sqlite");
+    const browser = sqlite.indexOf("bun run test:browser:tracker:sqlite");
+    const production = sqlite.indexOf('- "bun run --cwd packages/tracker build"');
+    expect(browser).toBeGreaterThanOrEqual(0);
+    expect(production).toBeGreaterThan(browser);
+  });
+
   test("keeps all CI modes in Buildkite", () => {
     for (const mode of ["fuzz", "cleanup"]) {
       expect(pipeline).toContain(`WHEEL_CI_MODE\") == \"${mode}`);

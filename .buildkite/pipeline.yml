@@ -70,6 +70,9 @@ steps:
         if [ "$$status" -ne 0 ]; then
           exit "$$status"
         fi
+      # Browser builds include the debug bridge. Replace that output before
+      # upload so branch deploys receive the normal production build.
+      - "bun run --cwd packages/tracker build"
       - "mkdir -p .artifacts && tar -czf .artifacts/wheel-dist.tgz -C packages/wheel dist"
       - "bun node_modules/wrangler/bin/wrangler.js deploy --dry-run --config wrangler.tracker.jsonc"
     artifact_paths:

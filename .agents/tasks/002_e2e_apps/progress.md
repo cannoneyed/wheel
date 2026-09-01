@@ -16,8 +16,8 @@ behavior IDs, and results here before the next phase starts.
 
 | Phase | Size | State | Gate |
 |---|---:|---|---|
-| 1. Axle Durable Object browser leg | `S` | In progress | — |
-| 2. Behavior catalog and multi-client harness | `M` | Not started | — |
+| 1. Axle Durable Object browser leg | `S` | Complete | [Build 142](https://buildkite.com/cannoneyed/wheel/builds/142) |
+| 2. Behavior catalog and multi-client harness | `M` | In progress | — |
 | 3. Rounds app and durability behaviors | `L` | Not started | — |
 | 4. Rounds upgrade and restart configurations | `M` | Not started | — |
 | 5. Promote the editor into Chalk | `L` | Not started | — |
@@ -44,16 +44,16 @@ Only one phase may be `In progress`.
 - [x] `TRACKER_BROWSER_BACKEND=do` runs the unchanged Axle smoke spec against `wrangler dev`.
 - [x] Worker demo seeding is confirmed or added.
 - [x] `test:browser:tracker:all` covers SQLite, Postgres, and Durable Objects.
-- [ ] The Buildkite Durable Object browser step is green and linked.
+- [x] The Buildkite Durable Object browser step is green and linked.
 
 ### Phase 2
 
-- [ ] `test/behaviors/catalog.ts` matches all 32 rows in the plan.
-- [ ] `scripts/behavior-coverage.ts --check` runs in `check:static`.
-- [ ] Static coverage and runtime pass coverage are kept distinct.
-- [ ] The shared separate-context helper extends `wheel/testing/playwright`.
-- [ ] Axle proves `conv-basic` and `conv-overlap` on SQLite.
-- [ ] Peer convergence assertions do not use `settle()` as proof of delivery.
+- [x] `test/behaviors/catalog.ts` matches all 32 rows in the plan.
+- [x] `scripts/behavior-coverage.ts --check` runs in `check:static`.
+- [x] Static coverage and runtime pass coverage are kept distinct.
+- [x] The shared separate-context helper extends `wheel/testing/playwright`.
+- [x] Axle proves `conv-basic` and `conv-overlap` on SQLite.
+- [x] Peer convergence assertions do not use `settle()` as proof of delivery.
 
 ### Phase 3
 
@@ -139,22 +139,39 @@ changes out of this table.
 
 | Phase | Finding | Wheel change | State |
 |---|---|---|---|
-| 1 | Workerd rejects runtime data exported from a Worker entry, but TypeScript and Wrangler's dry run accept it. | Added `wheel/no-worker-data-exports`, its Linter API proof, repository wiring, and lint docs. | Complete locally; CI pending. |
+| 2 | Separate Playwright contexts needed repeated page and driver wiring. | Added the structurally typed `openWheelClients` helper to `wheel/testing/playwright`. | Complete locally; CI pending. |
+| 2 | Query release is not visible through component state or row output alone. | Added the read-only `subscriptions()` bridge and driver method. | Complete locally; CI pending. |
+| 2 | Preview builds remove the debug bridge, but browser proofs need it while deployed artifacts must not expose it. | Added `wheelDevTools({ devModeInBuild: true })` for test builds and restored a normal Tracker build before CI artifact upload. | Complete locally; CI pending. |
+| 1 | Workerd rejects runtime data exported from a Worker entry, but TypeScript and Wrangler's dry run accept it. | Added `wheel/no-worker-data-exports`, its Linter API proof, repository wiring, and lint docs. | Complete in [Build 142](https://buildkite.com/cannoneyed/wheel/builds/142). |
 
 ## Work log
 
 Newest entry first.
+
+### 2026-08-31: Phase 2, local behavior coverage and multi-client proof
+
+- Commands: `bun scripts/behavior-coverage.ts --check`; targeted Vitest suites; `bun run
+  typecheck`; `bun run lint`; `bun run test:browser:tracker:sqlite`; `bun run
+  test:browser:tracker:do`.
+- Environment: local.
+- Behaviors proven: `conv-basic`, `conv-overlap`.
+- Result: the catalog reports 31 required rows and one stretch row. Both separate-context
+  proofs pass in the five-test SQLite and Durable Object suites. Typecheck, lint, and 37
+  targeted tests pass.
+- Follow-ups: run and link the full Buildkite phase gate.
 
 ### 2026-08-31: Phase 1, local Durable Object browser leg
 
 - Commands: `bun run typecheck`; `bun run lint`; `bun run test`; `bun run test:cloudflare`;
   `bun run test:browser:tracker:do`; `node node_modules/wrangler/bin/wrangler.js deploy
   --dry-run --config wrangler.tracker.jsonc`.
-- Environment: local.
+- Environment: local and [Buildkite build 142](https://buildkite.com/cannoneyed/wheel/builds/142).
 - Behaviors proven: backend risk leg only; `conv-basic` waits for the Phase 2 two-client proof.
 - Result: all 3 Tracker browser tests, 2,707 unit tests, 27 Cloudflare tests, typecheck, lint, and
-  the Worker dry run pass.
-- Follow-ups: run and link the new Buildkite Durable Object job.
+  the Worker dry run pass. The Durable Object job finished in 29 seconds and did not extend the
+  critical path. The full build passed in 134 seconds; the existing Postgres and deploy jobs
+  remained the path.
+- Follow-ups: Phase 2.
 
 ### Entry template
 

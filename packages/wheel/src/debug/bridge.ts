@@ -268,6 +268,9 @@ function makeAppBridge(appId: string, context: WheelContextValue): WheelBridgeAp
         rows: serializeValue(entry.rows) as Record<string, unknown>[]
       }));
     },
+    subscriptions() {
+      return client?.subscriptionsDebug() ?? [];
+    },
     writes(limit = 30) {
       return (client?.recentWrites(limit) ?? []).map(
         (entry) => serializeValue(entry) as Record<string, unknown>
@@ -339,6 +342,7 @@ function makeGlobal(): WheelGlobal {
     actService: proxy('actService'),
     actions: proxy('actions'),
     collections: proxy('collections'),
+    subscriptions: proxy('subscriptions'),
     writes: proxy('writes'),
     // Errors are WINDOW-scoped — readable with zero or many apps mounted (a
     // crashed app may have uninstalled itself; its errors must remain

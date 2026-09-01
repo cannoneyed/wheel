@@ -97,6 +97,8 @@ export interface WheelBridgeApp {
   actions(): Array<{ service: string; action: string; id: string; serviceId: string }>;
   /** The client's collection cache (empty for clientless apps). */
   collections(): Array<{ collection: string; rows: readonly Record<string, unknown>[] }>;
+  /** Active client subscriptions and their local reference and row counts. */
+  subscriptions(): Array<{ key: string; subscriptionId: string; refs: number; rows: number }>;
   /** The provenance change stream, newest last (empty for clientless apps). */
   writes(limit?: number): Array<Record<string, unknown>>;
   /** Captured errors, oldest first. Check this FIRST when the app misbehaves. */

@@ -101,6 +101,11 @@ describe('wheelDevTools', () => {
     expect(served.define['globalThis.__WHEEL_DEV_MODE__']).toBe('true');
     expect(served.optimizeDeps.esbuildOptions.define).toEqual(served.define);
     expect(built.define['globalThis.__WHEEL_DEV_MODE__']).toBe('false');
+    expect(
+      wheelDevTools({ devModeInBuild: true }).config({ root }, { command: 'build' }).define[
+        'globalThis.__WHEEL_DEV_MODE__'
+      ]
+    ).toBe('true');
     expect(served.esbuild.keepNames).toBe(true);
   });
 
