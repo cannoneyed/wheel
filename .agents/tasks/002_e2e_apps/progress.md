@@ -17,8 +17,8 @@ behavior IDs, and results here before the next phase starts.
 | Phase | Size | State | Gate |
 |---|---:|---|---|
 | 1. Axle Durable Object browser leg | `S` | Complete | [Build 142](https://buildkite.com/cannoneyed/wheel/builds/142) |
-| 2. Behavior catalog and multi-client harness | `M` | In progress | — |
-| 3. Rounds app and durability behaviors | `L` | Not started | — |
+| 2. Behavior catalog and multi-client harness | `M` | Complete | [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144) |
+| 3. Rounds app and durability behaviors | `L` | In progress | — |
 | 4. Rounds upgrade and restart configurations | `M` | Not started | — |
 | 5. Promote the editor into Chalk | `L` | Not started | — |
 | 6. Spoke app and authorization behaviors | `L` | Not started | — |
@@ -57,12 +57,12 @@ Only one phase may be `In progress`.
 
 ### Phase 3
 
-- [ ] `packages/rounds` follows Axle's package, sync, seed, and Playwright patterns.
-- [ ] Rounds uses Bun and SQLite only.
-- [ ] The test-only server supports restart, storage reset, and one-shot query failure.
-- [ ] The external controller survives server restarts and waits for readiness.
-- [ ] A lint rule blocks production imports from browser support and the controller.
-- [ ] All Phase 3 behavior IDs pass on SQLite.
+- [x] `packages/rounds` follows Axle's package, sync, seed, and Playwright patterns.
+- [x] Rounds uses Bun and SQLite only.
+- [x] The test-only server supports restart, storage reset, and one-shot query failure.
+- [x] The external controller survives server restarts and waits for readiness.
+- [x] A lint rule blocks production imports from browser support and the controller.
+- [x] All Phase 3 behavior IDs pass on SQLite.
 - [ ] The Buildkite Rounds SQLite step is green and linked.
 
 ### Phase 4
@@ -139,26 +139,43 @@ changes out of this table.
 
 | Phase | Finding | Wheel change | State |
 |---|---|---|---|
-| 2 | Separate Playwright contexts needed repeated page and driver wiring. | Added the structurally typed `openWheelClients` helper to `wheel/testing/playwright`. | Complete locally; CI pending. |
-| 2 | Query release is not visible through component state or row output alone. | Added the read-only `subscriptions()` bridge and driver method. | Complete locally; CI pending. |
-| 2 | Preview builds remove the debug bridge, but browser proofs need it while deployed artifacts must not expose it. | Added `wheelDevTools({ devModeInBuild: true })` for test builds and restored a normal Tracker build before CI artifact upload. | Complete locally; CI pending. |
+| 3 | A socket-level reconnect reported `connected` before the engine generation event re-queued acknowledged commands. The first flush saw nothing, and the later event stranded the outbox. | Restarted the shared outbox flush when the engine hello queues prior-generation confirmations. Added the browser proof and reversed-order unit case. | Complete locally; CI pending. |
+| 3 | A production entry could import browser fault controls without a static failure. | Added `wheel/no-browser-support-in-production`, its Linter API proof, repository wiring, and lint docs. | Complete locally; CI pending. |
+| 2 | Separate Playwright contexts needed repeated page and driver wiring. | Added the structurally typed `openWheelClients` helper to `wheel/testing/playwright`. | Complete in [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144). |
+| 2 | Query release is not visible through component state or row output alone. | Added the read-only `subscriptions()` bridge and driver method. | Complete in [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144). |
+| 2 | Preview builds remove the debug bridge, but browser proofs need it while deployed artifacts must not expose it. | Added `wheelDevTools({ devModeInBuild: true })` for test builds and restored a normal Tracker build before CI artifact upload. | Complete in [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144). |
 | 1 | Workerd rejects runtime data exported from a Worker entry, but TypeScript and Wrangler's dry run accept it. | Added `wheel/no-worker-data-exports`, its Linter API proof, repository wiring, and lint docs. | Complete in [Build 142](https://buildkite.com/cannoneyed/wheel/builds/142). |
 
 ## Work log
 
 Newest entry first.
 
+### 2026-08-31: Phase 3, local Rounds durability proof
+
+- Commands: `bun run check:static`; `bun run test`; `bun run test:browser:rounds`.
+- Environment: local.
+- Behaviors proven: `conv-empty`, `cmd-optimistic`, `cmd-reject`, `cmd-orphan`,
+  `dur-preview`, `dur-outbox`, `dur-generation`, `dur-checkpoint`, `status-error`,
+  `status-stale`, `status-live`.
+- Result: all nine Rounds browser tests, 1,881 component tests, and 831 node tests pass.
+  The controller proves reset, preserved restart, readiness, and one-shot query failure. The
+  production build contains no test control names. Static coverage now requires 13 primary
+  behavior tags. The generation proof found and fixed one Wheel outbox race.
+- Follow-ups: run and link the Buildkite phase gate. `solo.yml` contains the two Rounds
+  processes; human Sync is pending.
+
 ### 2026-08-31: Phase 2, local behavior coverage and multi-client proof
 
 - Commands: `bun scripts/behavior-coverage.ts --check`; targeted Vitest suites; `bun run
   typecheck`; `bun run lint`; `bun run test:browser:tracker:sqlite`; `bun run
   test:browser:tracker:do`.
-- Environment: local.
+- Environment: local and [Buildkite build 144](https://buildkite.com/cannoneyed/wheel/builds/144).
 - Behaviors proven: `conv-basic`, `conv-overlap`.
 - Result: the catalog reports 31 required rows and one stretch row. Both separate-context
-  proofs pass in the five-test SQLite and Durable Object suites. Typecheck, lint, and 37
-  targeted tests pass.
-- Follow-ups: run and link the full Buildkite phase gate.
+  proofs pass in the five-test SQLite and Durable Object suites. Typecheck, lint, 2,711 unit
+  tests, and the 123-second Buildkite gate pass. Build 143 first caught stale generated robot
+  API pages; regenerating those pages fixed the full gate.
+- Follow-ups: Phase 3.
 
 ### 2026-08-31: Phase 1, local Durable Object browser leg
 

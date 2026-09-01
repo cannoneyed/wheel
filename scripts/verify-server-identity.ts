@@ -81,6 +81,7 @@ export function servesThisCheckout(servedRoot: string, checkoutRoot: string): bo
 const OVERRIDE_VARS = [
   'WEBSITE_BROWSER_BASE_URL',
   'TRACKER_BROWSER_BASE_URL',
+  'ROUNDS_BROWSER_BASE_URL',
   'DEMOS_BROWSER_BASE_URL'
 ] as const;
 

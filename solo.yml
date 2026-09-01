@@ -41,6 +41,20 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  rounds:server:
+    command: bun run dev:rounds:server
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  rounds:dev:
+    command: bun run dev:rounds
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
   docs:
     command: bun run dev:docs
     working_dir: null

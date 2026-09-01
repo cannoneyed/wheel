@@ -31,7 +31,13 @@ export const TEST_PORTS = {
   /** The tracker production build under `vite preview`. */
   trackerPreview: 4898,
   /** The Tracker Worker and Durable Object backend. */
-  trackerDurableObject: 4910
+  trackerDurableObject: 4910,
+  /** The Rounds SQLite sync backend. */
+  roundsSync: 4902,
+  /** The Rounds production build under `vite preview`. */
+  roundsPreview: 4903,
+  /** The external Rounds test controller. */
+  roundsController: 4909
 } as const;
 
 /** `http://127.0.0.1:<port>` for one reserved test port. */

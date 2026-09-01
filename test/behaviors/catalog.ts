@@ -27,7 +27,7 @@ export interface BehaviorCatalogEntry {
 }
 
 /** The latest phase whose primary tags must exist in source. */
-export const BEHAVIOR_COVERAGE_PHASE = 2;
+export const BEHAVIOR_COVERAGE_PHASE = 3;
 
 /** The browser behavior contract for Wheel 0.2. */
 export const BEHAVIOR_CATALOG = [

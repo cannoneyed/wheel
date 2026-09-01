@@ -21,7 +21,7 @@ describe('behavior coverage', () => {
       {
         id: 'missing',
         description: 'Missing behavior.',
-        primary: { app: 'rounds' as const, backend: 'sqlite' as const },
+        primary: { app: 'rounds' as const, backend: 'do' as const },
         phase: 2
       }
     ];
@@ -41,7 +41,7 @@ describe('behavior coverage', () => {
       'unknown behavior tag unknown in packages/tracker/browser/proof.spec.ts',
       'duplicate primary behavior tag known: packages/tracker/browser/proof.spec.ts, packages/tracker/browser/proof.spec.ts',
       'missing primary behavior tag missing in packages/rounds/browser/',
-      'primary behavior missing has no CI leg for rounds/sqlite'
+      'primary behavior missing has no CI leg for rounds/do'
     ]);
   });
 });
