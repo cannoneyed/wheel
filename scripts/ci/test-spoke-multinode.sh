@@ -15,6 +15,11 @@ elixir_image="hexpm/elixir:1.18.4-erlang-27.3.4.7-debian-bookworm-20260610-slim"
 repo_dir="$PWD"
 
 cleanup() {
+  local status=$?
+  if [[ "$status" -ne 0 ]]; then
+    docker logs "$node_one_container" 2>&1 || true
+    docker logs "$node_two_container" 2>&1 || true
+  fi
   docker rm -f "$node_two_container" >/dev/null 2>&1 || true
   docker rm -f "$node_one_container" >/dev/null 2>&1 || true
   docker rm -f "$postgres_container" >/dev/null 2>&1 || true
@@ -75,7 +80,7 @@ start_node() {
   docker run --detach \
     --name "$container" \
     --network "$docker_network" \
-    --publish "127.0.0.1::$port" \
+    --publish "127.0.0.1:$port:$port" \
     --user "$(id -u):$(id -g)" \
     --volume "$repo_dir:/workspace" \
     --workdir /workspace/elixir/spoke \
@@ -84,6 +89,7 @@ start_node() {
     --env SPOKE_IP=0.0.0.0 \
     --env "SPOKE_RESET_DATABASE=$reset" \
     --env SPOKE_TEST_CONTROLS=1 \
+    --env SPOKE_ALLOWED_ORIGINS=http://127.0.0.1:4906,http://127.0.0.1:4907,http://127.0.0.1:4908 \
     --env MIX_HOME=/workspace/.cache/mix \
     --env HEX_HOME=/workspace/.cache/hex \
     "$elixir_image" \
