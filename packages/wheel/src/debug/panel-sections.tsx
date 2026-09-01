@@ -173,6 +173,14 @@ export function Expandable(props: {
   /** Extra hover wiring for the label row (the component tree uses this to highlight). */
   onRowEnter?: () => void;
   onRowLeave?: () => void;
+  /**
+   * A control pinned to the right of the row.
+   *
+   * It sits INSIDE the row so it lines up with the label, but outside the
+   * row's own click target — the component tree puts an inspect toggle here,
+   * and pressing it must not also expand the node.
+   */
+  trailing?: JSX.Element;
   children: JSX.Element;
 }): JSX.Element {
   // Toggled paths XOR the default, so one set serves both default-open groups
@@ -194,6 +202,14 @@ export function Expandable(props: {
         <span style={props.accent ? { color: props.accent } : undefined}>{props.label}</span>
         <Show when={props.summary}>
           <span style={sectionStyles.dim}>{props.summary}</span>
+        </Show>
+        <Show when={props.trailing}>
+          <span
+            style={{ 'margin-left': 'auto' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {props.trailing}
+          </span>
         </Show>
       </div>
       <Show when={open()}>

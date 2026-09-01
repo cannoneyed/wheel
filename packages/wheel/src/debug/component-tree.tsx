@@ -119,6 +119,8 @@ function TreeChildren(props: {
   ex: ExpandState;
   selected: () => string | null;
   reveal: (instanceId: string) => void;
+  inspected: () => string | null;
+  inspect: (key: string | null) => void;
 }): JSX.Element {
   return (
     <For each={groupSiblings(props.nodes)}>
@@ -130,6 +132,8 @@ function TreeChildren(props: {
             ex={props.ex}
             selected={props.selected}
             reveal={props.reveal}
+            inspected={props.inspected}
+            inspect={props.inspect}
           />
         ) : (
           <Expandable
@@ -157,6 +161,8 @@ function TreeChildren(props: {
                   ex={props.ex}
                   selected={props.selected}
                   reveal={props.reveal}
+                  inspected={props.inspected}
+                  inspect={props.inspect}
                 />
               )}
             </For>
@@ -226,12 +232,199 @@ const childLinkStyle = {
   'text-decoration': 'underline'
 } satisfies JSX.CSSProperties;
 
+/**
+ * One component's own data: what it was given, what it keeps, what it can do.
+ *
+ * A SUB-VIEW rather than rows nested in the tree. Four groups inline under
+ * every open node made the tree impossible to scan — the structure you came
+ * for was buried under the values you did not. The tree is now only the tree;
+ * this opens beneath it for the one component you asked about.
+ */
+function ComponentDetail(props: {
+  node: InstanceTreeNode;
+  services: ServiceContext;
+  ex: ExpandState;
+  reveal: (instanceId: string) => void;
+  close: () => void;
+}): JSX.Element {
+  const record = () => props.services.registry.instance(props.node.instanceId);
+  const liveProps = createMemo<Record<string, unknown>>(() => {
+    props.services.trackVersion();
+    return record()?.props() ?? {};
+  });
+  const liveState = createMemo<Record<string, unknown>>(() => {
+    props.services.trackVersion();
+    return record()?.state() ?? {};
+  });
+  return (
+    <div style={detailStyles.panel} data-testid="wheel-tree-detail">
+      <div style={detailStyles.header}>
+        <span style={{ color: 'var(--wheel-stage-ink-strong, #e5e7eb)' }}>{props.node.instanceId}</span>
+        <button
+          type="button"
+          style={detailStyles.close}
+          data-testid="wheel-tree-detail-close"
+          aria-label="close the inspector"
+          onClick={props.close}
+        >
+          ✕
+        </button>
+      </div>
+    {/* A component's own DATA (state, actions) vs its CHILDREN are
+        different kinds of thing, and rendering them as peer rows made
+        the tree hard to read. Both now sit in accented, icon-marked
+        groups: `state` opens by default (reaching it should cost no
+        clicks), `actions` stays closed (names only, no values). */}
+    <Show when={record()}>
+      {(instanceRecord) => (
+        <>
+          {/* PROPS first: what the parent handed this component, before
+              what the component derived from services. */}
+          <Show when={Object.keys(liveProps()).length > 0}>
+            <Expandable
+              path={`tree:${props.node.key}:props`}
+              label="props"
+              summary={`{${Object.keys(liveProps()).length}}`}
+              accent={META_COLORS.props}
+              icon="▪"
+              defaultOpen
+              ex={props.ex}
+            >
+              <For each={Object.entries(liveProps())}>
+                {([key, value]) => (
+                  <Show
+                    when={key === 'children'}
+                    fallback={
+                      <JsonTree
+                        path={`tree:${props.node.key}:props.${key}`}
+                        label={key}
+                        value={value}
+                        ex={props.ex}
+                      />
+                    }
+                  >
+                    <ChildLinks node={props.node} services={props.services} reveal={props.reveal} />
+                  </Show>
+                )}
+              </For>
+            </Expandable>
+          </Show>
+          {/* Component-LOCAL signals (useSignal), distinct from the
+              connect shape: this state belongs to this instance alone. */}
+          <Show when={instanceRecord().locals.length > 0}>
+            <Expandable
+              path={`tree:${props.node.key}:local`}
+              label="local"
+              summary={`(${instanceRecord().locals.length})`}
+              accent={META_COLORS.local}
+              icon="●"
+              defaultOpen
+              ex={props.ex}
+            >
+              <For each={instanceRecord().locals}>
+                {(local) => (
+                  <JsonTree
+                    path={`tree:${props.node.key}:local.${local.name}`}
+                    label={local.name}
+                    value={local.read()}
+                    ex={props.ex}
+                  />
+                )}
+              </For>
+            </Expandable>
+          </Show>
+          <Show when={Object.keys(liveState()).length > 0}>
+            <Expandable
+              path={`tree:${props.node.key}:connected`}
+              label="connected"
+              summary={`{${Object.keys(liveState()).length}}`}
+              accent={META_COLORS.connected}
+              icon="◆"
+              defaultOpen
+              ex={props.ex}
+            >
+              <For each={Object.entries(liveState())}>
+                {([key, value]) => (
+                  <JsonTree
+                    path={`tree:${props.node.key}.${key}`}
+                    label={key}
+                    value={value}
+                    ex={props.ex}
+                  />
+                )}
+              </For>
+            </Expandable>
+          </Show>
+          <Show when={instanceRecord().actions.length > 0}>
+            <Expandable
+              path={`tree:${props.node.key}:actions`}
+              label="actions"
+              summary={`(${instanceRecord().actions.length})`}
+              accent={META_COLORS.actions}
+              icon="ƒ"
+              ex={props.ex}
+            >
+              <For each={instanceRecord().actions}>
+                {(action) => (
+                  <div style={sectionStyles.row}>
+                    <span style={sectionStyles.dim}>{action}</span>
+                  </div>
+                )}
+              </For>
+            </Expandable>
+          </Show>
+        </>
+      )}
+    </Show>
+    </div>
+  );
+}
+
+/** The sub-view's own chrome: pinned under the tree, scrolling on its own. */
+const detailStyles = {
+  panel: {
+    'flex-shrink': 0,
+    'max-height': '45%',
+    overflow: 'auto',
+    'margin-top': '6px',
+    'padding-top': '4px',
+    'border-top': '1px solid var(--wheel-stage-line-heavy, #3a3b3e)'
+  },
+  header: {
+    display: 'flex',
+    gap: '6px',
+    'align-items': 'center',
+    padding: '2px 0 4px',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)'
+  },
+  close: {
+    'margin-left': 'auto',
+    padding: '0 4px',
+    border: 'none',
+    background: 'none',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)',
+    font: 'inherit',
+    cursor: 'pointer'
+  }
+} satisfies Record<string, JSX.CSSProperties>;
+
+/** The row's inspect toggle: quiet until it is on. */
+const inspectStyle = {
+  padding: '0 4px',
+  border: 'none',
+  background: 'none',
+  font: 'inherit',
+  cursor: 'pointer'
+} satisfies JSX.CSSProperties;
+
 function TreeNode(props: {
   node: InstanceTreeNode;
   services: ServiceContext;
   ex: ExpandState;
   selected: () => string | null;
   reveal: (instanceId: string) => void;
+  inspected: () => string | null;
+  inspect: (key: string | null) => void;
 }): JSX.Element {
   const record = () => props.services.registry.instance(props.node.instanceId);
   // Live values, on the DATA channel. Kept out of the tree-shape memo so a
@@ -264,11 +457,15 @@ function TreeNode(props: {
     }
     return instance.hiddenBy === 'show' ? 'hidden' : 'no DOM';
   };
-  const summary = (): string => {
-    const count = props.node.children.length;
-    const kind = props.node.kind === 'view' ? 'view' : '';
-    return [kind, count > 0 ? `(${count})` : ''].filter(Boolean).join(' ');
-  };
+  /**
+   * One glyph for what this component IS.
+   *
+   * It replaces the words `view` and a `(3)` child count. The count was
+   * already on screen — the children are right there when the row is open —
+   * and `view` is a property of the component, which is what an icon is for.
+   */
+  const icon = (): string => (props.node.kind === 'view' ? '▪' : '◆');
+  const inspecting = (): boolean => props.inspected() === props.node.key;
   return (
     <div
       data-tree-node={props.node.instanceId}
@@ -277,118 +474,30 @@ function TreeNode(props: {
       <Expandable
         path={`tree:${props.node.key}`}
         label={props.node.instanceId}
-        summary={[summary(), invisibility() ? `⊘ ${invisibility()!}` : ''].filter(Boolean).join(' ')}
+        summary={invisibility() ? `⊘ ${invisibility()!}` : ''}
         accent={invisibility() ? 'var(--wheel-stage-ink-faint, #8b8b8b)' : undefined}
+        icon={icon()}
         ex={props.ex}
         onRowEnter={() => highlight(props.node.instanceId)}
         onRowLeave={() => highlight(null)}
+        trailing={
+          <button
+            type="button"
+            style={{
+              ...inspectStyle,
+              color: inspecting()
+                ? 'var(--wheel-indigo-bright, #6366f1)'
+                : 'var(--wheel-stage-ink-dim, #6b7280)'
+            }}
+            data-testid="wheel-tree-inspect"
+            aria-pressed={inspecting()}
+            title={`${inspecting() ? 'hide' : 'show'} props, state and actions`}
+            onClick={() => props.inspect(inspecting() ? null : props.node.key)}
+          >
+            ◎
+          </button>
+        }
       >
-        {/* A component's own DATA (state, actions) vs its CHILDREN are
-            different kinds of thing, and rendering them as peer rows made
-            the tree hard to read. Both now sit in accented, icon-marked
-            groups: `state` opens by default (reaching it should cost no
-            clicks), `actions` stays closed (names only, no values). */}
-        <Show when={record()}>
-          {(instanceRecord) => (
-            <>
-              {/* PROPS first: what the parent handed this component, before
-                  what the component derived from services. */}
-              <Show when={Object.keys(liveProps()).length > 0}>
-                <Expandable
-                  path={`tree:${props.node.key}:props`}
-                  label="props"
-                  summary={`{${Object.keys(liveProps()).length}}`}
-                  accent={META_COLORS.props}
-                  icon="▪"
-                  defaultOpen
-                  ex={props.ex}
-                >
-                  <For each={Object.entries(liveProps())}>
-                    {([key, value]) => (
-                      <Show
-                        when={key === 'children'}
-                        fallback={
-                          <JsonTree
-                            path={`tree:${props.node.key}:props.${key}`}
-                            label={key}
-                            value={value}
-                            ex={props.ex}
-                          />
-                        }
-                      >
-                        <ChildLinks node={props.node} services={props.services} reveal={props.reveal} />
-                      </Show>
-                    )}
-                  </For>
-                </Expandable>
-              </Show>
-              {/* Component-LOCAL signals (useSignal), distinct from the
-                  connect shape: this state belongs to this instance alone. */}
-              <Show when={instanceRecord().locals.length > 0}>
-                <Expandable
-                  path={`tree:${props.node.key}:local`}
-                  label="local"
-                  summary={`(${instanceRecord().locals.length})`}
-                  accent={META_COLORS.local}
-                  icon="●"
-                  defaultOpen
-                  ex={props.ex}
-                >
-                  <For each={instanceRecord().locals}>
-                    {(local) => (
-                      <JsonTree
-                        path={`tree:${props.node.key}:local.${local.name}`}
-                        label={local.name}
-                        value={local.read()}
-                        ex={props.ex}
-                      />
-                    )}
-                  </For>
-                </Expandable>
-              </Show>
-              <Show when={Object.keys(liveState()).length > 0}>
-                <Expandable
-                  path={`tree:${props.node.key}:connected`}
-                  label="connected"
-                  summary={`{${Object.keys(liveState()).length}}`}
-                  accent={META_COLORS.connected}
-                  icon="◆"
-                  defaultOpen
-                  ex={props.ex}
-                >
-                  <For each={Object.entries(liveState())}>
-                    {([key, value]) => (
-                      <JsonTree
-                        path={`tree:${props.node.key}.${key}`}
-                        label={key}
-                        value={value}
-                        ex={props.ex}
-                      />
-                    )}
-                  </For>
-                </Expandable>
-              </Show>
-              <Show when={instanceRecord().actions.length > 0}>
-                <Expandable
-                  path={`tree:${props.node.key}:actions`}
-                  label="actions"
-                  summary={`(${instanceRecord().actions.length})`}
-                  accent={META_COLORS.actions}
-                  icon="ƒ"
-                  ex={props.ex}
-                >
-                  <For each={instanceRecord().actions}>
-                    {(action) => (
-                      <div style={sectionStyles.row}>
-                        <span style={sectionStyles.dim}>{action}</span>
-                      </div>
-                    )}
-                  </For>
-                </Expandable>
-              </Show>
-            </>
-          )}
-        </Show>
         <TreeChildren
           nodes={props.node.children}
           parentPath={`tree:${props.node.key}`}
@@ -396,6 +505,8 @@ function TreeNode(props: {
           ex={props.ex}
           selected={props.selected}
           reveal={props.reveal}
+          inspected={props.inspected}
+          inspect={props.inspect}
         />
       </Expandable>
     </div>
@@ -453,6 +564,23 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
   });
   const [picking, setPicking] = createSignal(false);
   const [selected, setSelected] = createSignal<string | null>(null);
+  // The component whose data the sub-view is showing, by durable key. One at
+  // a time on purpose: this is "what is this component holding", not a second
+  // tree to navigate.
+  const [inspected, setInspected] = createSignal<string | null>(null);
+  const inspectedNode = createMemo<InstanceTreeNode | null>(() => {
+    const key = inspected();
+    if (key === null) return null;
+    const find = (nodes: readonly InstanceTreeNode[]): InstanceTreeNode | null => {
+      for (const node of nodes) {
+        if (node.key === key) return node;
+        const found = find(node.children);
+        if (found) return found;
+      }
+      return null;
+    };
+    return find([...buckets().app, ...buckets().framework]);
+  });
   const highlight = (id: string | null): void => props.services.get(InspectorService).highlight(id);
 
   const reveal = (instanceId: string): void => {
@@ -477,6 +605,10 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
       parentPath = path;
     }
     setSelected(instanceId);
+    // Picking a component from the app asks "what is this thing", so the
+    // sub-view opens with it rather than making you press one more control.
+    const picked = registry.instance(instanceId);
+    if (picked) setInspected(picked.key);
     // Scroll after the expansion has rendered. `start` puts the node's TOP
     // at the top of the pane — what you want when the node has just been
     // expanded and its contents run below it. `scroll-margin-top` keeps it
@@ -602,6 +734,8 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
               ex={props.ex}
               selected={selected}
               reveal={reveal}
+              inspected={inspected}
+              inspect={setInspected}
             />
           </Expandable>
         </Show>
@@ -619,9 +753,23 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
               ex={props.ex}
               selected={selected}
               reveal={reveal}
+              inspected={inspected}
+              inspect={setInspected}
             />
           </Expandable>
         </Show>
+      </Show>
+      {/* The sub-view, under the tree it belongs to. */}
+      <Show when={inspectedNode()}>
+        {(node) => (
+          <ComponentDetail
+            node={node()}
+            services={props.services}
+            ex={props.ex}
+            reveal={reveal}
+            close={() => setInspected(null)}
+          />
+        )}
       </Show>
     </>
   );

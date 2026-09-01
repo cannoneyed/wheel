@@ -66,13 +66,21 @@ test('hovering a row highlights its component, and leaving clears it', async ({ 
 
 test('the children prop lists the components it mounted, and they are reachable', async ({ page }) => {
   const pane = page.getByTestId('wheel-pane-components');
-  // Open down until some component's `children` prop is on screen.
+  const rows = pane.locator('[data-tree-row]');
+
+  // `Frame:tracker-shell` takes children, which is the prop under test. Open
+  // the tree until its row is on screen.
   for (let pass = 0; pass < 12; pass += 1) {
-    if ((await pane.getByTestId('wheel-tree-child-link').count()) > 0) break;
-    const closed = pane.locator('[data-tree-row]').filter({ hasText: /^▸/ }).first();
+    if ((await rows.filter({ hasText: 'Frame:tracker-shell' }).count()) > 0) break;
+    const closed = rows.filter({ hasText: /^▸/ }).first();
     if ((await closed.count()) === 0) break;
     await closed.click();
   }
+
+  // The `children` prop lives in the sub-view now, with the rest of a
+  // component's data.
+  const shell = pane.locator('[data-tree-node="Frame:tracker-shell"]').first();
+  await shell.getByTestId('wheel-tree-inspect').first().click();
 
   const links = pane.getByTestId('wheel-tree-child-link');
   await expect(links.first()).toBeVisible();
@@ -88,6 +96,40 @@ test('the children prop lists the components it mounted, and they are reachable'
   // And it is a way THROUGH the tree: pressing one reveals that component.
   await links.first().click();
   await expect(page.locator(`[data-tree-node="${label}"]`)).toHaveCount(1);
+});
+
+test('a row shows what a component is, and opens its data on request', async ({ page }) => {
+  const pane = page.getByTestId('wheel-pane-components');
+  const rows = pane.locator('[data-tree-row]');
+
+  // The row says the component's name and nothing else it does not need to:
+  // `view` is the icon's job, and the child count is the children themselves.
+  const first = rows.filter({ hasText: /Shell|App/ }).first();
+  await expect(first).not.toContainText('view');
+
+  // Data is not in the tree until it is asked for — four groups under every
+  // open node is what made the tree unscannable.
+  await expect(pane.getByTestId('wheel-tree-detail')).toHaveCount(0);
+
+  await pane.getByTestId('wheel-tree-inspect').first().click();
+  const detail = pane.getByTestId('wheel-tree-detail');
+  await expect(detail).toBeVisible();
+
+  // And it closes again, from the row or from the panel.
+  await detail.getByTestId('wheel-tree-detail-close').click();
+  await expect(pane.getByTestId('wheel-tree-detail')).toHaveCount(0);
+});
+
+test('the inspect toggle does not also expand the row it sits in', async ({ page }) => {
+  const pane = page.getByTestId('wheel-pane-components');
+  const rows = pane.locator('[data-tree-row]');
+
+  const before = await rows.count();
+  await pane.getByTestId('wheel-tree-inspect').first().click();
+
+  // Two controls in one row: pressing one must not do the other's job.
+  await expect(pane.getByTestId('wheel-tree-detail')).toBeVisible();
+  expect(await rows.count()).toBe(before);
 });
 
 test('hovering does not rebuild the tree under the pointer', async ({ page }) => {

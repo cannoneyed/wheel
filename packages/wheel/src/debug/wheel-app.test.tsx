@@ -150,6 +150,33 @@ function mountApp() {
 
 const testid = (id: string): HTMLElement | null => document.querySelector(`[data-testid="${id}"]`);
 
+/**
+ * Open a component's data sub-view.
+ *
+ * Props, state and actions are no longer rows nested under the node — four
+ * groups under every open node made the tree unscannable — so a test that
+ * wants a component's data asks for it the way a person does.
+ */
+function inspect(name: string): void {
+  const panel = testid('wheel-debug-panel')!;
+  const node = panel.querySelector(`[data-tree-node="${name}"]`);
+  const toggle = node?.querySelector<HTMLButtonElement>('[data-testid="wheel-tree-inspect"]');
+  if (!toggle) throw new Error(`no row for ${name}: ${panel.textContent?.slice(0, 300)}`);
+  toggle.click();
+}
+
+/** Open every closed row, so a nested node is in the DOM to inspect. */
+function openTree(): void {
+  const panel = testid('wheel-debug-panel')!;
+  for (let pass = 0; pass < 20; pass += 1) {
+    const closed = [...panel.querySelectorAll<HTMLElement>('[data-tree-row]')].find((row) =>
+      row.textContent?.startsWith('▸')
+    );
+    if (!closed) return;
+    closed.click();
+  }
+}
+
 describe('WheelApp', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -188,7 +215,9 @@ describe('WheelApp', () => {
     expect(panel.textContent).not.toContain('Greeting');
     // Deepest match = the summary row carrying the click handler (its
     // wrapper div has identical textContent and comes first in order).
-    const cardRow = [...panel.querySelectorAll('div')].filter((el) => el.textContent === '▸Cardview (1)').at(-1);
+    const cardRow = [...panel.querySelectorAll<HTMLElement>('[data-tree-row]')].find(
+      (row) => row.textContent?.replace(/[◆▪◎]/g, '') === '▸Card'
+    );
     expect(cardRow).toBeTruthy();
     cardRow!.click();
     expect(panel.textContent).toContain('Greeting');
@@ -257,17 +286,18 @@ describe('WheelApp', () => {
     mountApp();
     testid('wheel-debug-toggle')!.click();
     const panel = testid('wheel-debug-panel')!;
-    const cardRow = [...panel.querySelectorAll('div')].filter((el) => el.textContent === '▸Cardview (1)').at(-1);
-    cardRow!.click();
-    const greetingRow = [...panel.querySelectorAll('div')].filter((el) => el.textContent === '▸Greeting').at(-1);
-    greetingRow!.click();
+    openTree();
+    inspect('Greeting');
     // The shape field renders directly ('who: "world"'), with no 'state' parent.
     expect(panel.textContent).toContain('who:');
     expect(panel.textContent).toContain('"world"');
     expect(panel.textContent).not.toContain('▸state');
-    // Actions are a closed dictionary.
-    expect(panel.textContent).toContain('actions(1)');
-    expect(panel.textContent).not.toMatch(/actions\(1\)rename/);
+    // Actions are a closed dictionary. Scoped to the components pane: the
+    // state tree lists a service's actions too, and matching the whole panel
+    // catches that instead.
+    const components = testid('wheel-pane-components')!;
+    expect(components.textContent).toContain('actions(1)');
+    expect(components.textContent).not.toMatch(/actions\(1\)rename/);
   });
 
   it('distinguishes a component hidden by a wheel <Show> from one that just renders no DOM', () => {
@@ -291,8 +321,8 @@ describe('WheelApp', () => {
     mountApp();
     testid('wheel-debug-toggle')!.click();
     const panel = testid('wheel-debug-panel')!;
-    const row = [...panel.querySelectorAll('div')].filter((el) => el.textContent?.startsWith('▸Labeled')).at(-1);
-    row!.click();
+    openTree();
+    inspect('Labeled');
 
     // props: data comes through as data; a callback is NAMED, not expanded.
     expect(panel.textContent).toContain('props{3}');
@@ -314,14 +344,18 @@ describe('WheelApp', () => {
     mountApp();
     testid('wheel-debug-toggle')!.click();
     const panel = testid('wheel-debug-panel')!;
-    const listRow = [...panel.querySelectorAll('div')].filter((el) => el.textContent === '▸RowListview (3)').at(-1);
+    const listRow = [...panel.querySelectorAll<HTMLElement>('[data-tree-row]')].find(
+      (row) => row.textContent?.replace(/[◆▪◎]/g, '') === '▸RowList'
+    );
     listRow!.click();
 
     // The three Rows collapse into one closed group — members hidden.
     expect(panel.textContent).toContain('Row[](3)');
     expect(panel.textContent).not.toContain('Row#1');
 
-    const group = [...panel.querySelectorAll('div')].filter((el) => el.textContent === '▸Row[](3)').at(-1);
+    const group = [...panel.querySelectorAll<HTMLElement>('[data-tree-row]')].find(
+      (row) => row.textContent?.replace(/[◆▪◎]/g, '') === '▸Row[](3)'
+    );
     group!.click();
     expect(panel.textContent).toContain('Row#1');
     expect(panel.textContent).toContain('Row#3');
