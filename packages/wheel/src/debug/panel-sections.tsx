@@ -73,7 +73,26 @@ export const sectionStyles = {
     overflow: 'hidden',
     'text-overflow': 'ellipsis'
   },
-  summary: { display: 'flex', gap: '6px', padding: '1px 0', cursor: 'pointer', 'user-select': 'none' },
+  summary: {
+    display: 'flex',
+    gap: '6px',
+    padding: '1px 0',
+    cursor: 'pointer',
+    'user-select': 'none',
+    'align-items': 'center',
+    // A tree row is one line: a long name is cut, not wrapped, and never
+    // widens the pane into a horizontal scroll.
+    'min-width': 0
+  },
+  /** The label itself, which is the part that gets cut. */
+  summaryLabel: {
+    overflow: 'hidden',
+    'text-overflow': 'ellipsis',
+    'white-space': 'nowrap',
+    'min-width': 0
+  },
+  /** Where a caret would be, for rows that have nothing to open. */
+  caretSpacer: { width: '9px', 'flex-shrink': 0 },
   indent: { 'padding-left': '12px' },
   dim: { color: 'var(--wheel-stage-ink-faint, #8b8b8b)' },
   badge: { color: 'var(--wheel-ok-soft, #2dd4bf)' }
@@ -170,46 +189,63 @@ export function Expandable(props: {
   accent?: string;
   /** Glyph before the label, for the same distinction. */
   icon?: string;
+  /**
+   * Whether this row opens at all.
+   *
+   * A childless component has nothing to reveal, so it gets no caret — and a
+   * caret that does nothing is worse than none. It keeps the caret's WIDTH,
+   * so every label in the tree still starts at the same place.
+   */
+  expandable?: boolean;
   /** Extra hover wiring for the label row (the component tree uses this to highlight). */
   onRowEnter?: () => void;
   onRowLeave?: () => void;
   /**
-   * A control pinned to the right of the row.
+   * A control between the caret and the label, where an icon would be.
    *
-   * It sits INSIDE the row so it lines up with the label, but outside the
-   * row's own click target — the component tree puts an inspect toggle here,
-   * and pressing it must not also expand the node.
+   * It sits INSIDE the row so it lines up with everything else, but outside
+   * the row's own click target — the component tree puts its inspect toggle
+   * here, and pressing that must not also expand the node.
    */
-  trailing?: JSX.Element;
+  leading?: JSX.Element;
   children: JSX.Element;
 }): JSX.Element {
   // Toggled paths XOR the default, so one set serves both default-open groups
   // and default-closed trees.
-  const open = (): boolean => props.ex.expanded(props.path) !== (props.defaultOpen ?? false);
+  const expandable = (): boolean => props.expandable ?? true;
+  const open = (): boolean =>
+    expandable() && props.ex.expanded(props.path) !== (props.defaultOpen ?? false);
   return (
     <div>
       <div
         style={sectionStyles.summary}
         data-tree-row=""
-        onClick={() => props.ex.toggle(props.path)}
+        onClick={() => expandable() && props.ex.toggle(props.path)}
         onMouseEnter={props.onRowEnter}
         onMouseLeave={props.onRowLeave}
       >
-        <span style={sectionStyles.dim}>{open() ? '▾' : '▸'}</span>
+        <Show
+          when={expandable()}
+          fallback={<span style={sectionStyles.caretSpacer} aria-hidden="true" />}
+        >
+          <span style={sectionStyles.dim}>{open() ? '▾' : '▸'}</span>
+        </Show>
+        <Show when={props.leading}>
+          <span style={{ 'flex-shrink': 0 }} onClick={(event) => event.stopPropagation()}>
+            {props.leading}
+          </span>
+        </Show>
         <Show when={props.icon}>
           <span style={{ color: props.accent ?? 'var(--wheel-stage-ink-faint, #8b8b8b)' }}>{props.icon}</span>
         </Show>
-        <span style={props.accent ? { color: props.accent } : undefined}>{props.label}</span>
+        <span
+          style={{ ...sectionStyles.summaryLabel, ...(props.accent ? { color: props.accent } : {}) }}
+          title={props.label}
+        >
+          {props.label}
+        </span>
         <Show when={props.summary}>
           <span style={sectionStyles.dim}>{props.summary}</span>
-        </Show>
-        <Show when={props.trailing}>
-          <span
-            style={{ 'margin-left': 'auto' }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {props.trailing}
-          </span>
         </Show>
       </div>
       <Show when={open()}>

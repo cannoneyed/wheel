@@ -73,6 +73,21 @@ describe('sibling-scoped ids', () => {
     expect(ids).toContain('Row#3');
   });
 
+  it('does not number the only delete button in a row — in the registry', async () => {
+    const context = mount();
+    await Promise.resolve();
+    // Through `instanceId`, not through the DOM stamp. Asserting only on the
+    // stamp let a stale getter survive: the restamp was right and every
+    // surface that asks the registry — the tree, the bridge, a note's anchor
+    // — still said `Button(delete)#3`.
+    const ids = context.services.registry
+      .instances()
+      .filter((record) => record.name === 'Button(delete)')
+      .map((record) => record.instanceId);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids)).toEqual(new Set(['Button(delete)']));
+  });
+
   it('does not number the only delete button in a row', async () => {
     mount();
     await Promise.resolve();

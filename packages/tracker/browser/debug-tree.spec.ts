@@ -132,6 +132,60 @@ test('the inspect toggle does not also expand the row it sits in', async ({ page
   expect(await rows.count()).toBe(before);
 });
 
+test('the tree and its detail scroll on their own, and the split is draggable', async ({ page }) => {
+  const pane = page.getByTestId('wheel-pane-components');
+
+  // Fill the tree, so there is genuinely more than fits.
+  for (let pass = 0; pass < 8; pass += 1) {
+    const closed = pane.locator('[data-tree-row]').filter({ hasText: /^▸/ }).first();
+    if ((await closed.count()) === 0) break;
+    await closed.click();
+  }
+  await pane.getByTestId('wheel-tree-inspect').first().click();
+
+  const scroller = pane.getByTestId('wheel-tree-scroll');
+  await expect(scroller).toBeVisible();
+
+  // The tree scrolls INSIDE the pane. It used to be one box with everything
+  // in it, so a big tree pushed the detail off the bottom and one scrollbar
+  // chased two things.
+  const box = await scroller.boundingBox();
+  const paneBox = await pane.boundingBox();
+  expect(box!.height).toBeLessThanOrEqual(paneBox!.height + 1);
+
+  // The detail is anchored under it and the split is draggable — up makes it
+  // taller, because the detail is pinned to the bottom.
+  const detail = pane.getByTestId('wheel-tree-detail');
+  const before = (await detail.boundingBox())!.height;
+  const handle = pane.getByTestId('wheel-tree-detail-handle');
+  const grip = (await handle.boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y - 60, { steps: 6 });
+  await page.mouse.up();
+
+  expect((await detail.boundingBox())!.height).toBeGreaterThan(before);
+});
+
+test('a childless row has no caret, and a long name is cut rather than wrapped', async ({ page }) => {
+  const pane = page.getByTestId('wheel-pane-components');
+  for (let pass = 0; pass < 8; pass += 1) {
+    const closed = pane.locator('[data-tree-row]').filter({ hasText: /^▸/ }).first();
+    if ((await closed.count()) === 0) break;
+    await closed.click();
+  }
+
+  const rows = pane.locator('[data-tree-node] [data-tree-row]');
+  const leaf = rows.filter({ hasNotText: /^[▸▾]/ }).first();
+  // A caret that does nothing is worse than none; the row keeps the caret's
+  // width so every label still starts in the same column.
+  await expect(leaf).toHaveCount(1);
+
+  // And no row makes the pane scroll sideways.
+  const overflowing = await pane.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  expect(overflowing).toBe(false);
+});
+
 test('hovering does not rebuild the tree under the pointer', async ({ page }) => {
   const row = page.getByTestId('wheel-pane-components').locator('[data-tree-node] [data-tree-row]').first();
   const handle = await row.elementHandle();

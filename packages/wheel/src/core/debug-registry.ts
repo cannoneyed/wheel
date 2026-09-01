@@ -150,12 +150,6 @@ export interface InstanceTreeNode {
   readonly children: InstanceTreeNode[];
 }
 
-/** The trailing `#n` of a stable key (`TodoRow#2` → 2). */
-function slotOf(key: string): number {
-  const hash = key.lastIndexOf('#');
-  return hash === -1 ? 0 : Number(key.slice(hash + 1));
-}
-
 /** An instance's first inserted element, or null when it renders no DOM. */
 function positionedElement(record: InstanceRecord): Element | null {
   for (const element of record.elements) {
@@ -397,7 +391,7 @@ export class DebugRegistry {
     const record: InstanceRecord = {
       key,
       get instanceId(): string {
-        return registry.countNamed(identity) > 1 ? key : identity;
+        return registry.displayIdOf(key);
       },
       name: identity,
       kind: options?.kind ?? 'connected',
@@ -473,10 +467,14 @@ export class DebugRegistry {
         ids.set(only.key, only.name);
         continue;
       }
-      // Several of one name under one parent: number them, in slot order, so
-      // the same mount order reproduces the same ids after a reload.
-      const ordered = [...members].sort((a, b) => slotOf(a.key) - slotOf(b.key));
-      ordered.forEach((record, index) => ids.set(record.key, `${record.name}#${index + 1}`));
+      // Several of one name under one parent: each shows its SLOT, which is
+      // what its key already carries. Not its position in the group — a
+      // position shifts when an earlier sibling unmounts, so a selector
+      // copied out of the tree would quietly start meaning a different
+      // component. The slot is held for as long as the instance lives, and
+      // reused lowest-first afterwards, so the same mount order reproduces
+      // the same ids after a reload.
+      for (const record of members) ids.set(record.key, record.key);
     }
     // The DOM stamp is written at registration, when this component's parent
     // may not be mounted yet — so the id it got then can be wrong the moment
