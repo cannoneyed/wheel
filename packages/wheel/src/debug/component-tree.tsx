@@ -111,6 +111,21 @@ function groupSiblings(nodes: InstanceTreeNode[]): DisplayChild[] {
   return out;
 }
 
+/**
+ * A string that changes exactly when the tree's SHAPE does.
+ *
+ * Identity, display name (it renumbers when a sibling appears), kind, group
+ * and child order — everything the rows render structurally. Values are
+ * deliberately absent: they update inside a row without rebuilding it.
+ */
+function treeSignature(nodes: readonly InstanceTreeNode[]): string {
+  let out = '';
+  for (const node of nodes) {
+    out += `${node.key}|${node.instanceId}|${node.kind}|${node.group}(${treeSignature(node.children)})`;
+  }
+  return out;
+}
+
 /** Renders one child slot: a plain instance, or a collapsed same-name list. */
 function TreeChildren(props: {
   nodes: InstanceTreeNode[];
@@ -161,6 +176,16 @@ function TreeNode(props: {
   selected: () => string | null;
 }): JSX.Element {
   const record = () => props.services.registry.instance(props.node.instanceId);
+  // Live values, on the DATA channel. Kept out of the tree-shape memo so a
+  // changing value updates a row instead of rebuilding every row.
+  const liveProps = createMemo<Record<string, unknown>>(() => {
+    props.services.trackVersion();
+    return record()?.props() ?? {};
+  });
+  const liveState = createMemo<Record<string, unknown>>(() => {
+    props.services.trackVersion();
+    return record()?.state() ?? {};
+  });
   const highlight = (id: string | null): void => props.services.get(InspectorService).highlight(id);
   /**
    * Why this component isn't on screen, if it isn't:
@@ -210,17 +235,17 @@ function TreeNode(props: {
             <>
               {/* PROPS first: what the parent handed this component, before
                   what the component derived from services. */}
-              <Show when={Object.keys(instanceRecord().props()).length > 0}>
+              <Show when={Object.keys(liveProps()).length > 0}>
                 <Expandable
                   path={`tree:${props.node.key}:props`}
                   label="props"
-                  summary={`{${Object.keys(instanceRecord().props()).length}}`}
+                  summary={`{${Object.keys(liveProps()).length}}`}
                   accent={META_COLORS.props}
                   icon="▪"
                   defaultOpen
                   ex={props.ex}
                 >
-                  <For each={Object.entries(instanceRecord().props())}>
+                  <For each={Object.entries(liveProps())}>
                     {([key, value]) => (
                       <JsonTree
                         path={`tree:${props.node.key}:props.${key}`}
@@ -256,17 +281,17 @@ function TreeNode(props: {
                   </For>
                 </Expandable>
               </Show>
-              <Show when={Object.keys(instanceRecord().state()).length > 0}>
+              <Show when={Object.keys(liveState()).length > 0}>
                 <Expandable
                   path={`tree:${props.node.key}:connected`}
                   label="connected"
-                  summary={`{${Object.keys(instanceRecord().state()).length}}`}
+                  summary={`{${Object.keys(liveState()).length}}`}
                   accent={META_COLORS.connected}
                   icon="◆"
                   defaultOpen
                   ex={props.ex}
                 >
-                  <For each={Object.entries(instanceRecord().state())}>
+                  <For each={Object.entries(liveState())}>
                     {([key, value]) => (
                       <JsonTree
                         path={`tree:${props.node.key}.${key}`}
@@ -350,11 +375,30 @@ function renderedChain(registry: DebugRegistry, instanceId: string): string[] {
 /** The full mounted-component tree in App/Framework buckets, nodes default closed. */
 export function ComponentTreeSection(props: { services: ServiceContext; ex: ExpandState }): JSX.Element {
   const registry = props.services.registry;
-  const buckets = createMemo(() => {
-    // Tree SHAPE rides the instance channel; live state values ride the data
-    // revision (JsonTree re-reads on expansion via the memo below).
+  /**
+   * The tree's SHAPE, rebuilt only when the shape actually changed.
+   *
+   * `trackDebug()` is bumped by every registry change AND every service field
+   * write — including the inspector's own `highlighted`, which the rows here
+   * write on hover. Recomputing on each bump produced brand-new node objects,
+   * so `<For>` tore down every row and built it again, and hovering the tree
+   * rebuilt the tree:
+   *
+   *   hover a row → highlight → field write → debug bump → rows recreated →
+   *   the hovered row is detached → its `mouseleave` never fires (the
+   *   highlight sticks on) and a click in progress dies with the node.
+   *
+   * The signature is the fix: a bump recomputes a string, and only a string
+   * that differs rebuilds the rows. Structure changes still land immediately;
+   * everything else is free. The same guard covers any other surface that
+   * writes a field while the panel is open.
+   */
+  const signature = createMemo(() => {
     props.services.trackDebug();
-    props.services.trackVersion();
+    return treeSignature(registry.instanceTree());
+  });
+  const buckets = createMemo(() => {
+    signature();
     return bucketize(registry.instanceTree());
   });
   const [picking, setPicking] = createSignal(false);
