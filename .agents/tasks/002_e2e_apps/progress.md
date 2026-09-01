@@ -18,8 +18,8 @@ behavior IDs, and results here before the next phase starts.
 |---|---:|---|---|
 | 1. Axle Durable Object browser leg | `S` | Complete | [Build 142](https://buildkite.com/cannoneyed/wheel/builds/142) |
 | 2. Behavior catalog and multi-client harness | `M` | Complete | [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144) |
-| 3. Rounds app and durability behaviors | `L` | In progress | — |
-| 4. Rounds upgrade and restart configurations | `M` | Not started | — |
+| 3. Rounds app and durability behaviors | `L` | Complete | [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147) |
+| 4. Rounds upgrade and restart configurations | `M` | In progress | — |
 | 5. Promote the editor into Chalk | `L` | Not started | — |
 | 6. Spoke app and authorization behaviors | `L` | Not started | — |
 | 7. Spoke backend configurations | `L` | Not started | — |
@@ -63,7 +63,7 @@ Only one phase may be `In progress`.
 - [x] The external controller survives server restarts and waits for readiness.
 - [x] A lint rule blocks production imports from browser support and the controller.
 - [x] All Phase 3 behavior IDs pass on SQLite.
-- [ ] The Buildkite Rounds SQLite step is green and linked.
+- [x] The Buildkite Rounds SQLite step is green and linked.
 
 ### Phase 4
 
@@ -139,8 +139,8 @@ changes out of this table.
 
 | Phase | Finding | Wheel change | State |
 |---|---|---|---|
-| 3 | A socket-level reconnect reported `connected` before the engine generation event re-queued acknowledged commands. The first flush saw nothing, and the later event stranded the outbox. | Restarted the shared outbox flush when the engine hello queues prior-generation confirmations. Added the browser proof and reversed-order unit case. | Complete locally; CI pending. |
-| 3 | A production entry could import browser fault controls without a static failure. | Added `wheel/no-browser-support-in-production`, its Linter API proof, repository wiring, and lint docs. | Complete locally; CI pending. |
+| 3 | A socket-level reconnect reported `connected` before the engine generation event re-queued acknowledged commands. The first flush saw nothing, and the later event stranded the outbox. | Restarted the shared outbox flush when the engine hello queues prior-generation confirmations. Added the browser proof and reversed-order unit case. | Complete in [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147). |
+| 3 | A production entry could import browser fault controls without a static failure. | Added `wheel/no-browser-support-in-production`, its Linter API proof, repository wiring, and lint docs. | Complete in [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147). |
 | 2 | Separate Playwright contexts needed repeated page and driver wiring. | Added the structurally typed `openWheelClients` helper to `wheel/testing/playwright`. | Complete in [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144). |
 | 2 | Query release is not visible through component state or row output alone. | Added the read-only `subscriptions()` bridge and driver method. | Complete in [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144). |
 | 2 | Preview builds remove the debug bridge, but browser proofs need it while deployed artifacts must not expose it. | Added `wheelDevTools({ devModeInBuild: true })` for test builds and restored a normal Tracker build before CI artifact upload. | Complete in [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144). |
@@ -153,16 +153,16 @@ Newest entry first.
 ### 2026-08-31: Phase 3, local Rounds durability proof
 
 - Commands: `bun run check:static`; `bun run test`; `bun run test:browser:rounds`.
-- Environment: local.
+- Environment: local and [Buildkite build 147](https://buildkite.com/cannoneyed/wheel/builds/147).
 - Behaviors proven: `conv-empty`, `cmd-optimistic`, `cmd-reject`, `cmd-orphan`,
   `dur-preview`, `dur-outbox`, `dur-generation`, `dur-checkpoint`, `status-error`,
   `status-stale`, `status-live`.
 - Result: all nine Rounds browser tests, 1,881 component tests, and 831 node tests pass.
   The controller proves reset, preserved restart, readiness, and one-shot query failure. The
   production build contains no test control names. Static coverage now requires 13 primary
-  behavior tags. The generation proof found and fixed one Wheel outbox race.
-- Follow-ups: run and link the Buildkite phase gate. `solo.yml` contains the two Rounds
-  processes; human Sync is pending.
+  behavior tags. The generation proof found and fixed one Wheel outbox race. Build 146 first
+  caught the missing robot-doc lint entry. Build 147 passed the full gate in 147 seconds.
+- Follow-ups: Phase 4. `solo.yml` contains the two Rounds processes; human Sync is pending.
 
 ### 2026-08-31: Phase 2, local behavior coverage and multi-client proof
 
