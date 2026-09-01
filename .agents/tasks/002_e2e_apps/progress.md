@@ -21,8 +21,8 @@ behavior IDs, and results here before the next phase starts.
 | 3. Rounds app and durability behaviors | `L` | Complete | [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147) |
 | 4. Rounds upgrade and restart configurations | `M` | Complete | [Build 150](https://buildkite.com/cannoneyed/wheel/builds/150) |
 | 5. Promote the editor into Chalk | `L` | Complete | [Build 156](https://buildkite.com/cannoneyed/wheel/builds/156), [matrix 154](https://buildkite.com/cannoneyed/wheel/builds/154) |
-| 6. Spoke app and authorization behaviors | `L` | In progress | — |
-| 7. Spoke backend configurations | `L` | Not started | — |
+| 6. Spoke app and authorization behaviors | `L` | Complete | [Build 159](https://buildkite.com/cannoneyed/wheel/builds/159) |
+| 7. Spoke backend configurations | `L` | In progress | — |
 | 8. Runtime coverage gate and CI matrix | `M` | Not started | — |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`.
@@ -83,9 +83,9 @@ Only one phase may be `In progress`.
 
 ### Phase 6
 
-- [ ] Spoke contains two workspaces and principals with different private visibility.
-- [ ] Aggregate, authorization, and presence behavior IDs pass on SQLite.
-- [ ] `externalWrite` is exposed by the smallest test or bot endpoint needed for Phase 7.
+- [x] Spoke contains two workspaces and principals with different private visibility.
+- [x] Aggregate, authorization, and presence behavior IDs pass on SQLite.
+- [x] `externalWrite` is exposed by the smallest test or bot endpoint needed for Phase 7.
 
 ### Phase 7
 
@@ -143,6 +143,7 @@ changes out of this table.
 
 | Phase | Finding | Wheel change | State |
 |---|---|---|---|
+| 6 | Presence was workspace-wide, so a private-channel client could expose its state to non-members. | Added a fail-closed `presenceFilter` at the shared server broadcast boundary. Bootstrap, audience changes, and disconnect clears use the same policy. | Complete in [Build 159](https://buildkite.com/cannoneyed/wheel/builds/159). |
 | 3 | A socket-level reconnect reported `connected` before the engine generation event re-queued acknowledged commands. The first flush saw nothing, and the later event stranded the outbox. | Restarted the shared outbox flush when the engine hello queues prior-generation confirmations. Added the browser proof and reversed-order unit case. | Complete in [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147). |
 | 3 | A production entry could import browser fault controls without a static failure. | Added `wheel/no-browser-support-in-production`, its Linter API proof, repository wiring, and lint docs. | Complete in [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147). |
 | 2 | Separate Playwright contexts needed repeated page and driver wiring. | Added the structurally typed `openWheelClients` helper to `wheel/testing/playwright`. | Complete in [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144). |
@@ -153,6 +154,21 @@ changes out of this table.
 ## Work log
 
 Newest entry first.
+
+### 2026-09-01: Phase 6, Spoke authorization proof
+
+- Commands: `bun run check:static`; `bun run test`; `bun run test:browser:spoke:sqlite`.
+- Environment: local and [Buildkite build 159](https://buildkite.com/cannoneyed/wheel/builds/159).
+- Behaviors proven: `auth-visibility`, `auth-grouping`, `conv-aggregate`, and
+  `presence-live`. SQLite also runs the `conv-external` and workspace-isolation flows as
+  additional proofs.
+- Result: all five Spoke browser tests pass. Private rows, bridge state, and presence stay
+  principal-scoped. Unread aggregates update and clear. Bot writes converge on both clients.
+  Workspaces remain isolated. The 1,881 component tests and 832 node tests pass. Static coverage
+  now requires 27 primary tags. Build 158 first caught the missing Bun workspace lock entry;
+  Build 159 passed the full gate in 177 seconds. Spoke exposed the need for a shared,
+  fail-closed presence visibility policy in Wheel.
+- Follow-ups: Phase 7. `solo.yml` contains the Spoke client and server; human Sync is pending.
 
 ### 2026-09-01: Phase 5, Chalk collaboration proof
 
