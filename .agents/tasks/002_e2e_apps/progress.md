@@ -23,7 +23,7 @@ behavior IDs, and results here before the next phase starts.
 | 5. Promote the editor into Chalk | `L` | Complete | [Build 156](https://buildkite.com/cannoneyed/wheel/builds/156), [matrix 154](https://buildkite.com/cannoneyed/wheel/builds/154) |
 | 6. Spoke app and authorization behaviors | `L` | Complete | [Build 159](https://buildkite.com/cannoneyed/wheel/builds/159) |
 | 7. Spoke backend configurations | `L` | Complete | [Build 163](https://buildkite.com/cannoneyed/wheel/builds/163), [matrix 169](https://buildkite.com/cannoneyed/wheel/builds/169) |
-| 8. Runtime coverage gate and CI matrix | `M` | In progress | — |
+| 8. Runtime coverage gate and CI matrix | `M` | Complete | [Build 170](https://buildkite.com/cannoneyed/wheel/builds/170), [matrix 171](https://buildkite.com/cannoneyed/wheel/builds/171) |
 
 Allowed phase states are `Not started`, `Ready`, `In progress`, `Blocked`, and `Complete`.
 Only one phase may be `In progress`.
@@ -100,12 +100,12 @@ Only one phase may be `In progress`.
 
 ### Phase 8
 
-- [ ] Static coverage proves 31 required primary tags and their CI legs exist.
-- [ ] Playwright JSON results prove all 31 required primary tests passed.
-- [ ] Missing, skipped, failed, or duplicate required proofs fail aggregation.
-- [ ] Pull-request and nightly paths stay separate.
-- [ ] The pull-request path remains near the two-minute soft target.
-- [ ] Docs describe the apps, primary proofs, backend legs, and stretch hibernation proof.
+- [x] Static coverage proves 31 required primary tags and their CI legs exist.
+- [x] Playwright JSON results prove all 31 required primary tests passed.
+- [x] Missing, skipped, failed, or duplicate required proofs fail aggregation.
+- [x] Pull-request and nightly paths stay separate.
+- [x] The pull-request path remains near the two-minute soft target.
+- [x] Docs describe the apps, primary proofs, backend legs, and stretch hibernation proof.
 
 ## Decision log
 
@@ -135,6 +135,9 @@ Record dated decisions that change the plan. Update the plan in the same change.
   `unread_counts.forMember`. Wheel requires a query namespace to match its target collection.
   Keep `channel_members` as an internal collection because it drives invalidation but must never
   materialize on a client.
+- 2026-09-01: Let the full matrix rerun the three standard app-backend jobs. This gives the final
+  runtime gate every primary Playwright result in one build without adding variants to the pull-request
+  path.
 
 ## Wheel library changes
 
@@ -155,6 +158,24 @@ changes out of this table.
 ## Work log
 
 Newest entry first.
+
+### 2026-09-01: Phase 8, runtime behavior coverage
+
+- Commands: `bun run check:static`; `bun run test`; targeted behavior-result and pipeline tests;
+  Buildkite standard and matrix builds.
+- Environment: local, [Buildkite build 170](https://buildkite.com/cannoneyed/wheel/builds/170),
+  and [matrix build 171](https://buildkite.com/cannoneyed/wheel/builds/171).
+- Behaviors proven: all 31 required catalog IDs through their assigned app and backend.
+- Result: every behavior app emits Playwright JSON with app, backend, and variant metadata. The
+  matrix downloads 11 reports, rejects missing, skipped, failed, or duplicate primary proofs, and
+  posts one app-by-backend annotation. The annotation reports 31/31 passed and `ws-hibernate`
+  unrun as stretch coverage. Static coverage also checks the 31 source tags and their CI legs.
+  The standard build passed in 158 seconds, below the prior Phase 7 build's 168 seconds, so this
+  phase did not extend the critical path. The full matrix passed in 131 seconds. Local tests pass
+  with 1,881 component tests and 835 node tests. No Wheel library change was needed.
+- Documentation: the human real-app guide and robot testing references now describe Axle,
+  Rounds, Chalk, Spoke, their commands, primary proofs, backend legs, and hibernation status.
+- Follow-ups: none. New `solo.yml` process entries still need a human Sync for local development.
 
 ### 2026-09-01: Phase 7, Spoke backend and node proofs
 
