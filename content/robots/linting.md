@@ -49,6 +49,7 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `no-barrel-icon-imports`: icons use per-icon entries.
 - `require-keep-names`: Wheel Vite consumers install `wheelDevTools()`.
 - `no-worker-data-exports`: Worker entries keep runtime data private and export only entry points.
+- `no-browser-support-in-production`: production entries never import browser fault controls.
 
 ## Package and proof rules
 
