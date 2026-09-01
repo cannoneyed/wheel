@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "server": "bun run server.ts"
+  },
   "exports": {
     ".": "./src/editor/index.ts",
     "./server": "./src/editor/sync/editor.server.ts",

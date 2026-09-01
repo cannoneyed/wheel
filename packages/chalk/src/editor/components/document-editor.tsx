@@ -54,11 +54,11 @@ const connectDocumentEditor = connect('DocumentEditor', (c) => {
   const editorService = c.service(EditorService);
   return view(
     {
-      blocks: () => editorService.list.rows,
-      status: () => editorService.list.status,
+      blocks: editorService.currentBlocks,
+      status: editorService.blocksStatus,
       peersByBlock: (): ReadonlyMap<string, readonly BlockPeer[]> => {
         const map = new Map<string, readonly BlockPeer[]>();
-        for (const block of editorService.list.rows) {
+        for (const block of editorService.currentBlocks()) {
           const peers = editorService.peersOn(block.id);
           if (peers.length > 0) {
             map.set(block.id, peers);

@@ -62,11 +62,13 @@ steps:
         bun run docs:build & docs_pid=$$!
         bun run test:browser:tracker:sqlite & tracker_pid=$$!
         bun run test:browser:rounds & rounds_pid=$$!
+        bun run test:browser:chalk:sqlite & chalk_pid=$$!
         bun run test:browser:website & website_pid=$$!
         bun run build & wheel_pid=$$!
         wait "$$docs_pid" || status=$$?
         wait "$$tracker_pid" || status=$$?
         wait "$$rounds_pid" || status=$$?
+        wait "$$chalk_pid" || status=$$?
         wait "$$website_pid" || status=$$?
         wait "$$wheel_pid" || status=$$?
         if [ "$$status" -ne 0 ]; then
@@ -246,6 +248,20 @@ steps:
     commands:
       - "bun install --frozen-lockfile"
       - "bun run test:browser:rounds:upgrade"
+    artifact_paths:
+      - "test-results/**/*"
+      - "playwright-report/**/*"
+
+  - label: ":cloudflare: Chalk Durable Object"
+    key: "check-chalk-do"
+    if: build.env("WHEEL_CI_MODE") == "matrix"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run test:browser:chalk:do"
     artifact_paths:
       - "test-results/**/*"
       - "playwright-report/**/*"

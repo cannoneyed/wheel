@@ -1,23 +1,19 @@
-/**
- * Chalk editor sync module — the block-document contract (007 design):
- *
- * - A block row = one top-level node in the single tiptap editor: `kind`
- *   (paragraph/heading/bullet/…), `text` (INLINE markdown only — bold,
- *   italic, code, links; the kind is a column, never a `#` prefix in text),
- *   plus kind-specific fields (`checked` for todos, `language` for code).
- * - `version` counts edits per block. Every edit carries the `baseVersion`
- *   it was based on — informational today (powers the "peer edited this
- *   while you were typing" warning), and the door OT ops would later walk
- *   through (D3): same marker, different payload.
- * - Split and merge are ORDINARY single mutations that each write two rows
- *   (D2) and invert into each other with explicit payloads, so one gesture
- *   is one undo step with byte-exact restores.
- * - Undo model: every mutation declares `invert`; ids for created rows are
- *   ARGS-BORNE (minted via client.newId) so inverts can name them.
- */
-import { mutation, orphan, positionBetween, presence, query, t, collection, type Infer, type InverseSpec } from 'wheel/sync';
+import {
+  collection,
+  mutation,
+  orphan,
+  patchMutation,
+  positionBetween,
+  presence,
+  query,
+  t,
+  type Infer,
+  type InverseSpec
+} from 'wheel/sync';
 
-/** The block kinds the editor renders (D5 — deliberately simple). */
+export const DEFAULT_DOC_ID = 'doc_demo';
+
+export const DocStatus = t.enum(['draft', 'review', 'published']);
 export const BlockKind = t.enum([
   'paragraph',
   'h1',
@@ -31,34 +27,67 @@ export const BlockKind = t.enum([
   'divider'
 ]);
 
-/** One block row. `text` is inline markdown; block-level structure lives in `kind`. */
+export const DocRow = t.object({
+  id: t.string(),
+  title: t.string(),
+  icon: t.string(),
+  status: DocStatus,
+  archivedAt: t.number().nullable(),
+  updatedAt: t.number(),
+  version: t.number()
+});
+
 export const BlockRow = t.object({
   id: t.string(),
+  docId: t.string(),
   kind: BlockKind,
   text: t.string(),
   checked: t.boolean().nullable(),
   language: t.string().nullable(),
+  indent: t.number(),
   position: t.number(),
   version: t.number()
 });
 
-type Block = Infer<typeof BlockRow>;
-export type { Block };
+export const CommentRow = t.object({
+  id: t.string(),
+  docId: t.string(),
+  blockId: t.string(),
+  offset: t.number(),
+  body: t.string(),
+  resolvedAt: t.number().nullable(),
+  createdAt: t.number()
+});
+
+export const DocSummaryRow = t.object({
+  docId: t.string(),
+  blockCount: t.number(),
+  commentCount: t.number(),
+  openCommentCount: t.number(),
+  updatedAt: t.number()
+});
+
+export type Doc = Infer<typeof DocRow>;
+export type DocState = Infer<typeof DocStatus>;
+export type Block = Infer<typeof BlockRow>;
 export type Kind = Infer<typeof BlockKind>;
+export type Comment = Infer<typeof CommentRow>;
+export type DocSummary = Infer<typeof DocSummaryRow>;
 
+export const docs = collection({ name: 'docs', type: DocRow, key: (row) => row.id });
 export const blocks = collection({ name: 'blocks', type: BlockRow, key: (row) => row.id });
+export const comments = collection({ name: 'comments', type: CommentRow, key: (row) => row.id });
+export const docSummaries = collection({
+  name: 'doc_summaries',
+  type: DocSummaryRow,
+  key: (row) => row.docId,
+  keySpec: { fields: ['docId'] }
+});
 
-/**
- * Ephemeral per-client editing state (008 P2/P3): which block, caret +
- * selection anchor inside it (offsets in markdown-source characters —
- * `anchorOffset` equals `caretOffset` when nothing is selected), and —
- * while typing is uncommitted — the live preview text peers render
- * display-only. Relayed via the presence channel: no rows, no history,
- * dies with the connection.
- */
 export const editorPresence = presence({
   name: 'editor',
   state: t.object({
+    docId: t.string().nullable(),
     blockId: t.string().nullable(),
     caretOffset: t.number().nullable(),
     anchorOffset: t.number().nullable(),
@@ -66,69 +95,175 @@ export const editorPresence = presence({
   })
 });
 
-/** The whole document: every block, in fractional-position order. */
-export const blockList = query({
-  name: 'blocks.all',
+export const docsAll = query({
+  name: 'docs.all',
   params: t.object({}),
-  into: blocks,
+  into: docs,
   projection: {
-    filter: () => true,
-    // Tie-break by id so both sides order deterministically even on equal positions.
-    sort: (a, b) => a.position - b.position || (a.id < b.id ? -1 : 1)
+    filter: (row) => row.archivedAt === null,
+    sort: (left, right) => right.updatedAt - left.updatedAt || left.title.localeCompare(right.title)
   }
 });
 
-/** Where a new block lands (mirrors the neighbor SELECTs in editor.server.ts). */
-function insertPosition(rows: readonly Block[], afterBlockId: string | undefined): number {
-  const after = afterBlockId === undefined ? undefined : rows.find((row) => row.id === afterBlockId);
+export const docsRecent = query({
+  name: 'docs.recent',
+  params: t.object({ since: t.number() }),
+  into: docs,
+  projection: {
+    filter: (row, params) => row.archivedAt === null && row.updatedAt >= params.since,
+    sort: (left, right) => right.updatedAt - left.updatedAt || left.title.localeCompare(right.title)
+  }
+});
+
+export const blocksByDoc = query({
+  name: 'blocks.byDoc',
+  params: t.object({ docId: t.string() }),
+  into: blocks,
+  projection: {
+    filter: (row, params) => row.docId === params.docId,
+    sort: (left, right) => left.position - right.position || left.id.localeCompare(right.id)
+  }
+});
+
+export const commentsByDoc = query({
+  name: 'comments.byDoc',
+  params: t.object({ docId: t.string() }),
+  into: comments,
+  projection: {
+    filter: (row, params) => row.docId === params.docId,
+    sort: (left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id)
+  }
+});
+
+export const docSummariesAll = query({
+  name: 'doc_summaries.all',
+  params: t.object({}),
+  into: docSummaries,
+  dependsOn: ['docs', 'blocks', 'comments']
+});
+
+function insertPosition(rows: readonly Block[], docId: string, afterBlockId?: string): number {
+  const scoped = rows.filter((row) => row.docId === docId);
+  const after = afterBlockId ? scoped.find((row) => row.id === afterBlockId) : undefined;
   if (after) {
-    let next: Block | undefined;
-    for (const row of rows) {
-      if (row.position > after.position && (next === undefined || row.position < next.position)) {
-        next = row;
-      }
-    }
+    const next = scoped
+      .filter((row) => row.position > after.position)
+      .sort((left, right) => left.position - right.position)[0];
     return positionBetween(after.position, next?.position);
   }
-  let last: Block | undefined;
-  for (const row of rows) {
-    if (last === undefined || row.position > last.position) {
-      last = row;
-    }
-  }
+  const last = scoped.sort((left, right) => right.position - left.position)[0];
   return positionBetween(last?.position, undefined);
 }
 
-/** Field defaults for newly created blocks. */
-const FRESH = { checked: null, language: null, version: 1 } as const;
+const DocPatch = t.object({
+  title: t.string().optional(),
+  icon: t.string().optional(),
+  status: DocStatus.optional()
+});
 
-/**
- * Insert a block. The optional text/kind/… fields are the RESTORE path:
- * deleteBlock's inverse re-creates the old row byte-exactly.
- * Inverse: delete it.
- */
+export const createDoc = mutation({
+  name: 'docs.create',
+  args: t.object({ docId: t.string(), blockId: t.string(), title: t.string(), icon: t.string().optional() }),
+  optimistic: (cache, args, context) => {
+    const updatedAt = context.now();
+    cache.put(docs, {
+      id: args.docId,
+      title: args.title,
+      icon: args.icon ?? '📄',
+      status: 'draft',
+      archivedAt: null,
+      updatedAt,
+      version: 1
+    });
+    cache.put(blocks, {
+      id: args.blockId,
+      docId: args.docId,
+      kind: 'paragraph',
+      text: '',
+      checked: null,
+      language: null,
+      indent: 0,
+      position: 0,
+      version: 1
+    });
+  }
+});
+
+export const editDoc = mutation({
+  name: 'docs.edit',
+  args: t.object({
+    docId: t.string(),
+    patch: DocPatch,
+    updatedAt: t.number().optional(),
+    version: t.number().optional()
+  }),
+  optimistic: (cache, args, context) => {
+    const row = cache.get(docs, args.docId);
+    if (!row) throw orphan(`document ${args.docId} is gone`);
+    cache.update(docs, args.docId, {
+      ...args.patch,
+      updatedAt: args.updatedAt ?? context.now(),
+      version: args.version ?? row.version + 1
+    });
+  },
+  invert: (reader, args): InverseSpec | null => {
+    const row = reader.get(docs, args.docId);
+    if (!row) return null;
+    const patch: Record<string, unknown> = {};
+    for (const field of Object.keys(args.patch)) patch[field] = row[field as keyof Doc];
+    return {
+      mutation: editDoc,
+      args: { docId: row.id, patch, updatedAt: row.updatedAt, version: row.version },
+      description: 'edit document'
+    };
+  }
+});
+
+export const archiveDoc = mutation({
+  name: 'docs.archive',
+  args: t.object({ docId: t.string(), archivedAt: t.number().nullable() }),
+  optimistic: (cache, args, context) => {
+    const row = cache.get(docs, args.docId);
+    if (!row) throw orphan(`document ${args.docId} is gone`);
+    cache.update(docs, args.docId, {
+      archivedAt: args.archivedAt,
+      updatedAt: context.now(),
+      version: row.version + 1
+    });
+  },
+  invert: (reader, args): InverseSpec | null => {
+    const row = reader.get(docs, args.docId);
+    return row
+      ? { mutation: archiveDoc, args: { docId: row.id, archivedAt: row.archivedAt }, description: 'archive document' }
+      : null;
+  }
+});
+
 export const addBlock = mutation({
   name: 'blocks.add',
   args: t.object({
     blockId: t.string(),
+    docId: t.string(),
     afterBlockId: t.string().optional(),
     kind: BlockKind.optional(),
     text: t.string().optional(),
     checked: t.boolean().nullable().optional(),
     language: t.string().nullable().optional(),
+    indent: t.number().optional(),
     position: t.number().optional(),
     version: t.number().optional()
   }),
   optimistic: (cache, args) => {
-    const position = args.position ?? insertPosition(cache.list(blocks), args.afterBlockId);
     cache.put(blocks, {
       id: args.blockId,
+      docId: args.docId,
       kind: args.kind ?? 'paragraph',
       text: args.text ?? '',
-      checked: args.checked ?? FRESH.checked,
-      language: args.language ?? FRESH.language,
-      position,
-      version: args.version ?? FRESH.version
+      checked: args.checked ?? null,
+      language: args.language ?? null,
+      indent: args.indent ?? 0,
+      position: args.position ?? insertPosition(cache.list(blocks), args.docId, args.afterBlockId),
+      version: args.version ?? 1
     });
   },
   invert: (_reader, args): InverseSpec => ({
@@ -138,189 +273,155 @@ export const addBlock = mutation({
   })
 });
 
-/**
- * Patch a block (text on flush, kind via input rules / slash menu, checked
- * on todo toggle, language on code blocks). Bumps `version`; carries the
- * `baseVersion` the edit was based on (D3 — see module doc).
- * Inverse: patch the prior values back.
- */
-export const editBlock = mutation({
+const BlockPatch = t.object({
+  text: t.string().optional(),
+  kind: BlockKind.optional(),
+  checked: t.boolean().nullable().optional(),
+  language: t.string().nullable().optional(),
+  indent: t.number().optional()
+});
+
+export const editBlock = patchMutation({
   name: 'blocks.edit',
-  args: t.object({
-    blockId: t.string(),
-    baseVersion: t.number(),
-    patch: t.object({
-      text: t.string().optional(),
-      kind: BlockKind.optional(),
-      checked: t.boolean().nullable().optional(),
-      language: t.string().nullable().optional()
-    })
-  }),
-  optimistic: (cache, args) => {
-    const row = cache.get(blocks, args.blockId);
-    if (row) {
-      cache.update(blocks, args.blockId, { ...args.patch, version: row.version + 1 });
-    }
-  },
-  invert: (reader, args): InverseSpec | null => {
-    const row = reader.get(blocks, args.blockId);
-    if (!row) {
-      return null;
-    }
-    const prior: Record<string, unknown> = {};
-    for (const field of Object.keys(args.patch)) {
-      prior[field] = (row as Record<string, unknown>)[field];
-    }
-    return {
-      mutation: editBlock,
-      args: { blockId: args.blockId, baseVersion: row.version, patch: prior },
-      description: 'edit block'
-    };
-  }
+  args: t.object({ blockId: t.string(), baseVersion: t.number(), patch: BlockPatch }),
+  collection: blocks,
+  id: (args) => args.blockId,
+  stamp: (_context, _args, row) => ({ version: row.version + 1 }),
+  description: 'edit block'
 });
 
-/**
- * Enter mid-block: ONE gesture, ONE mutation, TWO row writes (D2) — the
- * original keeps `textBefore`, a new block lands right after with `newText`.
- * All payloads explicit so the inverse (a merge) restores byte-exactly.
- */
-export const splitBlock = mutation({
-  name: 'blocks.split',
-  args: t.object({
-    blockId: t.string(),
-    baseVersion: t.number(),
-    textBefore: t.string(),
-    newBlockId: t.string(),
-    newKind: BlockKind,
-    newText: t.string(),
-    newChecked: t.boolean().nullable().optional(),
-    newLanguage: t.string().nullable().optional(),
-    newPosition: t.number().optional(),
-    newVersion: t.number().optional()
-  }),
-  optimistic: (cache, args) => {
-    const row = cache.get(blocks, args.blockId);
-    if (!row) {
-      throw orphan(`block ${args.blockId} is gone`);
-    }
-    cache.update(blocks, args.blockId, { text: args.textBefore, version: row.version + 1 });
-    cache.put(blocks, {
-      id: args.newBlockId,
-      kind: args.newKind,
-      text: args.newText,
-      checked: args.newChecked ?? FRESH.checked,
-      language: args.newLanguage ?? FRESH.language,
-      position: args.newPosition ?? insertPosition(cache.list(blocks), args.blockId),
-      version: args.newVersion ?? FRESH.version
-    });
-  },
-  invert: (reader, args): InverseSpec | null => {
-    const row = reader.get(blocks, args.blockId);
-    if (!row) {
-      return null;
-    }
-    return {
-      mutation: mergeBlock,
-      args: { blockId: args.blockId, baseVersion: row.version, mergedText: row.text, removeBlockId: args.newBlockId },
-      description: 'split block'
-    };
-  }
-});
-
-/**
- * Backspace at block start: the previous block absorbs this one — ONE
- * gesture, ONE mutation, TWO row writes. `mergedText` is explicit (the
- * editor knows the join). Inverse: the matching split, restoring the removed
- * row byte-exactly (id, kind, position, version and all).
- */
-export const mergeBlock = mutation({
-  name: 'blocks.merge',
-  args: t.object({
-    blockId: t.string(),
-    baseVersion: t.number(),
-    mergedText: t.string(),
-    removeBlockId: t.string()
-  }),
-  optimistic: (cache, args) => {
-    const into = cache.get(blocks, args.blockId);
-    const removed = cache.get(blocks, args.removeBlockId);
-    if (!into || !removed) {
-      throw orphan(`merge blocks are gone (${args.blockId} ← ${args.removeBlockId})`);
-    }
-    cache.update(blocks, args.blockId, { text: args.mergedText, version: into.version + 1 });
-    cache.delete(blocks, args.removeBlockId);
-  },
-  invert: (reader, args): InverseSpec | null => {
-    const into = reader.get(blocks, args.blockId);
-    const removed = reader.get(blocks, args.removeBlockId);
-    if (!into || !removed) {
-      return null;
-    }
-    return {
-      mutation: splitBlock,
-      args: {
-        blockId: args.blockId,
-        baseVersion: into.version,
-        textBefore: into.text,
-        newBlockId: removed.id,
-        newKind: removed.kind,
-        newText: removed.text,
-        newChecked: removed.checked,
-        newLanguage: removed.language,
-        newPosition: removed.position,
-        newVersion: removed.version
-      },
-      description: 'merge blocks'
-    };
-  }
-});
-
-/** Delete a block. Inverse: re-create it byte-exactly. */
 export const deleteBlock = mutation({
   name: 'blocks.delete',
   args: t.object({ blockId: t.string() }),
   optimistic: (cache, args) => {
+    if (!cache.get(blocks, args.blockId)) throw orphan(`block ${args.blockId} is gone`);
     cache.delete(blocks, args.blockId);
   },
   invert: (reader, args): InverseSpec | null => {
     const row = reader.get(blocks, args.blockId);
-    if (!row) {
-      return null;
-    }
-    return {
-      mutation: addBlock,
-      args: {
-        blockId: row.id,
-        kind: row.kind,
-        text: row.text,
-        checked: row.checked,
-        language: row.language,
-        position: row.position,
-        version: row.version
-      },
-      description: 'delete block'
-    };
+    return row
+      ? {
+          mutation: addBlock,
+          args: {
+            blockId: row.id,
+            docId: row.docId,
+            kind: row.kind,
+            text: row.text,
+            checked: row.checked,
+            language: row.language,
+            indent: row.indent,
+            position: row.position,
+            version: row.version
+          },
+          description: 'delete block'
+        }
+      : null;
   }
 });
 
-/** Reorder: one fractional-position write. Inverse: move back. */
 export const moveBlock = mutation({
   name: 'blocks.move',
   args: t.object({ blockId: t.string(), position: t.number() }),
   optimistic: (cache, args) => {
-    if (cache.get(blocks, args.blockId)) {
-      cache.update(blocks, args.blockId, { position: args.position });
-    }
+    if (!cache.get(blocks, args.blockId)) throw orphan(`block ${args.blockId} is gone`);
+    cache.update(blocks, args.blockId, { position: args.position });
   },
   invert: (reader, args): InverseSpec | null => {
     const row = reader.get(blocks, args.blockId);
-    if (!row) {
-      return null;
-    }
-    return {
-      mutation: moveBlock,
-      args: { blockId: args.blockId, position: row.position },
-      description: 'move block'
-    };
+    return row
+      ? { mutation: moveBlock, args: { blockId: row.id, position: row.position }, description: 'move block' }
+      : null;
+  }
+});
+
+/** Server-owned order change used to prove order-only query updates. */
+export const setBlockOrder = mutation({
+  name: 'blocks.setOrder',
+  args: t.object({ docId: t.string(), blockIds: t.array(t.string()) })
+});
+
+export const addComment = mutation({
+  name: 'comments.add',
+  args: t.object({
+    commentId: t.string(),
+    docId: t.string(),
+    blockId: t.string(),
+    offset: t.number(),
+    body: t.string(),
+    resolvedAt: t.number().nullable().optional(),
+    createdAt: t.number().optional()
+  }),
+  optimistic: (cache, args, context) => {
+    if (!cache.get(blocks, args.blockId)) throw orphan(`block ${args.blockId} is gone`);
+    cache.put(comments, {
+      id: args.commentId,
+      docId: args.docId,
+      blockId: args.blockId,
+      offset: args.offset,
+      body: args.body,
+      resolvedAt: args.resolvedAt ?? null,
+      createdAt: args.createdAt ?? context.now()
+    });
+  },
+  invert: (_reader, args): InverseSpec => ({
+    mutation: deleteComment,
+    args: { commentId: args.commentId },
+    description: 'add comment'
+  })
+});
+
+const CommentAnchorPatch = t.object({ blockId: t.string().optional(), offset: t.number().optional() });
+
+export const reanchorComment = patchMutation({
+  name: 'comments.reanchor',
+  args: t.object({ commentId: t.string(), patch: CommentAnchorPatch }),
+  collection: comments,
+  id: (args) => args.commentId,
+  description: 'move comment anchor'
+});
+
+export const resolveComment = mutation({
+  name: 'comments.resolve',
+  args: t.object({ commentId: t.string(), resolvedAt: t.number().nullable() }),
+  optimistic: (cache, args) => {
+    if (!cache.get(comments, args.commentId)) throw orphan(`comment ${args.commentId} is gone`);
+    cache.update(comments, args.commentId, { resolvedAt: args.resolvedAt });
+  },
+  invert: (reader, args): InverseSpec | null => {
+    const row = reader.get(comments, args.commentId);
+    return row
+      ? {
+          mutation: resolveComment,
+          args: { commentId: row.id, resolvedAt: row.resolvedAt },
+          description: 'resolve comment'
+        }
+      : null;
+  }
+});
+
+export const deleteComment = mutation({
+  name: 'comments.delete',
+  args: t.object({ commentId: t.string() }),
+  optimistic: (cache, args) => {
+    if (!cache.get(comments, args.commentId)) throw orphan(`comment ${args.commentId} is gone`);
+    cache.delete(comments, args.commentId);
+  },
+  invert: (reader, args): InverseSpec | null => {
+    const row = reader.get(comments, args.commentId);
+    return row
+      ? {
+          mutation: addComment,
+          args: {
+            commentId: row.id,
+            docId: row.docId,
+            blockId: row.blockId,
+            offset: row.offset,
+            body: row.body,
+            resolvedAt: row.resolvedAt,
+            createdAt: row.createdAt
+          },
+          description: 'delete comment'
+        }
+      : null;
   }
 });

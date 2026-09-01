@@ -51,6 +51,19 @@ const blockIdAttribute = {
   }
 };
 
+const indentAttribute = {
+  indent: {
+    default: 0,
+    parseHTML: (element: HTMLElement) => Number(element.getAttribute('data-indent') ?? 0),
+    renderHTML: (attributes: Record<string, unknown>) => {
+      const indent = Math.max(0, Math.min(6, Number(attributes.indent ?? 0)));
+      return indent === 0 ? {} : { 'data-indent': String(indent), style: `margin-left: ${indent * 24}px` };
+    }
+  }
+};
+
+const blockAttributes = { ...blockIdAttribute, ...indentAttribute };
+
 const DocumentNode = Node.create({
   name: 'doc',
   topNode: true,
@@ -66,7 +79,7 @@ const Paragraph = Node.create({
   name: 'paragraph',
   group: 'block',
   content: 'inline*',
-  addAttributes: () => ({ ...blockIdAttribute }),
+  addAttributes: () => ({ ...blockAttributes }),
   parseHTML: () => [{ tag: 'p' }],
   renderHTML: ({ HTMLAttributes }) => ['p', HTMLAttributes, 0]
 });
@@ -77,7 +90,7 @@ const Heading = Node.create({
   content: 'inline*',
   defining: true,
   addAttributes: () => ({
-    ...blockIdAttribute,
+    ...blockAttributes,
     level: { default: 1, parseHTML: (element: HTMLElement) => Number(element.tagName[1]) }
   }),
   parseHTML: () => [{ tag: 'h1' }, { tag: 'h2' }, { tag: 'h3' }],
@@ -88,7 +101,7 @@ const Bullet = Node.create({
   name: 'bullet',
   group: 'block',
   content: 'inline*',
-  addAttributes: () => ({ ...blockIdAttribute }),
+  addAttributes: () => ({ ...blockAttributes }),
   parseHTML: () => [{ tag: 'div[data-kind="bullet"]' }, { tag: 'ul li', priority: 60 }],
   renderHTML: ({ HTMLAttributes }) => ['div', { ...HTMLAttributes, 'data-kind': 'bullet' }, ['span', { class: 'block-text' }, 0]]
 });
@@ -97,7 +110,7 @@ const Numbered = Node.create({
   name: 'number',
   group: 'block',
   content: 'inline*',
-  addAttributes: () => ({ ...blockIdAttribute }),
+  addAttributes: () => ({ ...blockAttributes }),
   parseHTML: () => [{ tag: 'div[data-kind="number"]' }, { tag: 'ol li', priority: 60 }],
   renderHTML: ({ HTMLAttributes }) => ['div', { ...HTMLAttributes, 'data-kind': 'number' }, ['span', { class: 'block-text' }, 0]]
 });
@@ -107,7 +120,7 @@ const Todo = Node.create({
   group: 'block',
   content: 'inline*',
   addAttributes: () => ({
-    ...blockIdAttribute,
+    ...blockAttributes,
     checked: {
       default: false,
       parseHTML: (element: HTMLElement) => element.getAttribute('data-checked') === 'true',
@@ -133,7 +146,7 @@ const Quote = Node.create({
   name: 'quote',
   group: 'block',
   content: 'inline*',
-  addAttributes: () => ({ ...blockIdAttribute }),
+  addAttributes: () => ({ ...blockAttributes }),
   parseHTML: () => [{ tag: 'blockquote' }],
   renderHTML: ({ HTMLAttributes }) => ['blockquote', HTMLAttributes, 0]
 });
@@ -146,7 +159,7 @@ const CodeBlock = Node.create({
   code: true,
   defining: true,
   addAttributes: () => ({
-    ...blockIdAttribute,
+    ...blockAttributes,
     language: {
       default: null as string | null,
       parseHTML: (element: HTMLElement) => element.getAttribute('data-language'),
@@ -163,7 +176,7 @@ const Divider = Node.create({
   group: 'block',
   atom: true,
   selectable: true,
-  addAttributes: () => ({ ...blockIdAttribute }),
+  addAttributes: () => ({ ...blockAttributes }),
   parseHTML: () => [{ tag: 'div[data-kind="divider"]' }, { tag: 'hr' }],
   renderHTML: ({ HTMLAttributes }) => ['div', { ...HTMLAttributes, 'data-kind': 'divider' }, ['hr']]
 });

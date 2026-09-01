@@ -55,6 +55,20 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  chalk:server:
+    command: bun run dev:chalk:server
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  chalk:dev:
+    command: bun run dev:chalk
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
   docs:
     command: bun run dev:docs
     working_dir: null

@@ -1,0 +1,806 @@
+{
+  "schemaSpecVersion": 4,
+  "protocolVersion": 3,
+  "rowSchemaFingerprint": "wheel-rows-sha256:3998a289fe7bd8740b5d0bf44531dfcc5066ee8ae52e61660daeb6e4384c3dca",
+  "collections": [
+    {
+      "name": "blocks",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "docId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "paragraph",
+              "h1",
+              "h2",
+              "h3",
+              "bullet",
+              "number",
+              "todo",
+              "quote",
+              "code",
+              "divider"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "checked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "indent": {
+            "type": "number"
+          },
+          "position": {
+            "type": "number"
+          },
+          "version": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "docId",
+          "kind",
+          "text",
+          "checked",
+          "language",
+          "indent",
+          "position",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "comments",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "docId": {
+            "type": "string"
+          },
+          "blockId": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "body": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "docId",
+          "blockId",
+          "offset",
+          "body",
+          "resolvedAt",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "doc_summaries",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "docId": {
+            "type": "string"
+          },
+          "blockCount": {
+            "type": "number"
+          },
+          "commentCount": {
+            "type": "number"
+          },
+          "openCommentCount": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "docId",
+          "blockCount",
+          "commentCount",
+          "openCommentCount",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "docId"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "docs",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "review",
+              "published"
+            ]
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "number"
+          },
+          "version": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "icon",
+          "status",
+          "archivedAt",
+          "updatedAt",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "name": "blocks.byDoc",
+      "into": "blocks",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "docId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "docId"
+        ],
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "blocks"
+      ]
+    },
+    {
+      "name": "comments.byDoc",
+      "into": "comments",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "docId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "docId"
+        ],
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "comments"
+      ]
+    },
+    {
+      "name": "doc_summaries.all",
+      "into": "doc_summaries",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "blocks",
+        "comments",
+        "docs"
+      ]
+    },
+    {
+      "name": "docs.all",
+      "into": "docs",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "docs"
+      ]
+    },
+    {
+      "name": "docs.recent",
+      "into": "docs",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "since"
+        ],
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "docs"
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "name": "blocks.add",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "blockId": {
+            "type": "string"
+          },
+          "docId": {
+            "type": "string"
+          },
+          "afterBlockId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "paragraph",
+              "h1",
+              "h2",
+              "h3",
+              "bullet",
+              "number",
+              "todo",
+              "quote",
+              "code",
+              "divider"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "checked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "indent": {
+            "type": "number"
+          },
+          "position": {
+            "type": "number"
+          },
+          "version": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "blockId",
+          "docId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "blocks.delete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "blockId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "blockId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "blocks.edit",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "blockId": {
+            "type": "string"
+          },
+          "baseVersion": {
+            "type": "number"
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "paragraph",
+                  "h1",
+                  "h2",
+                  "h3",
+                  "bullet",
+                  "number",
+                  "todo",
+                  "quote",
+                  "code",
+                  "divider"
+                ]
+              },
+              "checked": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "language": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "indent": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "blockId",
+          "baseVersion",
+          "patch"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "blocks.move",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "blockId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "blockId",
+          "position"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "blocks.setOrder",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "docId": {
+            "type": "string"
+          },
+          "blockIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "docId",
+          "blockIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "comments.add",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          },
+          "docId": {
+            "type": "string"
+          },
+          "blockId": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "body": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "commentId",
+          "docId",
+          "blockId",
+          "offset",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "comments.delete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "commentId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "comments.reanchor",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "blockId": {
+                "type": "string"
+              },
+              "offset": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "commentId",
+          "patch"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "comments.resolve",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "commentId": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "commentId",
+          "resolvedAt"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "docs.archive",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "docId": {
+            "type": "string"
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "docId",
+          "archivedAt"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "docs.create",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "docId": {
+            "type": "string"
+          },
+          "blockId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "docId",
+          "blockId",
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "docs.edit",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "docId": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "review",
+                  "published"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "updatedAt": {
+            "type": "number"
+          },
+          "version": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "docId",
+          "patch"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "presence": {
+    "name": "editor",
+    "stateSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "docId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "blockId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "caretOffset": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "anchorOffset": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "previewText": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "docId",
+        "blockId",
+        "caretOffset",
+        "anchorOffset",
+        "previewText"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

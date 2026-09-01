@@ -17,7 +17,7 @@ import { schemaExtensions } from './schema';
 import type { Block } from '../sync/editor.sync';
 
 function row(id: string, text: string, position: number, overrides: Partial<Block> = {}): Block {
-  return { id, kind: 'paragraph', text, checked: null, language: null, position, version: 1, ...overrides };
+  return { id, docId: 'doc_demo', kind: 'paragraph', text, checked: null, language: null, indent: 0, position, version: 1, ...overrides };
 }
 
 interface Recorded {

@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["vite/client", "node", "bun"]
   },
-  "include": ["src"]
+  "include": ["src", "server", "server.ts", "seed", "vite.config.ts"]
 }

@@ -48,7 +48,7 @@ export function nodeFromBlock(schema: Schema, block: Block): ProseMirrorNode {
 
 function blockNodeJson(block: Block): Record<string, unknown> {
   const name = nodeNameForKind(block.kind);
-  const attrs: Record<string, unknown> = { blockId: block.id };
+  const attrs: Record<string, unknown> = { blockId: block.id, indent: block.indent };
   if (name === 'heading') {
     attrs.level = block.kind === 'h2' ? 2 : block.kind === 'h3' ? 3 : 1;
   }

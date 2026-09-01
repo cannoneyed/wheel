@@ -37,7 +37,11 @@ export const TEST_PORTS = {
   /** The Rounds production build under `vite preview`. */
   roundsPreview: 4903,
   /** The external Rounds test controller. */
-  roundsController: 4909
+  roundsController: 4909,
+  /** The Chalk SQLite server or Durable Object worker. */
+  chalkSync: 4904,
+  /** The Chalk production build under `vite preview`. */
+  chalkPreview: 4905
 } as const;
 
 /** `http://127.0.0.1:<port>` for one reserved test port. */

@@ -14,7 +14,7 @@ import { PresenceExtension, updatePresence } from './presence';
 import { schemaExtensions } from './schema';
 
 function row(id: string, text: string, position: number): Block {
-  return { id, kind: 'paragraph', text, checked: null, language: null, position, version: 1 };
+  return { id, docId: 'doc_demo', kind: 'paragraph', text, checked: null, language: null, indent: 0, position, version: 1 };
 }
 
 function peer(overrides: Partial<BlockPeer> = {}): BlockPeer {

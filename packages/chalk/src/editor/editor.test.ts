@@ -31,8 +31,8 @@ async function twoServices(world: World): Promise<[EditorService, EditorService]
   const [a, b] = await world.twoClients('web_a', 'web_b');
   const serviceA = new ServiceContext({ client: a }).get(EditorService);
   const serviceB = new ServiceContext({ client: b }).get(EditorService);
-  await a.subscribe(editorSync.blockList, {});
-  await b.subscribe(editorSync.blockList, {});
+  await a.subscribe(editorSync.blocksByDoc, { docId: editorSync.DEFAULT_DOC_ID });
+  await b.subscribe(editorSync.blocksByDoc, { docId: editorSync.DEFAULT_DOC_ID });
   // Settle so BOTH services' liveQuery views are live (handles set) before the
   // test reads through them — matches the tracker's primedSession convention.
   await world.settle();
