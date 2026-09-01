@@ -90,8 +90,8 @@ interface RegisteredCommand {
  * invokes by id — the host component is just a viewer over this data.
  */
 export class CommandPaletteService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'CommandPaletteService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'CommandPaletteService';
 
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';

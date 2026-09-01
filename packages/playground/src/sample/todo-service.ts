@@ -8,8 +8,8 @@ import { SyncService } from 'wheel/sync';
 import { addTodo, todoList, toggleTodo } from './todos.sync';
 
 export class TodoService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'TodoService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TodoService';
 
   /** The todo subscription — connect directly (`state.list.rows` / `.status`). */
   readonly list = this.liveQuery(todoList, {});

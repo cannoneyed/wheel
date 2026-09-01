@@ -93,7 +93,12 @@ export default {
           data: { name },
           fix(fixer) {
             const body = node.body;
-            const indent = ' '.repeat((node.loc?.start.column ?? 0) + 2);
+            // Indent from the LINE, not from the class node: `export class Foo`
+            // starts the ClassDeclaration at column 7, so measuring the node
+            // indented every exported service's new member by nine spaces.
+            const line = context.sourceCode.lines[(node.loc?.start.line ?? 1) - 1] ?? '';
+            const base = /^\s*/.exec(line)?.[0] ?? '';
+            const indent = `${base}  `;
             return fixer.insertTextAfter(
               context.sourceCode.getFirstToken(body),
               `\n${indent}/** Identity that survives minification (see require-service-name). */\n${indent}static override serviceName = '${name}';\n`

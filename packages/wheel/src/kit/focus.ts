@@ -98,8 +98,8 @@ function domDepth(element: Element): number {
  * the active path is plain reactive data, inspectable in the debug panel.
  */
 export class FocusService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'FocusService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'FocusService';
 
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';

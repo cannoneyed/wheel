@@ -30,8 +30,8 @@ function currentTheme(): Theme {
 
 /** Owns the theme attribute on <html>. */
 export class ThemeService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'ThemeService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ThemeService';
 
   /** The active theme. Connect directly (`view({ theme: svc.theme })`). */
   readonly theme = this.atom<Theme>(currentTheme(), 'theme');

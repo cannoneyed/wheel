@@ -55,8 +55,8 @@ interface StoredDialogRegistration extends DialogRegistration {
 
 /** Owns the open dialog and the registration map. One dialog at a time by construction. */
 export class DialogService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'DialogService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'DialogService';
 
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';

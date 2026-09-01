@@ -31,8 +31,8 @@ export type FilterPickerKind =
 
 /** Owns property-edit and filter-picker composition. */
 export class IssuePropertyService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'IssuePropertyService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'IssuePropertyService';
 
   private readonly issues = this.service(IssueService);
   private readonly teams = this.service(TeamService);

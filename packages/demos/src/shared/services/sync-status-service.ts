@@ -6,8 +6,8 @@ import { SyncService } from 'wheel/sync';
 
 /** Exposes connection status and outbox counts from the demo's SyncClient. */
 export class SyncStatusService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'SyncStatusService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SyncStatusService';
 
   // These are plain client-side counters, not signals — `clientRead` rides the
   // client's onChange → revision channel so each refreshes whenever the client

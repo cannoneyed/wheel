@@ -9,8 +9,8 @@ import { BoardService } from './board-service';
 
 /** Cherry-picked read-only filter state plus the composed filter actions. */
 export class FilterService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'FilterService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'FilterService';
 
   // A FIELD initializer, not a constructor assignment. Every field initializer
   // runs before the constructor body, and `computed` evaluates its function

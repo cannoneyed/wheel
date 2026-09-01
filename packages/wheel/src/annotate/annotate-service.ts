@@ -109,8 +109,8 @@ export interface AnnotateCapture {
  * mounts it and hands it the sync client and the capture seams.
  */
 export class AnnotateService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'AnnotateService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'AnnotateService';
 
   /** State-tree group: debug tooling — hidden from the panel, visible to the bridge. */
   static override group = 'debug';

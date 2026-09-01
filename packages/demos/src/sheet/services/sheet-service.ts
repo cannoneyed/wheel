@@ -19,8 +19,8 @@ export const columnLabel = (col: number): string => String.fromCharCode(64 + col
 
 /** Owns the cell subscription and the one upsert-or-clear mutation. */
 export class SheetService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'SheetService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SheetService';
 
   /** The cell subscription — read `list.rows` / `list.status` directly. */
   readonly list = this.liveQuery(cellList, {});

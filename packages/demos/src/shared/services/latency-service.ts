@@ -7,8 +7,8 @@ import { simulatedLatency } from '../utils/simulated-latency';
 
 /** Read/write the tab's simulated round-trip latency. */
 export class LatencyService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'LatencyService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'LatencyService';
 
   /** Current simulated latency in ms. Connect directly (`view({ ms: svc.ms })`). */
   readonly ms = this.atom(simulatedLatency.ms, 'ms');

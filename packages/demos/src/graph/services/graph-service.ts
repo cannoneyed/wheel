@@ -80,8 +80,8 @@ function peerColor(clientId: string): string {
 
 /** Owns both subscriptions, every graph mutation, selection, and presence. */
 export class GraphService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'GraphService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'GraphService';
 
   constructor(context: ServiceContext) {
     super(context);

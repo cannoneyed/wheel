@@ -17,8 +17,8 @@ const INITIAL: Viewport = { panX: 0, panY: 0, zoom: 1, width: 800, height: 480 }
 
 /** Owns the graph camera. One atom, because pan and zoom always move together. */
 export class ViewportService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'ViewportService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ViewportService';
 
   private readonly frame = this.atom<Viewport>(INITIAL, 'viewport');
 

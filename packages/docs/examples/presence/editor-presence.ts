@@ -15,8 +15,8 @@ export const editorPresence = presence({
 import { SyncService } from 'wheel/sync';
 
 export class EditorService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'EditorService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'EditorService';
 
   readonly peersOn = this.clientReadFor((blockId: string) =>
     [...this.client.peers(editorPresence).valid.entries()]

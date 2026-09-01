@@ -21,8 +21,8 @@ export type Todo = Infer<typeof TodoRow>;
 
 /** Owns the todo list subscription, every todo mutation, and the demo's shortcuts. */
 export class TodoService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'TodoService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TodoService';
 
   private readonly dialogService = this.service(DialogService);
 

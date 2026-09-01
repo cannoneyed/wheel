@@ -19,8 +19,8 @@ export type WorkflowState = Infer<typeof WorkflowStateRow>;
 
 /** Owns the workspace-foundation subscriptions and team mutations. */
 export class TeamService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'TeamService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TeamService';
 
   private readonly teamsQuery = this.liveQuery(teamsAll, {});
   private readonly usersQuery = this.liveQuery(usersAll, {});

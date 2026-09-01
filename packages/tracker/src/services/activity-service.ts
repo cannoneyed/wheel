@@ -8,8 +8,8 @@ import { TeamService } from './team-service';
 
 /** Owns the per-issue activity subscriptions and display formatting. */
 export class ActivityService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'ActivityService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ActivityService';
 
   private readonly teamService = this.service(TeamService);
   private readonly view = this.liveQueryFor(activityByIssue, (issueId: string) => ({ issueId }));

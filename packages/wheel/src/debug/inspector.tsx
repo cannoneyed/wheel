@@ -58,8 +58,8 @@ function domDepth(element: Element): number {
 
 /** Global inspector state + hit-testing (see module doc). */
 export class InspectorService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'InspectorService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'InspectorService';
 
   /** State-tree group: debug tooling — hidden from the panel it powers. */
   static override group = 'debug';

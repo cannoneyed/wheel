@@ -53,8 +53,8 @@ import { KeyboardService } from 'wheel/kit';
 import { SyncService } from 'wheel/sync';
 
 export class UndoService extends SyncService {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'UndoService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'UndoService';
 
   readonly canUndo = this.clientRead(() => this.client.canUndo());
   readonly canRedo = this.clientRead(() => this.client.canRedo());

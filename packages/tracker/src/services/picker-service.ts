@@ -33,8 +33,8 @@ export interface PickerRequest {
 
 /** Owns the open picker, its query, and the active row. */
 export class PickerService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'PickerService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'PickerService';
 
   private readonly request = this.field<PickerRequest | null>(null);
   /** The open picker's title, or null. Connect directly. */

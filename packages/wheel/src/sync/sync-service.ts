@@ -48,8 +48,8 @@ interface QuerySlot {
  * Service with access to synced data: liveQuery subscriptions and mutations.
  */
 export abstract class SyncService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'SyncService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SyncService';
 
   /**
    * The scope-inheritance marker the kernel reads in `shouldInherit`. Setting it

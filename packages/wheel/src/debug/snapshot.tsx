@@ -154,8 +154,8 @@ function rectsIntersect(a: SelectionRect, b: DOMRect): boolean {
 
 /** The snapshot flow: marquee → staged capture → copy / save / discard. */
 export class SnapshotService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'SnapshotService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SnapshotService';
 
   /** State-tree group: debug tooling — hidden from the panel it powers. */
   static override group = 'debug';

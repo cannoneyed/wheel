@@ -53,8 +53,8 @@ interface ToastTimer {
 
 /** Owns the toast stack and each toast's lifecycle timers. */
 export class ToastService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'ToastService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ToastService';
 
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';

@@ -96,7 +96,7 @@ The inspector chrome: drag overlay + results panel. Mount once, next to the othe
 
 ## `installWheelBridge`
 
-Kind: function. Source: [packages/wheel/src/debug/bridge.ts:317](../../../packages/wheel/src/debug/bridge.ts#L317).
+Kind: function. Source: [packages/wheel/src/debug/bridge.ts:321](../../../packages/wheel/src/debug/bridge.ts#L321).
 
 Install this app's bridge on `window.__wheel`. Dev-mode only (pass `force: true` to opt a production build in deliberately). Returns the uninstaller; mounting surfaces (WheelApp, the debug panel) call this and uninstall on cleanup. Installing twice for the same context is harmless — the second install is a no-op returning a no-op.
 
@@ -180,6 +180,6 @@ The drop-in runtime audit widget (🐛, fixed bottom-right): registry state tree
 
 ## `WheelGlobal`
 
-Kind: interface. Source: [packages/wheel/src/core/bridge-contract.ts:114](../../../packages/wheel/src/core/bridge-contract.ts#L114).
+Kind: interface. Source: [packages/wheel/src/core/bridge-contract.ts:116](../../../packages/wheel/src/core/bridge-contract.ts#L116).
 
 The `window.__wheel` global: per-app bridges plus sole-app conveniences.

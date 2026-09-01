@@ -15,8 +15,8 @@ import { RoutingDemoService, type DemoIssue } from './routing-demo-service';
 
 /** Text filter plus the filtered result, for one team's issue list. */
 export class IssueFilterService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'IssueFilterService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'IssueFilterService';
 
   // Resolved at construction, well after module evaluation, so the routes ⇄
   // pages import cycle never observes an uninitialized binding.

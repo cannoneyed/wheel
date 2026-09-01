@@ -169,8 +169,8 @@ interface SearchBinding {
  *   <ServiceProvider overrides={[memoryHistoryOverride(['/teams/a'])]}>
  */
 export class RouterHistoryService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'RouterHistoryService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'RouterHistoryService';
 
   /** The history implementation. Browser when a `window` exists, memory otherwise. */
   readonly history: RouterHistory = defaultHistory();
@@ -226,8 +226,8 @@ export function basedHistoryOverride(base: string): {
  * and therefore the types.
  */
 export class RouterService<T extends RouteDef = RouteDef> extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'RouterService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'RouterService';
 
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';

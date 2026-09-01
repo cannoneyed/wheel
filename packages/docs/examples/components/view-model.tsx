@@ -8,8 +8,8 @@ interface IssueVm {
 }
 
 export class ViewOptionsService extends Service {
-         /** Identity that survives minification (see require-service-name). */
-         static override serviceName = 'ViewOptionsService';
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ViewOptionsService';
 
   private readonly issues = this.atom<readonly IssueVm[]>([], 'issues');
 
