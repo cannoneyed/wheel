@@ -20,8 +20,8 @@ behavior IDs, and results here before the next phase starts.
 | 2. Behavior catalog and multi-client harness | `M` | Complete | [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144) |
 | 3. Rounds app and durability behaviors | `L` | Complete | [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147) |
 | 4. Rounds upgrade and restart configurations | `M` | Complete | [Build 150](https://buildkite.com/cannoneyed/wheel/builds/150) |
-| 5. Promote the editor into Chalk | `L` | In progress | — |
-| 6. Spoke app and authorization behaviors | `L` | Not started | — |
+| 5. Promote the editor into Chalk | `L` | Complete | [Build 156](https://buildkite.com/cannoneyed/wheel/builds/156), [matrix 154](https://buildkite.com/cannoneyed/wheel/builds/154) |
+| 6. Spoke app and authorization behaviors | `L` | In progress | — |
 | 7. Spoke backend configurations | `L` | Not started | — |
 | 8. Runtime coverage gate and CI matrix | `M` | Not started | — |
 
@@ -74,12 +74,12 @@ Only one phase may be `In progress`.
 
 ### Phase 5
 
-- [ ] Chalk owns the editor implementation; the demos route is a thin host.
-- [ ] No copied editor implementation remains.
-- [ ] Chalk supports documents, metadata, comments, save state, and the planned groups.
-- [ ] All Chalk primary behavior IDs pass on SQLite.
-- [ ] The same Chalk spec files pass on Durable Objects in the nightly leg.
-- [ ] The bridge proves order-only changes without a row-value change.
+- [x] Chalk owns the editor implementation; the demos route is a thin host.
+- [x] No copied editor implementation remains.
+- [x] Chalk supports documents, metadata, comments, save state, and the planned groups.
+- [x] All Chalk primary behavior IDs pass on SQLite.
+- [x] The same Chalk spec files pass on Durable Objects in the nightly leg.
+- [x] The bridge proves order-only changes without a row-value change.
 
 ### Phase 6
 
@@ -149,6 +149,23 @@ changes out of this table.
 ## Work log
 
 Newest entry first.
+
+### 2026-09-01: Phase 5, Chalk collaboration proof
+
+- Commands: `bun run check:static`; `bun run test`; `bun run test:browser:chalk:sqlite`;
+  `bun run test:browser:chalk:do`; `bun run website:build`; Worker dry run.
+- Environment: local, [Buildkite build 156](https://buildkite.com/cannoneyed/wheel/builds/156),
+  and [matrix build 154](https://buildkite.com/cannoneyed/wheel/builds/154).
+- Behaviors proven: `conv-order-only`, `cmd-group-atomic`, `cmd-group-undo`, `cmd-rebase`,
+  `cmd-undo-redo`, and `presence-ephemeral`.
+- Result: all eight Chalk tests pass unchanged on SQLite and Durable Objects. The app owns
+  documents, metadata, comments, save state, block groups, server-owned order, and presence.
+  Demos now hosts Chalk's editor without a copied implementation. One undo restores exact block,
+  comment, and document metadata. The 1,881 component tests and 831 node tests pass. The required
+  SQLite job finished in 90 seconds and the matrix build finished in 50 seconds. CI exposed two
+  missing source aliases for the runtime-neutral Cloudflare server entry; Demos and website builds
+  now resolve it directly. No Wheel library change was needed.
+- Follow-ups: Phase 6. `solo.yml` contains the Chalk client and server; human Sync is pending.
 
 ### 2026-08-31: Phase 4, Rounds contract upgrade proof
 
