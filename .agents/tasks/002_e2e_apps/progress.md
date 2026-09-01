@@ -19,8 +19,8 @@ behavior IDs, and results here before the next phase starts.
 | 1. Axle Durable Object browser leg | `S` | Complete | [Build 142](https://buildkite.com/cannoneyed/wheel/builds/142) |
 | 2. Behavior catalog and multi-client harness | `M` | Complete | [Build 144](https://buildkite.com/cannoneyed/wheel/builds/144) |
 | 3. Rounds app and durability behaviors | `L` | Complete | [Build 147](https://buildkite.com/cannoneyed/wheel/builds/147) |
-| 4. Rounds upgrade and restart configurations | `M` | In progress | — |
-| 5. Promote the editor into Chalk | `L` | Not started | — |
+| 4. Rounds upgrade and restart configurations | `M` | Complete | [Build 150](https://buildkite.com/cannoneyed/wheel/builds/150) |
+| 5. Promote the editor into Chalk | `L` | In progress | — |
 | 6. Spoke app and authorization behaviors | `L` | Not started | — |
 | 7. Spoke backend configurations | `L` | Not started | — |
 | 8. Runtime coverage gate and CI matrix | `M` | Not started | — |
@@ -67,10 +67,10 @@ Only one phase may be `In progress`.
 
 ### Phase 4
 
-- [ ] Contract B is generated from source and never hand-written.
-- [ ] `contract-retire`, `contract-outbox`, and `contract-reload` pass.
-- [ ] `dur-epoch` passes with preserved browser storage and reset server storage.
-- [ ] The upgrade suite is excluded from the default Rounds browser command.
+- [x] Contract B is generated from source and never hand-written.
+- [x] `contract-retire`, `contract-outbox`, and `contract-reload` pass.
+- [x] `dur-epoch` passes with preserved browser storage and reset server storage.
+- [x] The upgrade suite is excluded from the default Rounds browser command.
 
 ### Phase 5
 
@@ -149,6 +149,20 @@ changes out of this table.
 ## Work log
 
 Newest entry first.
+
+### 2026-08-31: Phase 4, Rounds contract upgrade proof
+
+- Commands: `bun run check:static`; `bun run test`; `bun run test:browser:rounds`; `bun run
+  test:browser:rounds:upgrade`.
+- Environment: local and [Buildkite build 150](https://buildkite.com/cannoneyed/wheel/builds/150).
+- Behaviors proven: `dur-epoch`, `contract-retire`, `contract-outbox`, `contract-reload`.
+- Result: all nine default and four upgrade-only Rounds browser tests pass. Contract B is
+  generated from one optional item field and reuses the Rounds app, bindings, controller, and
+  SQLite schema. Old snapshots never hydrate under B. The A outbox validates, drains once, and
+  converges on B. A mismatched asset deployment reloads once without looping. The 1,881
+  component tests and 831 node tests pass. Build 150 passed the isolated matrix leg in 40
+  seconds. No Wheel library change was needed.
+- Follow-ups: Phase 5.
 
 ### 2026-08-31: Phase 3, local Rounds durability proof
 
