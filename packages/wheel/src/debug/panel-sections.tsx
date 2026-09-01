@@ -20,7 +20,7 @@
 // wheel-untracked-show: debug chrome — excluded from the component tree it renders
 import { createMemo, createSignal, For, Show, type JSX } from 'solid-js';
 
-import type { ProvenanceEntry, WriteCause } from '../sync/client/provenance';
+import { causeMutations, type ProvenanceEntry, type WriteCause } from '../sync/client/provenance';
 import type { SyncClient } from '../sync/client/client';
 import type { DebugMeta, InstanceRecord } from '../core/debug-registry';
 import type { ServiceContext } from '../core/services';
@@ -492,7 +492,13 @@ function causeLabel(cause: WriteCause): JSX.Element {
   return (
     <span style={{ color: CAUSE_COLORS[cause.kind] }}>
       {cause.kind}
-      <span style={sectionStyles.dim}> {'seq' in cause ? `seq ${cause.seq}` : cause.mutations.join(', ')}</span>
+      {/* The mutation names come from the sync layer, which owns what a cause
+          contains — see `causeMutations`. Reading the union here is how the
+          annotator and the tracker both silently lost these names once. */}
+      <span style={sectionStyles.dim}>
+        {' '}
+        {'seq' in cause ? `seq ${cause.seq}` : causeMutations(cause).join(', ')}
+      </span>
     </span>
   );
 }

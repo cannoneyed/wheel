@@ -134,24 +134,31 @@ Some rules are about runtime shape, not syntax. Those run as tests (`constraints
   in a declaration are legal only as bound-action references or inside computed reads.
 </Aside>
 
-<Aside kind="todo">
-  <strong><code>no-presence-narrowing</code>.</strong> Narrowing a union by property presence —
-  <code>'mutations' in cause ? cause.mutations : …</code> — survives the property being renamed
-  away. The check stays valid TypeScript, silently stops matching, and takes the fallback branch
-  forever. Wheel 0.2 renamed <code>WriteCause.mutation</code> to <code>mutations</code> and two
-  sites did exactly this: the annotator dropped the mutation names from every recorded sync
-  write, and the tracker's explain popover dropped them from every row. Both compiled, and both
-  passed their suites, because no test asserted the string.
+<Aside kind="note">
+  <strong>Presence narrowing, and why the answer was not a rule.</strong> Narrowing a union by
+  property presence — <code>'mutation' in cause ? cause.mutation : …</code> — survives the
+  property being renamed away. The check stays valid TypeScript, silently stops matching, and
+  takes the fallback branch forever. Wheel 0.2 renamed <code>WriteCause.mutation</code> to
+  <code>mutations</code>, and three surfaces did exactly this: the annotator dropped the mutation
+  names from every recorded sync write, the tracker's provenance receipt dropped them from every
+  row, and the debug panel's change stream read the union directly. Everything compiled and every
+  suite passed, because no test asserted the string.
   <br />
-  The blocker is that the rule needs types. Without knowing the union, the linter cannot tell a
-  dead <code>in</code> check from a live one — and the live ones are everywhere and legitimate
-  (<code>'touches' in event</code> against a DOM union we do not own; there are twenty in the
-  drawer alone). Banning the operator would drown the signal.
+  A lint rule cannot catch it: without types the linter cannot tell a dead <code>in</code> check
+  from a live one, and the live ones are legitimate and everywhere
+  (<code>'touches' in event</code> against a DOM union we do not own — twenty in the drawer
+  alone). A convention ("always narrow on the discriminant") would have been an opinion, and
+  opinions drift.
   <br />
-  The defense is a pattern, and it is better than a rule would be: <strong>narrow on the
-  discriminant</strong> (<code>cause.kind === 'optimistic' || …</code>) so the property read is
-  checked against a known member. Then a rename is a compile error at every site rather than
-  silence. Both sites above now do this, and it is verified — renaming the field fails the build.
+  <strong>The fix was to delete the choice.</strong> <code>causeMutations(cause)</code> in
+  <code>sync/client/provenance.ts</code> is the only place that reads a cause's payload; every
+  surface asks it. Renaming the field is now a compile error where the shape is defined and
+  produced, and consumers cannot get it wrong because they never touch the shape. A
+  <code>never</code> in the switch's default arm makes ADDING a cause kind an error too. Both are
+  verified by making the change and watching the build fail.
+  <br />
+  The general shape: when a union's payload is read in more than one place, the defense is one
+  reader with an exhaustive switch — not a rule about how to write the narrowing.
 </Aside>
 
 <Aside kind="todo">

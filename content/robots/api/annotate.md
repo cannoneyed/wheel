@@ -12,13 +12,13 @@ Anchor a note to the rectangle that was drawn, describing what was under it both
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:99](../../../packages/wheel/src/annotate/annotate-service.ts#L99).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:100](../../../packages/wheel/src/annotate/annotate-service.ts#L100).
 
 Injected capture seams, so the service runs headless in tests.
 
 ## `AnnotateMode`
 
-Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:68](../../../packages/wheel/src/annotate/annotate-service.ts#L68).
+Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:69](../../../packages/wheel/src/annotate/annotate-service.ts#L69).
 
 Where the flow currently is. `armed` is the marquee: drag a rectangle around what you want to talk about. There is no other way in, and no mode to pick first — drawing the rectangle IS the interaction.
 
@@ -30,7 +30,7 @@ The running recorder, or null when annotation is not enabled on this page.
 
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:110](../../../packages/wheel/src/annotate/annotate-service.ts#L110).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:111](../../../packages/wheel/src/annotate/annotate-service.ts#L111).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
 
@@ -78,7 +78,7 @@ What a note is about: the rectangle that was drawn, and what was under it. There
 
 ## `NoteDraft`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:71](../../../packages/wheel/src/annotate/annotate-service.ts#L71).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:72](../../../packages/wheel/src/annotate/annotate-service.ts#L72).
 
 A note being written: everything captured so far, none of it saved yet.
 

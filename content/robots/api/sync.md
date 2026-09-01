@@ -16,6 +16,12 @@ Kind: interface. Source: [packages/wheel/src/sync/client/local-cache.ts:111](../
 
 The two persistence scopes, split on purpose. Snapshots are row-shaped, so their scope carries the app's row-schema fingerprint: a schema change retires them and the client re-bootstraps — that is the designed invalidation. The outbox holds mutations (name + args, replayed and deduped by the server), which no schema fingerprint invalidates: scoping them by the fingerprint silently abandoned every pending write that straddled a schema change (found 2026-08-10). `retires` names the snapshot scopes this app owns and no longer serves; the cache deletes their rows at open, because a scope nothing will ever read again otherwise grows the store — and the boot-time getAll over it — forever. It must answer false for every scope a DIFFERENT app in the same store still serves.
 
+## `causeMutations`
+
+Kind: function. Source: [packages/wheel/src/sync/client/provenance.ts:35](../../../packages/wheel/src/sync/client/provenance.ts#L35).
+
+The mutation names a cause carries, or `[]` for the causes that carry none. THE ONLY PLACE that reads a cause's payload. Every surface that shows a cause — the annotator's timeline, the tracker's provenance receipt, the debug panel's change stream — asks here instead of destructuring `WriteCause` itself, and that is the whole point: - the union's shape is read in ONE site, so renaming a field breaks the build once, loudly, instead of leaving every consumer silently taking a fallback branch (which is exactly what the 0.1 → 0.2 rename of `mutation` to `mutations` did to two of them); - the `never` in the default arm makes ADDING a cause kind a compile error here, so a new kind cannot quietly go unnamed everywhere at once. A convention about how to narrow would be an opinion. This is the same guarantee as machinery: consumers cannot get it wrong, because they are not the ones doing it.
+
 ## `ClientIdentity`
 
 Kind: interface. Source: [packages/wheel/src/sync/client/transport.ts:13](../../../packages/wheel/src/sync/client/transport.ts#L13).
@@ -306,13 +312,13 @@ A typed contract for the presence channel — ephemeral state (cursor, focus, li
 
 ## `ProvenanceEntry`
 
-Kind: interface. Source: [packages/wheel/src/sync/client/provenance.ts:17](../../../packages/wheel/src/sync/client/provenance.ts#L17).
+Kind: interface. Source: [packages/wheel/src/sync/client/provenance.ts:54](../../../packages/wheel/src/sync/client/provenance.ts#L54).
 
 One write in the audit log: collection/row, the value after the write, and its cause.
 
 ## `ProvenanceLog`
 
-Kind: class. Source: [packages/wheel/src/sync/client/provenance.ts:27](../../../packages/wheel/src/sync/client/provenance.ts#L27).
+Kind: class. Source: [packages/wheel/src/sync/client/provenance.ts:64](../../../packages/wheel/src/sync/client/provenance.ts#L64).
 
 The capped ring buffer of writes that explain() answers from - bounded retention, oldest entries drop first.
 

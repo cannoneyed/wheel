@@ -27,6 +27,7 @@ import { logger } from '../core/logger';
 import { serializeValue } from '../core/serialize';
 import type { SyncClient } from '../sync/client/client';
 import { activeErrorLog } from '../debug/error-capture';
+import { causeMutations } from '../sync/client/provenance';
 
 import { anchorToRegion, targetOf, targetsUnder } from './anchor';
 import { rasterizeRegion } from './rasterize';
@@ -530,6 +531,9 @@ export class AnnotateService extends Service {
     if (client) {
       for (const write of client.recentWrites(PROVENANCE_HARVEST)) {
         const cause = write.cause;
+        // The sync layer owns what a cause contains; this only decides how to
+        // print it. See `causeMutations`.
+        const mutations = causeMutations(cause);
         extra.push({
           at: write.at,
           kind: 'write',
@@ -539,16 +543,7 @@ export class AnnotateService extends Service {
           // atomic group wrote several. The names are the whole point of the
           // line: `optimistic` alone says a local write happened, which the
           // reader already knew.
-          //
-          // Narrowed on `kind`, deliberately, NOT on `'mutations' in cause`.
-          // Property-presence narrowing stays legal when the property is
-          // renamed away — it just silently stops matching, which is how this
-          // dropped every mutation name across the 0.2 upgrade. Naming the
-          // members makes the compiler fail the next rename instead.
-          cause:
-            cause.kind === 'optimistic' || cause.kind === 'rollback' || cause.kind === 'orphaned'
-              ? `${cause.kind}:${cause.mutations.join('+')}`
-              : cause.kind,
+          cause: mutations.length > 0 ? `${cause.kind}:${mutations.join('+')}` : cause.kind,
           ...(write.value === undefined ? {} : { value: serializeValue(write.value, WRITE_DEPTH) })
         });
       }

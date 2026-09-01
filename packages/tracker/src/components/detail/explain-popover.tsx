@@ -5,7 +5,7 @@
  */
 import { For, Show } from 'solid-js';
 import { componentRoot, connect, systemClock, useSignal, view } from 'wheel/core';
-import { type WriteCause } from 'wheel/sync';
+import { causeMutations, type WriteCause } from 'wheel/sync';
 
 import { IssueService } from '../../services/issue-service';
 import { formatRelativeTime } from '../../utils/dates';
@@ -31,16 +31,10 @@ const CAUSE_LABELS: Record<string, string> = {
 function causeLabel(cause: WriteCause | undefined): string {
   if (!cause) return 'no local history';
   const base = CAUSE_LABELS[cause.kind] ?? cause.kind;
-  // `mutations`, plural: 0.2 made a group of edits commit atomically, so one
-  // cause can name several.
-  //
-  // Narrowed on `kind`, not on `'mutations' in cause`. Property-presence
-  // narrowing stays legal when the property is renamed away — it just stops
-  // matching — which is exactly how the singular `mutation` kept compiling
-  // here while quietly dropping the name from every row.
-  return cause.kind === 'optimistic' || cause.kind === 'rollback' || cause.kind === 'orphaned'
-    ? `${base} · ${cause.mutations.join(' + ')}`
-    : base;
+  // An atomic group commits several edits under one cause, so this can read
+  // "your local edit (awaiting confirm) · addTag + setDue".
+  const mutations = causeMutations(cause);
+  return mutations.length > 0 ? `${base} · ${mutations.join(' + ')}` : base;
 }
 
 /** The ⓘ button + popover. */

@@ -89,7 +89,7 @@ export {
   type SyncVersionMismatch,
   type WebSocketTransportOptions
 } from './client/websocket-transport';
-export { ProvenanceLog, type ProvenanceEntry, type WriteCause } from './client/provenance';
+export { ProvenanceLog, causeMutations, type ProvenanceEntry, type WriteCause } from './client/provenance';
 export {
   MemoryCache,
   IndexedDbCache,
