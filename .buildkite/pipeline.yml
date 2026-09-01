@@ -98,6 +98,20 @@ steps:
       - "test-results/**/*"
       - "playwright-report/**/*"
 
+  - label: ":cloudflare: Browser app (Durable Object)"
+    key: "check-browser-apps-do"
+    if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
+    timeout_in_minutes: 30
+    plugins:
+      - mise#v1.1.5:
+          install_args: node bun
+    commands:
+      - "bun install --frozen-lockfile"
+      - "bun run test:browser:tracker:do"
+    artifact_paths:
+      - "test-results/**/*"
+      - "playwright-report/**/*"
+
   - label: ":chromium: Browser components"
     key: "check-browser-components"
     if: build.env("WHEEL_CI_MODE") == null || build.env("WHEEL_CI_MODE") == "standard"
@@ -134,6 +148,7 @@ steps:
       - "check-unit"
       - "check-browser-apps-sqlite"
       - "check-browser-apps-postgres"
+      - "check-browser-apps-do"
       - "check-browser-components"
       - "check-browser-demos"
     timeout_in_minutes: 15
@@ -174,6 +189,7 @@ steps:
       - "check-unit"
       - "check-browser-apps-sqlite"
       - "check-browser-apps-postgres"
+      - "check-browser-apps-do"
       - "check-browser-components"
       - "check-browser-demos"
     timeout_in_minutes: 15

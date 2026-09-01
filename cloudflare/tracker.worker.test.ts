@@ -13,9 +13,9 @@ import {
 } from 'wheel/sync';
 import { TRACKER_MIGRATIONS } from '../packages/tracker/server/schema';
 import { ROW_SCHEMA_FINGERPRINT } from '../packages/tracker/row-schema.generated';
+import { TRACKER_APPLICATION_VERSION } from '../packages/tracker/sync-version';
 import {
   fetchTracker,
-  TRACKER_APPLICATION_VERSION,
   type TrackerWorkerEnv,
   type TrackerWorkspace
 } from './tracker-worker';

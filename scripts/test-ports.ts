@@ -29,7 +29,9 @@ export const TEST_PORTS = {
   /** The tracker sync backend, Postgres via the Elixir server. */
   trackerSyncPostgres: 4899,
   /** The tracker production build under `vite preview`. */
-  trackerPreview: 4898
+  trackerPreview: 4898,
+  /** The Tracker Worker and Durable Object backend. */
+  trackerDurableObject: 4910
 } as const;
 
 /** `http://127.0.0.1:<port>` for one reserved test port. */

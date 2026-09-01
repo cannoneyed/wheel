@@ -14,8 +14,8 @@ const trackerMixRoot = fileURLToPath(
   new URL("../../elixir/tracker", import.meta.url),
 );
 const backend = process.env.TRACKER_BROWSER_BACKEND ?? "sqlite";
-if (backend !== "sqlite" && backend !== "postgres") {
-  throw new Error("TRACKER_BROWSER_BACKEND must be sqlite or postgres.");
+if (backend !== "sqlite" && backend !== "postgres" && backend !== "do") {
+  throw new Error("TRACKER_BROWSER_BACKEND must be sqlite, postgres, or do.");
 }
 
 /**
@@ -34,9 +34,17 @@ if (backend !== "sqlite" && backend !== "postgres") {
 const syncPort =
   backend === "postgres" ? TEST_PORTS.trackerSyncPostgres : TEST_PORTS.trackerSync;
 const externalSyncOrigin = process.env.TRACKER_BROWSER_SYNC_ORIGIN;
-const syncOrigin = externalSyncOrigin ?? testOrigin(syncPort);
+const durableObjectOrigin = testOrigin(TEST_PORTS.trackerDurableObject);
+const syncOrigin =
+  backend === "do"
+    ? durableObjectOrigin
+    : externalSyncOrigin ?? testOrigin(syncPort);
 const override = process.env.TRACKER_BROWSER_BASE_URL;
-const baseURL = override ?? testOrigin(TEST_PORTS.trackerPreview);
+const baseURL =
+  override ??
+  (backend === "do"
+    ? durableObjectOrigin
+    : testOrigin(TEST_PORTS.trackerPreview));
 
 export default defineConfig({
   testDir: "./browser",
@@ -66,40 +74,48 @@ export default defineConfig({
    */
   webServer: override
     ? undefined
-    : [
-        ...(externalSyncOrigin
-          ? []
-          : [
-              {
-                command:
-                  backend === "postgres"
-                    ? "mix run --no-halt"
-                    : "bun run tracker:server",
-                cwd: backend === "postgres" ? trackerMixRoot : repoRoot,
-                env:
-                  backend === "postgres"
-                    ? {
-                        TRACKER_PORT: String(syncPort),
-                        TRACKER_RESET_DATABASE: "1",
-                        DATABASE_URL: process.env.DATABASE_URL ?? "",
-                      }
-                    : { TRACKER_PORT: String(syncPort) },
-                url: `${syncOrigin}/readyz`,
-                reuseExistingServer: false,
-                timeout: 30_000,
-              },
-            ]),
-        {
-          command: "bunx vite preview --config packages/tracker/vite.config.ts",
+    : backend === "do"
+      ? {
+          command: `node node_modules/wrangler/bin/wrangler.js dev --config wrangler.tracker.jsonc --ip 127.0.0.1 --port ${TEST_PORTS.trackerDurableObject} --persist-to /tmp/wheel-tracker-do-$$ --log-level warn`,
           cwd: repoRoot,
-          env: {
-            PORT: String(TEST_PORTS.trackerPreview),
-            TRACKER_SYNC_ORIGIN: syncOrigin,
-          },
-          url: baseURL,
+          url: `${durableObjectOrigin}/readyz`,
           reuseExistingServer: false,
-          timeout: 30_000,
-        },
-      ],
+          timeout: 60_000,
+        }
+      : [
+          ...(externalSyncOrigin
+            ? []
+            : [
+                {
+                  command:
+                    backend === "postgres"
+                      ? "mix run --no-halt"
+                      : "bun run tracker:server",
+                  cwd: backend === "postgres" ? trackerMixRoot : repoRoot,
+                  env:
+                    backend === "postgres"
+                      ? {
+                          TRACKER_PORT: String(syncPort),
+                          TRACKER_RESET_DATABASE: "1",
+                          DATABASE_URL: process.env.DATABASE_URL ?? "",
+                        }
+                      : { TRACKER_PORT: String(syncPort) },
+                  url: `${syncOrigin}/readyz`,
+                  reuseExistingServer: false,
+                  timeout: 30_000,
+                },
+              ]),
+          {
+            command: "bunx vite preview --config packages/tracker/vite.config.ts",
+            cwd: repoRoot,
+            env: {
+              PORT: String(TEST_PORTS.trackerPreview),
+              TRACKER_SYNC_ORIGIN: syncOrigin,
+            },
+            url: baseURL,
+            reuseExistingServer: false,
+            timeout: 30_000,
+          },
+        ],
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });

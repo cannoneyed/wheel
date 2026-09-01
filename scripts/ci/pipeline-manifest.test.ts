@@ -89,6 +89,7 @@ describe("Buildkite pipeline manifest", () => {
       "bun run docs:build",
       "bash scripts/ci/test-elixir-backends.sh",
       "bun run test:browser:tracker:sqlite",
+      "bun run test:browser:tracker:do",
       "bun run test:browser:website",
       "bun run test:browser:components",
       "bun run test:behaviors:smoke",
@@ -107,11 +108,13 @@ describe("Buildkite pipeline manifest", () => {
   test("runs SQLite and Elixir/Postgres browser apps in parallel jobs", () => {
     expect(pipeline).toContain('key: "check-browser-apps-sqlite"');
     expect(pipeline).toContain('key: "check-browser-apps-postgres"');
+    expect(pipeline).toContain('key: "check-browser-apps-do"');
     expect(pipeline).not.toContain('key: "check-browser-apps"');
 
     for (const key of [
       "check-browser-apps-sqlite",
       "check-browser-apps-postgres",
+      "check-browser-apps-do",
     ]) {
       expect(pipeline.match(new RegExp(`- "${key}"`, "g"))).toHaveLength(2);
     }
@@ -192,7 +195,7 @@ describe("Buildkite pipeline manifest", () => {
     expect(pipeline).toContain("bun scripts/ci/deploy-branch.ts");
   });
 
-  test("keeps the standard pipeline to six balanced jobs", () => {
+  test("keeps the standard pipeline to seven balanced jobs", () => {
     expect(pipeline).not.toContain('key: "check-cloudflare"');
     expect(pipeline).not.toContain('key: "build-website"');
     expect(pipeline).not.toContain('key: "build-tracker"');
@@ -220,6 +223,7 @@ describe("Buildkite pipeline manifest", () => {
       "check-unit",
       "check-browser-apps-sqlite",
       "check-browser-apps-postgres",
+      "check-browser-apps-do",
       "check-browser-components",
       "check-browser-demos",
     ]) {

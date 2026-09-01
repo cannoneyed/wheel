@@ -34,7 +34,6 @@ import { ROW_SCHEMA_FINGERPRINT } from '../packages/tracker/row-schema.generated
 
 const WORKSPACE_NAME = 'axle-demo';
 const ROLLOVER_INTERVAL_MS = 10 * 60 * 1_000;
-export { TRACKER_APPLICATION_VERSION } from '../packages/tracker/sync-version';
 
 interface AssetBinding {
   fetch(request: Request): Promise<Response>;
