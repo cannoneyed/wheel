@@ -1311,6 +1311,11 @@ export class SyncClient {
         entry.confirmedSeq = undefined;
         entry.confirmedGeneration = undefined;
       }
+      // The WebSocket's socket-level hello can report `connected` before this
+      // engine-level hello arrives. In that order the status hook already ran
+      // while every acknowledged command was still `confirmed`; queueing them
+      // here must also restart the durable outbox flush.
+      this.flushQueued();
       const hadPeers = this.peerPresence.size > 0 || this.peerPresenceActors.size > 0;
       this.peerPresence.clear();
       this.peerPresenceActors.clear();

@@ -34,7 +34,10 @@
       "wheel/debug": ["packages/wheel/src/debug/index.ts"],
       "wheel/testing": ["packages/wheel/src/testing/index.ts"],
       "wheel/testing/playwright": ["packages/wheel/src/testing/playwright.ts"],
-      "wheel/vite": ["packages/wheel/src/vite/index.ts"]
+      "wheel/vite": ["packages/wheel/src/vite/index.ts"],
+      "wheel-chalk": ["packages/chalk/src/editor/index.ts"],
+      "wheel-chalk/server": ["packages/chalk/src/editor/sync/editor.server.ts"],
+      "wheel-chalk/sync": ["packages/chalk/src/editor/sync/editor.sync.ts"]
     }
   }
 }

@@ -10,8 +10,11 @@ defmodule WheelSync.Runtime do
   def config(server), do: GenServer.call(server, :config)
 
   def workspace(server, workspace_id) do
-    %{names: names, registry: registry} = config(server)
-    WheelSync.WorkspaceSupervisor.fetch(names, registry, workspace_id)
+    %{names: names, registry: registry} = config = config(server)
+
+    WheelSync.WorkspaceSupervisor.fetch(names, registry, workspace_id,
+      presence_filter: Map.get(config, :presence_filter)
+    )
   end
 
   def reset(server), do: GenServer.call(server, :reset, 30_000)

@@ -1,4 +1,4 @@
-import * as editorSync from './editor/sync/editor.sync';
+import * as editorSync from 'wheel-chalk/sync';
 import * as graphSync from './graph/sync/graph.sync';
 import * as kanbanSync from './kanban/sync/kanban.sync';
 import * as sequencerSync from './sequencer/sync/sequencer.sync';

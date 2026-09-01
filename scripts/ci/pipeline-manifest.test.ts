@@ -13,6 +13,10 @@ const elixirUnit = readFileSync(
   new URL("./test-elixir-unit.sh", import.meta.url),
   "utf8",
 );
+const spokeMultinode = readFileSync(
+  new URL("./test-spoke-multinode.sh", import.meta.url),
+  "utf8",
+);
 const mise = readFileSync(new URL("../../.mise.toml", import.meta.url), "utf8");
 const previewWebsite = readFileSync(
   new URL("../../wrangler.website.jsonc", import.meta.url),
@@ -89,6 +93,7 @@ describe("Buildkite pipeline manifest", () => {
       "bun run docs:build",
       "bash scripts/ci/test-elixir-backends.sh",
       "bun run test:browser:tracker:sqlite",
+      "bun run test:browser:tracker:do",
       "bun run test:browser:website",
       "bun run test:browser:components",
       "bun run test:behaviors:smoke",
@@ -107,18 +112,28 @@ describe("Buildkite pipeline manifest", () => {
   test("runs SQLite and Elixir/Postgres browser apps in parallel jobs", () => {
     expect(pipeline).toContain('key: "check-browser-apps-sqlite"');
     expect(pipeline).toContain('key: "check-browser-apps-postgres"');
+    expect(pipeline).toContain('key: "check-browser-apps-do"');
     expect(pipeline).not.toContain('key: "check-browser-apps"');
 
     for (const key of [
       "check-browser-apps-sqlite",
       "check-browser-apps-postgres",
+      "check-browser-apps-do",
     ]) {
       expect(pipeline.match(new RegExp(`- "${key}"`, "g"))).toHaveLength(2);
     }
   });
 
+  test("replaces the Tracker browser build before branch deployment", () => {
+    const sqlite = step("check-browser-apps-sqlite");
+    const browser = sqlite.indexOf("bun run test:browser:tracker:sqlite");
+    const production = sqlite.indexOf('- "bun run --cwd packages/tracker build"');
+    expect(browser).toBeGreaterThanOrEqual(0);
+    expect(production).toBeGreaterThan(browser);
+  });
+
   test("keeps all CI modes in Buildkite", () => {
-    for (const mode of ["fuzz", "cleanup"]) {
+    for (const mode of ["fuzz", "matrix", "cleanup"]) {
       expect(pipeline).toContain(`WHEEL_CI_MODE\") == \"${mode}`);
     }
   });
@@ -130,6 +145,22 @@ describe("Buildkite pipeline manifest", () => {
         ? readdirSync(githubWorkflows, { recursive: true })
         : [],
     ).toHaveLength(0);
+  });
+
+  test("aggregates runtime behavior results in the full matrix", () => {
+    for (const key of [
+      "check-browser-apps-sqlite",
+      "check-browser-apps-postgres",
+      "check-browser-apps-do",
+    ]) {
+      expect(step(key)).toContain('build.env("WHEEL_CI_MODE") == "matrix"');
+      expect(step(key)).toContain('".artifacts/behavior-results/*.json"');
+    }
+
+    const coverage = step("check-behavior-results");
+    expect(coverage).toContain("bun scripts/behavior-results.ts");
+    expect(coverage).toContain("buildkite-agent annotate");
+    expect(coverage.match(/allow_failure: true/g)).toHaveLength(7);
   });
 
   // Build 47 used the hosted image's Node 20 instead of .mise.toml. The native
@@ -156,13 +187,12 @@ describe("Buildkite pipeline manifest", () => {
       "hexpm/elixir:1.18.4-erlang-27.3.4.7-debian-bookworm-20260610-slim";
     expect(elixirUnit).toContain(image);
     expect(elixirBackends).toContain(image);
+    expect(spokeMultinode).toContain(image);
     expect(pipeline).not.toContain("WHEEL_ELIXIR_DOCKER");
   });
 
   test("runs Elixir checks once in the Postgres lane", () => {
-    expect(elixirBackends.match(/mix format --check-formatted/g)).toHaveLength(
-      2,
-    );
+    expect(elixirBackends.match(/mix format --check-formatted/g)).toHaveLength(3);
     expect(elixirBackends).toContain("MIX_ENV=test mix test --warnings-as-errors");
     expect(elixirBackends).not.toContain("--only postgres");
     expect(elixirBackends).toContain("mix compile --warnings-as-errors");
@@ -177,6 +207,10 @@ describe("Buildkite pipeline manifest", () => {
     expect(elixirBackends).toContain('cat /proc/1/comm');
     expect(elixirBackends).not.toContain("--network host");
     expect(elixirBackends).not.toContain("--publish 55432:5432");
+    expect(spokeMultinode).toContain('--publish "127.0.0.1:$port:$port"');
+    expect(spokeMultinode).toContain(
+      "SPOKE_ALLOWED_ORIGINS=http://127.0.0.1:4906,http://127.0.0.1:4907,http://127.0.0.1:4908",
+    );
   });
 
   test("injects Cloudflare secrets only into deploy and cleanup", () => {
@@ -192,7 +226,7 @@ describe("Buildkite pipeline manifest", () => {
     expect(pipeline).toContain("bun scripts/ci/deploy-branch.ts");
   });
 
-  test("keeps the standard pipeline to six balanced jobs", () => {
+  test("keeps the standard pipeline to seven balanced jobs", () => {
     expect(pipeline).not.toContain('key: "check-cloudflare"');
     expect(pipeline).not.toContain('key: "build-website"');
     expect(pipeline).not.toContain('key: "build-tracker"');
@@ -220,6 +254,7 @@ describe("Buildkite pipeline manifest", () => {
       "check-unit",
       "check-browser-apps-sqlite",
       "check-browser-apps-postgres",
+      "check-browser-apps-do",
       "check-browser-components",
       "check-browser-demos",
     ]) {

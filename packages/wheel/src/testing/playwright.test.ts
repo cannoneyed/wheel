@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createBehaviorHarness,
+  openWheelClients,
   type BehaviorPage,
   type BehaviorRequest,
   type BehaviorTest,
@@ -168,5 +169,25 @@ describe('createBehaviorHarness', () => {
     expect(() => harness.behavior('../PLAYER-03', 'unsafe id', async () => undefined)).toThrow(
       'cannot be used as a recording filename'
     );
+  });
+});
+
+describe('openWheelClients', () => {
+  it('creates a page and Wheel driver in each separate context', async () => {
+    const pages: FakePage[] = [];
+    const contexts = await openWheelClients(
+      {
+        newContext: async () => {
+          const page = new FakePage();
+          pages.push(page);
+          return { newPage: async () => page, close: async () => undefined };
+        }
+      },
+      2
+    );
+
+    expect(contexts.map((client) => client.page)).toEqual(pages);
+    expect(contexts[0]!.context).not.toBe(contexts[1]!.context);
+    expect(contexts.every((client) => client.wheel !== undefined)).toBe(true);
   });
 });

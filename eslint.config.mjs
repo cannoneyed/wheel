@@ -23,6 +23,7 @@ export default [
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
+      '.wrangler/**',
       // Buildkite mounts Bun's dependency cache inside the checkout. It is
       // installed third-party source, not part of Wheel's lint surface.
       '.cache/**',
@@ -75,6 +76,28 @@ export default [
     plugins: { wheel },
     rules: {
       'wheel/require-behavior-id': 'error'
+    }
+  },
+
+  // Workerd loads named runtime exports as entry points. Data exports compile
+  // but make the Worker fail during runtime boot.
+  {
+    files: ['cloudflare/*-worker.ts'],
+    ignores: ['cloudflare/test-worker.ts'],
+    plugins: { wheel },
+    rules: {
+      'wheel/no-worker-data-exports': 'error'
+    }
+  },
+
+  // Fault injection and process controls belong to browser tests. Production
+  // entries share domain bindings, never the harness that wraps them.
+  {
+    files: ['packages/*/server.ts', 'cloudflare/*-worker.ts'],
+    ignores: ['cloudflare/test-worker.ts'],
+    plugins: { wheel },
+    rules: {
+      'wheel/no-browser-support-in-production': 'error'
     }
   },
 

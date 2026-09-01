@@ -77,6 +77,8 @@ export interface WheelVitePlugin {
 export interface WheelDevToolsOptions {
   /** Where snapshot directories land; relative paths resolve against the vite root. Default `.wheel/snapshots`. */
   readonly snapshotDir?: string;
+  /** Include dev mode in a build made only for browser tests. Normal builds keep it out. */
+  readonly devModeInBuild?: boolean;
 }
 
 interface SnapshotRequest {
@@ -149,7 +151,7 @@ export function wheelDevTools(options: WheelDevToolsOptions = {}): WheelVitePlug
     config: (config = {}, env = {}) => {
       const root = resolve(config.root ?? process.cwd());
       assertFreshWheelFileDependency(root, buildStamp);
-      const devMode = env.command === 'serve' ? 'true' : 'false';
+      const devMode = env.command === 'serve' || options.devModeInBuild ? 'true' : 'false';
       const define = { 'globalThis.__WHEEL_DEV_MODE__': devMode };
       return {
         esbuild: { keepNames: true as const },

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vite/client", "node", "bun"]
+  },
+  "include": [
+    "src",
+    "seed",
+    "server",
+    "browser",
+    "server.ts",
+    "vite.config.ts",
+    "playwright.config.ts"
+  ]
+}

@@ -474,7 +474,7 @@ The per-app bridge surface — every method returns plain JSON.
 
 ## `WheelGlobal`
 
-Kind: interface. Source: [packages/wheel/src/core/bridge-contract.ts:114](../../../packages/wheel/src/core/bridge-contract.ts#L114).
+Kind: interface. Source: [packages/wheel/src/core/bridge-contract.ts:116](../../../packages/wheel/src/core/bridge-contract.ts#L116).
 
 The `window.__wheel` global: per-app bridges plus sole-app conveniences.
 

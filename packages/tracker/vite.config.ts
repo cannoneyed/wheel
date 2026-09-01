@@ -45,7 +45,7 @@ const SYNC_ORIGIN =
 export default defineConfig({
   root: here('.'),
   resolve: { alias: wheelFromSource },
-  plugins: [solid(), wheelDevTools()],
+  plugins: [solid(), wheelDevTools({ devModeInBuild: process.env.WHEEL_BROWSER_DEV_MODE === '1' })],
   server: {
     // PORT is how portless (and any other proxy) assigns a port; the literal is
     // the stable fallback for a plain `bun run tracker`.

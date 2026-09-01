@@ -1,0 +1,45 @@
+/* Chalk's block context menu panel and items (portaled by ContextMenuSystem). */
+
+.menu {
+  background: var(--wheel-bg-raised);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-md);
+  box-shadow: var(--wheel-shadow-float);
+  padding: 4px;
+  min-width: 180px;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 6px 12px;
+  border-radius: var(--wheel-radius-xs);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.danger {
+  color: var(--wheel-danger);
+}
+
+.heading {
+  display: block;
+  padding: 6px 12px 2px;
+  font: 700 var(--wheel-ui-xs) / 1.4 var(--wheel-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--wheel-ink-muted);
+}
+
+.current {
+  font-weight: 650;
+}
+
+.rule {
+  border: none;
+  border-top: 1px solid var(--wheel-line);
+  margin: 4px 0;
+}

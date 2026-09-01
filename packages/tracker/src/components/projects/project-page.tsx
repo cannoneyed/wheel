@@ -4,7 +4,7 @@
  * intentionally lightweight (identifier + state dot + title + assignee) —
  * clicking peeks; the full property surface lives in the detail pane.
  */
-import { For, Show } from 'solid-js';
+import { For, Show, onCleanup } from 'solid-js';
 import { componentRoot, connect, view } from 'wheel/core';
 
 import { ProjectService } from '../../services/project-service';
@@ -20,6 +20,7 @@ const connectProjectPage = connect(
     const projectService = c.service(ProjectService);
     const teamService = c.service(TeamService);
     const interactionService = c.service(IssueInteractionService);
+    onCleanup(() => projectService.releaseIssues(props.projectId));
     return view(
       {
         project: () => projectService.project(props.projectId),

@@ -29,7 +29,25 @@ export const TEST_PORTS = {
   /** The tracker sync backend, Postgres via the Elixir server. */
   trackerSyncPostgres: 4899,
   /** The tracker production build under `vite preview`. */
-  trackerPreview: 4898
+  trackerPreview: 4898,
+  /** The Tracker Worker and Durable Object backend. */
+  trackerDurableObject: 4910,
+  /** The Rounds SQLite sync backend. */
+  roundsSync: 4902,
+  /** The Rounds production build under `vite preview`. */
+  roundsPreview: 4903,
+  /** The external Rounds test controller. */
+  roundsController: 4909,
+  /** The Chalk SQLite server or Durable Object worker. */
+  chalkSync: 4904,
+  /** The Chalk production build under `vite preview`. */
+  chalkPreview: 4905,
+  /** The Spoke SQLite server or backend worker. */
+  spokeSync: 4906,
+  /** The Spoke production build under `vite preview`. */
+  spokePreview: 4907,
+  /** The second Spoke server node. */
+  spokeSecondSync: 4908
 } as const;
 
 /** `http://127.0.0.1:<port>` for one reserved test port. */

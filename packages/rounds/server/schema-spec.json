@@ -1,0 +1,338 @@
+{
+  "schemaSpecVersion": 4,
+  "protocolVersion": 3,
+  "rowSchemaFingerprint": "wheel-rows-sha256:63bab9ceb570874c0f28be5773deedca2629d3cfc9efbbe910995ec840296032",
+  "collections": [
+    {
+      "name": "checklists",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "siteId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "complete"
+            ]
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "siteId",
+          "title",
+          "status",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "items",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "checklistId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "passed",
+              "failed"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "number"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "checklistId",
+          "label",
+          "status",
+          "note",
+          "revision",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "site_progress",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "siteId": {
+            "type": "string"
+          },
+          "total": {
+            "type": "number"
+          },
+          "complete": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "siteId",
+          "total",
+          "complete"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "siteId"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "sites",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "archivedAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "name": "checklists.bySite",
+      "into": "checklists",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "siteId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "siteId"
+        ],
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "checklists"
+      ]
+    },
+    {
+      "name": "items.byChecklist",
+      "into": "items",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "checklistId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "checklistId"
+        ],
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "items"
+      ]
+    },
+    {
+      "name": "site_progress.all",
+      "into": "site_progress",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "checklists",
+        "items"
+      ]
+    },
+    {
+      "name": "sites.all",
+      "into": "sites",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "sites"
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "name": "checklist.complete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "checklistId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "complete"
+            ]
+          }
+        },
+        "required": [
+          "checklistId",
+          "status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "item.setNote",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "item.setStatus",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "passed",
+              "failed"
+            ]
+          }
+        },
+        "required": [
+          "itemId",
+          "status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "site.archive",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "siteId": {
+            "type": "string"
+          },
+          "checklistIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "itemIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "siteId",
+          "checklistIds",
+          "itemIds"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "presence": null
+}

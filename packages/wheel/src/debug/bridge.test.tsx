@@ -87,6 +87,7 @@ describe('installWheelBridge', () => {
     expect(bridge.components()).toEqual([
       { instanceId: 'Counter', name: 'Counter', kind: 'connected', group: 'app', children: [] }
     ]);
+    expect(bridge.subscriptions()).toEqual([]);
     expect(bridge.meta()).toMatchObject({ appId: 'test-app', status: 'offline', instances: 1 });
     app.cleanup();
   });

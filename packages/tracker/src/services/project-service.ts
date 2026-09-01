@@ -51,6 +51,9 @@ export class ProjectService extends SyncService {
     'issuesOf'
   );
 
+  /** Release a project issue query when its page unmounts. */
+  readonly releaseIssues = (projectId: string): boolean => this.issuesView.release(projectId);
+
   private watch(handle: MutationHandle, verb: string): MutationHandle {
     void handle.settled.then((info) => {
       if (info.state === 'rejected' || info.state === 'orphaned' || info.state === 'failed') {

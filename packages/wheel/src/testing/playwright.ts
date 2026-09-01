@@ -9,6 +9,44 @@ import { resolve, join } from 'node:path';
 
 import { wheelDriver, type DriverPage, type WheelDriver } from './driver';
 
+/** The browser-context methods used by {@link openWheelClients}. */
+export interface IsolatedBrowserContext<Page extends DriverPage = DriverPage> {
+  /** Open one page in this isolated storage and session scope. */
+  newPage(): Promise<Page>;
+  /** Close every page and resource owned by this context. */
+  close(): Promise<void>;
+}
+
+/** The browser method used by {@link openWheelClients}. */
+export interface IsolatedBrowser<Page extends DriverPage = DriverPage> {
+  /** Open a new isolated storage and session scope. */
+  newContext(): Promise<IsolatedBrowserContext<Page>>;
+}
+
+/** One isolated browser client and its Wheel driver. */
+export interface WheelBrowserClient<Page extends DriverPage = DriverPage> {
+  /** The isolated browser context. */
+  readonly context: IsolatedBrowserContext<Page>;
+  /** The page created inside the context. */
+  readonly page: Page;
+  /** The Wheel debug-bridge driver for the page. */
+  readonly wheel: WheelDriver;
+}
+
+/** Open independent browser clients against one server. */
+export async function openWheelClients<Page extends DriverPage>(
+  browser: IsolatedBrowser<Page>,
+  count: number
+): Promise<WheelBrowserClient<Page>[]> {
+  return Promise.all(
+    Array.from({ length: count }, async () => {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      return { context, page, wheel: wheelDriver(page) };
+    })
+  );
+}
+
 interface BehaviorBox {
   readonly x: number;
   readonly y: number;

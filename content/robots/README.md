@@ -43,7 +43,7 @@ Read the smallest topic that answers the task. Follow source links when exact si
 
 ## Reference
 
-- [Real application](real-app.md) - the tracker files that demonstrate the complete system.
+- [Real applications](real-app.md) - the product-scale tracker and focused browser proof portfolio.
 - [Architecture](architecture.md) - enforced dependency layers and locked sync decisions.
 - [Import map](import-map.md) - package entries and their owners.
 - [Swappable parts](advanced.md) - transport, backends, drivers, handlers, and low-level kit APIs.

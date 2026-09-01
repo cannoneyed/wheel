@@ -1,0 +1,423 @@
+{
+  "schemaSpecVersion": 4,
+  "protocolVersion": 3,
+  "rowSchemaFingerprint": "wheel-rows-sha256:5a1322287d7d98feeb112c5a7081b37c8df043bfdb845e6029097658e4567e4c",
+  "collections": [
+    {
+      "name": "channel_members",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "memberId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channelId",
+          "memberId"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "channelId",
+          "memberId"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "channel_reads",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "memberId": {
+            "type": "string"
+          },
+          "lastReadAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "memberId",
+          "lastReadAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "channels",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "private",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "members",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "messages",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          },
+          "editedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "authorId",
+          "body",
+          "createdAt",
+          "editedAt"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    },
+    {
+      "name": "unread_counts",
+      "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "memberId": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "memberId",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "key": {
+        "fields": [
+          "id"
+        ],
+        "separator": ":"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "name": "channel_reads.forMember",
+      "into": "channel_reads",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "channel_reads"
+      ]
+    },
+    {
+      "name": "channels.forMember",
+      "into": "channels",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "channel_members",
+        "channels"
+      ]
+    },
+    {
+      "name": "members.all",
+      "into": "members",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "members"
+      ]
+    },
+    {
+      "name": "messages.byChannel",
+      "into": "messages",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "channelId",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "channel_members",
+        "messages"
+      ]
+    },
+    {
+      "name": "unread_counts.forMember",
+      "into": "unread_counts",
+      "paramsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "dependsOn": [
+        "channel_members",
+        "channel_reads",
+        "messages"
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "name": "channel.create",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "private": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "private"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "channel.join",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channelId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "message.delete",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "messageId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "message.edit",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "messageId",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "message.send",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channelId",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "reads.mark",
+      "argsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channelId"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "presence": {
+    "name": "spoke",
+    "stateSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "channelId": {
+          "type": "string"
+        },
+        "typing": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "channelId",
+        "typing"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

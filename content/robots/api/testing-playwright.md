@@ -6,84 +6,108 @@ Import only from `wheel/testing/playwright`. The linked declarations are the sou
 
 ## `BeforeBehaviorContext`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:116](../../../packages/wheel/src/testing/playwright.ts#L116).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:154](../../../packages/wheel/src/testing/playwright.ts#L154).
 
 Values passed to an app-specific setup hook before each behavior.
 
 ## `BehaviorContext`
 
-Kind: class. Source: [packages/wheel/src/testing/playwright.ts:165](../../../packages/wheel/src/testing/playwright.ts#L165).
+Kind: class. Source: [packages/wheel/src/testing/playwright.ts:203](../../../packages/wheel/src/testing/playwright.ts#L203).
 
 The recorded action surface for one browser behavior.
 
 ## `BehaviorFixtures`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:74](../../../packages/wheel/src/testing/playwright.ts#L74).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:112](../../../packages/wheel/src/testing/playwright.ts#L112).
 
 The Playwright fixtures used by each generated behavior test.
 
 ## `BehaviorHarness`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:154](../../../packages/wheel/src/testing/playwright.ts#L154).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:192](../../../packages/wheel/src/testing/playwright.ts#L192).
 
 The functions returned by `createBehaviorHarness()`.
 
 ## `BehaviorHarnessOptions`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:131](../../../packages/wheel/src/testing/playwright.ts#L131).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:169](../../../packages/wheel/src/testing/playwright.ts#L169).
 
 Configuration for `createBehaviorHarness()`.
 
 ## `BehaviorHost`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:97](../../../packages/wheel/src/testing/playwright.ts#L97).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:135](../../../packages/wheel/src/testing/playwright.ts#L135).
 
 One serving topology a behavior must pass against.
 
 ## `BehaviorLocator`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:20](../../../packages/wheel/src/testing/playwright.ts#L20).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:58](../../../packages/wheel/src/testing/playwright.ts#L58).
 
 The locator methods used by recorded behavior actions.
 
 ## `BehaviorOptions`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:148](../../../packages/wheel/src/testing/playwright.ts#L148).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:186](../../../packages/wheel/src/testing/playwright.ts#L186).
 
 Per-behavior options.
 
 ## `BehaviorPage`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:40](../../../packages/wheel/src/testing/playwright.ts#L40).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:78](../../../packages/wheel/src/testing/playwright.ts#L78).
 
 The page methods used by the behavior harness and `wheelDriver`.
 
 ## `BehaviorRequest`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:62](../../../packages/wheel/src/testing/playwright.ts#L62).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:100](../../../packages/wheel/src/testing/playwright.ts#L100).
 
 The request methods used by behavior setup hooks.
 
 ## `BehaviorResponse`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:54](../../../packages/wheel/src/testing/playwright.ts#L54).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:92](../../../packages/wheel/src/testing/playwright.ts#L92).
 
 The response methods used by behavior setup hooks.
 
 ## `BehaviorTest`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:85](../../../packages/wheel/src/testing/playwright.ts#L85).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:123](../../../packages/wheel/src/testing/playwright.ts#L123).
 
 A Playwright-compatible test declaration function.
 
 ## `BehaviorTestInfo`
 
-Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:68](../../../packages/wheel/src/testing/playwright.ts#L68).
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:106](../../../packages/wheel/src/testing/playwright.ts#L106).
 
 The Playwright test information used by recording metadata.
 
 ## `createBehaviorHarness`
 
-Kind: function. Source: [packages/wheel/src/testing/playwright.ts:315](../../../packages/wheel/src/testing/playwright.ts#L315).
+Kind: function. Source: [packages/wheel/src/testing/playwright.ts:353](../../../packages/wheel/src/testing/playwright.ts#L353).
 
 Create a recorded behavior declaration for one or more app hosts.
+
+## `IsolatedBrowser`
+
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:21](../../../packages/wheel/src/testing/playwright.ts#L21).
+
+The browser method used by {@link openWheelClients}.
+
+## `IsolatedBrowserContext`
+
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:13](../../../packages/wheel/src/testing/playwright.ts#L13).
+
+The browser-context methods used by {@link openWheelClients}.
+
+## `openWheelClients`
+
+Kind: function. Source: [packages/wheel/src/testing/playwright.ts:37](../../../packages/wheel/src/testing/playwright.ts#L37).
+
+Open independent browser clients against one server.
+
+## `WheelBrowserClient`
+
+Kind: interface. Source: [packages/wheel/src/testing/playwright.ts:27](../../../packages/wheel/src/testing/playwright.ts#L27).
+
+One isolated browser client and its Wheel driver.

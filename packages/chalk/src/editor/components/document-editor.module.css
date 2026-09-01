@@ -1,0 +1,259 @@
+/* Chalk's single-editor document surface: block styles, presence dots, slash
+   menu, conflict note. Element and [data-*] selectors are scoped by nesting
+   under the module's .editor class (CSS modules only hash class names). */
+
+.wrapper {
+  position: relative;
+  max-width: 680px;
+}
+
+.editor :global(.tiptap) {
+  outline: none;
+  padding: 8px 0 40px;
+  line-height: 1.55;
+  caret-color: var(--wheel-accent);
+}
+
+/* --- blocks --- */
+
+.editor :global(.tiptap) > * {
+  position: relative;
+  margin: 0;
+  padding: 3px 2px;
+  border-radius: var(--wheel-radius-xs);
+}
+
+.editor h1 {
+  font-size: 1.7em;
+  font-weight: 700;
+  padding-top: 14px;
+}
+
+.editor h2 {
+  font-size: 1.35em;
+  font-weight: 650;
+  padding-top: 10px;
+}
+
+.editor h3 {
+  font-size: 1.12em;
+  font-weight: 650;
+  padding-top: 6px;
+}
+
+.editor [data-kind='bullet'],
+.editor [data-kind='number'],
+.editor [data-kind='todo'] {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-left: 8px;
+}
+
+.editor [data-kind='bullet']::before {
+  content: '•';
+  flex: none;
+  color: var(--wheel-ink-muted);
+}
+
+.editor :global(.tiptap) {
+  counter-reset: wheel-number;
+}
+
+.editor [data-kind='number'] {
+  counter-increment: wheel-number;
+}
+
+.editor [data-kind='number']::before {
+  content: counter(wheel-number) '.';
+  flex: none;
+  min-width: 1.1em;
+  color: var(--wheel-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.editor :global(.block-text) {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor :global(.todo-checkbox) {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 1.05em;
+  line-height: inherit;
+  color: var(--wheel-accent);
+  user-select: none;
+}
+
+.editor [data-kind='todo'][data-checked='true'] :global(.block-text) {
+  text-decoration: line-through;
+  color: var(--wheel-ink-muted);
+}
+
+.editor blockquote {
+  border-left: 3px solid var(--wheel-line);
+  padding-left: 12px;
+  color: var(--wheel-ink-muted);
+}
+
+.editor pre {
+  background: var(--wheel-bg-soft);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-sm);
+  padding: 10px 12px;
+  font-size: 0.88em;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.editor pre code {
+  background: none;
+  padding: 0;
+}
+
+.editor code {
+  background: var(--wheel-bg-soft);
+  border-radius: var(--wheel-radius-xs);
+  padding: 1px 4px;
+  font-size: 0.9em;
+}
+
+.editor [data-kind='divider'] {
+  padding: 8px 0;
+  cursor: default;
+}
+
+.editor [data-kind='divider'] hr {
+  border: none;
+  border-top: 1px solid var(--wheel-line);
+  margin: 0;
+}
+
+.editor :global(.ProseMirror-selectednode) hr {
+  border-top-color: var(--wheel-accent);
+}
+
+/* --- presence --- */
+
+.editor :global(.has-peers) {
+  background: color-mix(in srgb, var(--wheel-accent) 5%, transparent);
+}
+
+.editor :global(.peer-dots) {
+  position: absolute;
+  right: 100%;
+  top: 0.45em;
+  display: inline-flex;
+  gap: 3px;
+  padding-right: 8px;
+}
+
+.editor :global(.peer-dot) {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--wheel-radius-pill); /* a 9px pill IS a dot */
+}
+
+/* A peer's caret: a thin colored bar blinking at native-caret speed. */
+.editor :global(.peer-caret) {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin: 0 -1px;
+  vertical-align: text-bottom;
+  border-radius: 1px; /* below the radius scale: a 2px-wide caret bar */
+  animation: peer-caret-blink 0.7s step-end infinite;
+}
+
+@keyframes peer-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+/* A peer's selection range — the background color is per-peer, set inline. */
+.editor :global(.peer-selection) {
+  border-radius: 2px; /* below the radius scale: a text-selection wash */
+}
+
+/* Live typing preview (008 P3): the peer's uncommitted text REPLACES the
+   block's display — the committed text hides, the preview shows, and the
+   block goes pointer-inert (you can't click into text that isn't committed
+   yet). All pixels: the document model never contains any of this. */
+.editor :global(.preview-hidden) {
+  display: none;
+}
+
+.editor :global(.has-preview) {
+  pointer-events: none;
+  background: color-mix(in srgb, var(--wheel-accent) 4%, transparent);
+}
+
+.editor :global(.peer-preview) {
+  white-space: pre-wrap;
+}
+
+/* --- slash menu --- */
+
+.slashMenu {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--wheel-bg-raised);
+  border: 1px solid var(--wheel-line);
+  border-radius: var(--wheel-radius-md);
+  box-shadow: var(--wheel-shadow-float);
+  padding: 4px;
+  min-width: 170px;
+}
+
+.slashItem {
+  display: block;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 6px 12px;
+  border-radius: var(--wheel-radius-xs);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.slashActive {
+  background: var(--wheel-bg-hover);
+}
+
+.slashEmpty {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--wheel-ink-muted);
+}
+
+/* --- conflict note (D3's baseVersion payoff) --- */
+
+.conflictNote {
+  position: sticky;
+  bottom: 12px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--wheel-radius-md);
+  /* A baked-dark alert banner: fixed on purpose, so the warning reads the
+     same whichever theme the page is in. */
+  background: var(--wheel-danger-deep);
+  color: var(--wheel-on-accent);
+  font-size: 13px;
+  box-shadow: var(--wheel-shadow-float);
+}
+
+.addButton {
+  margin-top: 10px;
+}

@@ -52,6 +52,7 @@ defmodule WheelSync.Workspace do
      %{
        names: names,
        registry: Keyword.fetch!(options, :registry),
+       presence_filter: Keyword.get(options, :presence_filter),
        workspace_id: workspace_id,
        seq: WheelSync.Storage.current_seq(names.postgres, workspace_id),
        connections: %{},
@@ -82,7 +83,9 @@ defmodule WheelSync.Workspace do
     Process.monitor(connection.pid)
 
     existing_presence =
-      for {_pid, peer} <- state.connections, peer.presence != nil do
+      for {_pid, peer} <- state.connections,
+          peer.presence != nil,
+          presence_visible?(state, peer.principal, connection.principal, peer.presence) do
         presence_event(peer.client_id, peer.principal.actor, peer.presence)
       end
 
@@ -185,9 +188,9 @@ defmodule WheelSync.Workspace do
   def handle_call({:presence, pid, presence}, _from, state) do
     with {:ok, connection} <- fetch_connection(state, pid),
          :ok <- validate_presence(state.registry.contract.presence, presence) do
+      previous = connection.presence
       connections = Map.put(state.connections, pid, %{connection | presence: presence})
-      event = presence_event(connection.client_id, connection.principal.actor, presence)
-      broadcast(connections, event, pid)
+      broadcast_presence(state, connections, connection, previous, presence, pid)
       {:reply, :ok, %{state | connections: connections}}
     else
       {:error, code, message} -> {:reply, {:error, code, message}, state}
@@ -933,9 +936,12 @@ defmodule WheelSync.Workspace do
 
       {connection, connections} ->
         if connection.presence != nil do
-          broadcast(
+          broadcast_presence(
+            state,
             connections,
-            presence_event(connection.client_id, connection.principal.actor, nil),
+            connection,
+            connection.presence,
+            nil,
             nil
           )
         end
@@ -989,6 +995,45 @@ defmodule WheelSync.Workspace do
 
   defp presence_event(client_id, actor, state) do
     %{"type" => "presence", "clientId" => client_id, "actor" => actor, "state" => state}
+  end
+
+  defp presence_visible?(%{presence_filter: nil}, _sender, _recipient, _presence), do: true
+
+  defp presence_visible?(state, sender, recipient, presence) do
+    state.presence_filter.(sender, recipient, presence)
+  rescue
+    error ->
+      Logger.error(
+        "wheel: presence visibility check failed sender=#{inspect(sender)} " <>
+          "recipient=#{inspect(recipient)} error=#{Exception.message(error)}"
+      )
+
+      false
+  end
+
+  defp broadcast_presence(state, connections, sender, previous, next, except_pid) do
+    for {pid, recipient} <- connections, pid != except_pid do
+      saw_previous =
+        previous != nil and
+          presence_visible?(state, sender.principal, recipient.principal, previous)
+
+      sees_next =
+        next != nil and presence_visible?(state, sender.principal, recipient.principal, next)
+
+      cond do
+        sees_next ->
+          send(
+            pid,
+            {:wheel_event, presence_event(sender.client_id, sender.principal.actor, next)}
+          )
+
+        saw_previous ->
+          send(pid, {:wheel_event, presence_event(sender.client_id, sender.principal.actor, nil)})
+
+        true ->
+          :ok
+      end
+    end
   end
 
   defp broadcast(connections, event, except_pid) do

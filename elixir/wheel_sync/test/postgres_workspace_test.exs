@@ -9,6 +9,7 @@ defmodule WheelSync.PostgresWorkspaceTest do
   @workspace_phase3 "wheel-sync-test-phase3"
   @workspace_source "wheel-sync-test-source"
   @workspace_external_error "wheel-sync-test-external-error"
+  @workspace_presence "wheel-sync-test-presence"
   @widget_id "widget_0190b62e-0000-7000-8000-000000000021"
   @mutation_id "m_0190b62e-0000-7000-8000-000000000021"
 
@@ -191,6 +192,65 @@ defmodule WheelSync.PostgresWorkspaceTest do
              ).rows
 
     cleanup(names.postgres)
+  end
+
+  test "presence visibility filters bootstrap, audience changes, and clears" do
+    options =
+      System.fetch_env!("DATABASE_URL")
+      |> WheelSync.Test.WireApp.options(0)
+      |> Keyword.merge(
+        serve: false,
+        name: Module.concat(__MODULE__, PresenceRuntime),
+        supervisor_name: Module.concat(__MODULE__, PresenceSupervisor),
+        presence_filter: fn _sender, recipient, presence ->
+          presence["channelId"] == "public" or recipient.actor == "user:member"
+        end
+      )
+
+    supervisor = start_supervised!({WheelSync.Supervisor, options})
+    names = WheelSync.Names.from_options(options)
+    cleanup(names.postgres)
+
+    on_exit(fn ->
+      if Process.alive?(supervisor), do: cleanup(names.postgres)
+    end)
+
+    {:ok, workspace} = WheelSync.Runtime.workspace(names.runtime, @workspace_presence)
+    sender_principal = %{principal(@workspace_presence) | actor: "user:sender"}
+    member_principal = %{principal(@workspace_presence) | actor: "user:member"}
+    outsider_principal = %{principal(@workspace_presence) | actor: "user:outsider"}
+    {sender, []} = join_process(workspace, sender_principal, "client:sender")
+    {member, []} = join_process(workspace, member_principal, "client:member")
+    {outsider, []} = join_process(workspace, outsider_principal, "client:outsider")
+
+    :ok = WheelSync.Workspace.presence(workspace, sender, %{"channelId" => "private"})
+
+    assert_receive {:subscriber_event, ^member,
+                    %{"type" => "presence", "state" => %{"channelId" => "private"}}}
+
+    refute_receive {:subscriber_event, ^outsider, %{"type" => "presence"}}, 50
+
+    {late_member, bootstrap} =
+      join_process(workspace, %{member_principal | session_id: "session:late"}, "client:late")
+
+    assert [%{"state" => %{"channelId" => "private"}}] = bootstrap
+
+    {_late_outsider, []} =
+      join_process(
+        workspace,
+        %{outsider_principal | session_id: "session:late-outsider"},
+        "client:late-outsider"
+      )
+
+    :ok = WheelSync.Workspace.presence(workspace, sender, %{"channelId" => "public"})
+    assert_receive {:subscriber_event, ^outsider, %{"state" => %{"channelId" => "public"}}}
+
+    :ok = WheelSync.Workspace.presence(workspace, sender, %{"channelId" => "private"})
+    assert_receive {:subscriber_event, ^outsider, %{"state" => nil}}
+
+    WheelSync.Workspace.leave(workspace, sender)
+    assert_receive {:subscriber_event, ^member, %{"state" => nil}}
+    assert_receive {:subscriber_event, ^late_member, %{"state" => nil}}
   end
 
   test "query failure telemetry matches stale and live events" do
@@ -583,6 +643,28 @@ defmodule WheelSync.PostgresWorkspaceTest do
     {pid, snapshot}
   end
 
+  defp join_process(workspace, principal, client_id) do
+    parent = self()
+
+    pid =
+      spawn(fn ->
+        result =
+          WheelSync.Workspace.join(workspace, %{
+            pid: self(),
+            client_id: client_id,
+            owner_client_id: client_id,
+            principal: principal
+          })
+
+        send(parent, {:subscriber_joined, self(), result})
+        relay_events(parent, workspace)
+      end)
+
+    assert_receive {:subscriber_joined, ^pid, {:ok, presence}}
+    on_exit(fn -> if Process.alive?(pid), do: Process.exit(pid, :kill) end)
+    {pid, presence}
+  end
+
   defp relay_events(parent, workspace) do
     receive do
       {:wheel_event, event} ->
@@ -625,7 +707,8 @@ defmodule WheelSync.PostgresWorkspaceTest do
           @workspace_query,
           @workspace_phase3,
           @workspace_source,
-          @workspace_external_error
+          @workspace_external_error,
+          @workspace_presence
         ] do
       Postgrex.query!(postgres, "delete from wire_widgets where workspace_id = $1", [workspace_id])
 
