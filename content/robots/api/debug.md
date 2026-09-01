@@ -162,7 +162,7 @@ The cached tab-capture stream, opened on first use. Shared with the annotation l
 
 ## `WheelApp`
 
-Kind: function. Source: [packages/wheel/src/debug/wheel-app.tsx:552](../../../packages/wheel/src/debug/wheel-app.tsx#L552).
+Kind: function. Source: [packages/wheel/src/debug/wheel-app.tsx:530](../../../packages/wheel/src/debug/wheel-app.tsx#L530).
 
 The app root wrapper: provider + (dev only) the docked debug panel, inspector, and agent bridge. See the module doc for the full story.
 

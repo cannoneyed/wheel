@@ -53,7 +53,8 @@ test('a docs paragraph can be annotated, and the note can find it again', async 
   const prose = (await paragraph.innerText()).trim();
 
   const before = noteIds();
-  await page.getByTestId('wheel-annotate-chip').click();
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
 
   const box = await paragraph.boundingBox();
@@ -92,7 +93,8 @@ test('the landing page is annotatable too', async ({ page }) => {
   await expect(headline).toBeVisible();
 
   const before = noteIds();
-  await page.getByTestId('wheel-annotate-chip').click();
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
   // The chrome arrives through a dynamic import, so the picker's shield is
   // what says it is ready. Clicking before it lands hits the page instead.
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();

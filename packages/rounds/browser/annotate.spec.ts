@@ -75,7 +75,8 @@ test('a note on a rejected mutation carries why it was rejected', async ({ page 
 
   // Now annotate it. Nothing was pressed to start recording — the rolling
   // buffer has been running since the annotator mounted.
-  await page.getByTestId('wheel-annotate-chip').click();
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
 
   const target = await page.getByTestId('note-item_exit').boundingBox();

@@ -63,7 +63,8 @@ test.afterAll(() => {
 test('a dragged rectangle lands on disk with the components under it', async ({ page }) => {
   const before = noteIds();
 
-  await page.getByTestId('wheel-annotate-chip').click();
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
   const shield = page.getByTestId('wheel-annotate-shield');
   await expect(shield).toBeVisible();
 
@@ -140,7 +141,8 @@ test('a note carries the real actions and state changes behind what happened', a
   await editInput.press('Enter');
   await expect(page.getByText(`${original} [annotated]`, { exact: true })).toBeVisible();
 
-  await page.getByTestId('wheel-annotate-chip').click();
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
   const target = await issueTitle.boundingBox();
   await page.mouse.move(target!.x - 6, target!.y - 6);
@@ -188,7 +190,8 @@ test('falls back to one downloaded file when the app has no dev server', async (
   // way to test what production actually does.
   await page.route('**/__wheel/note', (route) => route.abort());
 
-  await page.getByTestId('wheel-annotate-chip').click();
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
   const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
   await page.mouse.move(target!.x - 6, target!.y - 6);
@@ -225,7 +228,8 @@ test('falls back to one downloaded file when the app has no dev server', async (
 });
 
 test('a stray click annotates nothing, and video is never a toll on drawing', async ({ page }) => {
-  await page.getByTestId('wheel-annotate-chip').click();
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
   const shield = page.getByTestId('wheel-annotate-shield');
   await expect(shield).toBeVisible();
 

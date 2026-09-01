@@ -163,7 +163,7 @@ describe('WheelApp', () => {
     setWheelDevMode(true);
   });
 
-  it('renders the app closed with the toggle chip; opening shows the docked panel with all three sections', () => {
+  it('renders the app closed with the toggle chip; opening shows the docked panel with its sections', () => {
     mountApp();
     expect(testid('greeting')!.textContent).toBe('hi world');
     expect(testid('wheel-debug-panel')).toBeNull();
@@ -172,7 +172,7 @@ describe('WheelApp', () => {
     const panel = testid('wheel-debug-panel')!;
     expect(panel.textContent).toContain('state tree');
     expect(panel.textContent).toContain('components');
-    expect(panel.textContent).toContain('inspect');
+    expect(panel.textContent).toContain('errors');
     // The app is still mounted and untouched.
     expect(testid('greeting')!.textContent).toBe('hi world');
   });
@@ -343,15 +343,15 @@ describe('WheelApp', () => {
   it('a divider sits between every pair of visible panes, and never above the first', () => {
     mountApp();
     testid('wheel-debug-toggle')!.click();
-    // Four panes visible → three dividers, none before the first pane.
+    // Three panes visible → two dividers, none before the first pane.
     expect(testid('wheel-pane-handle-state')).toBeNull();
-    for (const id of ['components', 'inspect', 'errors']) {
+    for (const id of ['components', 'errors']) {
       expect(testid(`wheel-pane-handle-${id}`)).not.toBeNull();
     }
     // Hiding a pane removes its divider too.
     testid('wheel-pane-toggle-components')!.click();
     expect(testid('wheel-pane-handle-components')).toBeNull();
-    expect(testid('wheel-pane-handle-inspect')).not.toBeNull();
+    expect(testid('wheel-pane-handle-errors')).not.toBeNull();
   });
 
   it('while picking, a full-screen shield keeps every press away from the app', () => {

@@ -39,7 +39,12 @@ render(() => (
 ), root);
 ```
 
-A ✎ chip appears in the bottom-left corner; **⌘⇧A** (Ctrl+Shift+A) arms it, Escape leaves.
+The debug dock grows an **annotate** pane, beside state, components and errors. Press
+**✎ annotate this app** there, or **⌘⇧A** (Ctrl+Shift+A) from anywhere; Escape leaves.
+
+There is no floating button. Annotating is something you do to a wheel app, so the way in is the
+app's own instrument panel — which also means `<WheelAnnotate/>` needs a `<WheelApp/>` above it to
+have somewhere to live.
 `wheel/annotate` is a separate entry point from `wheel/debug` on purpose: a build can ship the
 annotator without the debug panel.
 
@@ -56,13 +61,13 @@ export default defineConfig({
 
 ## In production
 
-Mounting `<WheelAnnotate/>` costs a rolling recorder and a chip. Everything else — picker,
+Mounting `<WheelAnnotate/>` costs a rolling recorder and a pane. Everything else — marquee,
 composer, voice, note rendering — is behind a dynamic `import()` and arrives the first time
 someone arms. Measured on the tracker:
 
 | | gzipped |
 | --- | --- |
-| resident: recorder, chip, chord, loader | **4.1 KB** |
+| resident: recorder, pane, chord, loader | **4.1 KB** |
 | deferred: the whole armed experience | 8.7 KB, fetched on arm |
 | deferred: the DOM rasterizer | 10.5 KB, fetched when a note is first drawn |
 

@@ -49,21 +49,18 @@ const DRAG_THRESHOLD = 5;
 const LABELS: readonly NoteLabel[] = ['bug', 'question', 'idea', 'todo', 'looks-good'];
 
 const styles = {
-  chip: {
+  filming: {
     position: 'fixed',
     left: '12px',
     bottom: '12px',
     'z-index': LAYER + 2,
-    display: 'flex',
-    'align-items': 'center',
-    gap: '6px',
     padding: '4px 10px',
     'border-radius': '999px',
-    border: '1px solid var(--wheel-stage-line-heavy, #3a3b3e)',
+    border: '1px solid var(--wheel-danger-deep, #b91c1c)',
     background: 'var(--wheel-stage-2, #101317)',
-    color: 'var(--wheel-stage-ink, #d7d3cc)',
+    color: 'var(--wheel-danger-soft, #fca5a5)',
     font: '12px ui-monospace, monospace',
-    cursor: 'pointer'
+    'pointer-events': 'none'
   },
   button: {
     padding: '3px 8px',
@@ -221,19 +218,14 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
 
   return (
     <Portal>
-      <button
-        type="button"
-        style={styles.chip}
-        {...{ [CHROME_ATTRIBUTE]: '' }}
-        data-testid="wheel-annotate-chip"
-        title="Annotate this page (⌘⇧A)"
-        onClick={() => (service.mode.get() === 'off' ? service.arm() : service.disarm())}
-      >
-        <span>✎</span>
-        <Show when={service.filming.get()}>
-          <span>● rec</span>
-        </Show>
-      </button>
+      {/* Recording is the one thing that must be visible while you use the
+          app, because the app is what you are recording — the dock may be
+          closed, and forgetting is expensive. */}
+      <Show when={service.filming.get()}>
+        <div style={styles.filming} {...{ [CHROME_ATTRIBUTE]: '' }} data-testid="wheel-annotate-filming">
+          ● rec
+        </div>
+      </Show>
       <Show when={service.mode.get() === 'armed'}>
         <Marquee service={service} />
       </Show>

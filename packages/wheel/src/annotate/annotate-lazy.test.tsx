@@ -16,6 +16,7 @@ import { WheelContext, type WheelContextValue } from '../core/context';
 
 import { WheelAnnotate } from './annotate-lazy';
 import { annotateRecorder, stopAnnotateSession } from './session';
+import { debugPanes } from '../debug/panes';
 
 class BoardService extends Service {
   /** Identity that survives minification (see require-service-name). */
@@ -49,7 +50,12 @@ function mountApp(enabled?: boolean): WheelContextValue {
   return context;
 }
 
-const chip = () => document.querySelector<HTMLButtonElement>('[data-testid="wheel-annotate-chip"]');
+/**
+ * The way in is the dock's annotate pane — there is no floating chip. The dock
+ * cannot import the annotator, so the pane is REGISTERED; this reads the
+ * registry directly rather than mounting a whole `WheelApp`.
+ */
+const pane = () => debugPanes().find((entry) => entry.id === 'annotate');
 
 afterEach(() => {
   teardown?.();
@@ -60,13 +66,20 @@ afterEach(() => {
 });
 
 describe('<WheelAnnotate/>', () => {
-  it('shows a chip and starts recording, without loading any chrome', () => {
+  it('offers a pane and starts recording, without loading any chrome', () => {
     mountApp();
-    expect(chip()).toBeTruthy();
+    expect(pane()).toBeDefined();
     // The armed surfaces are the lazy half; none of them exist yet.
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeNull();
-    expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeNull();
     expect(annotateRecorder()?.active()).toBe(true);
+  });
+
+  it('draws nothing over the app until someone arms it', () => {
+    mountApp();
+    // The chip used to float over every page that mounted this. Annotation is
+    // an instrument, so it lives in the instrument dock and the product is
+    // left alone until you ask for it.
+    expect(document.body.textContent).toBe('');
   });
 
   it('records what happened before anyone armed', () => {
@@ -77,13 +90,16 @@ describe('<WheelAnnotate/>', () => {
     expect(timeline.some((event) => event.kind === 'action' && event.action === 'toggleCell')).toBe(true);
   });
 
-  it('loads the chrome only when the chip is pressed, and arms it', async () => {
+  it('loads the chrome only when the pane asks, and arms it', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({ ok: true, notes: [] }), { status: 200 }))
     );
-    mountApp();
-    chip()!.click();
+    const context = mountApp();
+    const paneHost = document.createElement('div');
+    document.body.appendChild(paneHost);
+    render(() => pane()!.render(context.services) as never, paneHost);
+    document.querySelector<HTMLButtonElement>('[data-testid="wheel-annotate-arm"]')!.click();
 
     await vi.waitFor(() => expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy());
     // Arming goes straight to the marquee — drawing a rectangle IS the
@@ -93,14 +109,24 @@ describe('<WheelAnnotate/>', () => {
 
   it('does nothing at all when it is not enabled', () => {
     mountApp(false);
-    expect(chip()).toBeNull();
-    // No chip, no chord, and — the part that matters in production — no taps.
+    expect(pane()).toBeUndefined();
+    // No pane, no chord, and — the part that matters in production — no taps.
     expect(annotateRecorder()).toBeNull();
   });
 
   it('runs for a production page when the app says so', () => {
     mountApp(true);
-    expect(chip()).toBeTruthy();
+    expect(pane()).toBeDefined();
     expect(annotateRecorder()?.active()).toBe(true);
+  });
+
+  it('takes its pane away with it', () => {
+    mountApp();
+    expect(pane()).toBeDefined();
+    teardown?.();
+    teardown = null;
+    // A page that unmounts the annotator must not leave a pane whose button
+    // reaches a component that no longer exists.
+    expect(pane()).toBeUndefined();
   });
 });

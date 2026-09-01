@@ -6,9 +6,11 @@ Leave a note on a running app and record what the app did. The recording is sema
 
 ## Mount
 
-`WheelAnnotate` mounts inside any Wheel provider. `wheel/annotate` is a separate entry from `wheel/debug`, so a build can ship the annotator without the debug panel.
+`WheelAnnotate` mounts inside a `WheelApp`. It has no chrome of its own beyond a recording light: it CONTRIBUTES a pane to the debug dock through `registerDebugPane` (`debug/panes.ts`), and that pane is the only way in besides ⌘⇧A. The dock cannot import the annotator — the DAG runs `annotate -> debug` — so the dependency is inverted: panes register, the dock renders what is present, and a build without the annotator has neither the pane nor the code.
 
-It is split in three, measured on the tracker. Resident: the rolling recorder, the chip, the chord, the loader — 4.1 KB gzipped. Deferred behind a dynamic `import()` of `annotate-system`: marquee, composer, voice, note rendering — 8.7 KB, fetched on first arm. Deferred again: `modern-screenshot`, 10.5 KB, fetched the first time a note is drawn. The main bundle is unchanged by all of it.
+A page with no dock therefore cannot be annotated, which is the intent: annotation is a thing you do to a wheel app. The website's docs and landing pages mount `WheelApp` for exactly this reason. Nested `WheelApp`s (the site embeds live demos) share ONE dock — the outermost wins, via the `DockPresent` context. `wheel/annotate` is a separate entry from `wheel/debug`, so a build can ship the annotator without the debug panel.
+
+It is split in three, measured on the tracker. Resident: the rolling recorder, the pane registration, the chord, the loader — 4.1 KB gzipped. Deferred behind a dynamic `import()` of `annotate-system`: marquee, composer, voice, note rendering — 8.7 KB, fetched on first arm. Deferred again: `modern-screenshot`, 10.5 KB, fetched the first time a note is drawn. The main bundle is unchanged by all of it.
 
 `enabled` defaults to `isWheelDevMode()`. A production page records nothing and shows nothing unless the app passes `enabled`. The app owns that decision because it decides whose application state may be captured.
 

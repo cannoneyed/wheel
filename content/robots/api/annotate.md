@@ -300,12 +300,12 @@ A capture in progress.
 
 ## `WheelAnnotate`
 
-Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:93](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L93).
+Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:104](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L104).
 
 Mount the annotator: a rolling recorder now, the chrome on demand.
 
 ## `WheelAnnotateProps`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:71](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L71).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:82](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L82).
 
 Props for {@link WheelAnnotate}.

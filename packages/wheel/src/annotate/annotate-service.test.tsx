@@ -685,7 +685,8 @@ describe('<WheelAnnotate/>', () => {
     expect(service.mode.get()).toBe('armed');
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeTruthy();
 
-    document.querySelector<HTMLButtonElement>('[data-testid="wheel-annotate-chip"]')!.click();
+    // The chip is gone; leaving is Escape or the service's own door.
+    service.disarm();
     expect(service.mode.get()).toBe('off');
   });
 

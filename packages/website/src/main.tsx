@@ -9,8 +9,9 @@
  * landing scroll styles identically).
  */
 import { render } from 'solid-js/web';
-import { ServiceProvider } from 'wheel/core';
+import { } from 'wheel/core';
 import { WheelAnnotate } from 'wheel/annotate';
+import { WheelApp } from 'wheel/debug';
 import { annotationEnabled } from './annotation';
 
 import './styles.css';
@@ -36,18 +37,20 @@ function App() {
 }
 
 /**
- * The landing scroll is plain Solid, not a wheel app — so the annotator needs a
- * provider to hang off. `ServiceProvider` is clientless and holds no services
- * here; it exists to give the annotator a registry and a clock. Notes on this
- * page anchor to ELEMENTS (a DOM path plus a quote of the text), which is what
- * prose has instead of components.
+ * A wheel app like every other page here.
+ *
+ * It held a bare `ServiceProvider` while the annotator carried its own chip.
+ * The chip is gone — annotating is something you do to a wheel app, so the way
+ * in is the app's own instrument dock, and a page that wants to be annotated
+ * has to have one. `WheelApp` is clientless here: no data to sync, just the
+ * shell the annotate pane lives in.
  */
 render(
   () => (
-    <ServiceProvider scopeId="app">
+    <WheelApp scopeId="app">
       <App />
       <WheelAnnotate enabled={annotationEnabled()} />
-    </ServiceProvider>
+    </WheelApp>
   ),
   document.getElementById('root')!
 );
