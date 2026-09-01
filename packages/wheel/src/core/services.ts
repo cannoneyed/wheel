@@ -357,6 +357,7 @@ export class ServiceContext {
   /** Per-collection data revisions, minted lazily by `trackCollection`. */
   private readonly collectionVersions = new Map<string, { version: Accessor<number>; bump: () => void }>();
   private readonly debugVersion: Accessor<number>;
+  private readonly instanceVersion: Accessor<number>;
   private releaseClient: (() => void) | null = null;
   private disposed = false;
 
@@ -385,15 +386,25 @@ export class ServiceContext {
     this.bumpVersion = () => setVersion((v) => v + 1);
     const [debugVersion, setDebugVersion] = createSignal(0);
     this.debugVersion = debugVersion;
+    const [instanceVersion, setInstanceVersion] = createSignal(0);
+    this.instanceVersion = instanceVersion;
     if (!options.parent) {
       // Root context owns the registry. Registry-only changes get their OWN
-      // signal (trackDebug) — they must NOT ride the client-data revision
-      // channel: every liveQuery read tracks that channel, so bumping it per
-      // mount makes row components re-derive their vms on mount, which
-      // remounts rows, which bumps again — a feedback loop that starves
-      // long lists. Channel doctrine: data invalidation and debug-surface
-      // invalidation never share a wire.
+      // signals — they must NOT ride the client-data revision channel: every
+      // liveQuery read tracks that channel, so bumping it per mount makes row
+      // components re-derive their vms on mount, which remounts rows, which
+      // bumps again — a feedback loop that starves long lists. Channel
+      // doctrine: data invalidation and debug-surface invalidation never share
+      // a wire.
+      //
+      // And the debug surfaces get TWO wires, for the same reason one level
+      // down. Values change constantly (every field write); shape rarely (a
+      // mount, an unmount, a rename). A surface that redraws on shape must not
+      // redraw on values — the component tree writes a field when you hover
+      // one of its rows, so a shared wire had it rebuilding itself under the
+      // pointer, detaching the row mid-click.
       this.registry.onChange = () => setDebugVersion((v) => v + 1);
+      this.registry.onInstanceChange = () => setInstanceVersion((v) => v + 1);
     }
     if (this.clientRef) {
       // One client listener per context that owns a client reference; child
@@ -476,11 +487,23 @@ export class ServiceContext {
   }
 
   /**
-   * Tracked read of the debug revision. Instance changes, visibility reports,
-   * and field writes bump it. Application data must never track this signal.
+   * Tracked read of the debug VALUE revision: service field writes bump it.
+   * Application data must never track this signal.
    */
   trackDebug(): number {
     return this.debugVersion();
+  }
+
+  /**
+   * Tracked read of the debug SHAPE revision: an instance mounted, unmounted,
+   * was renumbered, or reported its visibility.
+   *
+   * The channel a surface that DRAWS THE TREE wants. Tracking `trackDebug()`
+   * instead means every field write rebuilds it, and a tree whose own rows
+   * write a field on hover then rebuilds itself under the pointer.
+   */
+  trackInstances(): number {
+    return this.instanceVersion();
   }
 
   /**

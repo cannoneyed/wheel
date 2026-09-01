@@ -218,6 +218,18 @@ export class DebugRegistry {
   /** Wired to the owning context's revision bump so debug surfaces re-render when registry state changes. */
   onChange: (() => void) | null = null;
 
+  /**
+   * Fired when the registry's SHAPE changes: an instance mounted, unmounted,
+   * was renumbered, or reported its visibility.
+   *
+   * Separate from `onChange` because the two have different audiences and very
+   * different rates. Values change constantly; shape rarely. A surface that
+   * redraws on shape — the component tree — must not redraw on values, or
+   * hovering one of its own rows (which writes a field) rebuilds it under the
+   * pointer.
+   */
+  onInstanceChange: (() => void) | null = null;
+
   /** Component currently running its connect declaration, if any. */
   currentComponent: string | null = null;
 
@@ -396,14 +408,14 @@ export class DebugRegistry {
     this.instanceRecords.set(key, record);
     // Crossing 1 → 2 renames the incumbent (`TodoRow` becomes `TodoRow#1`).
     this.restampNamed(name);
-    this.notifyDebug();
+    this.notifyInstances();
     return {
       record,
       unregister: () => {
         this.instanceRecords.delete(key);
         // Dropping back to 1 gives the survivor its bare name again.
         this.restampNamed(name);
-        this.notifyDebug();
+        this.notifyInstances();
       }
     };
   }
@@ -446,9 +458,14 @@ export class DebugRegistry {
     }
   }
 
-  /** Notify debug surfaces after registry state changes without touching application data channels. */
+  /** Notify debug surfaces that a VALUE changed, without touching application data channels. */
   notifyDebug(): void {
     this.onChange?.();
+  }
+
+  /** Notify debug surfaces that the registry's SHAPE changed — mounts, unmounts, renames. */
+  notifyInstances(): void {
+    this.onInstanceChange?.();
   }
 
   /** Every currently mounted instance (insertion order = mount order). */

@@ -10,11 +10,11 @@
  * and status tokens, never the theme aliases, and every value keeps its
  * original literal as the fallback for hosts that never load `wheel/styles`.
  *
- * Reactivity contract (same as the panel always had): registry snapshot
- * reads ride atom/memo signals, client reads ride the context revision
- * signal (`trackVersion`), and instance churn rides its OWN channel
- * (`trackInstances`) — data invalidation and debug-surface invalidation
- * never share a wire.
+ * Reactivity contract: client reads ride the context revision (`trackVersion`),
+ * service field VALUES ride `trackDebug`, and instance churn — mounts,
+ * unmounts, renames, visibility — rides `trackInstances`. Three wires, because
+ * they change at wildly different rates and a surface that redraws on the
+ * slowest must not redraw on the fastest.
  */
 // wheel-view-root: debug chrome — must not appear in the tree it renders
 // wheel-untracked-show: debug chrome — excluded from the component tree it renders
@@ -372,7 +372,10 @@ export function ServiceStateSection(props: {
 }): JSX.Element {
   const partitioned = createMemo(() => {
     props.services.trackVersion();
+    // Values AND shape: a field write changes what a row shows, a mount can
+    // bring a whole service with it.
     props.services.trackDebug();
+    props.services.trackInstances();
     const all = serviceGroups(props.services).filter((entry) => entry.group !== 'debug');
     const custom = [...new Set(all.map((entry) => entry.group))]
       .filter((name) => name !== 'app' && name !== 'framework')
@@ -428,13 +431,13 @@ export function ServiceStateSection(props: {
 export function ComponentManifestSection(props: { services: ServiceContext; ex: ExpandState }): JSX.Element {
   const components = createMemo(() => {
     props.services.trackVersion();
-    props.services.trackDebug();
+    props.services.trackInstances();
     return props.services.registry.snapshot().components;
   });
   const instancesOf = (name: string): readonly InstanceRecord[] => {
     // Instance churn rides its OWN channel — never the data revision (the
     // shared wire caused a mount feedback loop; see ServiceContext).
-    props.services.trackDebug();
+    props.services.trackInstances();
     return props.services.registry.instances().filter((instance) => instance.name === name);
   };
   return (

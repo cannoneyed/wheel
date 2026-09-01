@@ -111,21 +111,6 @@ function groupSiblings(nodes: InstanceTreeNode[]): DisplayChild[] {
   return out;
 }
 
-/**
- * A string that changes exactly when the tree's SHAPE does.
- *
- * Identity, display name (it renumbers when a sibling appears), kind, group
- * and child order — everything the rows render structurally. Values are
- * deliberately absent: they update inside a row without rebuilding it.
- */
-function treeSignature(nodes: readonly InstanceTreeNode[]): string {
-  let out = '';
-  for (const node of nodes) {
-    out += `${node.key}|${node.instanceId}|${node.kind}|${node.group}(${treeSignature(node.children)})`;
-  }
-  return out;
-}
-
 /** Renders one child slot: a plain instance, or a collapsed same-name list. */
 function TreeChildren(props: {
   nodes: InstanceTreeNode[];
@@ -375,30 +360,14 @@ function renderedChain(registry: DebugRegistry, instanceId: string): string[] {
 /** The full mounted-component tree in App/Framework buckets, nodes default closed. */
 export function ComponentTreeSection(props: { services: ServiceContext; ex: ExpandState }): JSX.Element {
   const registry = props.services.registry;
-  /**
-   * The tree's SHAPE, rebuilt only when the shape actually changed.
-   *
-   * `trackDebug()` is bumped by every registry change AND every service field
-   * write — including the inspector's own `highlighted`, which the rows here
-   * write on hover. Recomputing on each bump produced brand-new node objects,
-   * so `<For>` tore down every row and built it again, and hovering the tree
-   * rebuilt the tree:
-   *
-   *   hover a row → highlight → field write → debug bump → rows recreated →
-   *   the hovered row is detached → its `mouseleave` never fires (the
-   *   highlight sticks on) and a click in progress dies with the node.
-   *
-   * The signature is the fix: a bump recomputes a string, and only a string
-   * that differs rebuilds the rows. Structure changes still land immediately;
-   * everything else is free. The same guard covers any other surface that
-   * writes a field while the panel is open.
-   */
-  const signature = createMemo(() => {
-    props.services.trackDebug();
-    return treeSignature(registry.instanceTree());
-  });
+  // Shape rides the SHAPE channel: a mount, an unmount, a rename. Not
+  // `trackDebug()`, which every service field write bumps — including the
+  // inspector's `highlighted`, written by these very rows on hover. Sharing
+  // that wire had the tree rebuilding itself under the pointer, detaching the
+  // row mid-click and leaving the highlight on with no `mouseleave` to clear
+  // it. Values stay live where they are read, inside the rows.
   const buckets = createMemo(() => {
-    signature();
+    props.services.trackInstances();
     return bucketize(registry.instanceTree());
   });
   const [picking, setPicking] = createSignal(false);

@@ -81,7 +81,7 @@ export function Show<T>(props: ShowProps<T>): JSX.Element {
       // report has to re-run whenever it changes.
       createEffect(() => {
         record.hiddenBy = props.when ? null : 'show';
-        context.services.registry.notifyDebug();
+        context.services.registry.notifyInstances();
       });
     }
   }
