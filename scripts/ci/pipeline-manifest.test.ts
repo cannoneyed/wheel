@@ -13,6 +13,10 @@ const elixirUnit = readFileSync(
   new URL("./test-elixir-unit.sh", import.meta.url),
   "utf8",
 );
+const spokeMultinode = readFileSync(
+  new URL("./test-spoke-multinode.sh", import.meta.url),
+  "utf8",
+);
 const mise = readFileSync(new URL("../../.mise.toml", import.meta.url), "utf8");
 const previewWebsite = readFileSync(
   new URL("../../wrangler.website.jsonc", import.meta.url),
@@ -167,13 +171,12 @@ describe("Buildkite pipeline manifest", () => {
       "hexpm/elixir:1.18.4-erlang-27.3.4.7-debian-bookworm-20260610-slim";
     expect(elixirUnit).toContain(image);
     expect(elixirBackends).toContain(image);
+    expect(spokeMultinode).toContain(image);
     expect(pipeline).not.toContain("WHEEL_ELIXIR_DOCKER");
   });
 
   test("runs Elixir checks once in the Postgres lane", () => {
-    expect(elixirBackends.match(/mix format --check-formatted/g)).toHaveLength(
-      2,
-    );
+    expect(elixirBackends.match(/mix format --check-formatted/g)).toHaveLength(3);
     expect(elixirBackends).toContain("MIX_ENV=test mix test --warnings-as-errors");
     expect(elixirBackends).not.toContain("--only postgres");
     expect(elixirBackends).toContain("mix compile --warnings-as-errors");

@@ -1,14 +1,18 @@
 defmodule WheelSync.WorkspaceSupervisor do
   @moduledoc false
 
-  def fetch(names, registry, workspace_id) do
+  def fetch(names, registry, workspace_id, options) do
     case Registry.lookup(names.workspace_registry, workspace_id) do
       [{pid, _}] ->
         {:ok, pid}
 
       [] ->
         spec =
-          {WheelSync.Workspace, names: names, registry: registry, workspace_id: workspace_id}
+          {WheelSync.Workspace,
+           names: names,
+           registry: registry,
+           workspace_id: workspace_id,
+           presence_filter: Keyword.get(options, :presence_filter)}
 
         case DynamicSupervisor.start_child(names.workspace_supervisor, spec) do
           {:ok, pid} -> {:ok, pid}

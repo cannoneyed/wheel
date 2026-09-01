@@ -17,7 +17,8 @@ const bootUrl = new URL(location.href);
 export const SPOKE_IDENTITY = Object.freeze({
   workspaceId: bootUrl.searchParams.get('workspace') ?? 'acme',
   actor: bootUrl.searchParams.get('actor') ?? 'user:ada',
-  channelId: bootUrl.searchParams.get('channel') ?? 'channel_general'
+  channelId: bootUrl.searchParams.get('channel') ?? 'channel_general',
+  syncOrigin: bootUrl.searchParams.get('syncOrigin') ?? ''
 });
 
 let client: SyncClient | null = null;
@@ -38,7 +39,7 @@ export function spokeClient(): SyncClient {
   const wireId = `spoke_${crypto.randomUUID().slice(0, 8)}`;
   const reloadGuard = createRowSchemaReloadGuard(sessionStorage, 'spoke.rowSchemaReload');
   const transport = createWebSocketTransport({
-    baseUrl: '',
+    baseUrl: SPOKE_IDENTITY.syncOrigin,
     applicationVersion: 1,
     rowSchemaFingerprint: ROW_SCHEMA_FINGERPRINT,
     params: () => ({

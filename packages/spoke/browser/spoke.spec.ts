@@ -84,7 +84,7 @@ test('peer messages update and clear unread aggregates @behavior:conv-aggregate'
   }
 });
 
-test('the bot external writer converges on every SQLite client', async ({ browser, baseURL }) => {
+test('the bot external writer converges on every client @behavior:conv-external', async ({ browser, baseURL }) => {
   if (!baseURL) throw new Error('Spoke browser tests need a base URL.');
   const clients = await openWheelClients(browser, 2);
   const [first, second] = clients as [WheelBrowserClient<Page>, WheelBrowserClient<Page>];
@@ -129,7 +129,7 @@ test('typing presence appears, updates, and clears on leave @behavior:presence-l
   }
 });
 
-test('workspace rows and presence stay isolated on SQLite', async ({ browser, baseURL }) => {
+test('workspace rows and presence stay isolated @behavior:ws-isolation', async ({ browser, baseURL }) => {
   if (!baseURL) throw new Error('Spoke browser tests need a base URL.');
   const clients = await openWheelClients(browser, 2);
   const [acme, orbit] = clients as [WheelBrowserClient<Page>, WheelBrowserClient<Page>];

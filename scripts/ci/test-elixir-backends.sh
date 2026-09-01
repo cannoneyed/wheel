@@ -78,6 +78,10 @@ docker run --rm \
     mix deps.get
     mix format --check-formatted
     mix compile --warnings-as-errors
+    cd ../spoke
+    mix deps.get
+    mix format --check-formatted
+    mix compile --warnings-as-errors
   '
 
 docker run --rm --detach \

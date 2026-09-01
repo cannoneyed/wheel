@@ -132,3 +132,29 @@ processes:
       TRACKER_RESET_DATABASE: "1"
       DATABASE_URL: postgres://postgres:postgres@127.0.0.1:55433/wheel_sync
       PATH: /Users/andycoenen/.local/share/mise/installs/elixir/1.18.4-otp-27/bin:/Users/andycoenen/.local/share/mise/installs/erlang/27.3.4.7/bin:/Users/andycoenen/.local/share/mise/installs/bun/1.3.14/bin:/Users/andycoenen/.local/share/mise/installs/node/24.19.0/bin:/usr/local/bin:/usr/bin:/bin
+  spoke:elixir-server:
+    command: mix run --no-halt
+    working_dir: elixir/spoke
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      SPOKE_PORT: "4906"
+      SPOKE_RESET_DATABASE: "1"
+      SPOKE_TEST_CONTROLS: "1"
+      SPOKE_ALLOWED_ORIGINS: http://127.0.0.1:4907
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:55433/wheel_sync
+      PATH: /Users/andycoenen/.local/share/mise/installs/elixir/1.18.4-otp-27/bin:/Users/andycoenen/.local/share/mise/installs/erlang/27.3.4.7/bin:/Users/andycoenen/.local/share/mise/installs/bun/1.3.14/bin:/Users/andycoenen/.local/share/mise/installs/node/24.19.0/bin:/usr/local/bin:/usr/bin:/bin
+  spoke:elixir-second:
+    command: mix run --no-halt
+    working_dir: elixir/spoke
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env:
+      SPOKE_PORT: "4908"
+      SPOKE_RESET_DATABASE: "0"
+      SPOKE_TEST_CONTROLS: "1"
+      SPOKE_ALLOWED_ORIGINS: http://127.0.0.1:4907
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:55433/wheel_sync
+      PATH: /Users/andycoenen/.local/share/mise/installs/elixir/1.18.4-otp-27/bin:/Users/andycoenen/.local/share/mise/installs/erlang/27.3.4.7/bin:/Users/andycoenen/.local/share/mise/installs/bun/1.3.14/bin:/Users/andycoenen/.local/share/mise/installs/node/24.19.0/bin:/usr/local/bin:/usr/bin:/bin

@@ -31,7 +31,10 @@ const CI_STEPS: Partial<Record<`${BehaviorApp}/${BehaviorCatalogEntry['primary']
   'axle/sqlite': 'check-browser-apps-sqlite',
   'rounds/sqlite': 'check-browser-apps-sqlite',
   'chalk/sqlite': 'check-browser-apps-sqlite',
-  'spoke/sqlite': 'check-browser-apps-sqlite'
+  'spoke/sqlite': 'check-browser-apps-sqlite',
+  'spoke/do': 'check-spoke-do',
+  'spoke/postgres': 'check-spoke-postgres',
+  'spoke/two-node-postgres': 'check-spoke-postgres'
 };
 
 function taggedTests(source: BehaviorSource): Array<{ readonly id: string; readonly file: string }> {
