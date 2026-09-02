@@ -227,6 +227,34 @@ test('falls back to one downloaded file when the app has no dev server', async (
   await expect(page.getByTestId('wheel-annotate-toast')).toContainText('downloaded');
 });
 
+test('the pane returns to armed after a save, and lists what it wrote', async ({ page }) => {
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
+
+  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await page.getByTestId('wheel-annotate-text').fill('this row is wrong');
+  await page.getByTestId('wheel-annotate-save').click();
+
+  // The pane goes back to armed. It used to track "is the chrome loaded",
+  // which never becomes false, so after saving it still read "drag a
+  // rectangle over the app" with no composer in sight.
+  await expect(page.getByTestId('wheel-annotate-composer')).toHaveCount(0);
+  await expect(page.getByTestId('wheel-annotate-armed')).toBeVisible();
+
+  // And the note is listed, so saving leaves something to point at rather
+  // than a clipboard you have to trust.
+  const saved = page.getByTestId('wheel-annotate-saved');
+  await expect(saved).toHaveCount(1);
+  await expect(saved.first()).toContainText('this row is wrong');
+});
+
 test('a stray click annotates nothing, and video is never a toll on drawing', async ({ page }) => {
   await page.getByTestId('wheel-debug-toggle').click();
   await page.getByTestId('wheel-annotate-arm').click();

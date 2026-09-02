@@ -19,6 +19,7 @@ import { AnnotateChrome } from './annotate-system';
 import { setNoteDownload } from './download';
 import { setVideoCapture, setVoiceCapture } from './media';
 import { stopAnnotateSession } from './session';
+import { debugPanes } from '../debug/panes';
 import type { NotePayload } from './types';
 
 class BoardService extends Service {
@@ -125,6 +126,24 @@ function mountApp(extra?: () => unknown): WheelContextValue {
   return context;
 }
 
+/**
+ * Mount the annotate PANE.
+ *
+ * The composer lives in the dock now, not in a panel floating over the app, so
+ * a test that wants to type a note has to render the pane the chrome
+ * contributes. A real dock would; this reads the registry directly rather than
+ * standing up a whole `WheelApp`.
+ */
+function mountPane(context: WheelContextValue): void {
+  const pane = debugPanes().find((entry) => entry.id === 'annotate');
+  if (!pane) throw new Error('the annotate chrome registered no pane');
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  paneTeardown = render(() => pane.render(context.services) as never, host);
+}
+
+let paneTeardown: (() => void) | null = null;
+
 /** The annotate service, pre-attached to capture seams that need no hardware. */
 function annotator(context: WheelContextValue): AnnotateService {
   const service = context.services.get(AnnotateService);
@@ -136,6 +155,8 @@ function annotator(context: WheelContextValue): AnnotateService {
 }
 
 afterEach(() => {
+  paneTeardown?.();
+  paneTeardown = null;
   teardown?.();
   teardown = null;
   stopAnnotateSession();
@@ -402,6 +423,7 @@ describe('AnnotateService', () => {
     const service = context.services.get(AnnotateService);
     const board = context.services.get(BoardService);
     annotator(context);
+    mountPane(context);
 
     service.arm();
     board.toggleCell('3-7');
@@ -728,6 +750,7 @@ describe('<WheelAnnotate/>', () => {
     stubFetch();
     const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
+    mountPane(context);
     service.arm();
     service.pickRegion(OVER_CELL);
 

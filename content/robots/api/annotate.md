@@ -12,7 +12,7 @@ Anchor a note to the rectangle that was drawn, describing what was under it both
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:100](../../../packages/wheel/src/annotate/annotate-service.ts#L100).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:114](../../../packages/wheel/src/annotate/annotate-service.ts#L114).
 
 Injected capture seams, so the service runs headless in tests.
 
@@ -30,7 +30,7 @@ The running recorder, or null when annotation is not enabled on this page.
 
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:111](../../../packages/wheel/src/annotate/annotate-service.ts#L111).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:125](../../../packages/wheel/src/annotate/annotate-service.ts#L125).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
 
@@ -300,12 +300,12 @@ A capture in progress.
 
 ## `WheelAnnotate`
 
-Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:104](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L104).
+Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:103](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L103).
 
 Mount the annotator: a rolling recorder now, the chrome on demand.
 
 ## `WheelAnnotateProps`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:82](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L82).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:81](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L81).
 
 Props for {@link WheelAnnotate}.

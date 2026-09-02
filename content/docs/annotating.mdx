@@ -42,6 +42,11 @@ render(() => (
 The debug dock grows an **annotate** pane, beside state, components and errors. Press
 **✎ annotate this app** there, or **⌘⇧A** (Ctrl+Shift+A) from anywhere; Escape leaves.
 
+The whole flow lives in that pane — arming, the composer you write in, and the notes written so
+far. The app itself carries only what has to be ON it: the marquee you drag, the outline of the
+area, and the recording light. A note you save appears in the pane's list, so saving leaves
+something to point at instead of a clipboard you have to trust.
+
 There is no floating button. Annotating is something you do to a wheel app, so the way in is the
 app's own instrument panel — which also means `<WheelAnnotate/>` needs a `<WheelApp/>` above it to
 have somewhere to live.

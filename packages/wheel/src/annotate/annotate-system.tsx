@@ -33,7 +33,9 @@ import { WheelContext } from '../core/context';
 import type { SyncClient } from '../sync/client/client';
 import { captureViewportRegion, tabCaptureStream } from '../debug/snapshot';
 
-import { AnnotateService } from './annotate-service';
+import { registerDebugPane } from '../debug/panes';
+
+import { AnnotateService, type SavedNote } from './annotate-service';
 import { CHROME_ATTRIBUTE } from './anchor';
 import { describeEvent } from './note-format';
 import { speechRecognitionAvailable } from './media';
@@ -105,13 +107,6 @@ const styles = {
     'pointer-events': 'none'
   },
   composer: {
-    position: 'fixed',
-    left: '12px',
-    bottom: '48px',
-    width: '340px',
-    'max-height': '70vh',
-    overflow: 'auto',
-    'z-index': LAYER + 3,
     display: 'flex',
     'flex-direction': 'column',
     gap: '8px',
@@ -216,6 +211,19 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
   service.arm();
   onCleanup(() => service.endSession());
 
+  // Replaces the stub's pane (same id): the composer, and the notes this
+  // session wrote, belong in the dock beside the app's other instruments —
+  // not in a panel floating over the thing being annotated.
+  onCleanup(
+    registerDebugPane({
+      id: 'annotate',
+      label: 'annotate',
+      icon: '✎',
+      weight: 3,
+      render: () => <AnnotatePane service={service} />
+    })
+  );
+
   return (
     <Portal>
       {/* Recording is the one thing that must be visible while you use the
@@ -231,7 +239,6 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
       </Show>
       <Show when={service.mode.get() === 'composing'}>
         <TargetOutline service={service} />
-        <Composer service={service} />
       </Show>
       <Snackbar service={service} />
     </Portal>
@@ -313,6 +320,142 @@ function TargetOutline(props: { service: AnnotateService }): JSX.Element {
     </Show>
   );
 }
+
+/**
+ * The annotate pane: the whole flow, in the dock.
+ *
+ * Arming, writing and the notes already written all live here rather than in a
+ * panel floating over the app. The app keeps only what has to be ON it — the
+ * marquee, the outline of the area, the recording light.
+ *
+ * The state it shows is the SERVICE's, which is what fixes a bug the stub pane
+ * had: it tracked "is the chrome loaded", and the chrome never unloads, so
+ * after saving a note the pane still read "drag a rectangle over the app".
+ */
+function AnnotatePane(props: { service: AnnotateService }): JSX.Element {
+  const mode = (): string => props.service.mode.get();
+  return (
+    <>
+      <div style={paneStyles.title}>annotate</div>
+      <Show when={mode() === 'composing'} fallback={<AnnotateArm service={props.service} />}>
+        <Composer service={props.service} />
+      </Show>
+      <SavedNotes service={props.service} />
+    </>
+  );
+}
+
+/** Off: an invitation. Armed: what to do next, and a way out. */
+function AnnotateArm(props: { service: AnnotateService }): JSX.Element {
+  const armed = (): boolean => props.service.mode.get() === 'armed';
+  return (
+    <Show
+      when={armed()}
+      fallback={
+        <button
+          type="button"
+          style={paneStyles.button}
+          data-testid="wheel-annotate-arm"
+          title="Draw a rectangle around what is wrong (⌘⇧A)"
+          onClick={() => props.service.arm()}
+        >
+          ✎ annotate this app
+        </button>
+      }
+    >
+      <div style={paneStyles.hint} data-testid="wheel-annotate-armed">
+        drag a rectangle over the app
+      </div>
+      <button
+        type="button"
+        style={paneStyles.button}
+        data-testid="wheel-annotate-disarm"
+        onClick={() => props.service.disarm()}
+      >
+        ✕ stop annotating
+      </button>
+    </Show>
+  );
+}
+
+/**
+ * What this session has written.
+ *
+ * A saved note used to vanish: the only evidence was a clipboard you had to
+ * trust. Each row here is a note that exists, and pressing it puts its handle
+ * back on the clipboard.
+ */
+function SavedNotes(props: { service: AnnotateService }): JSX.Element {
+  const notes = (): readonly SavedNote[] => props.service.saved.get();
+  return (
+    <Show when={notes().length > 0}>
+      <div style={paneStyles.title}>saved this session ({notes().length})</div>
+      <For each={[...notes()].reverse()}>
+        {(note) => (
+          <button
+            type="button"
+            style={paneStyles.note}
+            data-testid="wheel-annotate-saved"
+            title={note.command ?? note.id}
+            onClick={() => props.service.copyHandle(note)}
+          >
+            <span style={paneStyles.noteLabel}>{note.label}</span>
+            <span style={paneStyles.noteText}>{note.text}</span>
+            <Show when={note.delivery === 'download'}>
+              <span style={paneStyles.noteWhere}>downloaded</span>
+            </Show>
+          </button>
+        )}
+      </For>
+    </Show>
+  );
+}
+
+/** The pane's own controls, matching the dock's other buttons. */
+const paneStyles = {
+  title: {
+    margin: '4px 0',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)',
+    'text-transform': 'uppercase',
+    'letter-spacing': '0.5px',
+    'font-size': '9.5px'
+  },
+  button: {
+    display: 'block',
+    width: '100%',
+    padding: '4px 8px',
+    'margin-bottom': '4px',
+    'border-radius': '6px',
+    border: '1px solid var(--wheel-stage-line-heavy, #3a3b3e)',
+    background: 'var(--wheel-stage-2, #101317)',
+    color: 'var(--wheel-stage-ink, #d7d3cc)',
+    font: '12px ui-monospace, monospace',
+    cursor: 'pointer',
+    'text-align': 'left'
+  },
+  hint: { padding: '2px 0 6px', color: 'var(--wheel-stage-ink-faint, #8b8b8b)' },
+  note: {
+    display: 'flex',
+    gap: '6px',
+    width: '100%',
+    padding: '2px 0',
+    border: 'none',
+    background: 'none',
+    color: 'var(--wheel-stage-ink, #d7d3cc)',
+    font: 'inherit',
+    cursor: 'pointer',
+    'text-align': 'left',
+    'align-items': 'baseline'
+  },
+  noteLabel: { color: 'var(--wheel-indigo-edge, #93c5fd)', 'flex-shrink': 0 },
+  noteText: {
+    overflow: 'hidden',
+    'text-overflow': 'ellipsis',
+    'white-space': 'nowrap',
+    'min-width': 0
+  },
+  noteWhere: { color: 'var(--wheel-stage-ink-faint, #8b8b8b)', 'flex-shrink': 0 }
+} satisfies Record<string, JSX.CSSProperties>;
 
 /** The composer: what you say about the thing you picked. */
 function Composer(props: { service: AnnotateService }): JSX.Element {

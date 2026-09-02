@@ -74,8 +74,7 @@ const paneStyles = {
     font: '12px ui-monospace, monospace',
     cursor: 'pointer',
     'text-align': 'left'
-  },
-  hint: { padding: '6px 0', color: 'var(--wheel-stage-ink-faint, #8b8b8b)' }
+  }
 } satisfies Record<string, JSX.CSSProperties>;
 
 /** Props for {@link WheelAnnotate}. */
@@ -162,7 +161,7 @@ export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
         label: 'annotate',
         icon: '✎',
         weight: 3,
-        render: () => <AnnotatePane armed={() => chrome() !== null} arm={open} />
+        render: () => <AnnotateStubPane arm={open} />
       })
     );
   });
@@ -175,35 +174,27 @@ export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
 }
 
 /**
- * The annotate pane: one button until the chrome is loaded, then a reminder of
- * how to use it.
+ * The pane before the chrome arrives: one button, and nothing else.
  *
- * Deliberately thin. Once armed, everything worth looking at is ON the page —
- * the marquee, the composer, the outline — so a pane that mirrored it would
- * just be a second place to look.
+ * The chrome registers a pane under the SAME id the moment it loads, replacing
+ * this one with the real thing — the composer, and the notes written so far.
+ * This exists only so there is something to press while the chunk is in
+ * flight, and it holds no state of its own: the flow's state belongs to the
+ * service, which lives in the chunk this is waiting for.
  */
-function AnnotatePane(props: { armed: () => boolean; arm: () => void }): JSX.Element {
+function AnnotateStubPane(props: { arm: () => void }): JSX.Element {
   return (
     <>
       <div style={paneStyles.title}>annotate</div>
-      <Show
-        when={props.armed()}
-        fallback={
-          <button
-            type="button"
-            style={paneStyles.button}
-            data-testid="wheel-annotate-arm"
-            title="Draw a rectangle around what is wrong (⌘⇧A)"
-            onClick={props.arm}
-          >
-            ✎ annotate this app
-          </button>
-        }
+      <button
+        type="button"
+        style={paneStyles.button}
+        data-testid="wheel-annotate-arm"
+        title="Draw a rectangle around what is wrong (⌘⇧A)"
+        onClick={props.arm}
       >
-        <div style={paneStyles.hint} data-testid="wheel-annotate-armed">
-          drag a rectangle over the app — Escape leaves
-        </div>
-      </Show>
+        ✎ annotate this app
+      </button>
     </>
   );
 }

@@ -96,6 +96,20 @@ export interface NoteDraft {
   readonly startState: Record<string, Record<string, unknown>>;
 }
 
+/** One note this session wrote, and how to get back to it. */
+export interface SavedNote {
+  /** `<epoch>-<slug>`, the note's own id. */
+  readonly id: string;
+  /** The prose it was saved with, for a list a human can scan. */
+  readonly text: string;
+  /** What the label said. */
+  readonly label: NoteLabel;
+  /** Something pasteable — a read command, or a URL — when there was one. */
+  readonly command: string | null;
+  /** Whether it reached a sink, or fell back to a download. */
+  readonly delivery: 'sink' | 'download';
+}
+
 /** Injected capture seams, so the service runs headless in tests. */
 export interface AnnotateCapture {
   /** Grab a viewport rectangle as a PNG data URL. */
@@ -125,6 +139,15 @@ export class AnnotateService extends Service {
   readonly canSave = this.atom(false, 'canSave');
   /** Absolute directory of the last save. */
   readonly savedTo = this.atom<string | null>(null, 'savedTo');
+  /**
+   * Notes written in this session, newest last.
+   *
+   * Kept here rather than read back from the sink, because a note that
+   * DOWNLOADED never went to a sink at all and still happened. The panel lists
+   * these so saving leaves a trace you can point at — before this, a saved
+   * note vanished and the only evidence was a clipboard you had to trust.
+   */
+  readonly saved = this.atom<readonly SavedNote[]>([], 'saved');
   /** The copy-and-paste command for the last save (`read .wheel/notes/…/note.md`). */
   readonly lastCommand = this.atom<string | null>(null, 'lastCommand');
   /**
@@ -414,6 +437,7 @@ export class AnnotateService extends Service {
         const handle = result.command ?? result.location ?? null;
         this.lastCommand.set(handle);
         if (handle) void copyToClipboard(handle);
+        this.remember(payload, handle, 'sink');
         this.say('note saved — read command copied');
       })
       .catch(() => this.deliverAsDownload(payload, draft.shot));
@@ -436,6 +460,13 @@ export class AnnotateService extends Service {
         this.canSave.set(false);
       });
   }
+
+  /** Put a written note's handle back on the clipboard. */
+  readonly copyHandle = this.action((note: SavedNote) => {
+    if (!note.command) return;
+    void copyToClipboard(note.command);
+    this.say('copied');
+  }, 'copyHandle');
 
   /** Take the snackbar away now, rather than waiting out its timer. */
   readonly dismissNotice = this.action(() => {
@@ -647,8 +678,23 @@ export class AnnotateService extends Service {
     const command = `read ~/Downloads/${filename}`;
     this.savedTo.set(`${filename} (downloaded)`);
     this.lastCommand.set(command);
+    this.remember(payload, command, 'download');
     this.say('no sink reachable — note downloaded, read command copied');
     void copyToClipboard(command);
+  }
+
+  /** Add one written note to the session list the panel shows. */
+  private remember(payload: NotePayload, command: string | null, delivery: 'sink' | 'download'): void {
+    this.saved.set([
+      ...this.saved.get(),
+      {
+        id: payload.id,
+        text: payload.text || payload.voice?.transcript || '(no words)',
+        label: payload.label,
+        command,
+        delivery
+      }
+    ]);
   }
 }
 
