@@ -28,10 +28,13 @@ Service identity is declared, not preserved: every Service subclass carries `sta
 - pixels are otherwise automatic: `pickRegion` fires `rasterizeRegion()` (`rasterize.ts`), which serializes the DOM into an SVG `foreignObject` via `modern-screenshot` (dynamically imported, so it reaches the browser only when a note is written). No permission, no prompt. It returns null rather than throwing — a note without pixels is still a note.
 - video is NOT rasterized per frame: serializing a subtree costs tens to hundreds of ms on the main thread, so sampling it would stutter the app under observation. Motion comes from the compositor or not at all.
 - `toggleVideo()`: switch screen recording on or off for the open draft. Never automatic. Leaving it on is expected; `save()` stops it and attaches the result.
-- `setText()`, `setLabel()`, `setTranscript()`: edit the draft.
-- `listen()` / `stopListening()`: speech capture.
+- `setText()`, `setLabel()`: edit the draft.
+- `listen()` / `stopListening()`: speech capture. The words stream into `draft.text` — the note box, not a second box — appended after whatever was already typed. Recognition sends a GROWING partial, so each one is written as `voiceBase + partial`, never appended. `draft.transcript` still holds what was HEARD, so `payload.voice` records that the note was spoken even after the text is edited by hand.
 - `save()` / `discard()`: send the note, or drop it.
+- `editNote(saved)`: reopen a note written this session. The draft carries `basedOn`, and `buildPayload` then returns that payload with new text and label — same id, same anchor, same timeline, same state. The composer hides the capture controls and the live timeline while rewriting, and saving REPLACES the note at the sink rather than adding one.
 - `dismissNotice()`: clear the snackbar early.
+
+Keys are named once in `annotate/shortcuts.ts` and printed on the controls they drive, so a label cannot go stale. `armChord()` arms or disarms from anywhere. While composing, `t` / `s` / `d` are talk / save / discard, bound by an effect that runs only in that mode and unbinds with it. They are plain letters, so `typingInto()` ignores them whenever an input, textarea, select or `contenteditable` has focus — otherwise typing the note would fire them.
 
 Labels are `bug`, `question`, `idea`, `todo`, `looks-good`.
 

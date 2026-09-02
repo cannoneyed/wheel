@@ -202,7 +202,7 @@ test('falls back to one downloaded file when the app has no dev server', async (
   await page.getByTestId('wheel-annotate-text').fill('no server here');
 
   const save = page.getByTestId('wheel-annotate-save');
-  await expect(save).toHaveText('download note');
+  await expect(save).toContainText('download note');
 
   const [download] = await Promise.all([page.waitForEvent('download'), save.click()]);
   expect(download.suggestedFilename()).toMatch(/^\d+-no-server-here\.md$/);
@@ -297,6 +297,55 @@ test('a note can be rewritten, and lands on the note it came from', async ({ pag
   const saved = page.getByTestId('wheel-annotate-saved');
   await expect(saved).toHaveCount(1);
   await expect(saved.first()).toContainText('the assignee is the reporter after a reload');
+});
+
+test('the keys printed on the controls are the keys that work', async ({ page }) => {
+  const before = noteIds();
+  await page.getByTestId('wheel-debug-toggle').click();
+
+  // The chord is on the button, and the button's chord arms it.
+  await expect(page.getByTestId('wheel-annotate-arm')).toContainText(/⇧⌘A|Ctrl\+Shift\+A/);
+  await page.keyboard.press('Meta+Shift+KeyA');
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
+
+  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
+
+  const text = page.getByTestId('wheel-annotate-text');
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await expect(page.getByTestId('wheel-annotate-save')).toContainText('s');
+  await expect(page.getByTestId('wheel-annotate-discard')).toContainText('d');
+
+  // Typing the note must never fire them. "s" here is a letter, not save.
+  await text.fill('the status');
+  await page.keyboard.press('s');
+  await expect(text).toHaveValue('the statuss');
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+
+  // Out of the box, the same key saves.
+  await text.blur();
+  await page.keyboard.press('s');
+  const note = await savedNote(before);
+  expect((note.payload as { text: string }).text).toBe('the statuss');
+
+  // And "d" throws a draft away. Saving leaves the shield up, so the next
+  // rectangle needs no second arming.
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await page.keyboard.press('d');
+  await expect(page.getByTestId('wheel-annotate-composer')).toHaveCount(0);
+
+  // The composer's keys leave with the composer: "d" is just a letter again.
+  await page.keyboard.press('d');
+  await expect(page.getByTestId('wheel-annotate-armed')).toBeVisible();
+  expect(noteIds().filter((name) => !before.includes(name))).toHaveLength(1);
 });
 
 test('a stray click annotates nothing, and video is never a toll on drawing', async ({ page }) => {

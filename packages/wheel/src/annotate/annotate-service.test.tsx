@@ -708,20 +708,49 @@ describe('AnnotateService', () => {
 
     service.arm();
     service.pickRegion(OVER_CELL);
+    // Something typed before speaking is kept, and the words land after it —
+    // dictation writes the note, it does not replace what is already there.
+    service.setText('on the board:');
     service.listen();
     expect(service.draft.get()?.transcript).toBe('it drops the highlight');
+    expect(service.draft.get()?.text).toBe('on the board: it drops the highlight');
     service.stopListening();
     await vi.waitFor(() => expect(service.draft.get()?.audio).toBe('data:audio/webm;base64,AAA'));
 
     service.save();
     await vi.waitFor(() => expect(posted).toHaveLength(1));
     const payload = posted[0]!['payload'] as NotePayload;
+    // The note reads as one thing, and still records that it was spoken.
+    expect(payload.text).toBe('on the board: it drops the highlight');
     expect(payload.voice).toEqual({
       transcript: 'it drops the highlight',
       hasAudio: true,
       source: 'speech-recognition'
     });
     expect(payload.attachments).toContain('audio.webm');
+    service.disarm();
+  });
+
+  it('replaces the growing partial rather than repeating it', () => {
+    stubFetch();
+    let feed: ((heard: string) => void) | null = null;
+    setVoiceCapture((options) => {
+      feed = (heard) => options.onPartial?.(heard);
+      return { stop: () => Promise.resolve({ transcript: '', audio: null }), cancel: () => undefined };
+    });
+    const context = mountApp();
+    const service = annotator(context);
+
+    service.arm();
+    service.pickRegion(OVER_CELL);
+    service.listen();
+
+    // Recognition sends the whole utterance so far, every time. Appending each
+    // partial would write "it it drops it drops the highlight".
+    feed!('it');
+    feed!('it drops');
+    feed!('it drops the highlight');
+    expect(service.draft.get()?.text).toBe('it drops the highlight');
     service.disarm();
   });
 

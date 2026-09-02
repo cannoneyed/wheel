@@ -6,18 +6,18 @@ Import only from `wheel/vite`. The linked declarations are the source of truth f
 
 ## `wheelDevTools`
 
-Kind: function. Source: [packages/wheel/src/vite/index.ts:220](../../../packages/wheel/src/vite/index.ts#L220).
+Kind: function. Source: [packages/wheel/src/vite/index.ts:223](../../../packages/wheel/src/vite/index.ts#L223).
 
 The wheel dev-tools vite plugin (see module doc).
 
 ## `WheelDevToolsOptions`
 
-Kind: interface. Source: [packages/wheel/src/vite/index.ts:90](../../../packages/wheel/src/vite/index.ts#L90).
+Kind: interface. Source: [packages/wheel/src/vite/index.ts:93](../../../packages/wheel/src/vite/index.ts#L93).
 
 Options for {@link wheelDevTools}.
 
 ## `WheelVitePlugin`
 
-Kind: interface. Source: [packages/wheel/src/vite/index.ts:74](../../../packages/wheel/src/vite/index.ts#L74).
+Kind: interface. Source: [packages/wheel/src/vite/index.ts:77](../../../packages/wheel/src/vite/index.ts#L77).
 
 The structural shape vite expects back from a plugin factory.

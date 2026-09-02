@@ -317,19 +317,36 @@ export class AnnotateService extends Service {
     this.patchDraft({ label });
   }, 'setLabel');
 
-  /** Hand-edit the transcript before saving — recognition gets technical words wrong. */
-  readonly setTranscript = this.action((transcript: string) => {
-    this.patchDraft({ transcript });
-  }, 'setTranscript');
+  /**
+   * What was already typed when listening started.
+   *
+   * Recognition sends a GROWING partial, not a stream of new words, so each
+   * partial replaces the last. Speaking after typing therefore has to write
+   * `base + partial` rather than append, or every partial would repeat what
+   * came before it.
+   */
+  private readonly voiceBase = this.field('', 'voiceBase');
 
   /**
-   * Start listening. The transcript streams into the draft as it is
-   * recognized; the audio is kept beside it as the receipt.
+   * Start listening. The words land in the note box as they are recognized;
+   * the audio is kept beside them as the receipt.
+   *
+   * There is no second box for the transcript. Dictation is a way of writing
+   * the note, not a separate thing attached to it — a transcript sitting in
+   * its own field is one more thing to read and reconcile. The draft still
+   * keeps what recognition HEARD, so the saved note can say it was spoken and
+   * carry the raw words even after the text is edited by hand.
    */
   readonly listen = this.action(() => {
     if (this.voice.get()) return;
+    const typed = this.draft.get()?.text ?? '';
+    this.voiceBase.set(typed && !typed.endsWith(' ') ? `${typed} ` : typed);
     this.patchDraft({ listening: true });
-    this.voice.set(startVoice({ onPartial: (text) => this.patchDraft({ transcript: text }) }));
+    this.voice.set(
+      startVoice({
+        onPartial: (heard) => this.patchDraft({ transcript: heard, text: this.voiceBase.get() + heard })
+      })
+    );
   }, 'listen');
 
   /** Stop listening and keep what was heard. */
@@ -343,7 +360,9 @@ export class AnnotateService extends Service {
         this.patchDraft({
           listening: false,
           audio: result.audio,
-          ...(result.transcript ? { transcript: result.transcript } : {})
+          ...(result.transcript
+            ? { transcript: result.transcript, text: this.voiceBase.get() + result.transcript }
+            : {})
         });
       })
       .catch(() => {

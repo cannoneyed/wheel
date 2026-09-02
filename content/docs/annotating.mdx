@@ -47,6 +47,10 @@ far. The app itself carries only what has to be ON it: the marquee you drag, the
 area, and the recording light. A note you save appears in the pane's list, so saving leaves
 something to point at instead of a clipboard you have to trust.
 
+Every key is printed on the control it drives: **⇧⌘A** arms and leaves, and while you are writing,
+**t** talks, **s** saves, **d** discards. The letters are ignored while the cursor is in a text box,
+so typing "the save button is broken" writes a note rather than saving three times.
+
 Press a note in that list to **rewrite** it. The first draft of a bug report is written in a
 hurry; the second one is the useful one. A rewrite changes the words and nothing else — the same
 anchor, the same timeline, the same picture — and saving it lands on the note it came from rather
@@ -215,9 +219,11 @@ The rectangle is stored in **viewport coordinates** — where the thing was on s
 the box. A note describes a moment, not a place in a document, so nothing tries to make it survive
 a scroll or a re-render.
 
-Type your note, or press **🎤 talk**. Speech recognition writes a transcript you can edit before
-saving, and the audio is saved next to it as the receipt — an agent cannot listen to a recording,
-so the transcript is the deliverable and the audio is only there to check against.
+Type your note, or press **🎤 talk**. The words land in the same box you type in, after whatever
+is already there, so you can speak a sentence and then fix a word — dictation is a way of writing
+the note, not a separate thing attached to it. The audio is saved beside it as the receipt, and
+the raw transcript is kept in the payload: an agent cannot listen to a recording, so the words are
+the deliverable and the audio is only there to check against.
 
 ## What lands on disk
 

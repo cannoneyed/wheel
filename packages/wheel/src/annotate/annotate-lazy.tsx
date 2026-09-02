@@ -53,6 +53,7 @@ import { logger } from '../core/logger';
 
 import { startAnnotateSession, stopAnnotateSession } from './session';
 import type { AnnotateSink } from './types';
+import { armChord } from './shortcuts';
 
 /** The pane's own controls, matching the dock's other buttons. */
 const paneStyles = {
@@ -74,6 +75,15 @@ const paneStyles = {
     font: '12px ui-monospace, monospace',
     cursor: 'pointer',
     'text-align': 'left'
+  },
+  key: {
+    padding: '0 4px',
+    'border-radius': '3px',
+    border: '1px solid var(--wheel-stage-line-heavy, #3a3b3e)',
+    background: 'var(--wheel-stage-3, #16191f)',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)',
+    font: 'inherit',
+    'font-size': '10px'
   }
 } satisfies Record<string, JSX.CSSProperties>;
 
@@ -190,10 +200,13 @@ function AnnotateStubPane(props: { arm: () => void }): JSX.Element {
         type="button"
         style={paneStyles.button}
         data-testid="wheel-annotate-arm"
-        title="Draw a rectangle around what is wrong (⌘⇧A)"
+        title="Draw a rectangle around what is wrong"
         onClick={props.arm}
       >
-        ✎ annotate this app
+        ✎ annotate this app{' '}
+        <kbd style={paneStyles.key} data-testid="wheel-annotate-key">
+          {armChord()}
+        </kbd>
       </button>
     </>
   );

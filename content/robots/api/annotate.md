@@ -12,7 +12,7 @@ Anchor a note to the rectangle that was drawn, describing what was under it both
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:114](../../../packages/wheel/src/annotate/annotate-service.ts#L114).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:129](../../../packages/wheel/src/annotate/annotate-service.ts#L129).
 
 Injected capture seams, so the service runs headless in tests.
 
@@ -30,7 +30,7 @@ The running recorder, or null when annotation is not enabled on this page.
 
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:125](../../../packages/wheel/src/annotate/annotate-service.ts#L125).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:140](../../../packages/wheel/src/annotate/annotate-service.ts#L140).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
 
@@ -42,9 +42,9 @@ What the resident recorder needs to run.
 
 ## `AnnotateSink`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:224](../../../packages/wheel/src/annotate/types.ts#L224).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:229](../../../packages/wheel/src/annotate/types.ts#L229).
 
-Where notes are sent, and read back from. One URL, two methods, and that is the whole contract: - `POST <url>` — save one note. The body is `{ id, payload, markdown, png?, video?, audio? }`, where `payload` is a {@link NotePayload} and the media are `data:` URLs. Answer `{ ok: true, command?, location? }` — `command` is something pasteable (the dev server returns `read <path>/note.md`), `location` a URL where the note now lives. A non-ok answer, or none, makes the page fall back to downloading the note as one file. - `GET <url>` — the saved notes as `{ ok: true, notes: [{ id, payload }] }`, newest first. Nothing on the page needs the list; it is the capability probe, and answering at all is what tells the page saving is possible here rather than downloading. The default is the dev server's `/__wheel/note`, which writes a directory per note. Point it somewhere else — a Durable Object, an issue tracker, a bucket — and nothing else about the annotator changes.
+Where notes are sent, and read back from. One URL, two methods, and that is the whole contract: - `POST <url>` — save one note. The body is `{ id, payload, markdown, png?, video?, audio? }`, where `payload` is a {@link NotePayload} and the media are `data:` URLs. Answer `{ ok: true, command?, location? }` — `command` is something pasteable (the dev server returns `read <path>/note.md`), `location` a URL where the note now lives. A non-ok answer, or none, makes the page fall back to downloading the note as one file. `id` is the note's identity, not the request's: the page re-POSTs the same id when someone rewrites a note, and a sink must REPLACE that note rather than store a second one. A rewrite sends no media — what was captured is not re-captured — so keep the attachments already held under that id. - `GET <url>` — the saved notes as `{ ok: true, notes: [{ id, payload }] }`, newest first. Nothing on the page needs the list; it is the capability probe, and answering at all is what tells the page saving is possible here rather than downloading. The default is the dev server's `/__wheel/note`, which writes a directory per note. Point it somewhere else — a Durable Object, an issue tracker, a bucket — and nothing else about the annotator changes.
 
 ## `describeElement`
 
@@ -84,7 +84,7 @@ A note being written: everything captured so far, none of it saved yet.
 
 ## `NoteEnvironment`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:245](../../../packages/wheel/src/annotate/types.ts#L245).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:250](../../../packages/wheel/src/annotate/types.ts#L250).
 
 Page-level facts worth having when the note is read out of context, weeks later.
 
@@ -96,13 +96,13 @@ A note's id and directory name: `<epoch-ms>-<slug>`. Epoch first so a directory 
 
 ## `NoteLabel`
 
-Kind: type. Source: [packages/wheel/src/annotate/types.ts:232](../../../packages/wheel/src/annotate/types.ts#L232).
+Kind: type. Source: [packages/wheel/src/annotate/types.ts:237](../../../packages/wheel/src/annotate/types.ts#L237).
 
 The small vocabulary a note can be tagged with — enough to sort by, short enough to pick fast.
 
 ## `NotePayload`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:264](../../../packages/wheel/src/annotate/types.ts#L264).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:269](../../../packages/wheel/src/annotate/types.ts#L269).
 
 A complete annotation. This IS `note.json`, and `note.md` is rendered from it — nothing in the markdown is information the JSON lacks.
 
@@ -120,7 +120,7 @@ One component captured alongside a note: identity, geometry, and what it held.
 
 ## `NoteVoice`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:235](../../../packages/wheel/src/annotate/types.ts#L235).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:240](../../../packages/wheel/src/annotate/types.ts#L240).
 
 A voice note: the transcript is what the agent reads, the audio is the receipt.
 
@@ -300,12 +300,12 @@ A capture in progress.
 
 ## `WheelAnnotate`
 
-Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:103](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L103).
+Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:113](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L113).
 
 Mount the annotator: a rolling recorder now, the chrome on demand.
 
 ## `WheelAnnotateProps`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:81](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L81).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:91](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L91).
 
 Props for {@link WheelAnnotate}.

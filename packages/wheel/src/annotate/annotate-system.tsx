@@ -40,6 +40,7 @@ import { CHROME_ATTRIBUTE } from './anchor';
 import { describeEvent } from './note-format';
 import { speechRecognitionAvailable } from './media';
 import type { AnnotateSink, NoteLabel, NoteRect } from './types';
+import { COMPOSER_KEYS, armChord, typingInto } from './shortcuts';
 
 /** Above the app, below the debug panel's own chrome. */
 const LAYER = 10_400;
@@ -204,6 +205,41 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
     onCleanup(() => document.removeEventListener('keydown', onKeyDown));
   });
 
+  /*
+   * The composer's keys — talk, save, discard — bound only WHILE composing.
+   *
+   * Single letters, so they are ignored whenever a text box has focus:
+   * otherwise typing "the save button is broken" would save, discard and talk
+   * on the way through. Click out of the note box (or never click in, having
+   * spoken it) and they work.
+   *
+   * The effect re-runs on every mode change, and its cleanup removes the last
+   * listener, so nothing stays bound once the composer closes.
+   */
+  // listener boundary: these are mode-wide shortcuts, not events of any one
+  // element the annotator renders.
+  createEffect(() => {
+    if (service.mode.get() !== 'composing') return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (typingInto(event.target)) return;
+      const key = event.key.toLowerCase();
+      if (key === COMPOSER_KEYS.talk) {
+        event.preventDefault();
+        if (service.draft.get()?.listening) service.stopListening();
+        else service.listen();
+      } else if (key === COMPOSER_KEYS.save) {
+        event.preventDefault();
+        if (service.hasContent()) service.save();
+      } else if (key === COMPOSER_KEYS.discard) {
+        event.preventDefault();
+        service.discard();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    onCleanup(() => document.removeEventListener('keydown', onKeyDown));
+  });
+
   // The stub mounts this module only after someone armed, so arming here is
   // what "the chunk arrived" means. beginSession is idempotent: the rolling
   // buffer is normally already running by now.
@@ -356,10 +392,10 @@ function AnnotateArm(props: { service: AnnotateService }): JSX.Element {
           type="button"
           style={paneStyles.button}
           data-testid="wheel-annotate-arm"
-          title="Draw a rectangle around what is wrong (⌘⇧A)"
+          title="Draw a rectangle around what is wrong"
           onClick={() => props.service.arm()}
         >
-          ✎ annotate this app
+          ✎ annotate this app <Key of={armChord()} />
         </button>
       }
     >
@@ -372,7 +408,7 @@ function AnnotateArm(props: { service: AnnotateService }): JSX.Element {
         data-testid="wheel-annotate-disarm"
         onClick={() => props.service.disarm()}
       >
-        ✕ stop annotating
+        ✕ stop annotating <Key of="Esc" />
       </button>
     </Show>
   );
@@ -451,6 +487,15 @@ const paneStyles = {
     'text-align': 'left'
   },
   hint: { padding: '2px 0 6px', color: 'var(--wheel-stage-ink-faint, #8b8b8b)' },
+  key: {
+    padding: '0 4px',
+    'border-radius': '3px',
+    border: '1px solid var(--wheel-stage-line-heavy, #3a3b3e)',
+    background: 'var(--wheel-stage-3, #16191f)',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)',
+    font: 'inherit',
+    'font-size': '10px'
+  },
   note: {
     display: 'flex',
     gap: '6px',
@@ -484,6 +529,20 @@ const paneStyles = {
   }
 } satisfies Record<string, JSX.CSSProperties>;
 
+/**
+ * A key printed on the control it drives.
+ *
+ * The label and the handler read the same constant, so a shortcut cannot be
+ * renamed in one place and left stale in the other.
+ */
+function Key(props: { of: string }): JSX.Element {
+  return (
+    <kbd style={paneStyles.key} data-testid="wheel-annotate-key">
+      {props.of}
+    </kbd>
+  );
+}
+
 /** The composer: what you say about the thing you picked. */
 function Composer(props: { service: AnnotateService }): JSX.Element {
   return (
@@ -501,7 +560,7 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
           <textarea
             style={styles.textarea}
             data-testid="wheel-annotate-text"
-            placeholder="What is wrong here?"
+            placeholder="add annotation"
             value={draft().text}
             onInput={(event) => props.service.setText(event.currentTarget.value)}
           />
@@ -530,26 +589,24 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
                 <button
                   type="button"
                   style={styles.button}
+                  data-testid="wheel-annotate-talk"
                   disabled={!speechRecognitionAvailable() && !navigator.mediaDevices}
                   onClick={() => props.service.listen()}
                 >
-                  🎤 talk
+                  🎤 talk <Key of={COMPOSER_KEYS.talk} />
                 </button>
               }
             >
-              <button type="button" style={styles.button} onClick={() => props.service.stopListening()}>
-                ■ stop talking
+              <button
+                type="button"
+                style={styles.button}
+                data-testid="wheel-annotate-talk"
+                onClick={() => props.service.stopListening()}
+              >
+                ■ stop talking <Key of={COMPOSER_KEYS.talk} />
               </button>
             </Show>
           </div>
-          <Show when={draft().transcript}>
-            <textarea
-              style={styles.textarea}
-              data-testid="wheel-annotate-transcript"
-              value={draft().transcript}
-              onInput={(event) => props.service.setTranscript(event.currentTarget.value)}
-            />
-          </Show>
           {/* Capture belongs to the moment the box was drawn. A rewrite is
               hours later and looking at a different screen, so it changes the
               words and nothing else — see `buildPayload`. */}
@@ -622,10 +679,16 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
                 ? 'update note'
                 : props.service.canSave.get()
                   ? 'save note'
-                  : 'download note'}
+                  : 'download note'}{' '}
+              <Key of={COMPOSER_KEYS.save} />
             </button>
-            <button type="button" style={styles.button} onClick={() => props.service.discard()}>
-              discard
+            <button
+              type="button"
+              style={styles.button}
+              data-testid="wheel-annotate-discard"
+              onClick={() => props.service.discard()}
+            >
+              discard <Key of={COMPOSER_KEYS.discard} />
             </button>
           </div>
           <Show when={props.service.lastCommand.get()}>
