@@ -185,3 +185,14 @@ The goal is easy reading. Many readers are not native English speakers. Clear te
 - Lean on the dependencies already in the project before writing your own implementation or adding packages. Do not assume a library lacks a capability without checking its documentation and types.
 
 - Make architectural decisions for the long term. Do not accept a stopgap that only works for now and is meant to be replaced later.
+
+# Testing and building
+
+Only run typescript checks, linting, and unit tests locally. Prefer not to run browser tests on the local machine unless you're actively working on that specific feature. We use BuildKite for CI and it can parallelize test running much faster than on the local machine. If you want to run the full suite of browser tests, push a branch to github and use the GitHub / BuildKite MCP to check the results of the tests. If tests are failing on CI, then run them locally to debug (unless it would be too slow / expensive)
+
+Try to keep CI under 2 minutes - if any changes you introduce make CI take longer than 2 minutes, address it.
+
+
+# GitHub Commit Messages
+
+Write simple, clear, and concise commit messages. Do not include any "process information", do not say that you "verified" anything and don't list the commands you used to "verify". Just plain, simple, high-level description of the changes in the PR, what issues it may have fixed (if applicable), and the motivation behind it (if applicable).
