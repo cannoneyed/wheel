@@ -21,6 +21,8 @@
 export interface MenuAction {
   readonly id: string;
   readonly label: string;
+  /** A caller-defined key for the leading icon. */
+  readonly icon?: string;
   /** Runs the entry. The renderer closes the menu after it returns. */
   readonly run: () => void;
   /**
@@ -48,6 +50,8 @@ export interface MenuAction {
 export interface MenuGroup {
   readonly id: string;
   readonly label: string;
+  /** A caller-defined key for the leading icon. */
+  readonly icon?: string;
   /** The level this entry pushes. */
   readonly submenu: MenuLevel;
   readonly keywords?: readonly string[];
