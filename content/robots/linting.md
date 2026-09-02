@@ -31,6 +31,7 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `no-handles-in-atoms`: live runtime handles stay out of frozen state.
 - `no-optional-computed-args`: keyed memo args do not include `undefined`.
 - `no-early-field-read`: eager fields do not read later fields.
+- `no-literal-chrome-attribute`: the chrome marker attribute (`data-wheel-chrome`) comes from `core/chrome.ts`, never from a copy of the string. Three unrelated files ask the same question with it; the screenshot filter kept its own literal, the attribute was renamed, and a selector matching nothing failed by letting EVERYTHING through — so the annotator's own outline went into every screenshot. The test that guarded it hardcoded the same stale string and passed. On in tests for that reason.
 - `require-service-name`: every Service subclass declares `static override serviceName` matching its class name, so identity survives minification. Auto-fixable.
 - `require-tracked-service-fields`: mutable private service state uses `field()`.
 - `require-latest-async-task-wait`: latest-wins async boundaries use the token.

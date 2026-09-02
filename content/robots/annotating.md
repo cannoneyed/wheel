@@ -134,5 +134,7 @@ Primary sources:
 - [`anchor.ts`](../../packages/wheel/src/annotate/anchor.ts)
 - [`note-format.ts`](../../packages/wheel/src/annotate/note-format.ts)
 - [`annotate-lazy.tsx`](../../packages/wheel/src/annotate/annotate-lazy.tsx)
-- [`session.ts`](../../packages/wheel/src/annotate/session.ts)
+- [`shortcuts.ts`](../../packages/wheel/src/annotate/shortcuts.ts)
+- [`media.ts`](../../packages/wheel/src/annotate/media.ts)
+- [`chrome.ts`](../../packages/wheel/src/core/chrome.ts)
 - [`recorder-tap.ts`](../../packages/wheel/src/core/recorder-tap.ts)

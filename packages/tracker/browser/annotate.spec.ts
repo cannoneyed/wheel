@@ -16,7 +16,13 @@ import { expect, test } from '@playwright/test';
 
 import { SEED } from '../seed/seed';
 
-import { clearNotes, noteIds, notesDir, savedNote } from './notes';
+import { clearNotes, hasNoteSink, noteIds, notesDir, savedNote } from './notes';
+
+// The whole suite is about what a note leaves ON DISK, which needs the dev
+// server's note endpoint. The Durable Object run is served by a worker and has
+// none — see `hasNoteSink`. The annotator itself is covered there by the
+// debug-tree suite and by the unit tests; nothing about it is backend-specific.
+test.skip(!hasNoteSink, 'the note sink is a vite dev-server route; this run is served by a worker');
 
 const actorId = SEED.users[0].id;
 const team = SEED.teams[0];

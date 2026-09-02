@@ -10,6 +10,23 @@ import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
 import { expect } from '@playwright/test';
 
+/**
+ * Whether this run has a note sink at all.
+ *
+ * `/__wheel/note` is a route the VITE plugin adds (`wheelDevTools`), so it
+ * exists when vite serves the app and not when a worker does. The Durable
+ * Object run is served by `wrangler dev`, which has no such route: a save
+ * there falls back to a download, and every assertion about files on disk
+ * fails.
+ *
+ * It is worse than a few failed assertions. The POST carries a note's base64
+ * screenshot, and a body that size on a route the worker does not handle
+ * wedges `wrangler dev` — every test after it in the run gets
+ * ERR_CONNECTION_REFUSED, which is why 23 of 25 tracker tests went red for one
+ * missing endpoint.
+ */
+export const hasNoteSink = (process.env['TRACKER_BROWSER_BACKEND'] ?? 'sqlite') !== 'do';
+
 /** `vite preview` roots at the tracker package, so notes land under it. */
 export const notesDir = resolve(fileURLToPath(new URL('..', import.meta.url)), '.wheel/notes');
 
