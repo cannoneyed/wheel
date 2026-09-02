@@ -75,15 +75,15 @@ export default defineConfig({
 
 ## In production
 
-Mounting `<WheelAnnotate/>` costs a rolling recorder and a pane. Everything else — marquee,
-composer, voice, note rendering — is behind a dynamic `import()` and arrives the first time
-someone arms. Measured on the tracker:
+Mounting `<WheelAnnotate/>` costs a pane and a keyboard chord. Everything else — marquee,
+composer, voice, the recorder itself, note rendering — is behind a dynamic `import()` and arrives
+the first time someone arms. Measured on the tracker, by building it with and without the mount:
 
 | | gzipped |
 | --- | --- |
-| resident: recorder, pane, chord, loader | **4.1 KB** |
-| deferred: the whole armed experience | 8.7 KB, fetched on arm |
-| deferred: the DOM rasterizer | 10.5 KB, fetched when a note is first drawn |
+| resident: pane, chord, loader | **2.1 KB** |
+| deferred: the whole armed experience | 13.4 KB, fetched on arm |
+| deferred: the DOM rasterizer | 10.2 KB, fetched when a note is first drawn |
 
 `enabled` defaults to dev mode, so a production build records nothing and shows nothing until the
 app says otherwise. That decision belongs to the app, because it decides whose application state
@@ -96,7 +96,7 @@ may be captured:
 ```
 
 The second form is the one for a live deployment: set the key in the console, reload, and the
-rolling buffer is running — no deploy needed.
+pane is there — no deploy needed.
 
 <Aside kind="note">
   <strong>Names are declared, not preserved.</strong> A timeline is only worth reading because it
@@ -135,7 +135,7 @@ thread the app you are debugging runs on. Sampling it per frame would stutter th
 the behaviour under observation, which is the one thing a debugging tool must not do.
 
 Screen video comes from the compositor (`getDisplayMedia`), which costs the browser prompt and
-nothing on the main thread. That is the whole reason 🎥 is still a switch you throw deliberately.
+nothing on the main thread. That is the whole reason ⏺ record is a switch you throw deliberately.
 
 ### Delivery without a dev server
 
@@ -156,18 +156,24 @@ redaction story yet: the state stays on the machine that captured it until a hum
 **Arm, drag a rectangle, say what is wrong, save.** There is no mode to pick and nothing to press
 first: drawing the box IS the interaction.
 
+The rectangle is not final. Drag any edge or corner to resize it, or the triangle outside its
+top-left corner to move it whole — and what the note is ABOUT follows: the anchor, the components
+underneath and the picture are all re-taken when you let go. A box drawn in one gesture is rarely
+the box you meant, and the only fix used to be discarding the note and starting again.
+
 What you get is everything that was under it, whether or not you thought to ask:
 
 | | |
 | --- | --- |
 | every component under the rectangle | live state, props, and the actions you could drive |
 | the plain DOM under it | element, path, and a quote of its text — what a docs paragraph has instead of a component |
-| what the app just did | the merged timeline of actions, state changes, input, sync writes, errors, routes and network |
-| the state tree | every service's atoms as they were when you drew the box |
+| what the app did | the merged timeline of actions, state changes, input, sync writes, errors, routes and network — while ⏺ record is on |
+| the state tree | every service's atoms as they were when the recording started |
 | a screenshot | automatically, on every note |
-| a screen recording | when you switch on 🎥 |
+| a screen recording | while ⏺ record is on |
+| the rectangle | resizable by any edge or corner, movable by the triangle at its top-left |
 
-Two of those cost nothing and nobody presses a button for them.
+The screenshot costs nothing and nobody presses a button for it.
 
 **The picture** is rasterized out of the DOM, not grabbed from the screen, so it needs no
 permission and opens no share dialog. `getDisplayMedia` — what the debug panel's rich screenshots
@@ -175,17 +181,22 @@ use — prompts once per tab session, and a screenshot that costs a modal is a s
 takes. The trade is that DOM capture cannot see a `<canvas>`, a `<video>`, or a cross-origin
 iframe; **📷 re-take from screen** is there for those, and costs the prompt.
 
-**The timeline** comes from a recorder that has been running since the annotator mounted, so a note
-carries the **minute before the box was drawn** — the minute the bug happened in. You do not have
-to predict a bug in order to record it.
+**The timeline** is what ⏺ **record** is for. Press it, reproduce the problem, and the note carries
+what the app did while you did it — named actions, the atoms they moved, the rows sync wrote and
+why. One switch covers both halves of a recording, the screen and the semantics, because they
+answer one question: a video with no timeline is a screen capture anyone could have sent, and a
+timeline with no video is a list of names with nothing to point at.
+
+Nothing is recorded until you press it. An earlier version kept a rolling 60-second buffer alive
+from the moment the annotator mounted, so a note could carry the minute BEFORE the box was drawn.
+That reads well and worked badly: every session paid for taps it would probably never use, and
+what the buffer mostly caught was the act of using the tools. Recording is a thing you ask for.
 
 <Aside kind="note">
-  <strong>A timeline that explains nothing is dropped.</strong> On a page with no services — a
-  docs page, a landing scroll, a catalog of display fixtures — the buffer holds nothing but raw
-  input, and eighteen recorded keystrokes say nothing about the note. That is noise dressed as
-  evidence, so a note keeps its timeline only when the app actually did something: an action ran,
-  or state moved. Input inside the annotator is never recorded at all, or a timeline would be
-  mostly the keystrokes that wrote the note.
+  <strong>Refusing the screen prompt does not cost the timeline.</strong> The recorder starts
+  first and the video is allowed to fail behind it, because the semantic half is the half no other
+  tool has. Input inside the dock is never recorded at all — arming, picking a label, pressing
+  save — or a timeline would be mostly the act of writing the note.
 </Aside>
 
 ### Pages wheel does not own
@@ -287,7 +298,8 @@ Three things keep a recording from becoming the bug:
   as two entries: merging it would print `null → null`, which reads as "nothing happened" — the
   opposite of the truth.
 
-Wheel's own debug services are excluded, so a recording never fills up with the act of recording.
+Wheel's own debug services are excluded, and so is everything inside the dock, so a recording
+never fills up with the act of recording.
 
 <Aside kind="note">
   <strong>The cost when nothing is recording is one null check</strong> per action call and per
@@ -297,8 +309,8 @@ Wheel's own debug services are excluded, so a recording never fills up with the 
 
 ## Why the timeline is replayable in principle
 
-A note stores its actions with serialized arguments, and the state tree as it was when the box was
-drawn. Since actions are the only write door — the same door `__wheel.act()` uses — and wheel's
+A note stores its actions with serialized arguments, and the state tree as it was when the
+recording started. Since actions are the only write door — the same door `__wheel.act()` uses — and wheel's
 clock and scheduler are already injectable seams, a note carries everything a re-drive would need.
 That is not built yet; it is why notes capture what they capture.
 

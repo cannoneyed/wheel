@@ -6,39 +6,27 @@ Import only from `wheel/annotate`. The linked declarations are the source of tru
 
 ## `anchorToRegion`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:180](../../../packages/wheel/src/annotate/anchor.ts#L180).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:177](../../../packages/wheel/src/annotate/anchor.ts#L177).
 
 Anchor a note to the rectangle that was drawn, describing what was under it both ways: as a component, and as plain DOM.
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:129](../../../packages/wheel/src/annotate/annotate-service.ts#L129).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:128](../../../packages/wheel/src/annotate/annotate-service.ts#L128).
 
 Injected capture seams, so the service runs headless in tests.
 
 ## `AnnotateMode`
 
-Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:69](../../../packages/wheel/src/annotate/annotate-service.ts#L69).
+Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:68](../../../packages/wheel/src/annotate/annotate-service.ts#L68).
 
 Where the flow currently is. `armed` is the marquee: drag a rectangle around what you want to talk about. There is no other way in, and no mode to pick first — drawing the rectangle IS the interaction.
 
-## `annotateRecorder`
-
-Kind: function. Source: [packages/wheel/src/annotate/session.ts:48](../../../packages/wheel/src/annotate/session.ts#L48).
-
-The running recorder, or null when annotation is not enabled on this page.
-
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:140](../../../packages/wheel/src/annotate/annotate-service.ts#L140).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:139](../../../packages/wheel/src/annotate/annotate-service.ts#L139).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
-
-## `AnnotateSessionOptions`
-
-Kind: interface. Source: [packages/wheel/src/annotate/session.ts:25](../../../packages/wheel/src/annotate/session.ts#L25).
-
-What the resident recorder needs to run.
 
 ## `AnnotateSink`
 
@@ -48,7 +36,7 @@ Where notes are sent, and read back from. One URL, two methods, and that is the 
 
 ## `describeElement`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:60](../../../packages/wheel/src/annotate/anchor.ts#L60).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:57](../../../packages/wheel/src/annotate/anchor.ts#L57).
 
 A short human description of an element: `button.primary`, `div#board`, `input`.
 
@@ -60,7 +48,7 @@ One timeline row's human column — what actually happened, in words.
 
 ## `domPathOf`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:69](../../../packages/wheel/src/annotate/anchor.ts#L69).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:66](../../../packages/wheel/src/annotate/anchor.ts#L66).
 
 A plain CSS path to an element, walking up to six levels.
 
@@ -78,13 +66,13 @@ What a note is about: the rectangle that was drawn, and what was under it. There
 
 ## `NoteDraft`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:72](../../../packages/wheel/src/annotate/annotate-service.ts#L72).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:71](../../../packages/wheel/src/annotate/annotate-service.ts#L71).
 
 A note being written: everything captured so far, none of it saved yet.
 
 ## `NoteEnvironment`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:250](../../../packages/wheel/src/annotate/types.ts#L250).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:253](../../../packages/wheel/src/annotate/types.ts#L253).
 
 Page-level facts worth having when the note is read out of context, weeks later.
 
@@ -96,13 +84,13 @@ A note's id and directory name: `<epoch-ms>-<slug>`. Epoch first so a directory 
 
 ## `NoteLabel`
 
-Kind: type. Source: [packages/wheel/src/annotate/types.ts:237](../../../packages/wheel/src/annotate/types.ts#L237).
+Kind: type. Source: [packages/wheel/src/annotate/types.ts:240](../../../packages/wheel/src/annotate/types.ts#L240).
 
-The small vocabulary a note can be tagged with — enough to sort by, short enough to pick fast.
+The small vocabulary a note can be tagged with — enough to sort by, short enough to pick fast, and short enough that each one gets its own key.
 
 ## `NotePayload`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:269](../../../packages/wheel/src/annotate/types.ts#L269).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:272](../../../packages/wheel/src/annotate/types.ts#L272).
 
 A complete annotation. This IS `note.json`, and `note.md` is rendered from it — nothing in the markdown is information the JSON lacks.
 
@@ -120,7 +108,7 @@ One component captured alongside a note: identity, geometry, and what it held.
 
 ## `NoteVoice`
 
-Kind: interface. Source: [packages/wheel/src/annotate/types.ts:240](../../../packages/wheel/src/annotate/types.ts#L240).
+Kind: interface. Source: [packages/wheel/src/annotate/types.ts:243](../../../packages/wheel/src/annotate/types.ts#L243).
 
 A voice note: the transcript is what the agent reads, the audio is the receipt.
 
@@ -174,19 +162,19 @@ A row changed in the sync client's cache, with the reason it changed.
 
 ## `Recorder`
 
-Kind: class. Source: [packages/wheel/src/annotate/recorder.ts:174](../../../packages/wheel/src/annotate/recorder.ts#L174).
+Kind: class. Source: [packages/wheel/src/annotate/recorder.ts:176](../../../packages/wheel/src/annotate/recorder.ts#L176).
 
-The event buffer plus its taps. One per app; `AnnotateService` owns it. Always-on in dev (the retro buffer), explicitly bounded when a clip is running. `install()` / `uninstall()` are the only things that touch global state, and both are idempotent.
+The event buffer plus its taps. One per app; `AnnotateService` owns it. It runs only while someone is recording. An earlier design kept a rolling 60-second buffer alive for the whole session, so a note could carry the minute BEFORE the box was drawn — appealing, but it meant every session paid for taps it would probably never use, and what it mostly caught was the act of using the tools. `install()` / `uninstall()` are the only things that touch global state, and both are idempotent.
 
 ## `RecorderOptions`
 
-Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:80](../../../packages/wheel/src/annotate/recorder.ts#L80).
+Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:79](../../../packages/wheel/src/annotate/recorder.ts#L79).
 
 Runtime seams the recorder needs, so tests can drive it without a browser or a real clock.
 
 ## `RecorderStreams`
 
-Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:92](../../../packages/wheel/src/annotate/recorder.ts#L92).
+Kind: interface. Source: [packages/wheel/src/annotate/recorder.ts:91](../../../packages/wheel/src/annotate/recorder.ts#L91).
 
 Which optional streams a recording captures. Both default ON (the 021 ruling: maximal capture).
 
@@ -232,12 +220,6 @@ Kind: function. Source: [packages/wheel/src/annotate/media.ts:90](../../../packa
 
 Whether this browser can turn speech into text without a server.
 
-## `startAnnotateSession`
-
-Kind: function. Source: [packages/wheel/src/annotate/session.ts:38](../../../packages/wheel/src/annotate/session.ts#L38).
-
-Start the rolling buffer, or return the one already running. Idempotent: several `WheelAnnotate` mounts (a docs page with two embedded apps) share one recorder, exactly as they share one kernel tap.
-
 ## `startVideo`
 
 Kind: function. Source: [packages/wheel/src/annotate/media.ts:215](../../../packages/wheel/src/annotate/media.ts#L215).
@@ -252,25 +234,19 @@ Start listening: transcript from speech recognition, audio from the microphone. 
 
 ## `stateTreeSnapshot`
 
-Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:515](../../../packages/wheel/src/annotate/recorder.ts#L515).
+Kind: function. Source: [packages/wheel/src/annotate/recorder.ts:518](../../../packages/wheel/src/annotate/recorder.ts#L518).
 
 Every service's atoms and computed values right now, keyed by service name. A clip stores this as its START STATE — a timeline of actions is only re-runnable against a known starting point, which is what makes replay reachable later.
 
-## `stopAnnotateSession`
-
-Kind: function. Source: [packages/wheel/src/annotate/session.ts:58](../../../packages/wheel/src/annotate/session.ts#L58).
-
-Release one mount's claim on the session; the last one out tears it down. Refcounted because a docs page can embed several wheel apps, and the first one to unmount must not take the shared taps with it.
-
 ## `targetOf`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:112](../../../packages/wheel/src/annotate/anchor.ts#L112).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:109](../../../packages/wheel/src/annotate/anchor.ts#L109).
 
 Project one mounted instance into the JSON a note stores.
 
 ## `targetsUnder`
 
-Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:132](../../../packages/wheel/src/annotate/anchor.ts#L132).
+Kind: function. Source: [packages/wheel/src/annotate/anchor.ts:129](../../../packages/wheel/src/annotate/anchor.ts#L129).
 
 Every mounted instance whose DOM intersects a rectangle, innermost first. Same hit-test the inspector and the rich-screenshot capture already use, so a note over an area lists exactly what the ◰ tool would have listed.
 
@@ -300,12 +276,12 @@ A capture in progress.
 
 ## `WheelAnnotate`
 
-Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:113](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L113).
+Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:112](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L112).
 
 Mount the annotator: a rolling recorder now, the chrome on demand.
 
 ## `WheelAnnotateProps`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:91](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L91).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:90](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L90).
 
 Props for {@link WheelAnnotate}.

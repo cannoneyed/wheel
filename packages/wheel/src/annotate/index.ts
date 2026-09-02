@@ -24,12 +24,6 @@ export {
   type NoteDraft
 } from './annotate-service';
 export { Recorder, stateTreeSnapshot, type RecorderOptions, type RecorderStreams } from './recorder';
-export {
-  annotateRecorder,
-  startAnnotateSession,
-  stopAnnotateSession,
-  type AnnotateSessionOptions
-} from './session';
 export { downloadNote, setNoteDownload } from './download';
 export { anchorToRegion, describeElement, domPathOf, targetOf, targetsUnder } from './anchor';
 export { describeEvent, noteId, renderNoteFile, renderNoteMarkdown, slugify } from './note-format';

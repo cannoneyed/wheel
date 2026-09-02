@@ -11,6 +11,9 @@
  *   - the address bar — `popstate` / `hashchange`, so navigation shows up
  *     even in an app that does not use wheel's router.
  *
+ * It runs only inside an explicit recording: `AnnotateService.toggleRecording`
+ * installs these taps and takes them out again. Nothing is buffered otherwise.
+ *
  * Two more streams are NOT tapped, because the app already records them: sync
  * writes live in the client's provenance log and errors live in the error
  * buffer. Both are timestamped, so a clip harvests its slice of each at save
@@ -36,7 +39,9 @@ import type { DebugRegistry } from '../core/debug-registry';
 import { setWheelTap, type TappedAction, type TappedState } from '../core/recorder-tap';
 import { serializeValue } from '../core/serialize';
 
-import { CHROME_ATTRIBUTE, describeElement } from './anchor';
+import { insideChromeElement } from '../core/chrome';
+
+import { describeElement } from './anchor';
 import type { RecordedEvent, RecordedState } from './types';
 
 /** Writes to one atom closer together than this collapse into a single entry. */
@@ -51,14 +56,8 @@ const ORDER_SCAN = 64;
 /** Scroll on one target reports at most this often. */
 const SCROLL_THROTTLE_MS = 250;
 
-/** Hard cap on buffered events, clip or no clip — the backstop against an unbounded session. */
+/** Hard cap on buffered events — the backstop against a recording left running for an hour. */
 const HARD_CAPACITY = 20_000;
-
-/** How far back the always-on retro buffer reaches when no clip is running. */
-const RETRO_WINDOW_MS = 60_000;
-
-/** How many events the retro buffer keeps when no clip is running. */
-const RETRO_CAPACITY = 2_000;
 
 /**
  * How many logically-dropped entries accumulate before the buffer is compacted.
@@ -167,9 +166,12 @@ function mergeState(existing: RecordedState, incoming: RecordedState): RecordedS
 /**
  * The event buffer plus its taps. One per app; `AnnotateService` owns it.
  *
- * Always-on in dev (the retro buffer), explicitly bounded when a clip is
- * running. `install()` / `uninstall()` are the only things that touch global
- * state, and both are idempotent.
+ * It runs only while someone is recording. An earlier design kept a rolling
+ * 60-second buffer alive for the whole session, so a note could carry the
+ * minute BEFORE the box was drawn — appealing, but it meant every session paid
+ * for taps it would probably never use, and what it mostly caught was the act
+ * of using the tools. `install()` / `uninstall()` are the only things that
+ * touch global state, and both are idempotent.
  */
 export class Recorder {
   private readonly options: RecorderOptions;
@@ -249,19 +251,23 @@ export class Recorder {
   }
 
   /**
-   * Begin an explicit clip at `at` (defaults to now): from here on, age-based
-   * pruning stops so a long recording keeps its whole history.
+   * Begin a clip at `at` (defaults to now), dropping whatever came before.
+   *
+   * A recording starts empty on purpose: pressing record means "from here",
+   * and a buffer left over from a previous recording in the same session would
+   * put someone else's events at the top of this note.
    */
   startClip(at = this.options.now()): void {
+    this.clear();
     this.clipStart = at;
   }
 
-  /** End the explicit clip; the buffer goes back to behaving as a retro window. */
+  /** End the clip. The buffer is kept — stopping is not forgetting. */
   endClip(): void {
     this.clipStart = null;
   }
 
-  /** When the current clip started, or null when only the retro buffer is running. */
+  /** When the current clip started, or null when nothing is being recorded. */
   clipStartedAt(): number | null {
     return this.clipStart;
   }
@@ -335,19 +341,16 @@ export class Recorder {
   }
 
   /**
-   * Keep the buffer bounded. While a clip runs, only the hard cap applies —
-   * a five-minute recording is allowed to be five minutes long. With no clip,
-   * the buffer is a rolling 60-second window.
+   * Keep the buffer bounded.
+   *
+   * Only the hard cap applies: a recording is as long as someone left it
+   * running, and cutting the middle out of it would be worse than dropping the
+   * oldest end. There is no age-based window any more — the recorder is not
+   * running when nobody is recording.
    */
   private prune(): void {
     const live = this.events.length - this.head;
     if (live > HARD_CAPACITY) this.head += live - HARD_CAPACITY;
-    if (this.clipStart === null) {
-      const cutoff = this.options.now() - RETRO_WINDOW_MS;
-      while (this.head < this.events.length && this.events[this.head]!.at < cutoff) this.head += 1;
-      const overflow = this.events.length - this.head - RETRO_CAPACITY;
-      if (overflow > 0) this.head += overflow;
-    }
     // Reclaim only once enough entries are dead, so the copy is amortized.
     if (this.head >= COMPACT_BATCH) {
       this.events = this.events.slice(this.head);
@@ -412,7 +415,7 @@ export class Recorder {
     // Typing a note is not something the app did. Without this, every note's
     // timeline was mostly the keystrokes that wrote the note itself — noise
     // that buried whatever the note was actually about.
-    if (target?.closest(`[${CHROME_ATTRIBUTE}]`)) return;
+    if (insideChromeElement(target)) return;
     const record = target ? this.options.registry.instanceAt(target) : undefined;
     this.push({
       at,

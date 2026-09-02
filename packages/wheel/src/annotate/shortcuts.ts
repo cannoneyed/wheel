@@ -31,6 +31,17 @@ export const COMPOSER_KEYS = {
 } as const;
 
 /**
+ * Labels are picked by number, in the order they are shown.
+ *
+ * Letters would have been nicer to read, but `t`, `s` and `d` are taken by
+ * talk, save and discard — and "todo" has no free letter left. Numbers also
+ * say the right thing about a label: it is one choice out of a short list.
+ */
+export function labelKey(index: number): string {
+  return String(index + 1);
+}
+
+/**
  * Whether a key event came from somewhere text is being typed.
  *
  * The composer's own textarea is the obvious case; a `contenteditable` in the

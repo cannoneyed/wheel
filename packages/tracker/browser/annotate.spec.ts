@@ -127,19 +127,8 @@ test('a dragged rectangle lands on disk with the components under it', async ({ 
 test('a note carries the real actions and state changes behind what happened', async ({ page }) => {
   const before = noteIds();
 
-  // Nothing is pressed to start recording, and annotation mode is not even on
-  // yet. The rolling buffer has been running since the annotator mounted, so
-  // this is just USING the app — exactly what a person does before deciding to
-  // complain about it.
   const issueTitle = page.locator('[data-testid^="issue-title-"]').first();
   const original = (await issueTitle.textContent())?.trim() ?? '';
-
-  await issueTitle.dblclick();
-  const editInput = page.locator('[data-testid^="issue-title-input-"]').first();
-  await expect(editInput).toBeFocused();
-  await editInput.fill(`${original} [annotated]`);
-  await editInput.press('Enter');
-  await expect(page.getByText(`${original} [annotated]`, { exact: true })).toBeVisible();
 
   await page.getByTestId('wheel-debug-toggle').click();
   await page.getByTestId('wheel-annotate-arm').click();
@@ -149,9 +138,22 @@ test('a note carries the real actions and state changes behind what happened', a
   await page.mouse.down();
   await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
   await page.mouse.up();
-
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+
+  // Press record, then reproduce it. Nothing is tapped until this point:
+  // recording is asked for, not always running.
+  await page.getByTestId('wheel-annotate-film').click();
+  await expect(page.getByTestId('wheel-annotate-timeline')).toBeVisible();
+
+  await issueTitle.dblclick();
+  const editInput = page.locator('[data-testid^="issue-title-input-"]').first();
+  await expect(editInput).toBeFocused();
+  await editInput.fill(`${original} [annotated]`);
+  await editInput.press('Enter');
+  await expect(page.getByText(`${original} [annotated]`, { exact: true })).toBeVisible();
+
   await page.getByTestId('wheel-annotate-text').fill('renaming an issue felt slow');
+  await page.getByTestId('wheel-annotate-text').blur();
   await page.getByTestId('wheel-annotate-save').click();
 
   const note = await savedNote(before);
@@ -166,8 +168,7 @@ test('a note carries the real actions and state changes behind what happened', a
 
   const kinds = new Set(payload.timeline.map((event) => event.kind));
   // Real input, a NAMED action, and the state it moved — the three things a
-  // screenshot-and-selector tool cannot give an agent. None of it was asked
-  // for; the note simply carries what already happened.
+  // screenshot-and-selector tool cannot give an agent.
   expect(kinds).toContain('input');
   expect(kinds).toContain('action');
   expect(kinds).toContain('state');
@@ -348,6 +349,71 @@ test('the keys printed on the controls are the keys that work', async ({ page })
   expect(noteIds().filter((name) => !before.includes(name))).toHaveLength(1);
 });
 
+test('the rectangle can be resized and moved, and the note follows it', async ({ page }) => {
+  const before = noteIds();
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
+
+  // Draw a small box on the FIRST row, then aim it at the second. A rectangle
+  // drawn in one gesture is rarely the one you meant, and the only fix used to
+  // be discarding the note and starting again.
+  const rows = page.locator('[data-testid^="issue-title-"]');
+  const first = (await rows.nth(0).boundingBox())!;
+  const second = (await rows.nth(1).boundingBox())!;
+  await page.mouse.move(first.x + 4, first.y + 2);
+  await page.mouse.down();
+  await page.mouse.move(first.x + 40, first.y + first.height - 2, { steps: 6 });
+  await page.mouse.up();
+
+  const outline = page.getByTestId('wheel-annotate-target');
+  await expect(outline).toBeVisible();
+  const drawn = (await outline.boundingBox())!;
+  const drawnSubject = await page.getByTestId('wheel-annotate-subject').textContent();
+
+  // Grow it from the south-east corner.
+  await page.mouse.move(drawn.x + drawn.width, drawn.y + drawn.height);
+  await page.mouse.down();
+  await page.mouse.move(drawn.x + drawn.width + 60, drawn.y + drawn.height + 30, { steps: 6 });
+  await page.mouse.up();
+  const grown = (await outline.boundingBox())!;
+  expect(grown.width).toBeGreaterThan(drawn.width + 40);
+  expect(grown.height).toBeGreaterThan(drawn.height + 20);
+
+  // Then move it whole, by the triangle outside the top-left corner, until it
+  // is over the second row.
+  const move = (await page.getByTestId('wheel-annotate-move').boundingBox())!;
+  const dy = second.y - first.y;
+  await page.mouse.move(move.x + move.width / 2, move.y + move.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(move.x + move.width / 2, move.y + move.height / 2 + dy, { steps: 8 });
+  await page.mouse.up();
+  const moved = (await outline.boundingBox())!;
+  expect(Math.round(moved.y - grown.y)).toBeGreaterThan(dy - 4);
+
+  // The composer's subject is what the note is ABOUT, and it changed: moving
+  // the box re-resolves the component underneath rather than keeping the one
+  // the first gesture happened to land on.
+  await expect(page.getByTestId('wheel-annotate-subject')).not.toHaveText(drawnSubject ?? '');
+
+  await page.getByTestId('wheel-annotate-text').fill('this row, not the one above it');
+  await page.getByTestId('wheel-annotate-text').blur();
+  await page.getByTestId('wheel-annotate-save').click();
+
+  // The point of the whole thing: the note is about where the box ENDED UP.
+  // The anchor, the components underneath and the picture are all re-taken on
+  // release, so a moved box does not describe what it used to cover.
+  const note = await savedNote(before);
+  const payload = note.payload as {
+    anchor: { rect: { y: number; width: number }; instanceId: string | null };
+    nearby: Array<{ instanceId: string }>;
+  };
+  expect(payload.anchor.rect.width).toBeGreaterThan(drawn.width + 40);
+  expect(Math.round(payload.anchor.rect.y)).toBeGreaterThan(Math.round(drawn.y));
+  expect(payload.nearby.length).toBeGreaterThan(0);
+  expect(existsSync(join(notesDir, note.id, 'shot.png'))).toBe(true);
+});
+
 test('a stray click annotates nothing, and video is never a toll on drawing', async ({ page }) => {
   await page.getByTestId('wheel-debug-toggle').click();
   await page.getByTestId('wheel-annotate-arm').click();
@@ -365,8 +431,9 @@ test('a stray click annotates nothing, and video is never a toll on drawing', as
   await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
   await page.mouse.up();
 
-  // Drawing the box opened no permission prompt: recording the screen is a
-  // switch inside the composer, offered rather than charged.
+  // Drawing the box opened no permission prompt and started no recording:
+  // both are one switch inside the composer, offered rather than charged.
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
-  await expect(page.getByTestId('wheel-annotate-film')).toContainText('record screen');
+  await expect(page.getByTestId('wheel-annotate-film')).toContainText('record');
+  await expect(page.getByTestId('wheel-annotate-timeline')).toHaveCount(0);
 });

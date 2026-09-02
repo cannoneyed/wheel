@@ -2,7 +2,7 @@
 
 Human page: [Annotating](../docs/annotating.mdx). API: [`wheel/annotate`](api/annotate.md), [`wheel/vite`](api/vite.md).
 
-Leave a note on a running app and record what the app did. The recording is semantic, not visual: it names actions and atoms rather than DOM mutations.
+Leave a note on a running app, and — while ⏺ record is on — record what the app did. The recording is semantic, not visual: it names actions and atoms rather than DOM mutations.
 
 ## Mount
 
@@ -10,35 +10,38 @@ Leave a note on a running app and record what the app did. The recording is sema
 
 A page with no dock therefore cannot be annotated, which is the intent: annotation is a thing you do to a wheel app. The website's docs and landing pages mount `WheelApp` for exactly this reason. Nested `WheelApp`s (the site embeds live demos) share ONE dock — the outermost wins, via the `DockPresent` context. `wheel/annotate` is a separate entry from `wheel/debug`, so a build can ship the annotator without the debug panel.
 
-It is split in three, measured on the tracker. Resident: the rolling recorder, the pane registration, the chord, the loader — 4.1 KB gzipped. Deferred behind a dynamic `import()` of `annotate-system`: marquee, composer, voice, note rendering — 8.7 KB, fetched on first arm. Deferred again: `modern-screenshot`, 10.5 KB, fetched the first time a note is drawn. The main bundle is unchanged by all of it.
+It is split in three, measured on the tracker by building it with and without the mount. Resident: the pane registration, the chord, the loader — 2.1 KB gzipped. Deferred behind a dynamic `import()` of `annotate-system`: marquee, composer, voice, the recorder, note rendering — 13.4 KB, fetched on first arm. Deferred again: `modern-screenshot`, 10.2 KB, fetched the first time a note is drawn. The main bundle is unchanged by all of it.
 
 `enabled` defaults to `isWheelDevMode()`. A production page records nothing and shows nothing unless the app passes `enabled`. The app owns that decision because it decides whose application state may be captured.
-
-`startAnnotateSession()` / `stopAnnotateSession()` own the page-wide recorder; the count is refcounted so several embedded apps share one. `AnnotateService` resolves its recorder on every read, so the chrome adopts the buffer that was already running.
 
 Service identity is declared, not preserved: every Service subclass carries `static override serviceName` (rule `require-service-name`, auto-fixable), read by `serviceDisplayName()` as an OWN property so a subclass never inherits its parent's identity. Class names may therefore be minified. `wheelDevTools()` still sets esbuild `keepNames` by default; `wheelDevTools({ keepNames: false })` opts out and saves 11.2 KB gzipped (measured on Axle), at the cost of minified function names in raw stack traces.
 
 ## Flow
 
-`AnnotateService` holds the whole flow in `mode`: `off`, `armed` (the marquee is up), `composing`. There is ONE way in — drawing the rectangle is the interaction. There is no click-to-pick, no page note, no separate clip mode and no retro door; every note is a rectangle and every note carries the rolling timeline.
+`AnnotateService` holds the whole flow in `mode`: `off`, `armed` (the marquee is up), `composing`. There is ONE way in — drawing the rectangle is the interaction. There is no click-to-pick and no page note; every note is a rectangle.
 
-- `arm()` / `disarm()`: toggle annotation mode. Arming installs the recorder (idempotent; the page-wide session normally installed it at mount).
+- `arm()` / `disarm()`: toggle annotation mode. Arming records nothing: no tap is installed until `toggleRecording()`.
 - `pickRegion(rect)`: the only door. The rectangle is VIEWPORT coordinates and is stored unchanged — a note describes a moment on screen, not a place in the document.
 - `captureShot()`: RE-take the picture from the screen via `getDisplayMedia`. Never automatic — it opens a share prompt. The escape hatch for what DOM capture cannot see: canvas, video, cross-origin iframes.
 - pixels are otherwise automatic: `pickRegion` fires `rasterizeRegion()` (`rasterize.ts`), which serializes the DOM into an SVG `foreignObject` via `modern-screenshot` (dynamically imported, so it reaches the browser only when a note is written). No permission, no prompt. It returns null rather than throwing — a note without pixels is still a note.
 - video is NOT rasterized per frame: serializing a subtree costs tens to hundreds of ms on the main thread, so sampling it would stutter the app under observation. Motion comes from the compositor or not at all.
-- `toggleVideo()`: switch screen recording on or off for the open draft. Never automatic. Leaving it on is expected; `save()` stops it and attaches the result.
+- `reshapeRegion(rect)` / `previewRegion(rect)`: move or resize the open rectangle. `previewRegion` runs per frame and moves the outline only; `reshapeRegion` runs on release and re-resolves the anchor, the components underneath and the screenshot — hit-testing the tree and rasterizing the DOM both cost real time, on the app being annotated. The words already typed are kept.
+- `toggleRecording()`: the ONE recording switch — the screen video and the event/state taps together, because they answer one question. Nothing is tapped before it. It installs the recorder, opens a clip, re-snapshots `startState` (the timeline is read against the state recording started from, not the state when the box was drawn), and then asks for the screen. The screen prompt is allowed to fail behind the recorder: `recording` stays true, `filming` does not. `save()`, `discard()` and `disarm()` all end it. `startClip()` clears the buffer, so a second recording in one session does not carry the first.
 - `setText()`, `setLabel()`: edit the draft.
 - `listen()` / `stopListening()`: speech capture. The words stream into `draft.text` — the note box, not a second box — appended after whatever was already typed. Recognition sends a GROWING partial, so each one is written as `voiceBase + partial`, never appended. `draft.transcript` still holds what was HEARD, so `payload.voice` records that the note was spoken even after the text is edited by hand.
-- `save()` / `discard()`: send the note, or drop it.
+- `save()` / `discard()`: send the note, or drop it. `save()` reads the clip BEFORE the taps come out and hands it to `deliver` / `buildPayload`; an uninstalled recorder has nothing left to tell them. There is no evidence gate any more — the gate existed because an always-on buffer filled notes with raw input, and an explicit recording cannot have that problem.
 - `editNote(saved)`: reopen a note written this session. The draft carries `basedOn`, and `buildPayload` then returns that payload with new text and label — same id, same anchor, same timeline, same state. The composer hides the capture controls and the live timeline while rewriting, and saving REPLACES the note at the sink rather than adding one.
 - `dismissNotice()`: clear the snackbar early.
 
 Keys are named once in `annotate/shortcuts.ts` and printed on the controls they drive, so a label cannot go stale. `armChord()` arms or disarms from anywhere. While composing, `t` / `s` / `d` are talk / save / discard, bound by an effect that runs only in that mode and unbinds with it. They are plain letters, so `typingInto()` ignores them whenever an input, textarea, select or `contenteditable` has focus — otherwise typing the note would fire them.
 
-Labels are `bug`, `question`, `idea`, `todo`, `looks-good`.
+Labels are `bug`, `question`, `idea`, `todo`, picked by the number keys `1`-`4` in that order (`labelKey()`). Letters were not available: `t`, `s` and `d` are talk, save and discard, and "todo" has no free letter left.
 
 ## Recording
+
+`Recorder` runs only inside a clip. An earlier design kept a rolling 60-second window alive for the whole session so a note could carry the minute BEFORE the box was drawn; it was removed because every session paid for taps it would probably never use, and what it mostly caught was the act of using the tools. `HARD_CAPACITY` (20k events) is the only bound left — a recording is as long as someone left it running.
+
+Nothing inside chrome is recorded. `CHROME_ATTRIBUTE` lives in `core/chrome.ts`, not beside the annotator, because the DOCK needs it too: the layering DAG runs `annotate -> debug -> core`, and once the composer moved into the dock every click in it — arming, picking a label, pressing save — was recorded as app input.
 
 `Recorder` merges four taps plus two harvested streams.
 

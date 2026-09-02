@@ -22,6 +22,7 @@ import type { DebugRegistry, InstanceRecord } from '../core/debug-registry';
 import { serializeValue } from '../core/serialize';
 
 import type { NoteAnchor, NoteRect, NoteTarget } from './types';
+import { CHROME_SELECTOR } from '../core/chrome';
 
 /** How many ancestor levels an anchor remembers — enough to place it, short enough to stay readable. */
 const ANCESTOR_DEPTH = 6;
@@ -32,11 +33,7 @@ const DOM_PATH_DEPTH = 6;
 /** How much of a target's text an anchor quotes. */
 const QUOTE_LENGTH = 120;
 
-/**
- * Marks the annotator's own overlays, so a hit-test can look straight through
- * them. Exported because the chrome has to stamp it on everything it draws.
- */
-export const CHROME_ATTRIBUTE = 'data-wheel-annotate-chrome';
+export { CHROME_ATTRIBUTE } from '../core/chrome';
 
 /** A measured rectangle as the note stores it: viewport coordinates, unchanged. */
 function toRect(rect: DOMRect): NoteRect {
@@ -164,13 +161,13 @@ function elementUnder(rect: NoteRect): Element | null {
   const y = rect.y + rect.height / 2;
   if (typeof document.elementsFromPoint === 'function') {
     for (const element of document.elementsFromPoint(x, y)) {
-      if (!element.closest(`[${CHROME_ATTRIBUTE}]`)) return element;
+      if (!element.closest(CHROME_SELECTOR)) return element;
     }
     return null;
   }
   if (typeof document.elementFromPoint !== 'function') return null;
   const element = document.elementFromPoint(x, y);
-  return element?.closest(`[${CHROME_ATTRIBUTE}]`) ? null : element;
+  return element?.closest(CHROME_SELECTOR) ? null : element;
 }
 
 /**

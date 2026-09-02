@@ -65,16 +65,8 @@ test('a note on a rejected mutation carries why it was rejected', async ({ page 
 
   const before = noteIds();
 
-  // Drive the app into the state worth complaining about: an edit the server
-  // rejects, which rolls the field back to its previous value. A screenshot of
-  // this shows a field that looks fine and a message you have to trust.
-  const note = 'This note exceeds the server-owned field limit by enough characters to force a business rejection.';
-  await page.getByTestId('note-item_exit').fill(note);
-  await page.getByTestId('save-item_exit').click();
-  await expect(page.getByTestId('mutation-state')).toHaveText('rejected');
-
-  // Now annotate it. Nothing was pressed to start recording — the rolling
-  // buffer has been running since the annotator mounted.
+  // Draw the box around the field first, then press record, then reproduce
+  // it. Nothing is recorded until record is pressed.
   await page.getByTestId('wheel-debug-toggle').click();
   await page.getByTestId('wheel-annotate-arm').click();
   await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
@@ -84,9 +76,20 @@ test('a note on a rejected mutation carries why it was rejected', async ({ page 
   await page.mouse.down();
   await page.mouse.move(target!.x + target!.width + 8, target!.y + target!.height + 8, { steps: 8 });
   await page.mouse.up();
-
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await page.getByTestId('wheel-annotate-film').click();
+  await expect(page.getByTestId('wheel-annotate-timeline')).toBeVisible();
+
+  // The state worth complaining about: an edit the server rejects, which rolls
+  // the field back to its previous value. A screenshot of this shows a field
+  // that looks fine and a message you have to trust.
+  const note = 'This note exceeds the server-owned field limit by enough characters to force a business rejection.';
+  await page.getByTestId('note-item_exit').fill(note);
+  await page.getByTestId('save-item_exit').click();
+  await expect(page.getByTestId('mutation-state')).toHaveText('rejected');
+
   await page.getByTestId('wheel-annotate-text').fill('my edit vanished and I do not know why');
+  await page.getByTestId('wheel-annotate-text').blur();
   await page.getByTestId('wheel-annotate-save').click();
 
   const saved = await savedNote(before);

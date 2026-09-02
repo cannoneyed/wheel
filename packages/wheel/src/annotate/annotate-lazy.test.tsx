@@ -15,8 +15,8 @@ import { ServiceProvider, Service } from '../core';
 import { WheelContext, type WheelContextValue } from '../core/context';
 
 import { WheelAnnotate } from './annotate-lazy';
-import { annotateRecorder, stopAnnotateSession } from './session';
 import { debugPanes } from '../debug/panes';
+import { wheelTap } from '../core/recorder-tap';
 
 class BoardService extends Service {
   /** Identity that survives minification (see require-service-name). */
@@ -60,18 +60,16 @@ const pane = () => debugPanes().find((entry) => entry.id === 'annotate');
 afterEach(() => {
   teardown?.();
   teardown = null;
-  stopAnnotateSession();
   document.body.innerHTML = '';
   vi.unstubAllGlobals();
 });
 
 describe('<WheelAnnotate/>', () => {
-  it('offers a pane and starts recording, without loading any chrome', () => {
+  it('offers a pane without loading any chrome', () => {
     mountApp();
     expect(pane()).toBeDefined();
     // The armed surfaces are the lazy half; none of them exist yet.
     expect(document.querySelector('[data-testid="wheel-annotate-shield"]')).toBeNull();
-    expect(annotateRecorder()?.active()).toBe(true);
   });
 
   it('draws nothing over the app until someone arms it', () => {
@@ -82,12 +80,16 @@ describe('<WheelAnnotate/>', () => {
     expect(document.body.textContent).toBe('');
   });
 
-  it('records what happened before anyone armed', () => {
+  it('taps nothing until someone presses record', () => {
     const context = mountApp();
     context.services.get(BoardService).toggleCell('3-7');
 
-    const timeline = annotateRecorder()!.timeline();
-    expect(timeline.some((event) => event.kind === 'action' && event.action === 'toggleCell')).toBe(true);
+    // Mounting the annotator used to install a page-wide rolling buffer, so
+    // every session recorded everything whether or not a note was ever
+    // written. The kernel seam is the thing that costs: while no tap is in,
+    // an action is one null check. Recording is asked for now, in the
+    // composer, and this is what "asked for" has to mean.
+    expect(wheelTap()).toBeNull();
   });
 
   it('loads the chrome only when the pane asks, and arms it', async () => {
@@ -109,15 +111,14 @@ describe('<WheelAnnotate/>', () => {
 
   it('does nothing at all when it is not enabled', () => {
     mountApp(false);
+    // No pane and no chord: there is no way in, which is the whole of what a
+    // disabled annotator has to guarantee.
     expect(pane()).toBeUndefined();
-    // No pane, no chord, and — the part that matters in production — no taps.
-    expect(annotateRecorder()).toBeNull();
   });
 
   it('runs for a production page when the app says so', () => {
     mountApp(true);
     expect(pane()).toBeDefined();
-    expect(annotateRecorder()?.active()).toBe(true);
   });
 
   it('takes its pane away with it', () => {

@@ -40,16 +40,19 @@ import { CHROME_ATTRIBUTE } from './anchor';
 import { describeEvent } from './note-format';
 import { speechRecognitionAvailable } from './media';
 import type { AnnotateSink, NoteLabel, NoteRect } from './types';
-import { COMPOSER_KEYS, armChord, typingInto } from './shortcuts';
+import { COMPOSER_KEYS, armChord, labelKey, typingInto } from './shortcuts';
 
 /** Above the app, below the debug panel's own chrome. */
 const LAYER = 10_400;
+
+/** How far a grip reaches, in CSS pixels — big enough to hit without aiming. */
+const GRIP_SIZE = 14;
 
 /** Below this many pixels in either direction, a drag was really a click. */
 const DRAG_THRESHOLD = 5;
 
 /** The labels a note can carry, in the order they appear in the composer. */
-const LABELS: readonly NoteLabel[] = ['bug', 'question', 'idea', 'todo', 'looks-good'];
+const LABELS: readonly NoteLabel[] = ['bug', 'question', 'idea', 'todo'];
 
 const styles = {
   filming: {
@@ -99,6 +102,36 @@ const styles = {
     background: 'var(--wheel-stage-4, #1a1d23)',
     color: 'var(--wheel-stage-ink-strong, #e5e7eb)',
     font: '12px ui-monospace, monospace'
+  },
+  grip: {
+    position: 'absolute',
+    width: `${GRIP_SIZE}px`,
+    height: `${GRIP_SIZE}px`,
+    'margin-left': `${-GRIP_SIZE / 2}px`,
+    'margin-top': `${-GRIP_SIZE / 2}px`,
+    'border-radius': '2px',
+    border: '1px solid var(--wheel-indigo-bright, #6366f1)',
+    background: 'var(--wheel-stage-2, #101317)',
+    // The outline is click-through so the app keeps working underneath; the
+    // handles are the only part of the frame that takes a pointer.
+    'pointer-events': 'auto',
+    'touch-action': 'none'
+  },
+  moveGrip: {
+    position: 'absolute',
+    left: '-20px',
+    top: '-20px',
+    width: '18px',
+    height: '18px',
+    cursor: 'move',
+    // A right triangle pointing at the corner it moves.
+    'clip-path': 'polygon(0 0, 100% 0, 0 100%)',
+    // wheel-color: a 3px checker reads as "grab me" at this size; a token fill
+    // would be a flat block indistinguishable from the outline itself
+    background:
+      'repeating-conic-gradient(var(--wheel-indigo-bright, #6366f1) 0% 25%, var(--wheel-stage-2, #101317) 0% 50%) 0 0 / 3px 3px',
+    'pointer-events': 'auto',
+    'touch-action': 'none'
   },
   band: {
     position: 'absolute',
@@ -224,6 +257,12 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (typingInto(event.target)) return;
       const key = event.key.toLowerCase();
+      const labelIndex = LABELS.findIndex((_, index) => labelKey(index) === key);
+      if (labelIndex !== -1) {
+        event.preventDefault();
+        service.setLabel(LABELS[labelIndex]!);
+        return;
+      }
       if (key === COMPOSER_KEYS.talk) {
         event.preventDefault();
         if (service.draft.get()?.listening) service.stopListening();
@@ -241,9 +280,7 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
   });
 
   // The stub mounts this module only after someone armed, so arming here is
-  // what "the chunk arrived" means. beginSession is idempotent: the rolling
-  // buffer is normally already running by now.
-  service.beginSession();
+  // what "the chunk arrived" means.
   service.arm();
   onCleanup(() => service.endSession());
 
@@ -264,10 +301,12 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
     <Portal>
       {/* Recording is the one thing that must be visible while you use the
           app, because the app is what you are recording — the dock may be
-          closed, and forgetting is expensive. */}
-      <Show when={service.filming.get()}>
+          closed, and forgetting is expensive. It follows `recording`, not
+          `filming`: refusing the screen prompt still leaves the app's actions
+          and state being recorded, and that has to show. */}
+      <Show when={service.recording.get()}>
         <div style={styles.filming} {...{ [CHROME_ATTRIBUTE]: '' }} data-testid="wheel-annotate-filming">
-          ● rec
+          {service.filming.get() ? '● rec' : '● rec (no video)'}
         </div>
       </Show>
       <Show when={service.mode.get() === 'armed'}>
@@ -342,16 +381,131 @@ function Marquee(props: { service: AnnotateService }): JSX.Element {
   );
 }
 
-/** The area the open draft is about, outlined while you write. */
+/**
+ * Where a drag takes hold of the frame.
+ *
+ * `edge` says which edges that grip moves: `-1` the near edge, `1` the far
+ * edge, `0` neither. Eight grips fall out of the nine combinations — the
+ * middle one is the rectangle itself, which stays click-through so the app
+ * underneath is still usable while you write about it.
+ */
+const GRIPS = [
+  { id: 'nw', ex: -1, ey: -1, cursor: 'nwse-resize' },
+  { id: 'n', ex: 0, ey: -1, cursor: 'ns-resize' },
+  { id: 'ne', ex: 1, ey: -1, cursor: 'nesw-resize' },
+  { id: 'e', ex: 1, ey: 0, cursor: 'ew-resize' },
+  { id: 'se', ex: 1, ey: 1, cursor: 'nwse-resize' },
+  { id: 's', ex: 0, ey: 1, cursor: 'ns-resize' },
+  { id: 'sw', ex: -1, ey: 1, cursor: 'nesw-resize' },
+  { id: 'w', ex: -1, ey: 0, cursor: 'ew-resize' }
+] as const;
+
+/** The smallest rectangle a drag may leave behind. */
+const MIN_SIDE = 12;
+
+/** Apply one grip's pull to a rectangle, keeping it the right way round. */
+function pullRect(
+  rect: NoteRect,
+  grip: { ex: number; ey: number },
+  dx: number,
+  dy: number
+): NoteRect {
+  const left = rect.x + (grip.ex === -1 ? dx : 0);
+  const right = rect.x + rect.width + (grip.ex === 1 ? dx : 0);
+  const top = rect.y + (grip.ey === -1 ? dy : 0);
+  const bottom = rect.y + rect.height + (grip.ey === 1 ? dy : 0);
+  return {
+    x: Math.min(left, right),
+    y: Math.min(top, bottom),
+    width: Math.max(MIN_SIDE, Math.abs(right - left)),
+    height: Math.max(MIN_SIDE, Math.abs(bottom - top))
+  };
+}
+
+/**
+ * The area the open draft is about: outlined while you write, and adjustable.
+ *
+ * A rectangle drawn in one gesture is rarely the rectangle you meant, and
+ * before this the only fix was to discard the note and draw again — losing
+ * whatever had been typed. Drag an edge or a corner to resize it, or the
+ * triangle at the top-left to move it whole.
+ *
+ * The frame itself stays click-through. The app underneath has to keep working
+ * while a note is open about it: that is how you reproduce the thing you are
+ * writing about.
+ */
 function TargetOutline(props: { service: AnnotateService }): JSX.Element {
+  const rect = (): NoteRect | undefined => props.service.draft.get()?.anchor.rect;
+
+  /**
+   * Drive one drag, from press to release.
+   *
+   * `grip` null means move. The pointer is captured, so a fast drag that
+   * outruns the 14px grip keeps sending its moves here rather than to whatever
+   * it flew over.
+   */
+  const drag = (event: PointerEvent, grip: (typeof GRIPS)[number] | null): void => {
+    const from = rect();
+    if (!from) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const handle = event.currentTarget as HTMLElement;
+    handle.setPointerCapture(event.pointerId);
+    const originX = event.clientX;
+    const originY = event.clientY;
+
+    const shape = (moved: PointerEvent): NoteRect => {
+      const dx = moved.clientX - originX;
+      const dy = moved.clientY - originY;
+      return grip ? pullRect(from, grip, dx, dy) : { ...from, x: from.x + dx, y: from.y + dy };
+    };
+
+    const onMove = (moved: PointerEvent): void => props.service.previewRegion(shape(moved));
+    const onUp = (up: PointerEvent): void => {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      // The expensive half — what is under the box, and the picture of it —
+      // happens once, here, rather than on every frame of the drag.
+      props.service.reshapeRegion(shape(up));
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+  };
+
   return (
-    <Show when={props.service.draft.get()?.anchor.rect}>
-      {(rect) => (
+    <Show when={rect()}>
+      {(area) => (
         <div
           data-testid="wheel-annotate-target"
           {...{ [CHROME_ATTRIBUTE]: '' }}
-          style={{ ...styles.outline, ...rectStyle(rect()) }}
-        />
+          style={{ ...styles.outline, ...rectStyle(area()) }}
+        >
+          {/* Triangular and textured so it reads as a handle rather than as
+              part of the outline, and placed OUTSIDE the corner so it does not
+              fight the north-west grip for the same pixels. */}
+          <div
+            data-testid="wheel-annotate-move"
+            title="Drag to move this area"
+            style={styles.moveGrip}
+            onPointerDown={(event) => drag(event, null)}
+          />
+          <For each={GRIPS}>
+            {(grip) => (
+              <div
+                data-testid={`wheel-annotate-grip-${grip.id}`}
+                style={{
+                  ...styles.grip,
+                  cursor: grip.cursor,
+                  left: grip.ex === -1 ? '0' : grip.ex === 1 ? '100%' : '50%',
+                  top: grip.ey === -1 ? '0' : grip.ey === 1 ? '100%' : '50%'
+                }}
+                onPointerDown={(event) => drag(event, grip)}
+              />
+            )}
+          </For>
+        </div>
       )}
     </Show>
   );
@@ -566,7 +720,7 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
           />
           <div style={styles.row}>
             <For each={LABELS}>
-              {(label) => (
+              {(label, index) => (
                 <button
                   type="button"
                   style={{
@@ -575,9 +729,10 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
                       ? { 'border-color': 'var(--wheel-indigo-bright, #6366f1)' }
                       : {})
                   }}
+                  data-testid={`wheel-annotate-label-${label}`}
                   onClick={() => props.service.setLabel(label)}
                 >
-                  {label}
+                  {label} <Key of={labelKey(index())} />
                 </button>
               )}
             </For>
@@ -625,22 +780,23 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
             >
               {draft().shot ? '📷 re-take from screen' : '📷 screenshot'}
             </button>
-            {/* A switch, not a mode: the note records what the app did either
-                way, and this adds the pictures. Leaving it on is fine — saving
-                stops the recording and attaches it. */}
+            {/* ONE switch for both halves of a recording: the screen, and
+                what the app actually did. Nothing is recorded until it is
+                pressed. Leaving it running is fine — saving stops it and
+                attaches the result. */}
             <button
               type="button"
               style={{
                 ...styles.button,
-                ...(props.service.filming.get()
-                  ? { 'border-color': 'var(--wheel-indigo-bright, #6366f1)' }
+                ...(props.service.recording.get()
+                  ? { 'border-color': 'var(--wheel-danger-deep, #b91c1c)' }
                   : {})
               }}
               data-testid="wheel-annotate-film"
-              title="Records the screen until you save"
-              onClick={() => props.service.toggleVideo()}
+              title="Records the screen, and every action and state change, until you save"
+              onClick={() => props.service.toggleRecording()}
             >
-              {props.service.filming.get() ? '⏹ recording — click to stop' : '🎥 record screen'}
+              {props.service.recording.get() ? '⏹ recording — click to stop' : '⏺ record'}
             </button>
             <Show when={draft().video}>
               <span style={styles.dim}>🎥 attached</span>
@@ -649,13 +805,16 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
           <Show when={draft().shot}>
             {(shot) => <img style={styles.preview} src={shot()} alt="annotated region" />}
           </Show>
-          {/* What the note will carry: the rolling buffer, live. Nothing was
-              pressed to record this — it has been running since the annotator
-              mounted, which is why the minute before the box was drawn is in
-              it too. */}
-          <Show when={props.service.timeline().length > 0}>
+          {/* What the recording has caught so far. Only ever shown while one
+              is running, because that is the only time there is anything: the
+              taps are installed by the record button and come out with it. */}
+          <Show when={props.service.recording.get()}>
             <div style={styles.dim} data-testid="wheel-annotate-timeline">
-              <div>{`${props.service.timeline().length} events recorded`}</div>
+              <div>
+                {props.service.timeline().length === 0
+                  ? 'recording — use the app'
+                  : `${props.service.timeline().length} events recorded`}
+              </div>
               <For each={props.service.timeline().slice(-4)}>
                 {(event) => <div>{`${event.kind} · ${describeEvent(event)}`}</div>}
               </For>

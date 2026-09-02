@@ -51,7 +51,6 @@ import { isWheelDevMode } from '../core/dev-mode';
 import { registerDebugPane } from '../debug/panes';
 import { logger } from '../core/logger';
 
-import { startAnnotateSession, stopAnnotateSession } from './session';
 import type { AnnotateSink } from './types';
 import { armChord } from './shortcuts';
 
@@ -138,14 +137,6 @@ export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
         );
       });
   };
-
-  // Imperative boundary: the rolling buffer is a property of the PAGE, not of
-  // the chrome, so it starts here and outlives every arm/disarm cycle.
-  createEffect(() => {
-    if (!enabled()) return;
-    startAnnotateSession({ now: () => context.services.now(), registry: context.services.registry });
-    onCleanup(() => stopAnnotateSession());
-  });
 
   // listener boundary: the arming chord is a global shortcut, so it binds to
   // the document rather than to any element the annotator renders.

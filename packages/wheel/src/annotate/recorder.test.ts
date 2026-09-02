@@ -178,18 +178,25 @@ describe('Recorder', () => {
     expect(state.to).toBeUndefined();
   });
 
-  it('keeps only the last minute while no clip is running', () => {
-    const { board, recorder, tick } = harness();
+  it('starts a recording empty, so the last one is not in this one', () => {
+    const { board, recorder } = harness();
     recorder.install({ input: false, network: false });
-    board.toggleCell('old');
-    tick(90_000);
-    board.toggleCell('new');
+    recorder.startClip();
+    board.toggleCell('first-recording');
+    recorder.endClip();
+
+    // Pressing record means "from here". A buffer carried over would put the
+    // previous recording's events at the top of this note.
+    recorder.startClip();
+    board.toggleCell('second-recording');
     recorder.uninstall();
 
-    expect(recorder.timeline().every((event) => event.at >= 91_000)).toBe(true);
+    const args = recorder.timeline().flatMap((event) => (event.kind === 'action' ? event.args : []));
+    expect(args).toContain('second-recording');
+    expect(args).not.toContain('first-recording');
   });
 
-  it('keeps everything once a clip pins the buffer', () => {
+  it('keeps a long recording whole', () => {
     const { board, recorder, tick } = harness();
     recorder.install({ input: false, network: false });
     recorder.startClip();

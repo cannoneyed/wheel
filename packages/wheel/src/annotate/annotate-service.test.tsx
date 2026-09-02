@@ -17,8 +17,8 @@ import { WheelContext, type WheelContextValue } from '../core/context';
 import { AnnotateService } from './annotate-service';
 import { AnnotateChrome } from './annotate-system';
 import { setNoteDownload } from './download';
+import { wheelTap } from '../core/recorder-tap';
 import { setVideoCapture, setVoiceCapture } from './media';
-import { stopAnnotateSession } from './session';
 import { debugPanes } from '../debug/panes';
 import type { NotePayload } from './types';
 
@@ -159,7 +159,6 @@ afterEach(() => {
   paneTeardown = null;
   teardown?.();
   teardown = null;
-  stopAnnotateSession();
   posted.length = 0;
   copied.length = 0;
   downloaded.length = 0;
@@ -416,23 +415,23 @@ describe('AnnotateService', () => {
     expect(streams).toBe(0);
     expect(service.filming.get()).toBe(false);
 
-    service.toggleVideo();
+    service.toggleRecording();
     expect(streams).toBe(1);
     service.disarm();
   });
 
-  it('carries the actions and state changes that led to the note', async () => {
+  it('carries the actions and state changes it was asked to record', async () => {
     stubFetch();
     const context = mountApp();
     const service = annotator(context);
     const board = context.services.get(BoardService);
 
     service.arm();
-    // This happens BEFORE the box is drawn, which is the normal order: you
-    // notice something and then complain about it. The rolling buffer has been
-    // running since mount, so the note carries it anyway.
-    board.toggleCell('3-7');
     service.pickRegion(OVER_CELL);
+    // Reproduce it while recording. This is the order the flow now asks for:
+    // draw the box, press record, do the thing.
+    service.toggleRecording();
+    board.toggleCell('3-7');
     service.setText('the cell does the wrong thing');
     service.save();
 
@@ -444,29 +443,51 @@ describe('AnnotateService', () => {
       action: 'toggleCell',
       args: ['3-7']
     });
-    expect(payload.startState['BoardService']).toMatchObject({ selection: ['3-7'] });
+    // The state the timeline is read against is the state when RECORDING
+    // started, not when the box was drawn — the two can be minutes apart.
+    expect(payload.startState['BoardService']).toMatchObject({ selection: [] });
     expect(payload.endedAt).toBeGreaterThanOrEqual(payload.startedAt);
     service.disarm();
   });
 
-  it('drops a timeline that explains nothing', async () => {
-    // A page with no services — a docs page, a component catalog of display
-    // fixtures. The buffer fills with raw input, which is noise dressed as
-    // evidence: eighteen recorded keystrokes say nothing about the note.
+  it('records nothing at all until record is pressed', async () => {
+    stubFetch();
+    const context = mountApp();
+    const service = annotator(context);
+    const board = context.services.get(BoardService);
+
+    service.arm();
+    board.toggleCell('3-7');
+    service.pickRegion(OVER_CELL);
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    service.setText('nothing was recorded');
+    service.save();
+
+    // A note that carries a timeline carries it because someone asked. This
+    // used to be a rolling buffer plus a gate that threw away the noise; the
+    // gate is gone because there is nothing to gate.
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    const payload = posted[0]!['payload'] as NotePayload;
+    expect(payload.timeline).toEqual([]);
+    expect(payload.startState).toEqual({});
+    service.disarm();
+  });
+
+  it('stops recording when the note is thrown away', () => {
     stubFetch();
     const context = mountApp();
     const service = annotator(context);
 
     service.arm();
-    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     service.pickRegion(OVER_CELL);
-    service.setText('nothing here has state');
-    service.save();
+    service.toggleRecording();
+    expect(wheelTap()).not.toBeNull();
 
-    await vi.waitFor(() => expect(posted).toHaveLength(1));
-    const payload = posted[0]!['payload'] as NotePayload;
-    expect(payload.timeline).toEqual([]);
-    expect(payload.startState).toEqual({});
+    // Discarding must take the taps out with the draft, or a recording nobody
+    // can see keeps running for the rest of the session.
+    service.discard();
+    expect(service.recording.get()).toBe(false);
+    expect(wheelTap()).toBeNull();
     service.disarm();
   });
 
@@ -479,8 +500,9 @@ describe('AnnotateService', () => {
     mountPane(context);
 
     service.arm();
-    board.toggleCell('3-7');
     service.pickRegion(OVER_CELL);
+    service.toggleRecording();
+    board.toggleCell('3-7');
 
     // Typing into the composer is not application behaviour. Without this the
     // timeline was mostly the keystrokes that wrote the note itself.
@@ -531,8 +553,9 @@ describe('AnnotateService', () => {
     );
 
     service.arm();
-    context.services.get(BoardService).toggleCell('3-7');
     service.pickRegion(OVER_CELL);
+    service.toggleRecording();
+    context.services.get(BoardService).toggleCell('3-7');
     service.setText('this row is wrong');
     writeAt = context.services.now();
     service.save();
@@ -548,8 +571,7 @@ describe('AnnotateService', () => {
   });
 
   it('keeps a timeline whose only evidence is a sync write', async () => {
-    // The gate used to require an action or a state change, which threw away
-    // the most valuable note there is: an edit the server rejected and rolled
+    // The most valuable note there is: an edit the server rejected and rolled
     // back moves no local atom, so its whole story is two writes and a cause.
     stubFetch();
     const context = mountApp();
@@ -576,6 +598,7 @@ describe('AnnotateService', () => {
 
     service.arm();
     service.pickRegion(OVER_CELL);
+    service.toggleRecording();
     service.setText('my edit vanished');
     writeAt = context.services.now();
     service.save();
@@ -597,8 +620,9 @@ describe('AnnotateService', () => {
     const service = annotator(context);
 
     service.arm();
-    context.services.get(BoardService).toggleCell('3-7');
     service.pickRegion(OVER_CELL);
+    service.toggleRecording();
+    context.services.get(BoardService).toggleCell('3-7');
     service.setText('nothing about this note is about the note');
     service.save();
 
@@ -625,7 +649,7 @@ describe('AnnotateService', () => {
     service.arm();
     service.pickRegion(OVER_CELL);
     service.setText('watch what happens here');
-    service.toggleVideo();
+    service.toggleRecording();
     await vi.waitFor(() => expect(service.filming.get()).toBe(true));
 
     // Saving while still recording must not drop the video on the floor —
@@ -767,7 +791,7 @@ describe('AnnotateService', () => {
     const service = annotator(context);
     service.arm();
     service.pickRegion(OVER_CELL);
-    service.toggleVideo();
+    service.toggleRecording();
     await vi.waitFor(() => expect(service.filming.get()).toBe(true));
 
     service.disarm();
@@ -811,20 +835,28 @@ describe('<WheelAnnotate/>', () => {
     service.disarm();
   });
 
-  it('buffers from mount, so a note covers what happened before it was written', () => {
+  it('taps nothing until record is pressed, and lets go when it stops', () => {
     stubFetch();
     const context = mountApp(() => <AnnotateChrome />);
     const service = context.services.get(AnnotateService);
     const board = context.services.get(BoardService);
 
-    // The bug this locks down: with the buffer starting at arm time, a note
-    // could only ever describe what happened after someone complained.
-    board.toggleCell('3-7');
+    // Arming is not recording. The kernel tap is the thing that costs, and it
+    // is a lie to leave it in for a note nobody asked to record.
     service.arm();
+    board.toggleCell('3-7');
+    expect(wheelTap()).toBeNull();
+    expect(service.timeline()).toHaveLength(0);
 
+    service.pickRegion(OVER_CELL);
+    service.toggleRecording();
+    board.toggleCell('4-2');
     expect(
       service.timeline().some((event) => event.kind === 'action' && event.action === 'toggleCell')
     ).toBe(true);
+
+    service.toggleRecording();
+    expect(wheelTap()).toBeNull();
     service.disarm();
   });
 

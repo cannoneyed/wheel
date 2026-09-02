@@ -44,6 +44,7 @@ import type { SyncClient } from '../sync/client/client';
 import { WheelProvider, ServiceProvider } from '../core/connect';
 import { WheelContext } from '../core/context';
 import { DebugChrome } from '../core/connect';
+import { chromeMark } from '../core/chrome';
 import { debugPanes, type DebugPane } from './panes';
 import { isWheelDevMode } from '../core/dev-mode';
 
@@ -479,6 +480,7 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
               width: `${width()}px`
             }}
             data-testid="wheel-debug-panel"
+            {...chromeMark}
           >
             <div
               style={dockStyles.resizeHandle}
@@ -503,6 +505,7 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
           onClick={() => toggle(true)}
           data-testid="wheel-debug-toggle"
           aria-label="open debug panel"
+          {...chromeMark}
         >
           🥝 wheel
         </button>

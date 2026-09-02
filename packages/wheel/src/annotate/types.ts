@@ -233,8 +233,11 @@ export interface AnnotateSink {
   readonly headers?: Record<string, string>;
 }
 
-/** The small vocabulary a note can be tagged with — enough to sort by, short enough to pick fast. */
-export type NoteLabel = 'bug' | 'question' | 'idea' | 'todo' | 'looks-good';
+/**
+ * The small vocabulary a note can be tagged with — enough to sort by, short
+ * enough to pick fast, and short enough that each one gets its own key.
+ */
+export type NoteLabel = 'bug' | 'question' | 'idea' | 'todo';
 
 /** A voice note: the transcript is what the agent reads, the audio is the receipt. */
 export interface NoteVoice {

@@ -32,7 +32,6 @@ import { causeMutations } from '../sync/client/provenance';
 import { anchorToRegion, targetOf, targetsUnder } from './anchor';
 import { rasterizeRegion } from './rasterize';
 import { Recorder, stateTreeSnapshot } from './recorder';
-import { annotateRecorder, startAnnotateSession } from './session';
 import { downloadNote } from './download';
 import { noteId, renderNoteFile, renderNoteMarkdown } from './note-format';
 import { startVideo, startVoice, type VideoSession, type VoiceSession } from './media';
@@ -150,6 +149,15 @@ export class AnnotateService extends Service {
   readonly draft = this.atom<NoteDraft | null>(null, 'draft');
   /** True while the screen is being recorded into the open draft. */
   readonly filming = this.atom(false, 'filming');
+
+  /**
+   * Whether a recording is running: the taps are in, and a clip is open.
+   *
+   * Distinct from {@link filming}, which is only about the screen video. The
+   * screen prompt can be refused while the app's actions and state are still
+   * being recorded, and that case has to be visible.
+   */
+  readonly recording = this.atom(false, 'recording');
   /** True once the sink answered — which is what proves it can be saved to. */
   readonly canSave = this.atom(false, 'canSave');
   /** Absolute directory of the last save. */
@@ -183,23 +191,19 @@ export class AnnotateService extends Service {
   /** Cancels the pending auto-dismiss, so a new message never inherits an old timer. */
   private readonly stopDismiss = this.field<(() => void) | null>(null, 'stopDismiss');
 
-  /** Used only when nothing started a page-wide session (direct service use, tests). */
-  private readonly ownRecorder = new Recorder({
+  /**
+   * The event recorder, installed only while a recording runs.
+   *
+   * It used to be a page-wide rolling buffer, always on, so a note could carry
+   * the minute BEFORE the box was drawn. That was the wrong trade in practice:
+   * an always-on tap records everything a session does whether or not anyone
+   * ever writes a note, and what it mostly captured was the act of using the
+   * tools. Recording is now something you ask for — see {@link toggleRecording}.
+   */
+  private readonly recorder = new Recorder({
     now: () => this.now(),
     registry: this.context.registry
   });
-
-  /**
-   * The rolling buffer, resolved on every read.
-   *
-   * It has to be lazy: `WheelAnnotate` starts the page-wide session, and this
-   * service is constructed by the chrome that loads AFTERWARDS. Binding the
-   * recorder at construction time picked the private fallback and quietly
-   * recorded into a buffer no tap was feeding.
-   */
-  private get recorder(): Recorder {
-    return annotateRecorder() ?? this.ownRecorder;
-  }
   private readonly client = this.field<SyncClient | null>(null, 'client');
   private readonly sink = this.field<AnnotateSink>(DEFAULT_SINK, 'sink');
   private readonly capture = this.field<AnnotateCapture | null>(null, 'capture');
@@ -231,42 +235,22 @@ export class AnnotateService extends Service {
     'attach'
   );
 
-  /**
-   * Start the rolling retro buffer. `WheelAnnotate` calls this on MOUNT, not
-   * on arm — "save the last minute" is worthless if the minute only starts
-   * once you have already noticed the bug. Whether it runs at all is the
-   * mount's decision (`enabled`), so a public production page records
-   * nothing unless the app says otherwise.
-   */
-  readonly beginSession = this.action(() => {
-    startAnnotateSession({ now: () => this.now(), registry: this.context.registry });
-  }, 'beginSession');
-
-  /** Turn annotation mode on: the marquee goes live. */
+  /** Turn annotation mode on: the marquee goes live. Nothing is recorded yet. */
   readonly arm = this.action(() => {
     if (this.mode.get() !== 'off') return;
-    // Idempotent, and normally already done by the page-wide session that
-    // started at mount. It matters when there is no session — a service used
-    // directly, or a test.
-    this.recorder.install();
     this.mode.set('armed');
     this.probeSink();
   }, 'arm');
 
-  /**
-   * Leave annotation mode: drops any draft and stops any recording.
-   *
-   * In dev the taps stay installed, because the retro buffer is a property of
-   * the session rather than of the chrome. In production they come out.
-   */
+  /** Leave annotation mode: drops any draft, and stops any recording with it. */
   readonly disarm = this.action(() => {
     this.cancelVoice();
-    this.cancelVideo();
+    this.cancelRecording();
     this.draft.set(null);
     this.mode.set('off');
   }, 'disarm');
 
-  /** Unmount: disarm. The session recorder keeps running; `stopAnnotateSession` ends it. */
+  /** Unmount: disarm, which takes the taps out with it. */
   readonly endSession = this.action(() => {
     this.disarm();
   }, 'endSession');
@@ -306,6 +290,48 @@ export class AnnotateService extends Service {
       if (shot) this.patchDraft({ shot });
     });
   }, 'pickRegion');
+
+  /**
+   * Move or resize the open rectangle.
+   *
+   * The rectangle IS the question, so changing it changes what the note is
+   * about: the anchor, the components underneath and the picture are all
+   * re-taken. What you have already written is kept — you are correcting the
+   * aim, not starting again.
+   *
+   * Called on release rather than per frame. Hit-testing the whole tree and
+   * rasterizing the DOM both cost real time, and the app being annotated is
+   * the app they would cost it on.
+   */
+  readonly reshapeRegion = this.action((rect: NoteRect) => {
+    const draft = this.draft.get();
+    if (!draft) return;
+    const registry = this.context.registry;
+    const nearby = targetsUnder(registry, rect, NEARBY_LIMIT);
+    const innermost = nearby[0] ? registry.instance(nearby[0].instanceId) : undefined;
+    this.draft.set({
+      ...draft,
+      anchor: anchorToRegion(registry, rect),
+      target: innermost ? targetOf(registry, innermost) : null,
+      nearby
+    });
+    void rasterizeRegion(rect).then((shot) => {
+      if (shot) this.patchDraft({ shot });
+    });
+  }, 'reshapeRegion');
+
+  /**
+   * Show the rectangle where the pointer has dragged it to, and nothing more.
+   *
+   * Separate from {@link reshapeRegion} because a drag writes this on every
+   * frame: it moves the outline and leaves the expensive half — what is under
+   * it, and the picture of it — for the release.
+   */
+  readonly previewRegion = this.action((rect: NoteRect) => {
+    const draft = this.draft.get();
+    if (!draft) return;
+    this.draft.set({ ...draft, anchor: { ...draft.anchor, rect } });
+  }, 'previewRegion');
 
   /** Typed note text. */
   readonly setText = this.action((text: string) => {
@@ -372,21 +398,35 @@ export class AnnotateService extends Service {
   }, 'stopListening');
 
   /**
-   * Switch screen recording on or off for the open note.
+   * Start or stop recording: the screen AND what the app does, together.
    *
-   * A switch rather than a mode: the timeline is recorded either way, and
-   * video is the illustration you opt into. It is never automatic, because
-   * starting it opens a browser permission prompt and a note is worth writing
-   * without one.
+   * One switch, because they answer one question. A video with no timeline is
+   * a screen capture anyone could have sent; a timeline with no video is a
+   * list of names with nothing to point at. Pressing record asks for both.
    *
-   * Switching it on and leaving it on is fine — `save()` stops the recording
-   * and attaches it, so there is nothing to remember to press.
+   * Nothing is recorded until this is pressed. The taps install here and come
+   * out when it stops, so a session that never records never pays for one, and
+   * a note that carries a timeline carries it because someone asked.
+   *
+   * The screen prompt may be refused, and that must not cost the timeline —
+   * the semantic half is the half no other tool has. So the recorder starts
+   * first and the video is allowed to fail behind it.
+   *
+   * Leaving it running is fine: `save()` stops it and attaches the result.
    */
-  readonly toggleVideo = this.action(() => {
-    if (this.video.get()) {
-      this.stopVideo();
+  readonly toggleRecording = this.action(() => {
+    if (this.recording.get()) {
+      this.stopRecording();
       return;
     }
+    this.recorder.install();
+    this.recorder.startClip();
+    this.errorCursor.set(activeErrorLog()?.entries().length ?? 0);
+    this.recording.set(true);
+    // The timeline is only readable against the state it started from, and
+    // that state is NOW — not when the box was drawn, which may be minutes ago.
+    this.patchDraft({ startState: stateTreeSnapshot(this.context.registry) });
+
     const capture = this.capture.get();
     if (!capture) return;
     this.hold('asking for screen capture…');
@@ -396,8 +436,8 @@ export class AnnotateService extends Service {
         this.filming.set(true);
         this.hold(null);
       })
-      .catch(() => this.say('no video — the note records everything else all the same'));
-  }, 'toggleVideo');
+      .catch(() => this.say('no screen video — still recording what the app does'));
+  }, 'toggleRecording');
 
   /**
    * Reopen a note written this session, to change what it says.
@@ -432,7 +472,7 @@ export class AnnotateService extends Service {
   /** Throw the draft away and go back to armed. */
   readonly discard = this.action(() => {
     this.cancelVoice();
-    this.cancelVideo();
+    this.cancelRecording();
     this.draft.set(null);
     this.mode.set('armed');
   }, 'discard');
@@ -447,9 +487,13 @@ export class AnnotateService extends Service {
   readonly save = this.action(() => {
     const draft = this.draft.get();
     if (!draft) return;
+    // Read the clip BEFORE the taps come out: `deliver` builds the payload,
+    // and an uninstalled recorder has nothing left to tell it.
+    const timeline = this.recording.get() ? this.harvest(...this.clipWindow()) : [];
     const session = this.video.get();
+    this.endRecording();
     if (!session) {
-      this.deliver(draft);
+      this.deliver(draft, timeline);
       return;
     }
     this.video.set(null);
@@ -457,8 +501,8 @@ export class AnnotateService extends Service {
     this.hold('finishing the recording…');
     void session
       .stop()
-      .then((video) => this.deliver({ ...draft, video }))
-      .catch(() => this.deliver(draft));
+      .then((video) => this.deliver({ ...draft, video }, timeline))
+      .catch(() => this.deliver(draft, timeline));
   }, 'save');
 
   /**
@@ -468,8 +512,8 @@ export class AnnotateService extends Service {
    * fast, hit save, and a note would go to a file even though a sink was right
    * there. So this always tries the sink, and catches.
    */
-  private deliver(draft: NoteDraft): void {
-    const payload = this.buildPayload(draft);
+  private deliver(draft: NoteDraft, timeline: readonly RecordedEvent[]): void {
+    const payload = this.buildPayload(draft, timeline);
     const body = {
       id: payload.id,
       payload,
@@ -601,7 +645,33 @@ export class AnnotateService extends Service {
     this.voice.set(null);
   }
 
-  /** Stop recording and keep the video for the open draft. */
+  /** Stop recording, keeping what it captured for the open draft. */
+  private stopRecording(): void {
+    this.stopVideo();
+    this.endRecording();
+  }
+
+  /** Drop a recording the draft it belonged to will never use. */
+  private cancelRecording(): void {
+    this.cancelVideo();
+    this.endRecording();
+  }
+
+  /** Take the taps out and close the clip. Safe to call when nothing is running. */
+  private endRecording(): void {
+    if (!this.recording.get()) return;
+    this.recorder.endClip();
+    this.recorder.uninstall();
+    this.recording.set(false);
+  }
+
+  /** The window a running clip covers: its first event (or its start) to now. */
+  private clipWindow(): [number, number] {
+    const started = this.recorder.clipStartedAt() ?? this.now();
+    return [this.recorder.timeline()[0]?.at ?? started, this.now()];
+  }
+
+  /** Stop the screen video and keep it for the open draft. */
   private stopVideo(): void {
     const session = this.video.get();
     if (!session) return;
@@ -660,8 +730,13 @@ export class AnnotateService extends Service {
     return this.recorder.harvest(from, to, extra);
   }
 
-  /** Assemble the payload that becomes `note.json` (and, projected, `note.md`). */
-  private buildPayload(draft: NoteDraft): NotePayload {
+  /**
+   * Assemble the payload that becomes `note.json` (and, projected, `note.md`).
+   *
+   * The timeline is passed IN rather than read here, because by the time this
+   * runs the recorder has been stopped and its taps taken out.
+   */
+  private buildPayload(draft: NoteDraft, timeline: readonly RecordedEvent[]): NotePayload {
     const at = this.now();
     // A rewrite keeps its evidence: same id, same anchor, same timeline, same
     // state. Only the words are the author's to change.
@@ -685,31 +760,16 @@ export class AnnotateService extends Service {
       ...(draft.video ? ['clip.webm'] : []),
       ...(draft.audio ? ['audio.webm'] : [])
     ];
-    // The window reaches back past the moment the box was drawn, because the
-    // rolling buffer has been running since the annotator mounted. The thing
-    // being complained about almost always happened BEFORE the complaint.
+    // A note carries a timeline when someone pressed record, and not
+    // otherwise. There is no evidence gate any more: the gate existed because
+    // an always-on buffer filled a note with raw input that explained nothing,
+    // and an explicit recording cannot have that problem. What was asked for
+    // is what is saved, even if the app turned out to do nothing — "I pressed
+    // record and it did nothing" is itself the finding.
     //
-    // But only if the app DID anything. On a page with no services — a docs
-    // page, a landing scroll, a catalog of display fixtures — the buffer holds
-    // nothing but raw input, and eighteen recorded keystrokes explain nothing
-    // about anything. That is noise dressed as evidence, so it is dropped
-    // along with the empty state tree that goes with it.
-    //
-    // "Anything" means an action, a state change, a sync write or an error.
-    // Writes and errors count precisely because a note may have NO local
-    // action behind it: an edit the server rejected and rolled back is a
-    // write, a cause and an error, with the app's own atoms never moving —
-    // and it is the single most useful thing a note can carry.
-    const recorded = this.harvest(this.recorder.timeline()[0]?.at ?? draft.openedAt, at);
-    const explains = recorded.some(
-      (event) =>
-        event.kind === 'action' ||
-        event.kind === 'state' ||
-        event.kind === 'write' ||
-        event.kind === 'error'
-    );
-    const timeline = explains ? recorded : [];
-    const startState = explains ? draft.startState : {};
+    // The start state travels with the timeline for the same reason: a list of
+    // transitions is only readable against what the app held before them.
+    const startState = timeline.length > 0 ? draft.startState : {};
     return {
       id: noteId(at, draft.text || draft.transcript, draft.anchor.name),
       at,
