@@ -216,7 +216,7 @@ describe('WheelApp', () => {
     // Deepest match = the summary row carrying the click handler (its
     // wrapper div has identical textContent and comes first in order).
     const cardRow = [...panel.querySelectorAll<HTMLElement>('[data-tree-row]')].find(
-      (row) => row.textContent?.replace(/[◆▪◎]/g, '') === '▸Card'
+      (row) => row.textContent?.replace(/[◆▪◎👁·]/g, '').trim() === '▸Card'
     );
     expect(cardRow).toBeTruthy();
     cardRow!.click();
@@ -345,7 +345,7 @@ describe('WheelApp', () => {
     testid('wheel-debug-toggle')!.click();
     const panel = testid('wheel-debug-panel')!;
     const listRow = [...panel.querySelectorAll<HTMLElement>('[data-tree-row]')].find(
-      (row) => row.textContent?.replace(/[◆▪◎]/g, '') === '▸RowList'
+      (row) => row.textContent?.replace(/[◆▪◎👁·]/g, '').trim() === '▸RowList'
     );
     listRow!.click();
 
@@ -354,7 +354,7 @@ describe('WheelApp', () => {
     expect(panel.textContent).not.toContain('Row#1');
 
     const group = [...panel.querySelectorAll<HTMLElement>('[data-tree-row]')].find(
-      (row) => row.textContent?.replace(/[◆▪◎]/g, '') === '▸Row[](3)'
+      (row) => row.textContent?.replace(/[◆▪◎👁·]/g, '').trim() === '▸Row[](3)'
     );
     group!.click();
     expect(panel.textContent).toContain('Row#1');

@@ -235,6 +235,62 @@ const childLinkStyle = {
 } satisfies JSX.CSSProperties;
 
 /**
+ * Whether a value is carrying no information.
+ *
+ * `false`, `null`, `undefined` and `''` are what a component reports for the
+ * things nobody asked about. A `0` is NOT one of them — a count of zero is a
+ * fact, and hiding it would be hiding an answer.
+ */
+function isUnset(value: unknown): boolean {
+  return value === false || value === null || value === undefined || value === '';
+}
+
+/**
+ * A group of values, with the empty ones folded away.
+ *
+ * `CheckboxRoot` reports twelve keys and eleven of them say `false`. Every one
+ * is true and almost none of it is what you opened the panel for, so the ones
+ * carrying nothing collapse behind a count you can press. Nothing is hidden
+ * permanently — this is about what to read FIRST.
+ */
+function ValueGroup(props: {
+  entries: () => Array<readonly [string, unknown]>;
+  path: string;
+  ex: ExpandState;
+}): JSX.Element {
+  const set = (): Array<readonly [string, unknown]> => props.entries().filter(([, v]) => !isUnset(v));
+  const unset = (): Array<readonly [string, unknown]> => props.entries().filter(([, v]) => isUnset(v));
+  const showUnset = (): boolean => props.ex.expanded(`${props.path}::unset`);
+  return (
+    <>
+      <For each={set()}>
+        {([key, value]) => (
+          <JsonTree path={`${props.path}.${key}`} label={key} value={value} ex={props.ex} />
+        )}
+      </For>
+      <Show when={unset().length > 0}>
+        <div
+          style={{ ...sectionStyles.row, cursor: 'pointer' }}
+          data-testid="wheel-tree-unset-toggle"
+          onClick={() => props.ex.toggle(`${props.path}::unset`)}
+        >
+          <span style={sectionStyles.dim}>
+            {showUnset() ? '▾' : '…'} {unset().length} unset
+          </span>
+        </div>
+        <Show when={showUnset()}>
+          <For each={unset()}>
+            {([key, value]) => (
+              <JsonTree path={`${props.path}.${key}`} label={key} value={value} ex={props.ex} />
+            )}
+          </For>
+        </Show>
+      </Show>
+    </>
+  );
+}
+
+/**
  * One component's own data: what it was given, what it keeps, what it can do.
  *
  * A SUB-VIEW rather than rows nested in the tree. Four groups inline under
@@ -292,23 +348,14 @@ function ComponentDetail(props: {
               defaultOpen
               ex={props.ex}
             >
-              <For each={Object.entries(liveProps())}>
-                {([key, value]) => (
-                  <Show
-                    when={key === 'children'}
-                    fallback={
-                      <JsonTree
-                        path={`tree:${props.node.key}:props.${key}`}
-                        label={key}
-                        value={value}
-                        ex={props.ex}
-                      />
-                    }
-                  >
-                    <ChildLinks node={props.node} services={props.services} reveal={props.reveal} />
-                  </Show>
-                )}
-              </For>
+              <Show when={'children' in liveProps()}>
+                <ChildLinks node={props.node} services={props.services} reveal={props.reveal} />
+              </Show>
+              <ValueGroup
+                entries={() => Object.entries(liveProps()).filter(([key]) => key !== 'children')}
+                path={`tree:${props.node.key}:props`}
+                ex={props.ex}
+              />
             </Expandable>
           </Show>
           {/* Component-LOCAL signals (useSignal), distinct from the
@@ -349,16 +396,11 @@ function ComponentDetail(props: {
               defaultOpen
               ex={props.ex}
             >
-              <For each={Object.entries(liveState())}>
-                {([key, value]) => (
-                  <JsonTree
-                    path={`tree:${props.node.key}.${key}`}
-                    label={key}
-                    value={value}
-                    ex={props.ex}
-                  />
-                )}
-              </For>
+              <ValueGroup
+                entries={() => Object.entries(liveState())}
+                path={`tree:${props.node.key}:state`}
+                ex={props.ex}
+              />
             </Expandable>
           </Show>
           <Show when={instanceRecord().actions.length > 0}>
@@ -414,6 +456,9 @@ const detailStyles = {
 /** The row's inspect toggle: quiet until it is on. */
 const inspectStyle = {
   padding: 0,
+  // Space before the name, so the eye reads as its own control rather than a
+  // prefix on the label.
+  'margin-right': '4px',
   'line-height': 1,
   border: 'none',
   background: 'none',
@@ -493,9 +538,12 @@ function TreeNode(props: {
             title={`${inspecting() ? 'hide' : 'show'} props, state and actions`}
             onClick={() => props.inspect(inspecting() ? null : props.node.key)}
           >
-            ◎
+            👁
           </button>
         }
+        // The name asks "what is this holding", which is the same question the
+        // eye asks. The caret stays the only thing that opens the children.
+        onLabelClick={() => props.inspect(inspecting() ? null : props.node.key)}
       >
         <TreeChildren
           nodes={props.node.children}

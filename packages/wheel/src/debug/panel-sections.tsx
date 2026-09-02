@@ -214,6 +214,14 @@ export function Expandable(props: {
   onRowEnter?: () => void;
   onRowLeave?: () => void;
   /**
+   * What pressing the NAME does, when that is different from opening the row.
+   *
+   * In the component tree the caret opens the children and the name opens the
+   * component — two questions, two targets, rather than one control that has
+   * to guess which you meant.
+   */
+  onLabelClick?: () => void;
+  /**
    * A control between the caret and the label, where an icon would be.
    *
    * It sits INSIDE the row so it lines up with everything else, but outside
@@ -249,8 +257,18 @@ export function Expandable(props: {
           <span style={{ color: props.accent ?? 'var(--wheel-stage-ink-faint, #8b8b8b)' }}>{props.icon}</span>
         </Show>
         <span
-          style={{ ...sectionStyles.summaryLabel, ...(props.accent ? { color: props.accent } : {}) }}
+          style={{
+            ...sectionStyles.summaryLabel,
+            ...(props.accent ? { color: props.accent } : {}),
+            ...(props.onLabelClick ? { cursor: 'pointer' } : {})
+          }}
           title={props.label}
+          data-tree-label=""
+          onClick={(event) => {
+            if (!props.onLabelClick) return;
+            event.stopPropagation();
+            props.onLabelClick();
+          }}
         >
           {props.label}
         </span>

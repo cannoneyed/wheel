@@ -119,7 +119,14 @@ export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
       .then((module) => setChrome(() => module.AnnotateChrome))
       .catch((error: unknown) => {
         loading = false;
-        logger.warn('wheel: annotation chrome failed to load', error);
+        // Nearly always a stale page: the chunk name carries a content hash,
+        // so a rebuild while the tab sat open leaves it asking for a file that
+        // no longer exists. Worth saying, because "failed to fetch" reads like
+        // a network fault and the fix is a reload.
+        logger.warn(
+          'wheel: annotation chrome failed to load — if the app was rebuilt while this page was open, reload it',
+          error
+        );
       });
   };
 

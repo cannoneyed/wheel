@@ -120,6 +120,51 @@ test('a row shows what a component is, and opens its data on request', async ({ 
   await expect(pane.getByTestId('wheel-tree-detail')).toHaveCount(0);
 });
 
+test('the name opens the component, the caret opens its children', async ({ page }) => {
+  const pane = page.getByTestId('wheel-pane-components');
+  const rows = pane.locator('[data-tree-row]');
+
+  // Two questions, two targets. Pressing the name asks "what is this holding",
+  // which is the same question the eye asks — and it must not also expand.
+  const before = await rows.count();
+  // A component row, not a bucket heading: only a component has data to open.
+  const label = pane.locator('[data-tree-node] [data-tree-row] [data-tree-label]').first();
+  await label.click();
+
+  await expect(pane.getByTestId('wheel-tree-detail')).toBeVisible();
+  expect(await rows.count()).toBe(before);
+});
+
+test('values carrying nothing fold away until asked for', async ({ page }) => {
+  const pane = page.getByTestId('wheel-pane-components');
+  for (let pass = 0; pass < 10; pass += 1) {
+    const closed = pane.locator('[data-tree-row]').filter({ hasText: /^▸/ }).first();
+    if ((await closed.count()) === 0) break;
+    await closed.click();
+  }
+
+  // Open components until one has values to fold. A part like CheckboxRoot
+  // reports a dozen keys and almost all of them say `false`: every one true,
+  // and almost none of it what the panel was opened for.
+  const toggles = pane.getByTestId('wheel-tree-inspect');
+  const count = await toggles.count();
+  let fold = pane.getByTestId('wheel-tree-unset-toggle');
+  for (let index = 0; index < count; index += 1) {
+    await toggles.nth(index).click();
+    if ((await fold.count()) > 0) break;
+  }
+  await expect(fold.first()).toBeVisible();
+
+  const detail = pane.getByTestId('wheel-tree-detail');
+  const before = (await detail.innerText()).split('\n').length;
+  await fold.first().click();
+
+  // Nothing is hidden permanently — this is about what to read first.
+  await expect
+    .poll(async () => (await detail.innerText()).split('\n').length)
+    .toBeGreaterThan(before);
+});
+
 test('the inspect toggle does not also expand the row it sits in', async ({ page }) => {
   const pane = page.getByTestId('wheel-pane-components');
   const rows = pane.locator('[data-tree-row]');

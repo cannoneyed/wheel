@@ -245,6 +245,22 @@ test.describe('/demos (embedded, in-browser sync)', () => {
     await expect(page.getByTestId('routing-demo')).toBeVisible();
   });
 
+  test('a chunk that is no longer there 404s, rather than answering with a page', async ({ request }) => {
+    // Asset names carry a content hash, so a page left open across a rebuild
+    // asks for a chunk that no longer exists. The embed used to answer that
+    // with index.html and a 200 — the browser then reported "Failed to fetch
+    // dynamically imported module", which reads like a network fault and is
+    // really "reload this tab".
+    const response = await request.get('/demos/assets/annotate-system-STALEHASH.js');
+    expect(response.status()).toBe(404);
+    expect(await response.text()).toContain('reload');
+
+    // A ROUTE that does not exist is still the demos app's own 404 page.
+    const route = await request.get('/demos/routing/does-not-exist');
+    expect(route.status()).toBe(200);
+    expect(await route.text()).toContain('<!doctype html');
+  });
+
   test('the broken-link 404 stays inside the demos app, not the host site', async ({ page }) => {
     await page.goto('/demos/routing');
     // Deliberate full page load onto an unknown URL: the demos app's 404 must
