@@ -4,10 +4,17 @@ defmodule WheelSync.MixProject do
   def project do
     [
       app: :wheel_sync,
-      version: "0.2.0",
+      version: "0.2.1",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
+      description: "Wheel protocol v3 sync server for Elixir and PostgreSQL.",
+      source_url: "https://github.com/cannoneyed/wheel/tree/main/elixir/wheel_sync",
+      homepage_url: "https://wheel.dev",
+      package: [
+        licenses: ["LicenseRef-Cannoneyed-Proprietary"],
+        links: %{"GitHub" => "https://github.com/cannoneyed/wheel"}
+      ],
       deps: deps()
     ]
   end

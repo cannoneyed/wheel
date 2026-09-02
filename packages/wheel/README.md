@@ -5,7 +5,7 @@ Wheel is a local-first Solid application framework. One package exposes separate
 > **Alpha software:** Wheel is in active v0 development. APIs and stored data formats can change between releases. Pin an exact version and test upgrades before deployment.
 
 ```sh
-bun add wheel@npm:@cannoneyed/wheel@0.2.0 solid-js
+bun add wheel@npm:@cannoneyed/wheel@0.2.1 solid-js
 ```
 
 `wheel` is the local npm alias for `@cannoneyed/wheel`. The exact version keeps every Wheel surface on one release.

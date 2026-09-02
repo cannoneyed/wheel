@@ -5,7 +5,7 @@ Wheel is the batteries-included framework for building apps on Durable Objects w
 > **Alpha software:** Wheel is in active v0 development. APIs and stored data formats can change between releases. Pin an exact version and test upgrades before deployment.
 
 ```
-bun add wheel@npm:@cannoneyed/wheel@0.2.0 solid-js
+bun add wheel@npm:@cannoneyed/wheel@0.2.1 solid-js
 ```
 
 `wheel` is the local npm alias. Keep imports such as `wheel/core` unchanged.

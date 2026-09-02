@@ -2,6 +2,18 @@
 
 `wheel_sync` serves Wheel protocol v3 over WebSocket with Elixir and Postgres. The TypeScript client connects without an adapter or client change.
 
+## Install
+
+Add the exact Wheel Sync version to your dependencies:
+
+```elixir
+defp deps do
+  [
+    {:wheel_sync, "0.2.1"}
+  ]
+end
+```
+
 The existing TypeScript SQLite and Durable Object engines remain supported. Applications choose a server by changing the `/sync/websocket` target.
 
 - [Layout](#layout)

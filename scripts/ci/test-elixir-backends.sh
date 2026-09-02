@@ -74,6 +74,7 @@ docker run --rm \
     MIX_ENV=test mix deps.get
     mix format --check-formatted
     MIX_ENV=test mix test --warnings-as-errors
+    MIX_ENV=test mix hex.build --output _build/wheel_sync.tar
     cd ../tracker
     mix deps.get
     mix format --check-formatted
