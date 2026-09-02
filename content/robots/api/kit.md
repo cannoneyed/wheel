@@ -102,7 +102,7 @@ Configuration for one DOM-bound gesture.
 
 ## `createMenuStack`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:217](../../../packages/wheel/src/kit/menu-stack.ts#L217).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:221](../../../packages/wheel/src/kit/menu-stack.ts#L221).
 
 Build a stack over `root`. `onChange` fires after every state change.
 
@@ -144,7 +144,7 @@ A completed dock drop, reported by `Frame.Dock` and applied by an app action.
 
 ## `flattenLeaves`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:192](../../../packages/wheel/src/kit/menu-stack.ts#L192).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:196](../../../packages/wheel/src/kit/menu-stack.ts#L196).
 
 Every ACTION in the tree, depth first, with the groups dropped. A filtered list holds leaves only. Offering "Heading" beside "Heading 1" would make the user choose twice for one outcome. A level that carries a grid or an input is a WIDGET, and the search does not enter it. Its items configure that widget — "Header row" belongs to the size picker, not to the catalogue, and reaching that setting from a filter would flip it for a picker the user is not looking at. The GROUP stands in for it instead, so `/table` still finds the picker in one step.
 
@@ -306,7 +306,7 @@ Modifier-key state carried with every gesture sample.
 
 ## `GridPoint`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:104](../../../packages/wheel/src/kit/menu-stack.ts#L104).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:108](../../../packages/wheel/src/kit/menu-stack.ts#L108).
 
 Where the highlight sits inside a level's grid.
 
@@ -420,49 +420,49 @@ A menu entry that runs an action.
 
 ## `MenuGrid`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:70](../../../packages/wheel/src/kit/menu-stack.ts#L70).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:74](../../../packages/wheel/src/kit/menu-stack.ts#L74).
 
 A size picker: a grid of empty squares the pointer sweeps to choose a count. Word, Google Docs, and Notion all insert a table this way, and it beats two number fields because the shape is the answer.
 
 ## `MenuGroup`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:48](../../../packages/wheel/src/kit/menu-stack.ts#L48).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:50](../../../packages/wheel/src/kit/menu-stack.ts#L50).
 
 A menu entry that opens a submenu.
 
 ## `MenuInput`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:84](../../../packages/wheel/src/kit/menu-stack.ts#L84).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:88](../../../packages/wheel/src/kit/menu-stack.ts#L88).
 
 A level that asks for a value: a link's address, a new name. The field takes the focus and the keys, so the items below it stay reachable with the pointer but stop answering the arrows.
 
 ## `MenuItem`
 
-Kind: type. Source: [packages/wheel/src/kit/menu-stack.ts:63](../../../packages/wheel/src/kit/menu-stack.ts#L63).
+Kind: type. Source: [packages/wheel/src/kit/menu-stack.ts:67](../../../packages/wheel/src/kit/menu-stack.ts#L67).
 
 One entry: it RUNS, or it PUSHES.
 
 ## `MenuLevel`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:93](../../../packages/wheel/src/kit/menu-stack.ts#L93).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:97](../../../packages/wheel/src/kit/menu-stack.ts#L97).
 
 One level of the stack: what it is called, and what it holds.
 
 ## `menuMatches`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:209](../../../packages/wheel/src/kit/menu-stack.ts#L209).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:213](../../../packages/wheel/src/kit/menu-stack.ts#L213).
 
 Entries matching `query` across the WHOLE tree, or the level's own.
 
 ## `MenuStack`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:135](../../../packages/wheel/src/kit/menu-stack.ts#L135).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:139](../../../packages/wheel/src/kit/menu-stack.ts#L139).
 
 The headless stack (see module doc).
 
 ## `MenuStackPanel`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack-panel.tsx:122](../../../packages/wheel/src/kit/menu-stack-panel.tsx#L122).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack-panel.tsx:126](../../../packages/wheel/src/kit/menu-stack-panel.tsx#L126).
 
 The stacked menu panel (see module doc).
 
@@ -474,7 +474,7 @@ What the panel needs to draw one stack.
 
 ## `MenuStackState`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:112](../../../packages/wheel/src/kit/menu-stack.ts#L112).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:116](../../../packages/wheel/src/kit/menu-stack.ts#L116).
 
 Everything a renderer needs to draw the menu.
 
