@@ -382,8 +382,12 @@ function AnnotateArm(props: { service: AnnotateService }): JSX.Element {
  * What this session has written.
  *
  * A saved note used to vanish: the only evidence was a clipboard you had to
- * trust. Each row here is a note that exists, and pressing it puts its handle
- * back on the clipboard.
+ * trust. Each row here is a note that EXISTS — press it to rewrite what it
+ * says, or ⧉ to put its handle back on the clipboard.
+ *
+ * Rewriting is the row's main press because the first draft of a bug report is
+ * usually written in a hurry, and the second one is the useful one. Saving it
+ * lands on the same note rather than beside it.
  */
 function SavedNotes(props: { service: AnnotateService }): JSX.Element {
   const notes = (): readonly SavedNote[] => props.service.saved.get();
@@ -392,19 +396,32 @@ function SavedNotes(props: { service: AnnotateService }): JSX.Element {
       <div style={paneStyles.title}>saved this session ({notes().length})</div>
       <For each={[...notes()].reverse()}>
         {(note) => (
-          <button
-            type="button"
-            style={paneStyles.note}
-            data-testid="wheel-annotate-saved"
-            title={note.command ?? note.id}
-            onClick={() => props.service.copyHandle(note)}
-          >
-            <span style={paneStyles.noteLabel}>{note.label}</span>
-            <span style={paneStyles.noteText}>{note.text}</span>
-            <Show when={note.delivery === 'download'}>
-              <span style={paneStyles.noteWhere}>downloaded</span>
+          <div style={paneStyles.noteRow} data-testid="wheel-annotate-saved">
+            <button
+              type="button"
+              style={paneStyles.note}
+              data-testid="wheel-annotate-edit"
+              title="Rewrite this note"
+              onClick={() => props.service.editNote(note)}
+            >
+              <span style={paneStyles.noteLabel}>{note.label}</span>
+              <span style={paneStyles.noteText}>{note.text}</span>
+              <Show when={note.delivery === 'download'}>
+                <span style={paneStyles.noteWhere}>downloaded</span>
+              </Show>
+            </button>
+            <Show when={note.command}>
+              <button
+                type="button"
+                style={paneStyles.noteCopy}
+                data-testid="wheel-annotate-copy"
+                title={note.command ?? undefined}
+                onClick={() => props.service.copyHandle(note)}
+              >
+                ⧉
+              </button>
             </Show>
-          </button>
+          </div>
         )}
       </For>
     </Show>
@@ -454,7 +471,17 @@ const paneStyles = {
     'white-space': 'nowrap',
     'min-width': 0
   },
-  noteWhere: { color: 'var(--wheel-stage-ink-faint, #8b8b8b)', 'flex-shrink': 0 }
+  noteWhere: { color: 'var(--wheel-stage-ink-faint, #8b8b8b)', 'flex-shrink': 0 },
+  noteRow: { display: 'flex', 'align-items': 'baseline', gap: '4px' },
+  noteCopy: {
+    padding: '2px 4px',
+    border: 'none',
+    background: 'none',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)',
+    font: 'inherit',
+    cursor: 'pointer',
+    'flex-shrink': 0
+  }
 } satisfies Record<string, JSX.CSSProperties>;
 
 /** The composer: what you say about the thing you picked. */
@@ -466,6 +493,11 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
           <div style={styles.dim} data-testid="wheel-annotate-subject">
             {draft().anchor.instanceId ?? draft().anchor.element ?? 'this area'}
           </div>
+          <Show when={draft().basedOn}>
+            <div style={styles.dim} data-testid="wheel-annotate-rewriting">
+              rewriting a saved note — what was captured stays
+            </div>
+          </Show>
           <textarea
             style={styles.textarea}
             data-testid="wheel-annotate-text"
@@ -518,6 +550,10 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
               onInput={(event) => props.service.setTranscript(event.currentTarget.value)}
             />
           </Show>
+          {/* Capture belongs to the moment the box was drawn. A rewrite is
+              hours later and looking at a different screen, so it changes the
+              words and nothing else — see `buildPayload`. */}
+          <Show when={!draft().basedOn}>
           <div style={styles.row}>
             {/* The picture is already taken — this re-takes it from the SCREEN
                 for the cases a DOM rasterization cannot see: canvas, video, a
@@ -568,6 +604,7 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
               </For>
             </div>
           </Show>
+          </Show>
           <div style={styles.row}>
             <button
               type="button"
@@ -581,7 +618,11 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
               }
               onClick={() => props.service.save()}
             >
-              {props.service.canSave.get() ? 'save note' : 'download note'}
+              {draft().basedOn
+                ? 'update note'
+                : props.service.canSave.get()
+                  ? 'save note'
+                  : 'download note'}
             </button>
             <button type="button" style={styles.button} onClick={() => props.service.discard()}>
               discard

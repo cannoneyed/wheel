@@ -212,6 +212,11 @@ export type RecordedEvent =
  *   (the dev server returns `read <path>/note.md`), `location` a URL where the
  *   note now lives. A non-ok answer, or none, makes the page fall back to
  *   downloading the note as one file.
+ *
+ *   `id` is the note's identity, not the request's: the page re-POSTs the same
+ *   id when someone rewrites a note, and a sink must REPLACE that note rather
+ *   than store a second one. A rewrite sends no media — what was captured is
+ *   not re-captured — so keep the attachments already held under that id.
  * - `GET <url>` — the saved notes as `{ ok: true, notes: [{ id, payload }] }`,
  *   newest first. Nothing on the page needs the list; it is the capability
  *   probe, and answering at all is what tells the page saving is possible

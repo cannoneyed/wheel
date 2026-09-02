@@ -47,6 +47,11 @@ far. The app itself carries only what has to be ON it: the marquee you drag, the
 area, and the recording light. A note you save appears in the pane's list, so saving leaves
 something to point at instead of a clipboard you have to trust.
 
+Press a note in that list to **rewrite** it. The first draft of a bug report is written in a
+hurry; the second one is the useful one. A rewrite changes the words and nothing else — the same
+anchor, the same timeline, the same picture — and saving it lands on the note it came from rather
+than beside it. The ⧉ beside a note copies its handle again.
+
 There is no floating button. Annotating is something you do to a wheel app, so the way in is the
 app's own instrument panel — which also means `<WheelAnnotate/>` needs a `<WheelApp/>` above it to
 have somewhere to live.
@@ -111,7 +116,7 @@ point somewhere else:
 
 | method | what it does |
 | --- | --- |
-| `POST <url>` | save one note. Body `{ id, payload, markdown, png?, video?, audio? }` — `payload` is the complete note, media are `data:` URLs. Answer `{ ok: true, command?, location? }`: `command` is something pasteable, `location` a URL where the note now lives. Whichever comes back is copied to the clipboard. |
+| `POST <url>` | save one note. Body `{ id, payload, markdown, png?, video?, audio? }` — `payload` is the complete note, media are `data:` URLs. Answer `{ ok: true, command?, location? }`: `command` is something pasteable, `location` a URL where the note now lives. Whichever comes back is copied to the clipboard. `id` is the note's identity, not the request's: a rewrite re-POSTs the same id and must REPLACE that note. A rewrite sends no media, so keep the attachments already held under that id. |
 | `GET <url>` | the saved notes, `{ ok: true, notes: [{ id, payload }] }`, newest first. Nothing on the page needs the list — this is the capability probe, and answering at all is what tells the page saving is possible here rather than downloading. |
 
 That is the whole contract, so a Durable Object, an issue tracker or a bucket can stand in for the

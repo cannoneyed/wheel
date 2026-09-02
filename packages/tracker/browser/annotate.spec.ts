@@ -255,6 +255,50 @@ test('the pane returns to armed after a save, and lists what it wrote', async ({
   await expect(saved.first()).toContainText('this row is wrong');
 });
 
+test('a note can be rewritten, and lands on the note it came from', async ({ page }) => {
+  const before = noteIds();
+
+  await page.getByTestId('wheel-debug-toggle').click();
+  await page.getByTestId('wheel-annotate-arm').click();
+  await expect(page.getByTestId('wheel-annotate-shield')).toBeVisible();
+
+  const target = await page.locator('[data-testid^="issue-title-"]').first().boundingBox();
+  await page.mouse.move(target!.x - 6, target!.y - 6);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width + 6, target!.y + target!.height + 6, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+  await page.getByTestId('wheel-annotate-text').fill('the assignee is wrong');
+  await page.getByTestId('wheel-annotate-save').click();
+
+  const first = await savedNote(before);
+  expect(existsSync(join(notesDir, first.id, 'shot.png'))).toBe(true);
+
+  // Reopen it from the list. The first draft of a bug report is written in a
+  // hurry; the second one is the useful one.
+  await page.getByTestId('wheel-annotate-edit').first().click();
+  const text = page.getByTestId('wheel-annotate-text');
+  await expect(text).toHaveValue('the assignee is wrong');
+  await expect(page.getByTestId('wheel-annotate-rewriting')).toBeVisible();
+  await text.fill('the assignee is the reporter after a reload');
+  await page.getByTestId('wheel-annotate-save').click();
+
+  // It replaced the note on disk rather than writing a second one beside it,
+  // and the picture it was saved with is still there — a rewrite changes the
+  // words, never the evidence.
+  await expect
+    .poll(() => readFileSync(join(notesDir, first.id, 'note.md'), 'utf8'))
+    .toContain('# the assignee is the reporter after a reload');
+  expect(noteIds().filter((name) => !before.includes(name))).toHaveLength(1);
+  expect(existsSync(join(notesDir, first.id, 'shot.png'))).toBe(true);
+
+  // And the pane lists one note, showing what it now says.
+  const saved = page.getByTestId('wheel-annotate-saved');
+  await expect(saved).toHaveCount(1);
+  await expect(saved.first()).toContainText('the assignee is the reporter after a reload');
+});
+
 test('a stray click annotates nothing, and video is never a toll on drawing', async ({ page }) => {
   await page.getByTestId('wheel-debug-toggle').click();
   await page.getByTestId('wheel-annotate-arm').click();

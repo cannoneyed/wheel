@@ -213,6 +213,59 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
+  it('rewrites a saved note in place, keeping what was captured', async () => {
+    stubFetch();
+    const context = mountApp();
+    const service = annotator(context);
+
+    service.arm();
+    service.pickRegion(OVER_CELL);
+    service.setText('this cell never turns on');
+    service.setLabel('question');
+    service.save();
+    // Wait for the note to be LISTED, not merely sent: a note joins the pane
+    // when the sink answers, which is a turn after the request goes out.
+    await vi.waitFor(() => expect(service.saved.get()).toHaveLength(1));
+
+    // Reopen what was just written and say it better.
+    const first = service.saved.get()[0]!;
+    service.editNote(first);
+    expect(service.mode.get()).toBe('composing');
+    expect(service.draft.get()!.text).toBe('this cell never turns on');
+    service.setText('the cell ignores the first click after a reload');
+    service.setLabel('bug');
+    service.save();
+    await vi.waitFor(() => expect(posted).toHaveLength(2));
+
+    const before = posted[0]!['payload'] as NotePayload;
+    const after = posted[1]!['payload'] as NotePayload;
+
+    // Same id, so the sink replaces the note rather than storing a near-twin.
+    // The id keeps the FIRST wording because it is identity, not a title.
+    expect(after.id).toBe(before.id);
+    expect(after.id).toContain('this-cell-never-turns-on');
+
+    // The words changed and nothing else did. Re-deriving the anchor, the
+    // timeline or the state now would describe a different moment under the
+    // same words.
+    expect(after.text).toBe('the cell ignores the first click after a reload');
+    expect(after.label).toBe('bug');
+    expect(after.anchor).toEqual(before.anchor);
+    expect(after.startedAt).toBe(before.startedAt);
+    expect(after.startState).toEqual(before.startState);
+    expect(after.timeline).toEqual(before.timeline);
+    expect(String(posted[1]!['markdown'])).toContain(
+      '# the cell ignores the first click after a reload'
+    );
+
+    // And the pane lists one note, not two.
+    await vi.waitFor(() =>
+      expect(service.saved.get()[0]?.text).toBe('the cell ignores the first click after a reload')
+    );
+    expect(service.saved.get()).toHaveLength(1);
+    service.disarm();
+  });
+
   it('sends notes wherever the app points it', async () => {
     stubFetch();
     const context = mountApp();

@@ -94,6 +94,12 @@ export interface NoteDraft {
   readonly openedAt: number;
   /** Every service's atoms when the box was drawn. */
   readonly startState: Record<string, Record<string, unknown>>;
+  /**
+   * The note being rewritten, when this draft reopened one.
+   *
+   * Its captured half is carried through untouched; only the words change.
+   */
+  readonly basedOn: NotePayload | null;
 }
 
 /** One note this session wrote, and how to get back to it. */
@@ -108,6 +114,15 @@ export interface SavedNote {
   readonly command: string | null;
   /** Whether it reached a sink, or fell back to a download. */
   readonly delivery: 'sink' | 'download';
+  /**
+   * The note as it was written.
+   *
+   * Kept whole so the note can be REOPENED. Editing a note edits what you
+   * said about the app, never what was captured of it: the anchor, the
+   * timeline, the state and the screenshot are evidence, and re-deriving them
+   * an hour later would describe a different moment under the same words.
+   */
+  readonly payload: NotePayload;
 }
 
 /** Injected capture seams, so the service runs headless in tests. */
@@ -279,7 +294,8 @@ export class AnnotateService extends Service {
       audio: null,
       video: null,
       openedAt: this.now(),
-      startState: stateTreeSnapshot(registry)
+      startState: stateTreeSnapshot(registry),
+      basedOn: null
     });
     this.mode.set('composing');
     this.hold(null);
@@ -363,6 +379,36 @@ export class AnnotateService extends Service {
       })
       .catch(() => this.say('no video — the note records everything else all the same'));
   }, 'toggleVideo');
+
+  /**
+   * Reopen a note written this session, to change what it says.
+   *
+   * Everything captured comes back untouched — the same id, the same anchor,
+   * the same timeline — so saving REPLACES that note rather than leaving a
+   * near-duplicate beside it.
+   */
+  readonly editNote = this.action((note: SavedNote) => {
+    const payload = note.payload;
+    this.cancelVoice();
+    this.cancelVideo();
+    this.draft.set({
+      anchor: payload.anchor,
+      target: payload.target,
+      nearby: payload.nearby,
+      text: payload.text,
+      label: payload.label,
+      transcript: payload.voice?.transcript ?? '',
+      listening: false,
+      shot: null,
+      audio: null,
+      video: null,
+      openedAt: payload.startedAt,
+      startState: payload.startState,
+      basedOn: payload
+    });
+    this.mode.set('composing');
+    this.hold(null);
+  }, 'editNote');
 
   /** Throw the draft away and go back to armed. */
   readonly discard = this.action(() => {
@@ -598,6 +644,23 @@ export class AnnotateService extends Service {
   /** Assemble the payload that becomes `note.json` (and, projected, `note.md`). */
   private buildPayload(draft: NoteDraft): NotePayload {
     const at = this.now();
+    // A rewrite keeps its evidence: same id, same anchor, same timeline, same
+    // state. Only the words are the author's to change.
+    const based = draft.basedOn;
+    if (based) {
+      return {
+        ...based,
+        text: draft.text,
+        label: draft.label,
+        voice: draft.transcript
+          ? {
+              transcript: draft.transcript,
+              hasAudio: based.voice?.hasAudio ?? false,
+              source: 'speech-recognition'
+            }
+          : null
+      };
+    }
     const attachments = [
       ...(draft.shot ? ['shot.png'] : []),
       ...(draft.video ? ['clip.webm'] : []),
@@ -685,16 +748,23 @@ export class AnnotateService extends Service {
 
   /** Add one written note to the session list the panel shows. */
   private remember(payload: NotePayload, command: string | null, delivery: 'sink' | 'download'): void {
-    this.saved.set([
-      ...this.saved.get(),
-      {
-        id: payload.id,
-        text: payload.text || payload.voice?.transcript || '(no words)',
-        label: payload.label,
-        command,
-        delivery
-      }
-    ]);
+    const entry: SavedNote = {
+      id: payload.id,
+      text: payload.text || payload.voice?.transcript || '(no words)',
+      label: payload.label,
+      command,
+      delivery,
+      payload
+    };
+    // A rewrite lands on the note it came from; the list is what EXISTS, not
+    // a log of every time save was pressed.
+    const existing = this.saved.get();
+    const index = existing.findIndex((note) => note.id === entry.id);
+    this.saved.set(
+      index === -1
+        ? [...existing, entry]
+        : [...existing.slice(0, index), entry, ...existing.slice(index + 1)]
+    );
   }
 }
 

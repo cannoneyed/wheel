@@ -65,6 +65,18 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 940;
 const DEFAULT_WIDTH = 420;
 
+/**
+ * The dock sits above every overlay wheel draws over the app — the annotator's
+ * shield (10_400), the inspector (10_600).
+ *
+ * It is the TOOL, never the thing being looked at. The annotate flow lives in
+ * here now: arming, writing, and the notes already written. A shield that
+ * covered the dock too swallowed the clicks meant for the pane that raised it,
+ * so you could arm annotation and then not be able to stop it, or open a saved
+ * note to rewrite it.
+ */
+const DOCK_LAYER = 10_700;
+
 type DockMode = 'panel' | 'overlay';
 
 function readStored(key: string): string | null {
@@ -93,7 +105,7 @@ const dockStyles = {
     top: '0',
     right: '0',
     bottom: '0',
-    'z-index': 9500,
+    'z-index': DOCK_LAYER,
     display: 'flex',
     'flex-direction': 'column',
     background: 'var(--wheel-stage-5, #202124)',
@@ -179,7 +191,7 @@ const dockStyles = {
     position: 'fixed',
     right: '12px',
     bottom: '12px',
-    'z-index': 9499,
+    'z-index': DOCK_LAYER - 1,
     display: 'flex',
     'align-items': 'center',
     gap: '6px',

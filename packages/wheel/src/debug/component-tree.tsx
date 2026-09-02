@@ -727,8 +727,8 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
         sheet demo begins editing a cell on mousedown). A real overlay means
         the app receives NOTHING while picking.
 
-        Its z-index sits below the dock (9500), so the debug panel stays
-        clickable and the tree can be scrolled while the picker is armed.
+        Its z-index sits below the dock's (`DOCK_LAYER` in wheel-app), so the
+        panel stays clickable and the tree can be scrolled while picking.
       */}
       <Show when={picking()}>
         <Portal>

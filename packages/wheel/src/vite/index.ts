@@ -20,6 +20,9 @@
  *   attachments — `shot.png`, `clip.webm`, `audio.webm` — into a per-note
  *   directory under `noteDir`. The response carries a ready-to-paste
  *   `read <path>/note.md` command, which the page copies to the clipboard.
+ *   The id names the directory, so posting one twice REWRITES that note in
+ *   place — that is how the page edits a note it already saved. Attachments
+ *   are only written when sent, so a rewrite keeps the picture it came with.
  * - `GET /__wheel/note` — the saved notes, newest first, so the page can pin
  *   each one back where it was left. Answering at all is also what tells the
  *   page saving is possible here.
