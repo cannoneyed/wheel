@@ -31,8 +31,8 @@ export interface MenuStackPanelProps {
   readonly state: () => ReturnType<MenuStack['state']>;
   /** Called when an entry RAN — the caller closes the menu. */
   readonly onRun?: () => void;
-  /** What to show when nothing matches the query. */
-  readonly emptyLabel?: string;
+  /** Caller-owned content to show when the menu has no rows. */
+  readonly empty?: JSX.Element;
   /** Cap the panel while keeping its frame fixed around a scrolling row list. */
   readonly maxHeight?: string;
   /** Keep this navigable item in the fixed header instead of the scrolling rows. */
@@ -343,16 +343,22 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
               {/* Read the check through `state()`, not off `item`: a toggle's
                   `checked` may be a getter over live state, and only the
                   signal the caller drives tells this row to draw again. */}
-              <Show when={item.checked === true}>
+              <Show when={props.state().items[indexOf(item)]?.checked === true}>
                 <span style={{ color: 'var(--wheel-accent, #3b82f6)' }}>✓</span>
               </Show>
             </button>
           )}
         </For>
         <Show
-          when={props.state().items.length === 0 && !props.state().grid && !props.state().input}
+          when={
+            props.state().items.length === 0 &&
+            !props.state().grid &&
+            !props.state().input &&
+            props.empty !== undefined
+          }
         >
-          <span
+          <div
+            role="status"
             data-testid="wheel-menu-empty"
             style={{
               padding: '5px 8px',
@@ -360,8 +366,8 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
               color: 'var(--wheel-ink-muted, #6b7280)'
             }}
           >
-            {props.emptyLabel ?? 'no matches'}
-          </span>
+            {props.empty}
+          </div>
         </Show>
       </div>
     </div>

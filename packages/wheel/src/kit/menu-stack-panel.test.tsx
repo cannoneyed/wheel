@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import { describe, expect, it } from 'vitest';
 
@@ -61,14 +62,51 @@ describe('MenuStackPanel', () => {
     host.remove();
   });
 
-  it('shows an empty list without a scrollbar', () => {
+  it('shows caller-owned empty content without a scrollbar', () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const stack = createMenuStack({ title: '', items: [] });
-    const dispose = render(() => <MenuStackPanel stack={stack} state={stack.state} maxHeight="100px" />, host);
+    const dispose = render(
+      () => (
+        <MenuStackPanel
+          stack={stack}
+          state={stack.state}
+          maxHeight="100px"
+          empty={<strong>No documents</strong>}
+        />
+      ),
+      host
+    );
 
-    expect(host.querySelector('[data-testid="wheel-menu-empty"]')?.textContent).toBe('no matches');
+    expect(host.querySelector('[data-testid="wheel-menu-empty"]')?.textContent).toBe('No documents');
+    expect(host.querySelector('[data-testid="wheel-menu-empty"] strong')).not.toBeNull();
     expect(host.querySelector<HTMLElement>('[data-testid="wheel-menu-items"]')?.style.overflowY).toBe('hidden');
+
+    dispose();
+    host.remove();
+  });
+
+  it('redraws a toggle when the caller publishes fresh state', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    let checked = false;
+    const item = {
+      id: 'toggle',
+      label: 'Toggle',
+      get checked() {
+        return checked;
+      },
+      run: () => {}
+    };
+    const stack = createMenuStack({ title: '', items: [item] });
+    const [state, setState] = createSignal(stack.state());
+    const dispose = render(() => <MenuStackPanel stack={stack} state={state} />, host);
+
+    const toggle = () => host.querySelector('[data-testid="wheel-menu-item-toggle"]');
+    expect(toggle()?.textContent).toBe('Toggle');
+    checked = true;
+    setState(stack.state());
+    expect(toggle()?.textContent).toBe('Toggle✓');
 
     dispose();
     host.remove();
