@@ -35,4 +35,29 @@ describe('MenuStackPanel', () => {
     dispose();
     host.remove();
   });
+
+  it('keeps a navigable back item in a fixed header', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const back = { id: 'back', label: 'Back', run: () => {} };
+    const base = createMenuStack({ title: '', items: [] });
+    const state = () => ({
+      ...base.state(),
+      title: 'Documents',
+      items: [back, { id: 'start', label: 'Start', run: () => {} }],
+      index: 0
+    });
+    const stack = { ...base, state };
+    const dispose = render(
+      () => <MenuStackPanel stack={stack} state={state} headerItemId="back" maxHeight="100px" />,
+      host
+    );
+
+    expect(host.querySelector('[data-testid="wheel-menu-header"]')?.textContent).toContain('Documents');
+    expect(host.querySelector('[data-testid="wheel-menu-header-back"][data-active]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="wheel-menu-items"]')?.textContent).toBe('Start');
+
+    dispose();
+    host.remove();
+  });
 });

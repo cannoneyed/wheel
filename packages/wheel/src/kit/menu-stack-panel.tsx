@@ -35,6 +35,8 @@ export interface MenuStackPanelProps {
   readonly emptyLabel?: string;
   /** Cap the panel while keeping its frame fixed around a scrolling row list. */
   readonly maxHeight?: string;
+  /** Keep this navigable item in the fixed header instead of the scrolling rows. */
+  readonly headerItemId?: string;
   /** Render a caller-defined icon key without coupling Wheel to one icon set. */
   readonly renderIcon?: (icon: string) => JSX.Element;
 }
@@ -125,6 +127,9 @@ function SizeGrid(props: MenuStackPanelProps): JSX.Element {
 /** The stacked menu panel (see module doc). */
 export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
   let itemsElement: HTMLDivElement | undefined;
+  const headerItem = () => props.state().items.find((item) => item.id === props.headerItemId);
+  const rowItems = () => props.state().items.filter((item) => item.id !== props.headerItemId);
+  const indexOf = (item: MenuItem) => props.state().items.indexOf(item);
   // Keep keyboard movement visible inside a capped row list without moving focus from its caller.
   createEffect(() => {
     props.state().index;
@@ -158,9 +163,52 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
         'box-shadow': 'var(--wheel-shadow-overlay, 0 8px 24px rgba(0,0,0,0.14))'
       }}
     >
-      {/* The back control sits LEFT of the title, on one row: the header
-          says where you are and how to leave in the same glance. */}
-      <Show when={props.state().title} keyed>
+      {/* The title names the level; Back stays at the far right. */}
+      <Show when={headerItem()} keyed>
+        {(item) => (
+          <div
+            data-testid="wheel-menu-header"
+            style={{
+              display: 'flex',
+              'align-items': 'center',
+              'justify-content': 'space-between',
+              gap: '8px',
+              padding: '2px 4px 5px',
+              'border-bottom': '1px solid var(--wheel-line, #d8dee9)',
+              'margin-bottom': '4px',
+              'font-size': '12px',
+              'font-weight': '600'
+            }}
+          >
+            <span>{props.state().title}</span>
+            <button
+              type="button"
+              data-testid="wheel-menu-header-back"
+              data-active={indexOf(item) === props.state().index ? '' : undefined}
+              style={{
+                border: 'none',
+                background:
+                  indexOf(item) === props.state().index
+                    ? 'var(--wheel-bg-selected, rgba(59,130,246,0.14))'
+                    : 'none',
+                cursor: 'pointer',
+                padding: '2px 5px',
+                'border-radius': '4px',
+                color: 'var(--wheel-ink-muted, #6b7280)',
+                'line-height': '1'
+              }}
+              onPointerEnter={() => props.stack.highlight(indexOf(item))}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                choose(item);
+              }}
+            >
+              ‹ Back
+            </button>
+          </div>
+        )}
+      </Show>
+      <Show when={!headerItem() && props.state().title} keyed>
         {(title) => (
           <div
             style={{
@@ -235,14 +283,14 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
         data-testid="wheel-menu-items"
         style={{ 'min-height': '0', 'overflow-y': props.maxHeight ? 'auto' : undefined }}
       >
-        <For each={props.state().items}>
-          {(item, index) => (
+        <For each={rowItems()}>
+          {(item) => (
             <button
               type="button"
               role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
               aria-checked={item.checked}
               data-testid={`wheel-menu-item-${item.id}`}
-              data-active={index() === props.state().index ? '' : undefined}
+              data-active={indexOf(item) === props.state().index ? '' : undefined}
               data-disabled={item.disabled === true ? '' : undefined}
               aria-disabled={item.disabled === true ? 'true' : undefined}
               style={{
@@ -261,11 +309,11 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
                 'font-size': '13px',
                 color: item.disabled === true ? 'var(--wheel-ink-muted, #6b7280)' : 'inherit',
                 background:
-                  index() === props.state().index
+                  indexOf(item) === props.state().index
                     ? 'var(--wheel-bg-selected, rgba(59,130,246,0.14))'
                     : 'none'
               }}
-              onPointerEnter={() => props.stack.highlight(index())}
+              onPointerEnter={() => props.stack.highlight(indexOf(item))}
               onMouseDown={(event) => {
                 event.preventDefault();
                 choose(item);
@@ -292,7 +340,7 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
               {/* Read the check through `state()`, not off `item`: a toggle's
                   `checked` may be a getter over live state, and only the
                   signal the caller drives tells this row to draw again. */}
-              <Show when={props.state().items[index()]?.checked === true}>
+              <Show when={item.checked === true}>
                 <span style={{ color: 'var(--wheel-accent, #3b82f6)' }}>✓</span>
               </Show>
             </button>

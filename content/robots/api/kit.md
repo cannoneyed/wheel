@@ -462,7 +462,7 @@ The headless stack (see module doc).
 
 ## `MenuStackPanel`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack-panel.tsx:126](../../../packages/wheel/src/kit/menu-stack-panel.tsx#L126).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack-panel.tsx:128](../../../packages/wheel/src/kit/menu-stack-panel.tsx#L128).
 
 The stacked menu panel (see module doc).
 
