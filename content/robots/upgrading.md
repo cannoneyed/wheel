@@ -4,7 +4,7 @@ Human page: [Upgrade from 0.1 to 0.2](../docs/upgrading.mdx). API: [`wheel/sync`
 
 ## Required changes
 
-1. Install `wheel@npm:@cannoneyed/wheel@0.2.0`.
+1. Install `wheel@npm:@cannoneyed/wheel@0.2.1`.
 2. Rename `table` to `collection` and `TableDecl` to `CollectionDecl`.
 3. Regenerate schema contracts and row fingerprints. Schema specification version 4 uses `collections`.
 4. Deploy protocol-version-3 clients and servers together. Use the application-version handshake to reject old clients.

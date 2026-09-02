@@ -10,6 +10,7 @@ fi
   mix deps.get
   mix format --check-formatted
   mix test --warnings-as-errors
+  mix hex.build --output _build/wheel_sync.tar
 )
 
 (
