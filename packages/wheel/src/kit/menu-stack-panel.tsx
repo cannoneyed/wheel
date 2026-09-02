@@ -11,7 +11,7 @@
  * the caret has to stay in the text so typing keeps narrowing the query —
  * while a context menu must take it. Focus is therefore the caller's job.
  */
-import { For, type JSX } from 'solid-js';
+import { For, createEffect, type JSX } from 'solid-js';
 
 import { Show } from '../core/visibility';
 import { viewRoot } from '../core/connect';
@@ -33,6 +33,10 @@ export interface MenuStackPanelProps {
   readonly onRun?: () => void;
   /** What to show when nothing matches the query. */
   readonly emptyLabel?: string;
+  /** Cap the panel while keeping its frame fixed around a scrolling row list. */
+  readonly maxHeight?: string;
+  /** Render a caller-defined icon key without coupling Wheel to one icon set. */
+  readonly renderIcon?: (icon: string) => JSX.Element;
 }
 
 /** One square's shade in the size grid. */
@@ -120,6 +124,17 @@ function SizeGrid(props: MenuStackPanelProps): JSX.Element {
 
 /** The stacked menu panel (see module doc). */
 export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
+  let itemsElement: HTMLDivElement | undefined;
+  // Keep keyboard movement visible inside a capped row list without moving focus from its caller.
+  createEffect(() => {
+    props.state().index;
+    props.state().items;
+    queueMicrotask(() =>
+      itemsElement
+        ?.querySelector<HTMLElement>('[data-active]')
+        ?.scrollIntoView?.({ block: 'nearest' })
+    );
+  });
   const choose = (item: MenuItem) => {
     if (props.stack.choose(item) === 'ran') {
       props.onRun?.();
@@ -133,6 +148,8 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
         display: 'flex',
         'flex-direction': 'column',
         'min-width': '190px',
+        'max-height': props.maxHeight,
+        overflow: props.maxHeight ? 'hidden' : undefined,
         padding: '4px',
         background: 'var(--wheel-bg-raised, #fff)',
         color: 'var(--wheel-ink, inherit)',
@@ -213,76 +230,89 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
           />
         )}
       </Show>
-      <For each={props.state().items}>
-        {(item, index) => (
-          <button
-            type="button"
-            role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
-            aria-checked={item.checked}
-            data-testid={`wheel-menu-item-${item.id}`}
-            data-active={index() === props.state().index ? '' : undefined}
-            data-disabled={item.disabled === true ? '' : undefined}
-            aria-disabled={item.disabled === true ? 'true' : undefined}
+      <div
+        ref={itemsElement}
+        data-testid="wheel-menu-items"
+        style={{ 'min-height': '0', 'overflow-y': props.maxHeight ? 'auto' : undefined }}
+      >
+        <For each={props.state().items}>
+          {(item, index) => (
+            <button
+              type="button"
+              role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+              aria-checked={item.checked}
+              data-testid={`wheel-menu-item-${item.id}`}
+              data-active={index() === props.state().index ? '' : undefined}
+              data-disabled={item.disabled === true ? '' : undefined}
+              aria-disabled={item.disabled === true ? 'true' : undefined}
+              style={{
+                display: 'flex',
+                'align-items': 'center',
+                'justify-content': 'space-between',
+                gap: '8px',
+                width: '100%',
+                padding: '5px 8px',
+                border: 'none',
+                'border-radius': '5px',
+                // A disabled entry keeps the arrow cursor: the pointer says it
+                // does nothing before the click proves it.
+                cursor: item.disabled === true ? 'default' : 'pointer',
+                'text-align': 'left',
+                'font-size': '13px',
+                color: item.disabled === true ? 'var(--wheel-ink-muted, #6b7280)' : 'inherit',
+                background:
+                  index() === props.state().index
+                    ? 'var(--wheel-bg-selected, rgba(59,130,246,0.14))'
+                    : 'none'
+              }}
+              onPointerEnter={() => props.stack.highlight(index())}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                choose(item);
+              }}
+            >
+              <span
+                style={{ display: 'flex', 'align-items': 'center', gap: '6px', 'min-width': '0' }}
+              >
+                <Show when={item.icon && props.renderIcon ? item.icon : undefined} keyed>
+                  {(icon) => <span aria-hidden="true">{props.renderIcon!(icon)}</span>}
+                </Show>
+                <span>{item.label}</span>
+              </span>
+              {/* Why it cannot run. Without this the dim entry only says "no". */}
+              <Show when={item.disabled === true && item.disabledReason}>
+                <span style={{ color: 'var(--wheel-ink-muted, #6b7280)', 'font-size': '12px' }}>
+                  {item.disabledReason}
+                </span>
+              </Show>
+              {/* A group says it goes deeper; a toggle says whether it is on. */}
+              <Show when={item.submenu}>
+                <span style={{ color: 'var(--wheel-ink-muted, #6b7280)' }}>›</span>
+              </Show>
+              {/* Read the check through `state()`, not off `item`: a toggle's
+                  `checked` may be a getter over live state, and only the
+                  signal the caller drives tells this row to draw again. */}
+              <Show when={props.state().items[index()]?.checked === true}>
+                <span style={{ color: 'var(--wheel-accent, #3b82f6)' }}>✓</span>
+              </Show>
+            </button>
+          )}
+        </For>
+        <Show
+          when={props.state().items.length === 0 && !props.state().grid && !props.state().input}
+        >
+          <span
+            data-testid="wheel-menu-empty"
             style={{
-              display: 'flex',
-              'align-items': 'center',
-              'justify-content': 'space-between',
-              gap: '8px',
-              width: '100%',
               padding: '5px 8px',
-              border: 'none',
-              'border-radius': '5px',
-              // A disabled entry keeps the arrow cursor: the pointer says it
-              // does nothing before the click proves it.
-              cursor: item.disabled === true ? 'default' : 'pointer',
-              'text-align': 'left',
               'font-size': '13px',
-              color: item.disabled === true ? 'var(--wheel-ink-muted, #6b7280)' : 'inherit',
-              background:
-                index() === props.state().index
-                  ? 'var(--wheel-bg-selected, rgba(59,130,246,0.14))'
-                  : 'none'
-            }}
-            onPointerEnter={() => props.stack.highlight(index())}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              choose(item);
+              color: 'var(--wheel-ink-muted, #6b7280)'
             }}
           >
-            <span>{item.label}</span>
-            {/* Why it cannot run. Without this the dim entry only says "no". */}
-            <Show when={item.disabled === true && item.disabledReason}>
-              <span style={{ color: 'var(--wheel-ink-muted, #6b7280)', 'font-size': '12px' }}>
-                {item.disabledReason}
-              </span>
-            </Show>
-            {/* A group says it goes deeper; a toggle says whether it is on. */}
-            <Show when={item.submenu}>
-              <span style={{ color: 'var(--wheel-ink-muted, #6b7280)' }}>›</span>
-            </Show>
-            {/* Read the check through `state()`, not off `item`: a toggle's
-                `checked` may be a getter over live state, and only the
-                signal the caller drives tells this row to draw again. */}
-            <Show when={props.state().items[index()]?.checked === true}>
-              <span style={{ color: 'var(--wheel-accent, #3b82f6)' }}>✓</span>
-            </Show>
-          </button>
-        )}
-      </For>
-      <Show
-        when={props.state().items.length === 0 && !props.state().grid && !props.state().input}
-      >
-        <span
-          data-testid="wheel-menu-empty"
-          style={{
-            padding: '5px 8px',
-            'font-size': '13px',
-            color: 'var(--wheel-ink-muted, #6b7280)'
-          }}
-        >
-          {props.emptyLabel ?? 'no match'}
-        </span>
-      </Show>
+            {props.emptyLabel ?? 'no match'}
+          </span>
+        </Show>
+      </div>
     </div>
   );
 }
