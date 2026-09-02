@@ -281,7 +281,10 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
       <div
         ref={itemsElement}
         data-testid="wheel-menu-items"
-        style={{ 'min-height': '0', 'overflow-y': props.maxHeight ? 'auto' : undefined }}
+        style={{
+          'min-height': '0',
+          'overflow-y': props.maxHeight && rowItems().length > 0 ? 'auto' : 'hidden'
+        }}
       >
         <For each={rowItems()}>
           {(item) => (
@@ -357,7 +360,7 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
               color: 'var(--wheel-ink-muted, #6b7280)'
             }}
           >
-            {props.emptyLabel ?? 'no match'}
+            {props.emptyLabel ?? 'no matches'}
           </span>
         </Show>
       </div>

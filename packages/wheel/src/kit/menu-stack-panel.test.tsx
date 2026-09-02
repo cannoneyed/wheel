@@ -60,4 +60,17 @@ describe('MenuStackPanel', () => {
     dispose();
     host.remove();
   });
+
+  it('shows an empty list without a scrollbar', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const stack = createMenuStack({ title: '', items: [] });
+    const dispose = render(() => <MenuStackPanel stack={stack} state={stack.state} maxHeight="100px" />, host);
+
+    expect(host.querySelector('[data-testid="wheel-menu-empty"]')?.textContent).toBe('no matches');
+    expect(host.querySelector<HTMLElement>('[data-testid="wheel-menu-items"]')?.style.overflowY).toBe('hidden');
+
+    dispose();
+    host.remove();
+  });
 });
