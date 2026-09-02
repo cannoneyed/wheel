@@ -10,40 +10,16 @@
  *
  * If this passes, "leave a note and hand it to an agent" works.
  */
-import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { SEED } from '../seed/seed';
 
-/** `vite preview` roots at the tracker package, so notes land under it. */
-const notesDir = resolve(fileURLToPath(new URL('..', import.meta.url)), '.wheel/notes');
+import { clearNotes, noteIds, notesDir, savedNote } from './notes';
 
 const actorId = SEED.users[0].id;
 const team = SEED.teams[0];
-
-/** Note directories that exist right now, newest last. */
-function noteIds(): string[] {
-  return existsSync(notesDir) ? readdirSync(notesDir).sort() : [];
-}
-
-/** Wait for a note directory that was not there before, and return its files. */
-async function savedNote(before: string[]): Promise<{ id: string; markdown: string; payload: unknown }> {
-  let id = '';
-  await expect
-    .poll(() => {
-      const fresh = noteIds().filter((name) => !before.includes(name));
-      id = fresh[fresh.length - 1] ?? '';
-      return id !== '' && existsSync(join(notesDir, id, 'note.md'));
-    }, { timeout: 15_000 })
-    .toBe(true);
-  return {
-    id,
-    markdown: readFileSync(join(notesDir, id, 'note.md'), 'utf8'),
-    payload: JSON.parse(readFileSync(join(notesDir, id, 'note.json'), 'utf8'))
-  };
-}
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((id) => {
@@ -53,12 +29,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('sync-badge')).toContainText('connected');
 });
 
-test.afterAll(() => {
-  // The notes this suite writes are test output, not somebody's work. Set
-  // WHEEL_KEEP_NOTES_TESTONLY=1 to read what it actually produced.
-  if (process.env.WHEEL_KEEP_NOTES_TESTONLY) return;
-  rmSync(notesDir, { recursive: true, force: true });
-});
+test.afterAll(() => clearNotes());
 
 test('a dragged rectangle lands on disk with the components under it', async ({ page }) => {
   const before = noteIds();
@@ -371,8 +342,14 @@ test('the rectangle can be resized and moved, and the note follows it', async ({
   const drawn = (await outline.boundingBox())!;
   const drawnSubject = await page.getByTestId('wheel-annotate-subject').textContent();
 
+  // The handles are shy: eight squares and a triangle parked over the app are
+  // noise to look at, so they wait until the pointer is at the frame.
+  await page.mouse.move(drawn.x + drawn.width + 400, drawn.y + drawn.height + 400);
+  await expect(page.getByTestId('wheel-annotate-grip-se')).toHaveCount(0);
+
   // Grow it from the south-east corner.
   await page.mouse.move(drawn.x + drawn.width, drawn.y + drawn.height);
+  await expect(page.getByTestId('wheel-annotate-grip-se')).toBeVisible();
   await page.mouse.down();
   await page.mouse.move(drawn.x + drawn.width + 60, drawn.y + drawn.height + 30, { steps: 6 });
   await page.mouse.up();
@@ -382,6 +359,7 @@ test('the rectangle can be resized and moved, and the note follows it', async ({
 
   // Then move it whole, by the triangle outside the top-left corner, until it
   // is over the second row.
+  await expect(page.getByTestId('wheel-annotate-move')).toBeVisible();
   const move = (await page.getByTestId('wheel-annotate-move').boundingBox())!;
   const dy = second.y - first.y;
   await page.mouse.move(move.x + move.width / 2, move.y + move.height / 2);

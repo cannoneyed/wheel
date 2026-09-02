@@ -432,6 +432,14 @@ export class AnnotateService extends Service {
     this.hold('asking for screen capture…');
     void startVideo(() => capture.stream())
       .then((session) => {
+        // The prompt is modal and slow, and the recording may already be over
+        // by the time it is answered — saved, discarded, or stopped. Adopting
+        // the session then would leave a display capture running with nothing
+        // left to attach it to.
+        if (!this.recording.get()) {
+          session.cancel();
+          return;
+        }
         this.video.set(session);
         this.filming.set(true);
         this.hold(null);

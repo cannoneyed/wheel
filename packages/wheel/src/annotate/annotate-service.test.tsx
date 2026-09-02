@@ -662,6 +662,45 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
+  it('shows the clip in place of the still once there is one', async () => {
+    stubFetch();
+    setVideoCapture(() => ({
+      stop: () => Promise.resolve('data:video/webm;base64,CLIP'),
+      cancel: () => undefined
+    }));
+    const context = mountApp(() => <AnnotateChrome />);
+    const service = context.services.get(AnnotateService);
+    annotator(context);
+    mountPane(context);
+
+    service.arm();
+    service.pickRegion(OVER_CELL);
+    // The rasterizer cannot run in jsdom, so the still comes through the
+    // re-take seam the test harness already stubs.
+    service.captureShot();
+    await vi.waitFor(() => expect(service.draft.get()?.shot).toBeTruthy());
+
+    // Until there is a clip, the still is the preview.
+    expect(document.querySelector('img[alt="annotated region"]')).toBeTruthy();
+    expect(document.querySelector('[data-testid="wheel-annotate-video"]')).toBeNull();
+
+    service.toggleRecording();
+    // Wait for the capture to actually start: the prompt is async, and
+    // stopping before it is answered cancels the session rather than adopting
+    // one with nothing left to attach it to.
+    await vi.waitFor(() => expect(service.filming.get()).toBe(true));
+    service.toggleRecording();
+    await vi.waitFor(() => expect(service.draft.get()?.video).toBe('data:video/webm;base64,CLIP'));
+
+    // A still of the moment the box was drawn is the wrong thing to show
+    // beside a recording of what happened after it — and "🎥 attached" is a
+    // claim you have to take on trust until you can play it back.
+    const clip = document.querySelector('[data-testid="wheel-annotate-video"]');
+    expect(clip?.getAttribute('src')).toBe('data:video/webm;base64,CLIP');
+    expect(document.querySelector('img[alt="annotated region"]')).toBeNull();
+    service.disarm();
+  });
+
   it('downloads one self-contained file when no dev server answers', async () => {
     // A deployed app: the endpoint is not there, so the POST fails and the
     // note has to reach the human some other way.

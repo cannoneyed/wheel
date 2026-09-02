@@ -196,13 +196,20 @@ export function startVoice(options: VoiceOptions = {}): VoiceSession {
   };
 }
 
-/** The first webm codec this browser admits to supporting, or the empty default. */
-function supportedVideoType(): string {
+/**
+ * The first webm codec this browser admits to supporting, or none.
+ *
+ * Returns undefined rather than `''` when nothing matches: `MediaRecorder`
+ * treats an empty `mimeType` as a request for a container called "", not as
+ * "you choose", and rejects it. Omitting the option is how you ask for the
+ * default.
+ */
+function supportedVideoType(): string | undefined {
   const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   for (const candidate of candidates) {
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(candidate)) return candidate;
   }
-  return '';
+  return undefined;
 }
 
 /**
@@ -216,7 +223,8 @@ export async function startVideo(getStream: () => Promise<MediaStream>): Promise
   if (videoCapture) return videoCapture();
   const stream = await getStream();
   const chunks: Blob[] = [];
-  const recorder = new MediaRecorder(stream, { mimeType: supportedVideoType() });
+  const mimeType = supportedVideoType();
+  const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
   recorder.ondataavailable = (event) => {
     if (event.data.size > 0) chunks.push(event.data);
   };
@@ -229,7 +237,14 @@ export async function startVideo(getStream: () => Promise<MediaStream>): Promise
           return;
         }
         recorder.onstop = () => {
-          void blobToDataUrl(new Blob(chunks, { type: 'video/webm' }))
+          // No frames means no video. Handing back a data URL for an empty
+          // blob would attach a `clip.webm` that plays nothing, which is worse
+          // than saying there is no clip.
+          if (chunks.length === 0) {
+            resolve(null);
+            return;
+          }
+          void blobToDataUrl(new Blob(chunks, { type: mimeType ?? 'video/webm' }))
             .then(resolve)
             .catch(() => resolve(null));
         };

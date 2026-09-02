@@ -21,6 +21,7 @@ import noHandlesInAtoms from './rules/no-handles-in-atoms.mjs';
 import noOptionalComputedArgs from './rules/no-optional-computed-args.mjs';
 import noBarrelIconImports from './rules/no-barrel-icon-imports.mjs';
 import requireComponentRoot from './rules/require-component-root.mjs';
+import noLiteralChromeAttribute from './rules/no-literal-chrome-attribute.mjs';
 import requireComponentRole from './rules/require-component-role.mjs';
 import noUnusedImports from './rules/no-unused-imports.mjs';
 import noCrossLayerImports from './rules/no-cross-layer-imports.mjs';
@@ -69,6 +70,7 @@ export default {
     'no-optional-computed-args': noOptionalComputedArgs,
     'no-barrel-icon-imports': noBarrelIconImports,
     'require-component-root': requireComponentRoot,
+    'no-literal-chrome-attribute': noLiteralChromeAttribute,
     'require-component-role': requireComponentRole,
     'require-view-root': requireViewRoot,
     'require-stable-instance-name': requireStableInstanceName,

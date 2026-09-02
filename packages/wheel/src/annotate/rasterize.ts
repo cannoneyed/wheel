@@ -27,12 +27,10 @@
  * The library is loaded with a dynamic `import()`, so it reaches the browser
  * only when someone actually writes a note.
  */
+import { CHROME_SELECTOR } from '../core/chrome';
 import { logger } from '../core/logger';
 
 import type { NoteRect } from './types';
-
-/** Attribute marking the annotator's own overlays, which never belong in a shot. */
-const CHROME_SELECTOR = '[data-wheel-annotate-chrome]';
 
 /** Cap on the rasterized image, so a full-page rectangle cannot produce a 20 MB data URL. */
 const MAX_PIXELS = 2_000;
@@ -60,7 +58,11 @@ export async function rasterizeRegion(rect: NoteRect): Promise<string | null> {
         transformOrigin: 'top left'
       },
       scale: Math.max(scale, 1),
-      // The annotator is not part of the app it photographs.
+      // The instruments are not part of the app they photograph — the outline
+      // around the region, the dock, all of it. This selector is imported
+      // rather than written out: a local copy of it went stale the moment the
+      // attribute moved to `core/chrome.ts`, and a filter that matches nothing
+      // fails silently, by putting the annotator's own outline in the picture.
       filter: (node) => !(node instanceof Element && node.closest(CHROME_SELECTOR))
     });
   } catch (error) {

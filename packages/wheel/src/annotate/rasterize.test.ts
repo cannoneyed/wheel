@@ -10,6 +10,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { rasterizeRegion } from './rasterize';
+import { CHROME_ATTRIBUTE } from '../core/chrome';
 
 afterEach(() => {
   vi.resetModules();
@@ -42,9 +43,14 @@ describe('rasterizeRegion', () => {
     }));
     const { rasterizeRegion: subject } = await import('./rasterize');
 
+    // The attribute comes from the constant, never a copy of it. A literal
+    // here is what let the rename slip through: the test and the code both
+    // said `data-wheel-annotate-chrome`, agreed with each other, and the real
+    // page said something else — so the annotator's own outline went into
+    // every screenshot while this passed.
     document.body.innerHTML =
       '<main><p id="app">the thing being annotated</p></main>' +
-      '<div data-wheel-annotate-chrome=""><textarea id="composer"></textarea></div>';
+      `<div ${CHROME_ATTRIBUTE}=""><textarea id="composer"></textarea></div>`;
 
     expect(await subject({ x: 0, y: 0, width: 100, height: 100 })).toBe('data:image/png;base64,AAA');
     expect(filter).toBeDefined();

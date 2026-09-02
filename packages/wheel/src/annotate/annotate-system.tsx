@@ -48,6 +48,9 @@ const LAYER = 10_400;
 /** How far a grip reaches, in CSS pixels — big enough to hit without aiming. */
 const GRIP_SIZE = 14;
 
+/** How close the pointer has to be to the frame before its handles appear. */
+const HANDLE_REACH = 28;
+
 /** Below this many pixels in either direction, a drag was really a click. */
 const DRAG_THRESHOLD = 5;
 
@@ -437,6 +440,42 @@ function pullRect(
 function TargetOutline(props: { service: AnnotateService }): JSX.Element {
   const rect = (): NoteRect | undefined => props.service.draft.get()?.anchor.rect;
 
+  // wheel-raw-signal: pointer proximity is a property of this overlay, not of
+  // the app — nothing outside it can read it and nothing should record it
+  const [near, setNear] = createSignal(false);
+
+  /**
+   * Show the handles only while the pointer is at the frame, and never while
+   * recording.
+   *
+   * Eight squares and a triangle parked over the app are noise to look at, and
+   * they are IN the screen recording — which is a picture of the app, not of
+   * the tool pointing at it. Proximity is measured from the document rather
+   * than by hovering the frame, because the frame is click-through: it takes
+   * no pointer events, which is what lets the app underneath keep working
+   * while a note is open about it.
+   */
+  // listener boundary: the pointer is a property of the page, and the element
+  // this would otherwise bind to is deliberately transparent to it.
+  createEffect(() => {
+    if (props.service.recording.get()) {
+      setNear(false);
+      return;
+    }
+    const onMove = (event: PointerEvent): void => {
+      const area = rect();
+      if (!area) return;
+      setNear(
+        event.clientX >= area.x - HANDLE_REACH &&
+          event.clientX <= area.x + area.width + HANDLE_REACH &&
+          event.clientY >= area.y - HANDLE_REACH &&
+          event.clientY <= area.y + area.height + HANDLE_REACH
+      );
+    };
+    document.addEventListener('pointermove', onMove);
+    onCleanup(() => document.removeEventListener('pointermove', onMove));
+  });
+
   /**
    * Drive one drag, from press to release.
    *
@@ -482,29 +521,31 @@ function TargetOutline(props: { service: AnnotateService }): JSX.Element {
           {...{ [CHROME_ATTRIBUTE]: '' }}
           style={{ ...styles.outline, ...rectStyle(area()) }}
         >
-          {/* Triangular and textured so it reads as a handle rather than as
-              part of the outline, and placed OUTSIDE the corner so it does not
-              fight the north-west grip for the same pixels. */}
-          <div
-            data-testid="wheel-annotate-move"
-            title="Drag to move this area"
-            style={styles.moveGrip}
-            onPointerDown={(event) => drag(event, null)}
-          />
-          <For each={GRIPS}>
-            {(grip) => (
-              <div
-                data-testid={`wheel-annotate-grip-${grip.id}`}
-                style={{
-                  ...styles.grip,
-                  cursor: grip.cursor,
-                  left: grip.ex === -1 ? '0' : grip.ex === 1 ? '100%' : '50%',
-                  top: grip.ey === -1 ? '0' : grip.ey === 1 ? '100%' : '50%'
-                }}
-                onPointerDown={(event) => drag(event, grip)}
-              />
-            )}
-          </For>
+          <Show when={near()}>
+            {/* Triangular and textured so it reads as a handle rather than as
+                part of the outline, and placed OUTSIDE the corner so it does
+                not fight the north-west grip for the same pixels. */}
+            <div
+              data-testid="wheel-annotate-move"
+              title="Drag to move this area"
+              style={styles.moveGrip}
+              onPointerDown={(event) => drag(event, null)}
+            />
+            <For each={GRIPS}>
+              {(grip) => (
+                <div
+                  data-testid={`wheel-annotate-grip-${grip.id}`}
+                  style={{
+                    ...styles.grip,
+                    cursor: grip.cursor,
+                    left: grip.ex === -1 ? '0' : grip.ex === 1 ? '100%' : '50%',
+                    top: grip.ey === -1 ? '0' : grip.ey === 1 ? '100%' : '50%'
+                  }}
+                  onPointerDown={(event) => drag(event, grip)}
+                />
+              )}
+            </For>
+          </Show>
         </div>
       )}
     </Show>
@@ -798,12 +839,29 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
             >
               {props.service.recording.get() ? '⏹ recording — click to stop' : '⏺ record'}
             </button>
-            <Show when={draft().video}>
-              <span style={styles.dim}>🎥 attached</span>
-            </Show>
           </div>
-          <Show when={draft().shot}>
-            {(shot) => <img style={styles.preview} src={shot()} alt="annotated region" />}
+          {/* Once there is a clip, the clip IS the preview. A still of the
+              moment the box was drawn is the wrong thing to show beside a
+              recording of what happened after it — and until you can play it
+              back, "🎥 attached" is a claim you have to take on trust. */}
+          <Show
+            when={draft().video}
+            fallback={
+              <Show when={draft().shot}>
+                {(shot) => <img style={styles.preview} src={shot()} alt="annotated region" />}
+              </Show>
+            }
+          >
+            {(video) => (
+              <video
+                style={styles.preview}
+                data-testid="wheel-annotate-video"
+                src={video()}
+                controls
+                muted
+                playsinline
+              />
+            )}
           </Show>
           {/* What the recording has caught so far. Only ever shown while one
               is running, because that is the only time there is anything: the

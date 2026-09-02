@@ -222,7 +222,7 @@ Whether this browser can turn speech into text without a server.
 
 ## `startVideo`
 
-Kind: function. Source: [packages/wheel/src/annotate/media.ts:215](../../../packages/wheel/src/annotate/media.ts#L215).
+Kind: function. Source: [packages/wheel/src/annotate/media.ts:222](../../../packages/wheel/src/annotate/media.ts#L222).
 
 Start recording the tab's pixels for a clip. `getStream` comes from the caller because the rich-screenshot tool already owns the cached display-capture stream — passing it in is what keeps the browser to ONE permission prompt per tab session.
 

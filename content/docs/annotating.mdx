@@ -161,6 +161,12 @@ top-left corner to move it whole — and what the note is ABOUT follows: the anc
 underneath and the picture are all re-taken when you let go. A box drawn in one gesture is rarely
 the box you meant, and the only fix used to be discarding the note and starting again.
 
+Its handles are shy. They appear when the pointer comes near the frame and hide while a recording
+is running, because eight squares and a triangle parked over the app are noise to look at — and
+worse, they would be IN the recording. The frame itself is click-through, so the app underneath
+keeps working while a note is open about it: that is how you reproduce the thing you are writing
+about.
+
 What you get is everything that was under it, whether or not you thought to ask:
 
 | | |
@@ -169,7 +175,7 @@ What you get is everything that was under it, whether or not you thought to ask:
 | the plain DOM under it | element, path, and a quote of its text — what a docs paragraph has instead of a component |
 | what the app did | the merged timeline of actions, state changes, input, sync writes, errors, routes and network — while ⏺ record is on |
 | the state tree | every service's atoms as they were when the recording started |
-| a screenshot | automatically, on every note |
+| a screenshot | automatically, on every note — with the instruments filtered out of it |
 | a screen recording | while ⏺ record is on |
 | the rectangle | resizable by any edge or corner, movable by the triangle at its top-left |
 
@@ -180,6 +186,11 @@ permission and opens no share dialog. `getDisplayMedia` — what the debug panel
 use — prompts once per tab session, and a screenshot that costs a modal is a screenshot nobody
 takes. The trade is that DOM capture cannot see a `<canvas>`, a `<video>`, or a cross-origin
 iframe; **📷 re-take from screen** is there for those, and costs the prompt.
+
+Nothing wheel draws is in the picture. The rasterizer skips every element marked as chrome — the
+outline around the region, the dock, all of it — so a note's screenshot is a picture of the app,
+not of the tool pointing at it. Once you record, the clip replaces the still in the composer:
+until you can play it back, "🎥 attached" is a claim you have to take on trust.
 
 **The timeline** is what ⏺ **record** is for. Press it, reproduce the problem, and the note carries
 what the app did while you did it — named actions, the atoms they moved, the rows sync wrote and
