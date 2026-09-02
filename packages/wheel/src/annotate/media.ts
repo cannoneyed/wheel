@@ -16,8 +16,9 @@
  *
  * **Video.** A clip's frames come from the SAME display-capture stream the
  * rich-screenshot tool already opened, so the browser prompts once per tab
- * session rather than once per feature. A refused prompt is not fatal either:
- * the timeline is the recording, the video is an illustration of it.
+ * session rather than once per feature — cropped, through a canvas, to the
+ * rectangle the note is about. A refused prompt is not fatal either: the
+ * timeline is the recording, the video is an illustration of it.
  *
  * Both capture paths are module seams (`setVoiceCapture`, `setVideoCapture`)
  * so tests, jsdom, and headless browsers inject their own.
@@ -45,6 +46,8 @@ export interface VoiceOptions {
   onPartial?: (text: string) => void;
 }
 
+import type { NoteRect } from './types';
+
 /** A video capture in progress. */
 export interface VideoSession {
   /** Stop recording and resolve with a `data:video/webm;base64,…`, or null if nothing was captured. */
@@ -71,7 +74,7 @@ interface RecognitionEventLike {
 }
 
 type VoiceCapture = (options: VoiceOptions) => VoiceSession;
-type VideoCapture = () => Promise<VideoSession>;
+type VideoCapture = (rect: NoteRect) => Promise<VideoSession>;
 
 let voiceCapture: VoiceCapture | null = null;
 let videoCapture: VideoCapture | null = null;
@@ -212,31 +215,111 @@ function supportedVideoType(): string | undefined {
   return undefined;
 }
 
+/** Frames per second the cropped canvas is captured at. */
+const CLIP_FPS = 30;
+
 /**
- * Start recording the tab's pixels for a clip.
+ * Play a display stream into an off-document `<video>`, ready to read frames.
+ *
+ * The stream is the whole tab; this is the source the crop is taken from.
+ */
+async function streamAsVideo(stream: MediaStream): Promise<HTMLVideoElement> {
+  const video = document.createElement('video');
+  video.srcObject = stream;
+  video.muted = true;
+  await video.play();
+  if (video.videoWidth === 0) {
+    await new Promise<void>((ready) => video.addEventListener('loadeddata', () => ready(), { once: true }));
+  }
+  return video;
+}
+
+/**
+ * Start recording ONE RECTANGLE of the tab.
+ *
+ * The browser only ever hands out a whole surface — a tab, a window, a screen —
+ * so a clip of "the thing I drew a box around" has to be cropped out of it. A
+ * note is about a rectangle, and a recording of the entire window is not a
+ * recording of that rectangle: it buries the subject in chrome, address bar and
+ * dock, and it is many times the bytes.
+ *
+ * The crop runs through a canvas rather than through the Region Capture API
+ * (`track.cropTo`), which is Chromium-only and crops to an ELEMENT — and the
+ * only element with these exact bounds is the annotator's own outline, which
+ * would put its border inside every frame. `drawImage` from a video element is
+ * a GPU blit: it costs the compositor, not the app being observed, which is the
+ * distinction that rules DOM rasterization out as a video source.
  *
  * `getStream` comes from the caller because the rich-screenshot tool already
  * owns the cached display-capture stream — passing it in is what keeps the
  * browser to ONE permission prompt per tab session.
  */
-export async function startVideo(getStream: () => Promise<MediaStream>): Promise<VideoSession> {
-  if (videoCapture) return videoCapture();
-  const stream = await getStream();
+export async function startVideo(
+  getStream: () => Promise<MediaStream>,
+  rect: NoteRect
+): Promise<VideoSession> {
+  if (videoCapture) return videoCapture(rect);
+  const source = await streamAsVideo(await getStream());
+
+  // The captured surface is the viewport at device resolution, so this is how
+  // many captured pixels one CSS pixel is worth. Same assumption the rich
+  // screenshot already makes about the same stream.
+  const scale = source.videoWidth / (globalThis.innerWidth || source.videoWidth);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(2, Math.round(rect.width * scale));
+  canvas.height = Math.max(2, Math.round(rect.height * scale));
+  const paint = canvas.getContext('2d');
+
+  let frame = 0;
+  const draw = (): void => {
+    paint?.drawImage(
+      source,
+      rect.x * scale,
+      rect.y * scale,
+      rect.width * scale,
+      rect.height * scale,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    frame = requestAnimationFrame(draw);
+  };
+  draw();
+
+  const cropped = canvas.captureStream(CLIP_FPS);
   const chunks: Blob[] = [];
   const mimeType = supportedVideoType();
-  const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  const recorder = new MediaRecorder(cropped, mimeType ? { mimeType } : undefined);
   recorder.ondataavailable = (event) => {
     if (event.data.size > 0) chunks.push(event.data);
   };
   recorder.start();
+
+  /**
+   * Stop painting and release the crop.
+   *
+   * The DISPLAY stream is left running on purpose: it is the tab-wide capture
+   * the screenshot tool caches, and stopping it here would cost the next
+   * feature a second permission prompt.
+   */
+  const teardown = (): void => {
+    cancelAnimationFrame(frame);
+    for (const track of cropped.getTracks()) track.stop();
+    source.pause();
+    source.srcObject = null;
+  };
+
   return {
     stop(): Promise<string | null> {
       return new Promise((resolve) => {
         if (recorder.state === 'inactive') {
+          teardown();
           resolve(null);
           return;
         }
         recorder.onstop = () => {
+          teardown();
           // No frames means no video. Handing back a data URL for an empty
           // blob would attach a `clip.webm` that plays nothing, which is worse
           // than saying there is no clip.
@@ -253,6 +336,7 @@ export async function startVideo(getStream: () => Promise<MediaStream>): Promise
     },
     cancel(): void {
       if (recorder.state !== 'inactive') recorder.stop();
+      teardown();
     }
   };
 }

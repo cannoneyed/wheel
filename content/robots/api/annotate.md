@@ -12,9 +12,9 @@ Anchor a note to the rectangle that was drawn, describing what was under it both
 
 ## `AnnotateCapture`
 
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:128](../../../packages/wheel/src/annotate/annotate-service.ts#L128).
+Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:134](../../../packages/wheel/src/annotate/annotate-service.ts#L134).
 
-Injected capture seams, so the service runs headless in tests.
+The injected capture seam, so the service runs headless in tests. One method, because there is one thing the annotator needs from the browser that it cannot do itself: the display stream. Stills come from the DOM rasterizer, which needs no permission and no seam of its own here.
 
 ## `AnnotateMode`
 
@@ -24,7 +24,7 @@ Where the flow currently is. `armed` is the marquee: drag a rectangle around wha
 
 ## `AnnotateService`
 
-Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:139](../../../packages/wheel/src/annotate/annotate-service.ts#L139).
+Kind: class. Source: [packages/wheel/src/annotate/annotate-service.ts:143](../../../packages/wheel/src/annotate/annotate-service.ts#L143).
 
 The annotation flow (see the module doc). One per app; `WheelAnnotate` mounts it and hands it the sync client and the capture seams.
 
@@ -196,15 +196,21 @@ Kind: function. Source: [packages/wheel/src/annotate/download.ts:23](../../../pa
 
 Public export. Read the linked declaration for its complete contract.
 
+## `setRasterizer`
+
+Kind: function. Source: [packages/wheel/src/annotate/rasterize.ts:49](../../../packages/wheel/src/annotate/rasterize.ts#L49).
+
+Public export. Read the linked declaration for its complete contract.
+
 ## `setVideoCapture`
 
-Kind: function. Source: [packages/wheel/src/annotate/media.ts:85](../../../packages/wheel/src/annotate/media.ts#L85).
+Kind: function. Source: [packages/wheel/src/annotate/media.ts:88](../../../packages/wheel/src/annotate/media.ts#L88).
 
 Public export. Read the linked declaration for its complete contract.
 
 ## `setVoiceCapture`
 
-Kind: function. Source: [packages/wheel/src/annotate/media.ts:80](../../../packages/wheel/src/annotate/media.ts#L80).
+Kind: function. Source: [packages/wheel/src/annotate/media.ts:83](../../../packages/wheel/src/annotate/media.ts#L83).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -216,19 +222,19 @@ Turn free text into a short, file-safe, greppable slug.
 
 ## `speechRecognitionAvailable`
 
-Kind: function. Source: [packages/wheel/src/annotate/media.ts:90](../../../packages/wheel/src/annotate/media.ts#L90).
+Kind: function. Source: [packages/wheel/src/annotate/media.ts:93](../../../packages/wheel/src/annotate/media.ts#L93).
 
 Whether this browser can turn speech into text without a server.
 
 ## `startVideo`
 
-Kind: function. Source: [packages/wheel/src/annotate/media.ts:222](../../../packages/wheel/src/annotate/media.ts#L222).
+Kind: function. Source: [packages/wheel/src/annotate/media.ts:257](../../../packages/wheel/src/annotate/media.ts#L257).
 
-Start recording the tab's pixels for a clip. `getStream` comes from the caller because the rich-screenshot tool already owns the cached display-capture stream — passing it in is what keeps the browser to ONE permission prompt per tab session.
+Start recording ONE RECTANGLE of the tab. The browser only ever hands out a whole surface — a tab, a window, a screen — so a clip of "the thing I drew a box around" has to be cropped out of it. A note is about a rectangle, and a recording of the entire window is not a recording of that rectangle: it buries the subject in chrome, address bar and dock, and it is many times the bytes. The crop runs through a canvas rather than through the Region Capture API (`track.cropTo`), which is Chromium-only and crops to an ELEMENT — and the only element with these exact bounds is the annotator's own outline, which would put its border inside every frame. `drawImage` from a video element is a GPU blit: it costs the compositor, not the app being observed, which is the distinction that rules DOM rasterization out as a video source. `getStream` comes from the caller because the rich-screenshot tool already owns the cached display-capture stream — passing it in is what keeps the browser to ONE permission prompt per tab session.
 
 ## `startVoice`
 
-Kind: function. Source: [packages/wheel/src/annotate/media.ts:118](../../../packages/wheel/src/annotate/media.ts#L118).
+Kind: function. Source: [packages/wheel/src/annotate/media.ts:121](../../../packages/wheel/src/annotate/media.ts#L121).
 
 Start listening: transcript from speech recognition, audio from the microphone. Either half may be missing; the session still resolves.
 
@@ -252,25 +258,25 @@ Every mounted instance whose DOM intersects a rectangle, innermost first. Same h
 
 ## `VideoSession`
 
-Kind: interface. Source: [packages/wheel/src/annotate/media.ts:49](../../../packages/wheel/src/annotate/media.ts#L49).
+Kind: interface. Source: [packages/wheel/src/annotate/media.ts:52](../../../packages/wheel/src/annotate/media.ts#L52).
 
 A video capture in progress.
 
 ## `VoiceOptions`
 
-Kind: interface. Source: [packages/wheel/src/annotate/media.ts:43](../../../packages/wheel/src/annotate/media.ts#L43).
+Kind: interface. Source: [packages/wheel/src/annotate/media.ts:44](../../../packages/wheel/src/annotate/media.ts#L44).
 
 How a voice session reports progress while it runs.
 
 ## `VoiceResult`
 
-Kind: interface. Source: [packages/wheel/src/annotate/media.ts:27](../../../packages/wheel/src/annotate/media.ts#L27).
+Kind: interface. Source: [packages/wheel/src/annotate/media.ts:28](../../../packages/wheel/src/annotate/media.ts#L28).
 
 What a finished voice capture produced.
 
 ## `VoiceSession`
 
-Kind: interface. Source: [packages/wheel/src/annotate/media.ts:35](../../../packages/wheel/src/annotate/media.ts#L35).
+Kind: interface. Source: [packages/wheel/src/annotate/media.ts:36](../../../packages/wheel/src/annotate/media.ts#L36).
 
 A capture in progress.
 

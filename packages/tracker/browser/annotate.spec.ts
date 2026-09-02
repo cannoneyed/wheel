@@ -290,11 +290,22 @@ test('the keys printed on the controls are the keys that work', async ({ page })
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
   await expect(page.getByTestId('wheel-annotate-save')).toContainText('s');
   await expect(page.getByTestId('wheel-annotate-discard')).toContainText('d');
+  await expect(page.getByTestId('wheel-annotate-film')).toContainText('r');
 
   // Typing the note must never fire them. "s" here is a letter, not save.
   await text.fill('the status');
   await page.keyboard.press('s');
   await expect(text).toHaveValue('the statuss');
+  await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
+
+  // r records, and Escape ends the recording without ending the note — the
+  // whole point of writing the note is to describe what was just recorded.
+  await text.blur();
+  await page.keyboard.press('r');
+  await expect(page.getByTestId('wheel-annotate-timeline')).toBeVisible();
+  await expect(page.getByTestId('wheel-annotate-filming')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('wheel-annotate-timeline')).toHaveCount(0);
   await expect(page.getByTestId('wheel-annotate-composer')).toBeVisible();
 
   // Out of the box, the same key saves.

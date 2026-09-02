@@ -124,11 +124,15 @@ export interface SavedNote {
   readonly payload: NotePayload;
 }
 
-/** Injected capture seams, so the service runs headless in tests. */
+/**
+ * The injected capture seam, so the service runs headless in tests.
+ *
+ * One method, because there is one thing the annotator needs from the browser
+ * that it cannot do itself: the display stream. Stills come from the DOM
+ * rasterizer, which needs no permission and no seam of its own here.
+ */
 export interface AnnotateCapture {
-  /** Grab a viewport rectangle as a PNG data URL. */
-  region(rect: NoteRect): Promise<string>;
-  /** The shared tab-capture stream, for clip video. */
+  /** The shared tab-capture stream, which a clip crops its rectangle out of. */
   stream(): Promise<MediaStream>;
 }
 
@@ -416,9 +420,11 @@ export class AnnotateService extends Service {
    */
   readonly toggleRecording = this.action(() => {
     if (this.recording.get()) {
-      this.stopRecording();
+      this.stopRecordingNow();
       return;
     }
+    const draft = this.draft.get();
+    if (!draft) return;
     this.recorder.install();
     this.recorder.startClip();
     this.errorCursor.set(activeErrorLog()?.entries().length ?? 0);
@@ -430,7 +436,7 @@ export class AnnotateService extends Service {
     const capture = this.capture.get();
     if (!capture) return;
     this.hold('asking for screen capture…');
-    void startVideo(() => capture.stream())
+    void startVideo(() => capture.stream(), draft.anchor.rect)
       .then((session) => {
         // The prompt is modal and slow, and the recording may already be over
         // by the time it is answered — saved, discarded, or stopped. Adopting
@@ -596,28 +602,6 @@ export class AnnotateService extends Service {
   }
 
   /**
-   * Re-take the picture from the SCREEN rather than from the DOM.
-   *
-   * The automatic shot is a DOM rasterization, which cannot see a `<canvas>`,
-   * a `<video>` or a cross-origin iframe. This is the escape hatch for those:
-   * true pixels, at the cost of the browser's share prompt. Only ever called
-   * because someone pressed the button.
-   */
-  readonly captureShot = this.action(() => {
-    const draft = this.draft.get();
-    const capture = this.capture.get();
-    if (!draft || !capture) return;
-    this.hold('capturing…');
-    void capture
-      .region(draft.anchor.rect)
-      .then((shot) => {
-        this.patchDraft({ shot });
-        this.hold(null);
-      })
-      .catch(() => this.say('no screenshot — this browser or tab refused screen capture'));
-  }, 'captureShot');
-
-  /**
    * Say something in the snackbar, and take it away again.
    *
    * The dismissal goes through the context's scheduler seam rather than
@@ -653,8 +637,19 @@ export class AnnotateService extends Service {
     this.voice.set(null);
   }
 
-  /** Stop recording, keeping what it captured for the open draft. */
-  private stopRecording(): void {
+  /**
+   * Stop recording, keeping what it captured for the open draft.
+   *
+   * Public because Escape ends a recording without ending the note, and that
+   * is a different thing from toggling: pressing Escape when nothing is
+   * recording must not START one.
+   */
+  readonly stopRecording = this.action(() => {
+    this.stopRecordingNow();
+  }, 'stopRecording');
+
+  /** The lifecycle itself, callable from inside another action. */
+  private stopRecordingNow(): void {
     this.stopVideo();
     this.endRecording();
   }

@@ -35,6 +35,21 @@ import type { NoteRect } from './types';
 /** Cap on the rasterized image, so a full-page rectangle cannot produce a 20 MB data URL. */
 const MAX_PIXELS = 2_000;
 
+type Rasterizer = (rect: NoteRect) => Promise<string | null>;
+
+let rasterizer: Rasterizer | null = null;
+
+/**
+ * @internal Test/host seam: replace the rasterizer.
+ *
+ * jsdom has no layout and no `<canvas>` encoder, so the real one cannot run
+ * there — and every test about what a note CARRIES needs a note with pixels
+ * in it. Same shape as `setVoiceCapture` / `setVideoCapture`.
+ */
+export function setRasterizer(fn: Rasterizer | null): void {
+  rasterizer = fn;
+}
+
 /**
  * Rasterize one viewport rectangle to a PNG data URL, or null if it cannot be
  * done here.
@@ -43,6 +58,7 @@ const MAX_PIXELS = 2_000;
  * took the whole save down with it would be a worse bug than a missing image.
  */
 export async function rasterizeRegion(rect: NoteRect): Promise<string | null> {
+  if (rasterizer) return rasterizer(rect);
   if (typeof document === 'undefined' || rect.width < 1 || rect.height < 1) return null;
   try {
     const { domToDataUrl } = await import('modern-screenshot');

@@ -48,8 +48,10 @@ area, and the recording light. A note you save appears in the pane's list, so sa
 something to point at instead of a clipboard you have to trust.
 
 Every key is printed on the control it drives: **⇧⌘A** arms and leaves, and while you are writing,
-**t** talks, **s** saves, **d** discards. The letters are ignored while the cursor is in a text box,
-so typing "the save button is broken" writes a note rather than saving three times.
+**r** records, **t** talks, **s** saves, **d** discards. **Escape** ends a running recording without
+ending the note — it steps back one thing at a time — and discards the note when nothing is
+recording. The letters are ignored while the cursor is in a text box, so typing "the save button is
+broken" writes a note rather than saving three times.
 
 Press a note in that list to **rewrite** it. The first draft of a bug report is written in a
 hurry; the second one is the useful one. A rewrite changes the words and nothing else — the same
@@ -137,6 +139,13 @@ the behaviour under observation, which is the one thing a debugging tool must no
 Screen video comes from the compositor (`getDisplayMedia`), which costs the browser prompt and
 nothing on the main thread. That is the whole reason ⏺ record is a switch you throw deliberately.
 
+The browser only ever hands out a whole surface — a tab, a window, a screen — so the clip is
+cropped out of it, through a canvas, to the rectangle the note is about. A recording of the entire
+window is not a recording of that rectangle: it buries the subject in browser chrome and dock, and
+it is many times the bytes. `drawImage` from a video element is a GPU blit, so the crop costs the
+compositor rather than the app being observed — which is the same distinction that rules DOM
+rasterization out as a video source.
+
 ### Delivery without a dev server
 
 A deployed app has no `/__wheel/note` to POST to, so the save button becomes **download note** and
@@ -176,7 +185,7 @@ What you get is everything that was under it, whether or not you thought to ask:
 | what the app did | the merged timeline of actions, state changes, input, sync writes, errors, routes and network — while ⏺ record is on |
 | the state tree | every service's atoms as they were when the recording started |
 | a screenshot | automatically, on every note — with the instruments filtered out of it |
-| a screen recording | while ⏺ record is on |
+| a screen recording | while ⏺ record is on — cropped to the rectangle, not the whole window |
 | the rectangle | resizable by any edge or corner, movable by the triangle at its top-left |
 
 The screenshot costs nothing and nobody presses a button for it.
@@ -185,7 +194,13 @@ The screenshot costs nothing and nobody presses a button for it.
 permission and opens no share dialog. `getDisplayMedia` — what the debug panel's rich screenshots
 use — prompts once per tab session, and a screenshot that costs a modal is a screenshot nobody
 takes. The trade is that DOM capture cannot see a `<canvas>`, a `<video>`, or a cross-origin
-iframe; **📷 re-take from screen** is there for those, and costs the prompt.
+iframe.
+
+There used to be a **📷 re-take from screen** button for exactly those, at the cost of the share
+prompt. It is gone. Once ⏺ record captures true pixels of the same rectangle, a second button that
+also captures true pixels of the same rectangle is a choice nobody can make correctly from its
+label — and the case it covered is covered better by a two-second recording, which shows a canvas
+doing the thing rather than a still of it.
 
 Nothing wheel draws is in the picture. The rasterizer skips every element marked as chrome — the
 outline around the region, the dock, all of it — so a note's screenshot is a picture of the app,

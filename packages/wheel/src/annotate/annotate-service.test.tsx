@@ -7,7 +7,7 @@
  * under it, and the actions and state changes that led there. So the
  * assertions are mostly "is the evidence in there".
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { useContext } from 'solid-js';
 
@@ -17,6 +17,7 @@ import { WheelContext, type WheelContextValue } from '../core/context';
 import { AnnotateService } from './annotate-service';
 import { AnnotateChrome } from './annotate-system';
 import { setNoteDownload } from './download';
+import { setRasterizer } from './rasterize';
 import { wheelTap } from '../core/recorder-tap';
 import { setVideoCapture, setVoiceCapture } from './media';
 import { debugPanes } from '../debug/panes';
@@ -147,14 +148,19 @@ let paneTeardown: (() => void) | null = null;
 /** The annotate service, pre-attached to capture seams that need no hardware. */
 function annotator(context: WheelContextValue): AnnotateService {
   const service = context.services.get(AnnotateService);
-  service.attach(null, {
-    region: () => Promise.resolve('data:image/png;base64,AAA'),
-    stream: () => Promise.reject(new Error('no display capture in tests'))
-  });
+  service.attach(null, { stream: () => Promise.reject(new Error('no display capture in tests')) });
   return service;
 }
 
+beforeEach(() => {
+  // jsdom has no layout and no canvas encoder, so the real rasterizer cannot
+  // run. Every note carries a picture, and the tests about what a note carries
+  // need one.
+  setRasterizer(() => Promise.resolve('data:image/png;base64,AAA'));
+});
+
 afterEach(() => {
+  setRasterizer(null);
   paneTeardown?.();
   paneTeardown = null;
   teardown?.();
@@ -271,10 +277,7 @@ describe('AnnotateService', () => {
     const service = context.services.get(AnnotateService);
     service.attach(
       null,
-      {
-        region: () => Promise.resolve('data:image/png;base64,AAA'),
-        stream: () => Promise.reject(new Error('no display capture in tests'))
-      },
+      { stream: () => Promise.reject(new Error('no display capture in tests')) },
       { url: 'https://notes.example.com/annotations', headers: { authorization: 'Bearer t' } }
     );
 
@@ -309,10 +312,7 @@ describe('AnnotateService', () => {
     const service = context.services.get(AnnotateService);
     service.attach(
       null,
-      {
-        region: () => Promise.resolve('data:image/png;base64,AAA'),
-        stream: () => Promise.reject(new Error('no display capture in tests'))
-      },
+      { stream: () => Promise.reject(new Error('no display capture in tests')) },
       { url: 'https://notes.example.com/annotations' }
     );
 
@@ -377,11 +377,10 @@ describe('AnnotateService', () => {
     const context = mountApp();
     const service = context.services.get(AnnotateService);
     service.attach(null, {
-      region: () => {
+      stream: () => {
         prompted += 1;
-        return Promise.resolve('data:image/png;base64,AAA');
-      },
-      stream: () => Promise.reject(new Error('no display capture in tests'))
+        return Promise.reject(new Error('no display capture in tests'));
+      }
     });
 
     service.arm();
@@ -389,8 +388,9 @@ describe('AnnotateService', () => {
     service.setText('no prompt for this');
     expect(prompted).toBe(0);
 
-    // Only pressing the button reaches the capture seam.
-    service.captureShot();
+    // Only pressing record reaches the seam that costs a permission dialog.
+    // The picture is a DOM rasterization and never asks for anything.
+    service.toggleRecording();
     await vi.waitFor(() => expect(prompted).toBe(1));
     service.disarm();
   });
@@ -473,6 +473,31 @@ describe('AnnotateService', () => {
     service.disarm();
   });
 
+  it('records the RECTANGLE, not the whole window', async () => {
+    stubFetch();
+    let asked: { x: number; y: number; width: number; height: number } | null = null;
+    setVideoCapture((rect) => {
+      asked = rect;
+      return {
+        stop: () => Promise.resolve('data:video/webm;base64,CLIP'),
+        cancel: () => undefined
+      };
+    });
+    const context = mountApp();
+    const service = annotator(context);
+
+    service.arm();
+    service.pickRegion({ x: 40, y: 90, width: 220, height: 130 });
+    service.toggleRecording();
+    await vi.waitFor(() => expect(service.filming.get()).toBe(true));
+
+    // The browser only ever hands out a whole surface, so the clip has to be
+    // cropped out of it. A recording of the entire window is not a recording
+    // of the thing the note is about.
+    expect(asked).toEqual({ x: 40, y: 90, width: 220, height: 130 });
+    service.disarm();
+  });
+
   it('stops recording when the note is thrown away', () => {
     stubFetch();
     const context = mountApp();
@@ -546,10 +571,7 @@ describe('AnnotateService', () => {
         connectionStatus: () => 'connected',
         pendingMutations: () => 0
       } as unknown as Parameters<AnnotateService['attach']>[0],
-      {
-        region: () => Promise.resolve('data:image/png;base64,AAA'),
-        stream: () => Promise.reject(new Error('no display capture in tests'))
-      }
+      { stream: () => Promise.reject(new Error('no display capture in tests')) }
     );
 
     service.arm();
@@ -590,10 +612,7 @@ describe('AnnotateService', () => {
         connectionStatus: () => 'connected',
         pendingMutations: () => 0
       } as unknown as Parameters<AnnotateService['attach']>[0],
-      {
-        region: () => Promise.resolve('data:image/png;base64,AAA'),
-        stream: () => Promise.reject(new Error('no display capture in tests'))
-      }
+      { stream: () => Promise.reject(new Error('no display capture in tests')) }
     );
 
     service.arm();
@@ -675,9 +694,6 @@ describe('AnnotateService', () => {
 
     service.arm();
     service.pickRegion(OVER_CELL);
-    // The rasterizer cannot run in jsdom, so the still comes through the
-    // re-take seam the test harness already stubs.
-    service.captureShot();
     await vi.waitFor(() => expect(service.draft.get()?.shot).toBeTruthy());
 
     // Until there is a clip, the still is the preview.
@@ -742,10 +758,6 @@ describe('AnnotateService', () => {
     const service = annotator(context);
     service.arm();
     service.pickRegion(OVER_CELL);
-    // Screen capture is never a side effect of opening the composer — it opens
-    // a permission prompt, so it happens only when someone presses the button.
-    expect(service.draft.get()?.shot).toBeNull();
-    service.captureShot();
     await vi.waitFor(() => expect(service.draft.get()?.shot).toBeTruthy());
     service.setText('look at this');
     service.save();

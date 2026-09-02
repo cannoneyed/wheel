@@ -31,7 +31,7 @@ import { Portal } from 'solid-js/web';
 
 import { WheelContext } from '../core/context';
 import type { SyncClient } from '../sync/client/client';
-import { captureViewportRegion, tabCaptureStream } from '../debug/snapshot';
+import { tabCaptureStream } from '../debug/snapshot';
 
 import { registerDebugPane } from '../debug/panes';
 
@@ -213,11 +213,7 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
   const service = context.services.get(AnnotateService);
   service.attach(
     context.client as SyncClient | null,
-    {
-      region: (rect) =>
-        captureViewportRegion({ left: rect.x, top: rect.y, width: rect.width, height: rect.height }),
-      stream: () => tabCaptureStream()
-    },
+    { stream: () => tabCaptureStream() },
     props.sink
   );
 
@@ -233,7 +229,13 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
       }
       if (event.key === 'Escape' && service.mode.get() !== 'off') {
         event.preventDefault();
-        if (service.mode.get() === 'composing') service.discard();
+        // Escape steps back one thing at a time. While a recording is running
+        // it is the recording you want to end, not the note you have been
+        // writing all through it — and Escape is where a hand already is,
+        // which matters when the other hand is holding the app in the state
+        // worth recording.
+        if (service.recording.get()) service.stopRecording();
+        else if (service.mode.get() === 'composing') service.discard();
         else service.disarm();
       }
     };
@@ -266,7 +268,10 @@ export function AnnotateChrome(props: { readonly sink?: AnnotateSink }): JSX.Ele
         service.setLabel(LABELS[labelIndex]!);
         return;
       }
-      if (key === COMPOSER_KEYS.talk) {
+      if (key === COMPOSER_KEYS.record) {
+        event.preventDefault();
+        service.toggleRecording();
+      } else if (key === COMPOSER_KEYS.talk) {
         event.preventDefault();
         if (service.draft.get()?.listening) service.stopListening();
         else service.listen();
@@ -808,19 +813,6 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
               words and nothing else — see `buildPayload`. */}
           <Show when={!draft().basedOn}>
           <div style={styles.row}>
-            {/* The picture is already taken — this re-takes it from the SCREEN
-                for the cases a DOM rasterization cannot see: canvas, video, a
-                cross-origin iframe. That one costs a share prompt, so it stays
-                a button. */}
-            <button
-              type="button"
-              style={styles.button}
-              data-testid="wheel-annotate-shot"
-              title="Re-take from the screen — opens a share prompt. Use it when the automatic picture is wrong."
-              onClick={() => props.service.captureShot()}
-            >
-              {draft().shot ? '📷 re-take from screen' : '📷 screenshot'}
-            </button>
             {/* ONE switch for both halves of a recording: the screen, and
                 what the app actually did. Nothing is recorded until it is
                 pressed. Leaving it running is fine — saving stops it and
@@ -837,7 +829,8 @@ function Composer(props: { service: AnnotateService }): JSX.Element {
               title="Records the screen, and every action and state change, until you save"
               onClick={() => props.service.toggleRecording()}
             >
-              {props.service.recording.get() ? '⏹ recording — click to stop' : '⏺ record'}
+              {props.service.recording.get() ? '⏹ recording — Escape stops' : '⏺ record'}{' '}
+              <Key of={COMPOSER_KEYS.record} />
             </button>
           </div>
           {/* Once there is a clip, the clip IS the preview. A still of the

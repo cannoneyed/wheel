@@ -25,6 +25,7 @@ export function armChord(): string {
  * ignored while a text box has focus, so typing the note never fires one.
  */
 export const COMPOSER_KEYS = {
+  record: 'r',
   talk: 't',
   save: 's',
   discard: 'd'

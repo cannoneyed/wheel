@@ -25,6 +25,7 @@ export {
 } from './annotate-service';
 export { Recorder, stateTreeSnapshot, type RecorderOptions, type RecorderStreams } from './recorder';
 export { downloadNote, setNoteDownload } from './download';
+export { setRasterizer } from './rasterize';
 export { anchorToRegion, describeElement, domPathOf, targetOf, targetsUnder } from './anchor';
 export { describeEvent, noteId, renderNoteFile, renderNoteMarkdown, slugify } from './note-format';
 export {
