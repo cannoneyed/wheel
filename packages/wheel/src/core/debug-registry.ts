@@ -545,16 +545,22 @@ export class DebugRegistry {
   }
 
   /**
-   * Rewrite the DOM stamps once the mount burst has settled.
+   * Settle once the mount burst is over: restamp the DOM, and say so again.
    *
-   * A stamp cannot be correct at registration: an id is scoped to siblings,
-   * siblings come from DOM containment, and the element being registered is
-   * not in the document yet — its own `use:componentRoot` adds it on the next
-   * line, and its parent may mount after it. So the honest moment is "once
-   * this batch of mounts is done", which is the microtask after them.
+   * NOTHING about a registration is final at the moment it happens. An id is
+   * scoped to siblings and a parent comes from DOM containment, but the
+   * element being registered is not in the document yet — its own
+   * `use:componentRoot` adds it on the next line, and its parent may mount
+   * after it. Anything computed during the burst is a guess.
+   *
+   * So the burst ends with a second notification, and that is not belt and
+   * braces: a surface that derived a tree DURING the burst has a wrong tree
+   * and no reason to ever recompute it. Reloading an app with the debug panel
+   * already open showed exactly that — rows parented under whichever sibling
+   * happened to be mounted when the panel asked, and left there, because the
+   * next thing to change the registry might be minutes away.
    *
    * Coalesced, so mounting a hundred rows costs one pass and not a hundred.
-   * Reading `instanceId` never waits for it — that reads the map directly.
    */
   private scheduleRestamp(): void {
     if (this.restampQueued) return;
@@ -563,6 +569,9 @@ export class DebugRegistry {
       this.restampQueued = false;
       // Rebuilding is what rewrites the stamps; see `computeDisplayIds`.
       this.displayIds = this.computeDisplayIds();
+      // And now that the DOM is settled, every derived view is invited to
+      // recompute against it.
+      this.onInstanceChange?.();
     });
   }
 

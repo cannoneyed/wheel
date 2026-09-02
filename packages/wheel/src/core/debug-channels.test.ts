@@ -77,6 +77,31 @@ describe('debug channels', () => {
     root.dispose();
   });
 
+  it('reports again once the mount burst has settled', async () => {
+    const context = new ServiceContext();
+    const shape = watch(() => context.trackInstances());
+    const duringBurst = shape.runs();
+
+    // A registration is not the end of the story. The element being registered
+    // is not in the document yet — `use:componentRoot` adds it on the next
+    // line — and its parent may mount after it, so a parent resolved now is a
+    // guess. Anything derived DURING the burst is derived from half a tree.
+    const { unregister } = context.registry.registerInstance('TodoRow', {}, { kind: 'view' });
+    const afterRegister = shape.runs();
+    expect(afterRegister).toBeGreaterThan(duringBurst);
+
+    // The second report is what lets a derived view correct itself. Without
+    // it, a panel that rendered mid-burst keeps its wrong tree until the next
+    // registry change — which may be minutes away, or never.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(shape.runs()).toBeGreaterThan(afterRegister);
+
+    unregister();
+    shape.dispose();
+    context.dispose();
+  });
+
   it('reaches a grandchild too, however deep the providers nest', () => {
     const root = new ServiceContext();
     const child = new ServiceContext({ parent: root });

@@ -225,6 +225,49 @@ test('a childless row has no caret, and a long name is cut rather than wrapped',
   expect(overflowing).toBe(false);
 });
 
+test('the panel nests components the way the registry does, on a cold load', async ({ page }) => {
+  // Reload with the dock ALREADY open, so the panel renders during the mount
+  // burst rather than after it. Nothing about a registration is final while
+  // that burst runs: a parent comes from DOM containment, and the element
+  // being registered is not in the document yet.
+  //
+  // The panel used to derive its tree from that half-built state and keep it —
+  // rows parented under whichever sibling happened to be mounted when it
+  // asked, sitting wrong until something else changed the registry, which
+  // might be minutes away.
+  await page.reload();
+  const pane = page.getByTestId('wheel-pane-components');
+  await expect(pane).toBeVisible();
+  for (let pass = 0; pass < 12; pass += 1) {
+    const closed = pane.locator('[data-tree-row]').filter({ hasText: /^▸/ }).first();
+    if ((await closed.count()) === 0) break;
+    await closed.click();
+  }
+
+  const wrong = await page.evaluate(() => {
+    const bridge = (globalThis as Record<string, any>)['__wheel'];
+    const pane = document.querySelector('[data-testid="wheel-pane-components"]')!;
+    const misplaced: string[] = [];
+    const walk = (nodes: readonly any[], parentId: string | null): void => {
+      for (const node of nodes) {
+        if (parentId) {
+          const parent = pane.querySelector(`[data-tree-node="${CSS.escape(parentId)}"]`);
+          const child = pane.querySelector(`[data-tree-node="${CSS.escape(node.instanceId)}"]`);
+          // Only rows the panel is actually showing can be checked.
+          if (parent && child && !parent.contains(child)) {
+            misplaced.push(`${node.instanceId} should sit under ${parentId}`);
+          }
+        }
+        walk(node.children ?? [], node.instanceId);
+      }
+    };
+    walk(bridge.components(), null);
+    return misplaced;
+  });
+
+  expect(wrong).toEqual([]);
+});
+
 test('hovering does not rebuild the tree under the pointer', async ({ page }) => {
   const row = page.getByTestId('wheel-pane-components').locator('[data-tree-node] [data-tree-row]').first();
   const handle = await row.elementHandle();
