@@ -338,7 +338,11 @@ function ComponentDetail(props: {
           <Show when={Object.keys(liveState()).length > 0}>
             <Expandable
               path={`tree:${props.node.key}:connected`}
-              label="connected"
+              // `connected` is a connect() shape: the values a component pulled
+              // from services. A view component has no shape — what it
+              // publishes is its own state, and calling that "connected" said
+              // something untrue about where it came from.
+              label={props.node.kind === 'view' ? 'state' : 'connected'}
               summary={`{${Object.keys(liveState()).length}}`}
               accent={META_COLORS.connected}
               icon="◆"
@@ -393,7 +397,7 @@ const detailStyles = {
     display: 'flex',
     gap: '6px',
     'align-items': 'center',
-    padding: '2px 0 4px',
+    padding: '8px 0 6px',
     color: 'var(--wheel-stage-ink-faint, #8b8b8b)'
   },
   close: {
@@ -409,7 +413,8 @@ const detailStyles = {
 
 /** The row's inspect toggle: quiet until it is on. */
 const inspectStyle = {
-  padding: '0 4px',
+  padding: 0,
+  'line-height': 1,
   border: 'none',
   background: 'none',
   font: 'inherit',

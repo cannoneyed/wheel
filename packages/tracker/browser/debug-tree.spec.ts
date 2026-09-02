@@ -177,6 +177,36 @@ test('the tree and its detail scroll on their own, and the split is draggable', 
     .toBeGreaterThan(Math.round(before));
 });
 
+test('leaves and branches line up, whatever their caret', async ({ page }) => {
+  const pane = page.getByTestId('wheel-pane-components');
+  for (let pass = 0; pass < 8; pass += 1) {
+    const closed = pane.locator('[data-tree-row]').filter({ hasText: /^▸/ }).first();
+    if ((await closed.count()) === 0) break;
+    await closed.click();
+  }
+
+  // Group the rows by how deep they sit, and check every row at one depth
+  // starts at the same x. A blank spacer standing in for a caret drifted:
+  // `▸` and a box of the "same" width are not the same width, so leaves ended
+  // up indented past the branches beside them.
+  const byDepth = await pane.evaluate((root) => {
+    const out: Record<number, number[]> = {};
+    for (const row of root.querySelectorAll('[data-tree-row]')) {
+      const label = row.querySelector('span:nth-of-type(2)');
+      if (!label) continue;
+      let depth = 0;
+      for (let node = row.parentElement; node && node !== root; node = node.parentElement) depth += 1;
+      (out[depth] ??= []).push(Math.round(label.getBoundingClientRect().x));
+    }
+    return out;
+  });
+
+  for (const xs of Object.values(byDepth)) {
+    if (xs.length < 2) continue;
+    expect(Math.max(...xs) - Math.min(...xs)).toBeLessThanOrEqual(1);
+  }
+});
+
 test('a childless row has no caret, and a long name is cut rather than wrapped', async ({ page }) => {
   const pane = page.getByTestId('wheel-pane-components');
   for (let pass = 0; pass < 8; pass += 1) {
@@ -186,10 +216,9 @@ test('a childless row has no caret, and a long name is cut rather than wrapped',
   }
 
   const rows = pane.locator('[data-tree-node] [data-tree-row]');
-  const leaf = rows.filter({ hasNotText: /^[▸▾]/ }).first();
-  // A caret that does nothing is worse than none; the row keeps the caret's
-  // width so every label still starts in the same column.
-  await expect(leaf).toHaveCount(1);
+  // A caret that does nothing is worse than none, so a leaf shows a dot in
+  // the same column instead — one element for both states, so nothing drifts.
+  await expect(rows.filter({ hasText: /^·/ }).first()).toBeVisible();
 
   // And no row makes the pane scroll sideways.
   const overflowing = await pane.evaluate((el) => el.scrollWidth > el.clientWidth + 1);

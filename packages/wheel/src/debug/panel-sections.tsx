@@ -75,7 +75,8 @@ export const sectionStyles = {
   },
   summary: {
     display: 'flex',
-    gap: '6px',
+    // Tight: a caret, an icon and a name are one label, not three columns.
+    gap: '2px',
     padding: '1px 0',
     cursor: 'pointer',
     'user-select': 'none',
@@ -91,8 +92,20 @@ export const sectionStyles = {
     'white-space': 'nowrap',
     'min-width': 0
   },
-  /** Where a caret would be, for rows that have nothing to open. */
-  caretSpacer: { width: '9px', 'flex-shrink': 0 },
+  /**
+   * The caret column.
+   *
+   * ONE element for both states, so every label in the tree starts in the same
+   * place. Faking the gap with a separate spacer drifted: a `▸` and a blank
+   * box of the "same" width are not the same width, and leaves ended up
+   * indented further than the branches beside them.
+   */
+  caret: {
+    width: '12px',
+    'flex-shrink': 0,
+    'text-align': 'center',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)'
+  },
   indent: { 'padding-left': '12px' },
   dim: { color: 'var(--wheel-stage-ink-faint, #8b8b8b)' },
   badge: { color: 'var(--wheel-ok-soft, #2dd4bf)' }
@@ -224,12 +237,9 @@ export function Expandable(props: {
         onMouseEnter={props.onRowEnter}
         onMouseLeave={props.onRowLeave}
       >
-        <Show
-          when={expandable()}
-          fallback={<span style={sectionStyles.caretSpacer} aria-hidden="true" />}
-        >
-          <span style={sectionStyles.dim}>{open() ? '▾' : '▸'}</span>
-        </Show>
+        <span style={sectionStyles.caret} aria-hidden="true">
+          {expandable() ? (open() ? '▾' : '▸') : '·'}
+        </span>
         <Show when={props.leading}>
           <span style={{ 'flex-shrink': 0 }} onClick={(event) => event.stopPropagation()}>
             {props.leading}

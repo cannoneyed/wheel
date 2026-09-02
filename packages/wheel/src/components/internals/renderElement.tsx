@@ -196,7 +196,12 @@ export function renderElement<State extends Record<string, any>>(
           role: roleOfProps(finalProps()),
           // The part's own reactive state — `checked`, `open`, `disabled` —
           // which is what drives it and what a reader of the tree came for.
-          state
+          state,
+          // And what the CALLER actually passed. A state object lists every
+          // key the component has, defaults included, so `checked: false` on
+          // its own cannot tell you whether anyone asked for that. The props
+          // beside it can.
+          props: componentProps
         }));
       }
       componentProps.ref?.(el);
