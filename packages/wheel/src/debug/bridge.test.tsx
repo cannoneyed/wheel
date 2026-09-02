@@ -14,6 +14,9 @@ import type { WheelGlobal } from '../core/bridge-contract';
 import { installWheelBridge } from './bridge';
 
 class CounterService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'CounterService';
+
   readonly count = this.atom(0, 'count');
   readonly add = this.action((n: number) => this.count.set(this.count.get() + n), 'add');
 }

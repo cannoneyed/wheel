@@ -248,6 +248,7 @@ try {
       ...componentEntries.map(([entry, name]) => [`components/${entry}`, name]),
       ['router', 'createRouter'],
       ['debug', 'InspectorService'],
+      ['annotate', 'AnnotateService'],
       ['testing', 'World'],
       ['testing/playwright', 'createBehaviorHarness'],
       ['vite', 'wheelDevTools']

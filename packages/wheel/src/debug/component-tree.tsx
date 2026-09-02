@@ -28,6 +28,8 @@ import type { DebugRegistry, InstanceRecord, InstanceTreeNode } from '../core/de
 import type { ServiceContext } from '../core/services';
 
 import { InspectorService } from './inspector';
+import { Frame } from '../kit';
+
 import { Expandable, JsonTree, sectionStyles, type ExpandState } from './panel-sections';
 
 /**
@@ -118,12 +120,23 @@ function TreeChildren(props: {
   services: ServiceContext;
   ex: ExpandState;
   selected: () => string | null;
+  reveal: (instanceId: string) => void;
+  inspected: () => string | null;
+  inspect: (key: string | null) => void;
 }): JSX.Element {
   return (
     <For each={groupSiblings(props.nodes)}>
       {(child) =>
         child.kind === 'node' ? (
-          <TreeNode node={child.node} services={props.services} ex={props.ex} selected={props.selected} />
+          <TreeNode
+            node={child.node}
+            services={props.services}
+            ex={props.ex}
+            selected={props.selected}
+            reveal={props.reveal}
+            inspected={props.inspected}
+            inspect={props.inspect}
+          />
         ) : (
           <Expandable
             path={`${props.parentPath}:list:${child.name}`}
@@ -131,10 +144,28 @@ function TreeChildren(props: {
             summary={`(${child.members.length})`}
             accent={META_COLORS.list}
             ex={props.ex}
+            // A group stands for its members, so hovering it shows ALL of
+            // them. It used to show nothing, which read as a dead row — and
+            // since the component library joined the tree, a collapsed list is
+            // most of what a reader hovers.
+            onRowEnter={() =>
+              props.services
+                .get(InspectorService)
+                .highlight(child.members.map((member) => member.instanceId))
+            }
+            onRowLeave={() => props.services.get(InspectorService).highlight(null)}
           >
             <For each={child.members}>
               {(member) => (
-                <TreeNode node={member} services={props.services} ex={props.ex} selected={props.selected} />
+                <TreeNode
+                  node={member}
+                  services={props.services}
+                  ex={props.ex}
+                  selected={props.selected}
+                  reveal={props.reveal}
+                  inspected={props.inspected}
+                  inspect={props.inspect}
+                />
               )}
             </For>
           </Expandable>
@@ -144,13 +175,317 @@ function TreeChildren(props: {
   );
 }
 
+/**
+ * The `children` prop, as the components it actually mounted.
+ *
+ * It used to read `<jsx children>`, and that marker is not laziness — reading a
+ * JSX getter MOUNTS what it returns, and the tree re-renders whenever an
+ * instance registers, so reading it here is a mount loop (it froze the graph
+ * demo at 400% CPU). Nothing is read now either: these are the child nodes the
+ * tree already has, which is what the prop produced.
+ *
+ * Each one selects its row, so `children` is a way THROUGH the tree rather
+ * than a dead end.
+ */
+function ChildLinks(props: {
+  node: InstanceTreeNode;
+  services: ServiceContext;
+  reveal: (instanceId: string) => void;
+}): JSX.Element {
+  const highlight = (id: string | null): void => props.services.get(InspectorService).highlight(id);
+  const count = (): number => props.node.children.length;
+  return (
+    <>
+      <div style={sectionStyles.row}>
+        <span style={sectionStyles.dim}>children:</span>
+        <span style={sectionStyles.dim}>
+          {count() > 0 ? `(${count()})` : 'nothing wheel can see'}
+        </span>
+      </div>
+      <For each={props.node.children}>
+        {(child) => (
+          <button
+            type="button"
+            data-testid="wheel-tree-child-link"
+            style={childLinkStyle}
+            title={`reveal ${child.instanceId}`}
+            onClick={() => props.reveal(child.instanceId)}
+            onMouseEnter={() => highlight(child.instanceId)}
+            onMouseLeave={() => highlight(null)}
+          >
+            {child.instanceId}
+          </button>
+        )}
+      </For>
+    </>
+  );
+}
+
+/** A child link reads as a link, not as a value. */
+const childLinkStyle = {
+  display: 'block',
+  padding: '1px 0 1px 12px',
+  border: 'none',
+  background: 'none',
+  color: 'var(--wheel-indigo-edge, #93c5fd)',
+  font: 'inherit',
+  cursor: 'pointer',
+  'text-align': 'left',
+  'text-decoration': 'underline'
+} satisfies JSX.CSSProperties;
+
+/**
+ * Whether a value is carrying no information.
+ *
+ * `false`, `null`, `undefined` and `''` are what a component reports for the
+ * things nobody asked about. A `0` is NOT one of them — a count of zero is a
+ * fact, and hiding it would be hiding an answer.
+ */
+function isUnset(value: unknown): boolean {
+  return value === false || value === null || value === undefined || value === '';
+}
+
+/**
+ * A group of values, with the empty ones folded away.
+ *
+ * `CheckboxRoot` reports twelve keys and eleven of them say `false`. Every one
+ * is true and almost none of it is what you opened the panel for, so the ones
+ * carrying nothing collapse behind a count you can press. Nothing is hidden
+ * permanently — this is about what to read FIRST.
+ */
+function ValueGroup(props: {
+  entries: () => Array<readonly [string, unknown]>;
+  path: string;
+  ex: ExpandState;
+}): JSX.Element {
+  const set = (): Array<readonly [string, unknown]> => props.entries().filter(([, v]) => !isUnset(v));
+  const unset = (): Array<readonly [string, unknown]> => props.entries().filter(([, v]) => isUnset(v));
+  const showUnset = (): boolean => props.ex.expanded(`${props.path}::unset`);
+  return (
+    <>
+      <For each={set()}>
+        {([key, value]) => (
+          <JsonTree path={`${props.path}.${key}`} label={key} value={value} ex={props.ex} />
+        )}
+      </For>
+      <Show when={unset().length > 0}>
+        <div
+          style={{ ...sectionStyles.row, cursor: 'pointer' }}
+          data-testid="wheel-tree-unset-toggle"
+          onClick={() => props.ex.toggle(`${props.path}::unset`)}
+        >
+          <span style={sectionStyles.dim}>
+            {showUnset() ? '▾' : '…'} {unset().length} unset
+          </span>
+        </div>
+        <Show when={showUnset()}>
+          <For each={unset()}>
+            {([key, value]) => (
+              <JsonTree path={`${props.path}.${key}`} label={key} value={value} ex={props.ex} />
+            )}
+          </For>
+        </Show>
+      </Show>
+    </>
+  );
+}
+
+/**
+ * One component's own data: what it was given, what it keeps, what it can do.
+ *
+ * A SUB-VIEW rather than rows nested in the tree. Four groups inline under
+ * every open node made the tree impossible to scan — the structure you came
+ * for was buried under the values you did not. The tree is now only the tree;
+ * this opens beneath it for the one component you asked about.
+ */
+function ComponentDetail(props: {
+  node: InstanceTreeNode;
+  services: ServiceContext;
+  ex: ExpandState;
+  reveal: (instanceId: string) => void;
+  close: () => void;
+}): JSX.Element {
+  const record = () => props.services.registry.instance(props.node.instanceId);
+  const liveProps = createMemo<Record<string, unknown>>(() => {
+    props.services.trackVersion();
+    return record()?.props() ?? {};
+  });
+  const liveState = createMemo<Record<string, unknown>>(() => {
+    props.services.trackVersion();
+    return record()?.state() ?? {};
+  });
+  return (
+    <>
+      <div style={detailStyles.header}>
+        <span style={{ color: 'var(--wheel-stage-ink-strong, #e5e7eb)' }}>{props.node.instanceId}</span>
+        <button
+          type="button"
+          style={detailStyles.close}
+          data-testid="wheel-tree-detail-close"
+          aria-label="close the inspector"
+          onClick={props.close}
+        >
+          ✕
+        </button>
+      </div>
+    {/* A component's own DATA (state, actions) vs its CHILDREN are
+        different kinds of thing, and rendering them as peer rows made
+        the tree hard to read. Both now sit in accented, icon-marked
+        groups: `state` opens by default (reaching it should cost no
+        clicks), `actions` stays closed (names only, no values). */}
+    <Show when={record()}>
+      {(instanceRecord) => (
+        <>
+          {/* PROPS first: what the parent handed this component, before
+              what the component derived from services. */}
+          <Show when={Object.keys(liveProps()).length > 0}>
+            <Expandable
+              path={`tree:${props.node.key}:props`}
+              label="props"
+              summary={`{${Object.keys(liveProps()).length}}`}
+              accent={META_COLORS.props}
+              icon="▪"
+              defaultOpen
+              ex={props.ex}
+            >
+              <Show when={'children' in liveProps()}>
+                <ChildLinks node={props.node} services={props.services} reveal={props.reveal} />
+              </Show>
+              <ValueGroup
+                entries={() => Object.entries(liveProps()).filter(([key]) => key !== 'children')}
+                path={`tree:${props.node.key}:props`}
+                ex={props.ex}
+              />
+            </Expandable>
+          </Show>
+          {/* Component-LOCAL signals (useSignal), distinct from the
+              connect shape: this state belongs to this instance alone. */}
+          <Show when={instanceRecord().locals.length > 0}>
+            <Expandable
+              path={`tree:${props.node.key}:local`}
+              label="local"
+              summary={`(${instanceRecord().locals.length})`}
+              accent={META_COLORS.local}
+              icon="●"
+              defaultOpen
+              ex={props.ex}
+            >
+              <For each={instanceRecord().locals}>
+                {(local) => (
+                  <JsonTree
+                    path={`tree:${props.node.key}:local.${local.name}`}
+                    label={local.name}
+                    value={local.read()}
+                    ex={props.ex}
+                  />
+                )}
+              </For>
+            </Expandable>
+          </Show>
+          <Show when={Object.keys(liveState()).length > 0}>
+            <Expandable
+              path={`tree:${props.node.key}:connected`}
+              // `connected` is a connect() shape: the values a component pulled
+              // from services. A view component has no shape — what it
+              // publishes is its own state, and calling that "connected" said
+              // something untrue about where it came from.
+              label={props.node.kind === 'view' ? 'state' : 'connected'}
+              summary={`{${Object.keys(liveState()).length}}`}
+              accent={META_COLORS.connected}
+              icon="◆"
+              defaultOpen
+              ex={props.ex}
+            >
+              <ValueGroup
+                entries={() => Object.entries(liveState())}
+                path={`tree:${props.node.key}:state`}
+                ex={props.ex}
+              />
+            </Expandable>
+          </Show>
+          <Show when={instanceRecord().actions.length > 0}>
+            <Expandable
+              path={`tree:${props.node.key}:actions`}
+              label="actions"
+              summary={`(${instanceRecord().actions.length})`}
+              accent={META_COLORS.actions}
+              icon="ƒ"
+              ex={props.ex}
+            >
+              <For each={instanceRecord().actions}>
+                {(action) => (
+                  <div style={sectionStyles.row}>
+                    <span style={sectionStyles.dim}>{action}</span>
+                  </div>
+                )}
+              </For>
+            </Expandable>
+          </Show>
+        </>
+      )}
+    </Show>
+    </>
+  );
+}
+
+/** The sub-view's own chrome: pinned under the tree, scrolling on its own. */
+const detailStyles = {
+  panel: {
+    // Height is set by the drag handle above it; this only owns its scroll.
+    overflow: 'auto',
+    'min-height': 0
+  },
+  header: {
+    display: 'flex',
+    gap: '6px',
+    'align-items': 'center',
+    padding: '8px 0 6px',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)'
+  },
+  close: {
+    'margin-left': 'auto',
+    padding: '0 4px',
+    border: 'none',
+    background: 'none',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)',
+    font: 'inherit',
+    cursor: 'pointer'
+  }
+} satisfies Record<string, JSX.CSSProperties>;
+
+/** The row's inspect toggle: quiet until it is on. */
+const inspectStyle = {
+  padding: 0,
+  // Space before the name, so the eye reads as its own control rather than a
+  // prefix on the label.
+  'margin-right': '4px',
+  'line-height': 1,
+  border: 'none',
+  background: 'none',
+  font: 'inherit',
+  cursor: 'pointer'
+} satisfies JSX.CSSProperties;
+
 function TreeNode(props: {
   node: InstanceTreeNode;
   services: ServiceContext;
   ex: ExpandState;
   selected: () => string | null;
+  reveal: (instanceId: string) => void;
+  inspected: () => string | null;
+  inspect: (key: string | null) => void;
 }): JSX.Element {
   const record = () => props.services.registry.instance(props.node.instanceId);
+  // Live values, on the DATA channel. Kept out of the tree-shape memo so a
+  // changing value updates a row instead of rebuilding every row.
+  const liveProps = createMemo<Record<string, unknown>>(() => {
+    props.services.trackVersion();
+    return record()?.props() ?? {};
+  });
+  const liveState = createMemo<Record<string, unknown>>(() => {
+    props.services.trackVersion();
+    return record()?.state() ?? {};
+  });
   const highlight = (id: string | null): void => props.services.get(InspectorService).highlight(id);
   /**
    * Why this component isn't on screen, if it isn't:
@@ -171,130 +506,54 @@ function TreeNode(props: {
     }
     return instance.hiddenBy === 'show' ? 'hidden' : 'no DOM';
   };
-  const summary = (): string => {
-    const count = props.node.children.length;
-    const kind = props.node.kind === 'view' ? 'view' : '';
-    return [kind, count > 0 ? `(${count})` : ''].filter(Boolean).join(' ');
-  };
+  const inspecting = (): boolean => props.inspected() === props.node.key;
+  // Only rows with children open. A caret on a leaf does nothing, and a tree
+  // full of carets that do nothing is a tree you cannot skim.
+  const expandable = (): boolean => props.node.children.length > 0;
   return (
     <div
       data-tree-node={props.node.instanceId}
       style={props.selected() === props.node.instanceId ? { background: 'var(--wheel-stage-hover, rgba(99,102,241,0.18))', 'border-radius': '4px' } : undefined}
     >
       <Expandable
-        path={`tree:${props.node.instanceId}`}
+        path={`tree:${props.node.key}`}
         label={props.node.instanceId}
-        summary={[summary(), invisibility() ? `⊘ ${invisibility()!}` : ''].filter(Boolean).join(' ')}
+        summary={invisibility() ? `⊘ ${invisibility()!}` : ''}
         accent={invisibility() ? 'var(--wheel-stage-ink-faint, #8b8b8b)' : undefined}
         ex={props.ex}
+        expandable={expandable()}
         onRowEnter={() => highlight(props.node.instanceId)}
         onRowLeave={() => highlight(null)}
+        leading={
+          <button
+            type="button"
+            style={{
+              ...inspectStyle,
+              color: inspecting()
+                ? 'var(--wheel-indigo-bright, #6366f1)'
+                : 'var(--wheel-stage-ink-dim, #6b7280)'
+            }}
+            data-testid="wheel-tree-inspect"
+            aria-pressed={inspecting()}
+            title={`${inspecting() ? 'hide' : 'show'} props, state and actions`}
+            onClick={() => props.inspect(inspecting() ? null : props.node.key)}
+          >
+            👁
+          </button>
+        }
+        // The name asks "what is this holding", which is the same question the
+        // eye asks. The caret stays the only thing that opens the children.
+        onLabelClick={() => props.inspect(inspecting() ? null : props.node.key)}
       >
-        {/* A component's own DATA (state, actions) vs its CHILDREN are
-            different kinds of thing, and rendering them as peer rows made
-            the tree hard to read. Both now sit in accented, icon-marked
-            groups: `state` opens by default (reaching it should cost no
-            clicks), `actions` stays closed (names only, no values). */}
-        <Show when={record()}>
-          {(instanceRecord) => (
-            <>
-              {/* PROPS first: what the parent handed this component, before
-                  what the component derived from services. */}
-              <Show when={Object.keys(instanceRecord().props()).length > 0}>
-                <Expandable
-                  path={`tree:${props.node.instanceId}:props`}
-                  label="props"
-                  summary={`{${Object.keys(instanceRecord().props()).length}}`}
-                  accent={META_COLORS.props}
-                  icon="▪"
-                  defaultOpen
-                  ex={props.ex}
-                >
-                  <For each={Object.entries(instanceRecord().props())}>
-                    {([key, value]) => (
-                      <JsonTree
-                        path={`tree:${props.node.instanceId}:props.${key}`}
-                        label={key}
-                        value={value}
-                        ex={props.ex}
-                      />
-                    )}
-                  </For>
-                </Expandable>
-              </Show>
-              {/* Component-LOCAL signals (useSignal), distinct from the
-                  connect shape: this state belongs to this instance alone. */}
-              <Show when={instanceRecord().locals.length > 0}>
-                <Expandable
-                  path={`tree:${props.node.instanceId}:local`}
-                  label="local"
-                  summary={`(${instanceRecord().locals.length})`}
-                  accent={META_COLORS.local}
-                  icon="●"
-                  defaultOpen
-                  ex={props.ex}
-                >
-                  <For each={instanceRecord().locals}>
-                    {(local) => (
-                      <JsonTree
-                        path={`tree:${props.node.instanceId}:local.${local.name}`}
-                        label={local.name}
-                        value={local.read()}
-                        ex={props.ex}
-                      />
-                    )}
-                  </For>
-                </Expandable>
-              </Show>
-              <Show when={Object.keys(instanceRecord().state()).length > 0}>
-                <Expandable
-                  path={`tree:${props.node.instanceId}:connected`}
-                  label="connected"
-                  summary={`{${Object.keys(instanceRecord().state()).length}}`}
-                  accent={META_COLORS.connected}
-                  icon="◆"
-                  defaultOpen
-                  ex={props.ex}
-                >
-                  <For each={Object.entries(instanceRecord().state())}>
-                    {([key, value]) => (
-                      <JsonTree
-                        path={`tree:${props.node.instanceId}.${key}`}
-                        label={key}
-                        value={value}
-                        ex={props.ex}
-                      />
-                    )}
-                  </For>
-                </Expandable>
-              </Show>
-              <Show when={instanceRecord().actions.length > 0}>
-                <Expandable
-                  path={`tree:${props.node.instanceId}:actions`}
-                  label="actions"
-                  summary={`(${instanceRecord().actions.length})`}
-                  accent={META_COLORS.actions}
-                  icon="ƒ"
-                  ex={props.ex}
-                >
-                  <For each={instanceRecord().actions}>
-                    {(action) => (
-                      <div style={sectionStyles.row}>
-                        <span style={sectionStyles.dim}>{action}</span>
-                      </div>
-                    )}
-                  </For>
-                </Expandable>
-              </Show>
-            </>
-          )}
-        </Show>
         <TreeChildren
           nodes={props.node.children}
-          parentPath={`tree:${props.node.instanceId}`}
+          parentPath={`tree:${props.node.key}`}
           services={props.services}
           ex={props.ex}
           selected={props.selected}
+          reveal={props.reveal}
+          inspected={props.inspected}
+          inspect={props.inspect}
         />
       </Expandable>
     </div>
@@ -337,18 +596,57 @@ function renderedChain(registry: DebugRegistry, instanceId: string): string[] {
   return chain;
 }
 
+/**
+ * The components pane's own layout: a tree that scrolls above a detail that
+ * scrolls, split by a handle the reader can drag.
+ *
+ * The pane used to be one scrolling box with everything in it, so a big tree
+ * pushed the detail off the bottom and the reader chased two things with one
+ * scrollbar.
+ *
+ * The split is a `Frame.Column` of two `Frame.Row`s — the framework's own
+ * geometry primitive, which brings the handle, the clamps and the remembered
+ * size with it. The panel is a wheel app; it should not hand-roll a second,
+ * worse copy of the thing it exists to show off.
+ */
+const treeStyles = {
+  column: { display: 'flex', 'flex-direction': 'column', height: '100%', 'min-height': 0 },
+  /** Frame sizes the region; this scrolls whatever does not fit in it. */
+  region: { height: '100%', width: '100%', 'min-height': 0, overflow: 'auto' }
+} satisfies Record<string, JSX.CSSProperties>;
+
 /** The full mounted-component tree in App/Framework buckets, nodes default closed. */
 export function ComponentTreeSection(props: { services: ServiceContext; ex: ExpandState }): JSX.Element {
   const registry = props.services.registry;
+  // Shape rides the SHAPE channel: a mount, an unmount, a rename. Not
+  // `trackDebug()`, which every service field write bumps — including the
+  // inspector's `highlighted`, written by these very rows on hover. Sharing
+  // that wire had the tree rebuilding itself under the pointer, detaching the
+  // row mid-click and leaving the highlight on with no `mouseleave` to clear
+  // it. Values stay live where they are read, inside the rows.
   const buckets = createMemo(() => {
-    // Tree SHAPE rides the instance channel; live state values ride the data
-    // revision (JsonTree re-reads on expansion via the memo below).
-    props.services.trackDebug();
-    props.services.trackVersion();
+    props.services.trackInstances();
     return bucketize(registry.instanceTree());
   });
   const [picking, setPicking] = createSignal(false);
   const [selected, setSelected] = createSignal<string | null>(null);
+  // The component whose data the sub-view is showing, by durable key. One at
+  // a time on purpose: this is "what is this component holding", not a second
+  // tree to navigate.
+  const [inspected, setInspected] = createSignal<string | null>(null);
+  const inspectedNode = createMemo<InstanceTreeNode | null>(() => {
+    const key = inspected();
+    if (key === null) return null;
+    const find = (nodes: readonly InstanceTreeNode[]): InstanceTreeNode | null => {
+      for (const node of nodes) {
+        if (node.key === key) return node;
+        const found = find(node.children);
+        if (found) return found;
+      }
+      return null;
+    };
+    return find([...buckets().app, ...buckets().framework]);
+  });
   const highlight = (id: string | null): void => props.services.get(InspectorService).highlight(id);
 
   const reveal = (instanceId: string): void => {
@@ -365,10 +663,18 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
     for (const id of chain) {
       const record = registry.instance(id);
       if (record) props.ex.expand(`${parentPath}:list:${record.name}`);
-      props.ex.expand(`tree:${id}`);
-      parentPath = `tree:${id}`;
+      // Paths are keyed on the DURABLE key, never the display id — see
+      // `InstanceTreeNode.key`. Expanding `tree:<instanceId>` here would open
+      // a path no row is ever rendered under the moment a name repeats.
+      const path = `tree:${record?.key ?? id}`;
+      props.ex.expand(path);
+      parentPath = path;
     }
     setSelected(instanceId);
+    // Picking a component from the app asks "what is this thing", so the
+    // sub-view opens with it rather than making you press one more control.
+    const picked = registry.instance(instanceId);
+    if (picked) setInspected(picked.key);
     // Scroll after the expansion has rendered. `start` puts the node's TOP
     // at the top of the pane — what you want when the node has just been
     // expanded and its contents run below it. `scroll-margin-top` keeps it
@@ -413,7 +719,7 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
 
   const empty = (): boolean => buckets().app.length === 0 && buckets().framework.length === 0;
   return (
-    <>
+    <div style={treeStyles.column}>
       {/*
         The picker's click shield. A capture-phase document listener was not
         enough: it only intercepts `click`, so the app still received
@@ -421,8 +727,8 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
         sheet demo begins editing a cell on mousedown). A real overlay means
         the app receives NOTHING while picking.
 
-        Its z-index sits below the dock (9500), so the debug panel stays
-        clickable and the tree can be scrolled while the picker is armed.
+        Its z-index sits below the dock's (`DOCK_LAYER` in wheel-app), so the
+        panel stays clickable and the tree can be scrolled while picking.
       */}
       <Show when={picking()}>
         <Portal>
@@ -481,6 +787,17 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
           ⌖
         </button>
       </div>
+      <Frame.Column id="wheel-debug-components" size="1fr" class={undefined}>
+      <Frame.Row
+        id="wheel-debug-tree"
+        // The handle belongs to the region above the boundary, and it resizes
+        // THAT region — so the tree carries the size and the detail absorbs
+        // what is left. With no detail open there is nothing to absorb, so
+        // the tree takes the pane.
+        size={inspectedNode() ? '240px' : '1fr'}
+        minSize="80px"
+      >
+      <div style={treeStyles.region} data-testid="wheel-tree-scroll">
       <Show
         when={!empty()}
         fallback={<div style={sectionStyles.dim}>nothing mounted (components register via connect() and use:viewRoot)</div>}
@@ -493,6 +810,9 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
               services={props.services}
               ex={props.ex}
               selected={selected}
+              reveal={reveal}
+              inspected={inspected}
+              inspect={setInspected}
             />
           </Expandable>
         </Show>
@@ -509,10 +829,33 @@ export function ComponentTreeSection(props: { services: ServiceContext; ex: Expa
               services={props.services}
               ex={props.ex}
               selected={selected}
+              reveal={reveal}
+              inspected={inspected}
+              inspect={setInspected}
             />
           </Expandable>
         </Show>
       </Show>
-    </>
+      </div>
+      </Frame.Row>
+      {/* The sub-view, attached under the tree. `Frame.Row` brings the handle,
+          the clamps and the remembered height. */}
+      <Show when={inspectedNode()}>
+        {(node) => (
+          <Frame.Row id="wheel-debug-detail" size="1fr" minSize="60px">
+            <div style={treeStyles.region} data-testid="wheel-tree-detail">
+              <ComponentDetail
+                node={node()}
+                services={props.services}
+                ex={props.ex}
+                reveal={reveal}
+                close={() => setInspected(null)}
+              />
+            </div>
+          </Frame.Row>
+        )}
+      </Show>
+      </Frame.Column>
+    </div>
   );
 }

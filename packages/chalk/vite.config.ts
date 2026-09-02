@@ -11,6 +11,7 @@ const wheelFromSource = [
   { find: /^wheel\/sync$/, replacement: here('../wheel/src/sync/index.ts') },
   { find: /^wheel\/kit$/, replacement: here('../wheel/src/kit/index.ts') },
   { find: /^wheel\/debug$/, replacement: here('../wheel/src/debug/index.ts') },
+  { find: /^wheel\/annotate$/, replacement: here('../wheel/src/annotate/index.ts') },
   { find: /^wheel\/styles$/, replacement: here('../wheel/src/styles/tokens.css') },
   { find: /^wheel\/components$/, replacement: here('../wheel/src/components/index.ts') }
 ];

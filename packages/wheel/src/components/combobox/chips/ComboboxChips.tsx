@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, splitProps, type JSX } from 'solid-js';
 import type { BaseUIComponentProps } from '../../internals/types';
 import { ComboboxChipsContext } from './ComboboxChipsContext';
 import { CompositeList } from '../../internals/composite/list/CompositeList';
@@ -23,9 +23,8 @@ export function ComboboxChips(componentProps: ComboboxChips.Props): JSX.Element 
   const open = store.useState('open');
   const hasSelectionChips = store.useState('hasSelectionChips');
 
-  const [highlightedChipIndex, setHighlightedChipIndexSignal] = createSignal<number | undefined>(
-    undefined,
-  );
+  const [highlightedChipIndex, setHighlightedChipIndexSignal] = useSignal<number | undefined>(
+    undefined, 'highlightedChipIndex');
   const setHighlightedChipIndex = (index: number | undefined) => setHighlightedChipIndexSignal(index);
 
   createEffect(() => {

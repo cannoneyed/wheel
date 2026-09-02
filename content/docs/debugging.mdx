@@ -23,8 +23,8 @@ render(() => (
 ), root);
 ```
 
-In dev builds that mounts the docked debug panel, the component inspector, the rich-screenshot
-tool, error capture, and the `window.__wheel` agent bridge. In production builds it renders your
+In dev builds that mounts the docked debug panel, error capture, and the `window.__wheel` agent
+bridge — plus any pane a surface contributes, which is how `<WheelAnnotate/>` gets in. In production builds it renders your
 children and nothing else — every surface described here is dev-gated, and a production bundle pays
 nothing. (Demos and other showcase apps can opt production builds in with
 `setWheelDevMode(true)`.)
@@ -64,9 +64,14 @@ content in one pane never shifts another:
 | section | what it shows |
 | --- | --- |
 | **state tree** | every service and its atoms/computeds, with live values |
-| **components** | the full mounted-component tree, and what each instance holds |
-| **inspect** | ◰ draw a rectangle, get every component under it (results listed inline); 📷 capture a rich screenshot |
+| **components** | the full mounted-component tree. A row is the component's name and one icon for what it is (◆ connected, ▪ view); ◎ opens its props, local signals, connect state and actions in a sub-view under the tree, one component at a time. The ⌖ picker opens it for whatever you click in the app. |
 | **errors** | the capture buffer: every error with a stable id and a source-mapped stack, one-click copy per entry |
+| **annotate** | contributed by `<WheelAnnotate/>` when the app mounts it — see [Annotating](#/annotating) |
+
+The dock's panes are not a fixed list. A surface the dock cannot import registers one with
+`registerDebugPane`, which is how annotation gets a home without `debug` depending on `annotate`.
+Nested `<WheelApp/>`s — a site embedding live demos — share the outermost dock rather than stacking
+one per app.
 
 Hosts that can't wrap their root (docs embeds, sandboxes) mount the floating `<WheelDebugPanel/>`
 widget instead — same sections, same storage keys.
@@ -265,7 +270,7 @@ deliberate console surfaces carry an adjacent `// wheel-console: <reason>`.
 
 ## Rich screenshots
 
-📷 in the panel's inspect section: drag a marquee, and the capture is staged as a card —
+📷 in the annotate composer: draw the rectangle, and the capture is staged as a card —
 
 1. **copy image** — the cropped PNG to your clipboard (paste into a chat, an issue, anywhere);
 2. **save rich snapshot** — POSTs to the dev server, which writes `shot.png` **and**
@@ -319,6 +324,8 @@ without arranging the whole app into it. Rendering is Tier-1 stubbing (`StateMou
 
 ## Next
 
+- [Annotating](#/annotating) — leave a note on the running app, and record the actions and
+  state changes behind what you saw.
 - [Components](#/components) — the directives and connect rules the tree depends on.
 - [Testing](#/testing) — the World harness `wheelDriver` runs against.
 - [Linting](#/linting) — every rule named above, and the bug each one prevents.

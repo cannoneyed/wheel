@@ -30,6 +30,7 @@ export default defineProject({
       },
       { find: /^wheel\/router$/, replacement: source('./packages/wheel/src/router/index.ts') },
       { find: /^wheel\/debug$/, replacement: source('./packages/wheel/src/debug/index.ts') },
+      { find: /^wheel\/annotate$/, replacement: source('./packages/wheel/src/annotate/index.ts') },
       {
         find: /^wheel\/testing\/playwright$/,
         replacement: source('./packages/wheel/src/testing/playwright.ts'),

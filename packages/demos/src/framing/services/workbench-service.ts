@@ -119,6 +119,9 @@ const MAX_STAGE_WIDTH = 1100;
 
 /** Open editors, the dock tree, and the demo stage's width. */
 export class WorkbenchService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'WorkbenchService';
+
   /** The open editor panes, in the order their frames render. */
   readonly editors = this.atom<readonly WorkbenchEditor[]>(
     DEFAULT_EDITORS,

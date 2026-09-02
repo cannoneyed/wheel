@@ -52,7 +52,7 @@ export function FramingControls(): JSX.Element {
     <div use:componentRoot class={styles.controls} data-testid="framing-controls">
       <div class={styles.controlGroup}>
         <span class={styles.controlLabel}>Regions</span>
-        <Button
+        <Button data-wheel-role="toggle-sidebar"
           type="button"
           data-testid="toggle-sidebar"
           aria-pressed={state.sidebarOpen}
@@ -66,7 +66,7 @@ export function FramingControls(): JSX.Element {
         >
           ◧ {state.sidebarOpen ? 'Hide' : 'Show'} sidebar
         </Button>
-        <Button
+        <Button data-wheel-role="toggle-panel"
           type="button"
           data-testid="toggle-panel"
           aria-pressed={state.panelOpen}
@@ -74,7 +74,7 @@ export function FramingControls(): JSX.Element {
         >
           ▤ {state.panelOpen ? 'Hide' : 'Show'} bottom panel
         </Button>
-        <Button
+        <Button data-wheel-role="toggle-outline"
           type="button"
           data-testid="toggle-outline"
           aria-pressed={state.outlineOpen}
@@ -82,7 +82,7 @@ export function FramingControls(): JSX.Element {
         >
           ◨ {state.outlineOpen ? 'Hide' : 'Show'} outline
         </Button>
-        <Button
+        <Button data-wheel-role="toggle-drawer"
           type="button"
           data-testid="toggle-drawer"
           aria-pressed={state.drawerOpen}
@@ -96,14 +96,14 @@ export function FramingControls(): JSX.Element {
 
       <div class={styles.controlGroup}>
         <span class={styles.controlLabel}>Structure</span>
-        <Button
+        <Button data-wheel-role="new-editor"
           type="button"
           data-testid="new-editor"
           onClick={() => state.openEditor()}
         >
           ＋ New pane
         </Button>
-        <Button
+        <Button data-wheel-role="fit-editors"
           type="button"
           data-testid="fit-editors"
           title="Share the row evenly: the largest widths that fit, or each pane's minimum"
@@ -116,7 +116,7 @@ export function FramingControls(): JSX.Element {
         </span>
       </div>
 
-      <Button
+      <Button data-wheel-role="reset-layout"
         type="button"
         class={styles.resetButton}
         data-testid="reset-layout"

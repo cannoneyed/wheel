@@ -11,6 +11,8 @@ export {
   SnapshotSystem,
   SnapshotCard,
   setSnapshotCapture,
+  captureViewportRegion,
+  tabCaptureStream,
   type SnapshotComponent,
   type SnapshotContext,
   type StagedSnapshot

@@ -12,7 +12,7 @@ Mount an app under a path prefix (e.g. the demos app served at `/demos/` inside 
 
 ## `basedHistoryOverride`
 
-Kind: function. Source: [packages/wheel/src/router/router-service.ts:208](../../../packages/wheel/src/router/router-service.ts#L208).
+Kind: function. Source: [packages/wheel/src/router/router-service.ts:211](../../../packages/wheel/src/router/router-service.ts#L211).
 
 A `ServiceProvider` override that mounts the router under a path prefix — the address bar shows `/demos/todos` while the route table matches `/todos`. Pass the deployment's base path (vite's `import.meta.env.BASE_URL`); a base of `/` or `''` leaves the default history untouched. <ServiceProvider overrides={[basedHistoryOverride(import.meta.env.BASE_URL)]}> <Root /> </ServiceProvider>
 
@@ -102,7 +102,7 @@ An array and an index. Everything is synchronous, so a test can navigate, go bac
 
 ## `memoryHistoryOverride`
 
-Kind: function. Source: [packages/wheel/src/router/router-service.ts:186](../../../packages/wheel/src/router/router-service.ts#L186).
+Kind: function. Source: [packages/wheel/src/router/router-service.ts:189](../../../packages/wheel/src/router/router-service.ts#L189).
 
 A `ServiceProvider` override that points the router at an in-memory history. <ServiceProvider overrides={[memoryHistoryOverride(['/teams/a'])]}> <Root /> </ServiceProvider> Deterministic and synchronous: `back()` notifies before it returns, so a test asserts on the next line with nothing to wait for.
 
@@ -222,7 +222,7 @@ Holds the `RouterHistory` the router drives. Its own service so tests can swap i
 
 ## `RouterService`
 
-Kind: class. Source: [packages/wheel/src/router/router-service.ts:225](../../../packages/wheel/src/router/router-service.ts#L225).
+Kind: class. Source: [packages/wheel/src/router/router-service.ts:228](../../../packages/wheel/src/router/router-service.ts#L228).
 
 The router. Instantiate through `createRouter(routes)` rather than injecting this class directly — the generated subclass is what carries the route table and therefore the types.
 

@@ -839,19 +839,19 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `ProgressRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/progress/root/ProgressRoot.tsx:140](../../../packages/wheel/src/components/progress/root/ProgressRoot.tsx#L140).
+Kind: interface. Source: [packages/wheel/src/components/progress/root/ProgressRoot.tsx:141](../../../packages/wheel/src/components/progress/root/ProgressRoot.tsx#L141).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ProgressRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/progress/root/ProgressRoot.tsx:133](../../../packages/wheel/src/components/progress/root/ProgressRoot.tsx#L133).
+Kind: interface. Source: [packages/wheel/src/components/progress/root/ProgressRoot.tsx:134](../../../packages/wheel/src/components/progress/root/ProgressRoot.tsx#L134).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ProgressStatus`
 
-Kind: type. Source: [packages/wheel/src/components/progress/root/ProgressRoot.tsx:131](../../../packages/wheel/src/components/progress/root/ProgressRoot.tsx#L131).
+Kind: type. Source: [packages/wheel/src/components/progress/root/ProgressRoot.tsx:132](../../../packages/wheel/src/components/progress/root/ProgressRoot.tsx#L132).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -914,13 +914,13 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `MeterRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/meter/root/MeterRoot.tsx:112](../../../packages/wheel/src/components/meter/root/MeterRoot.tsx#L112).
+Kind: interface. Source: [packages/wheel/src/components/meter/root/MeterRoot.tsx:113](../../../packages/wheel/src/components/meter/root/MeterRoot.tsx#L113).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `MeterRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/meter/root/MeterRoot.tsx:110](../../../packages/wheel/src/components/meter/root/MeterRoot.tsx#L110).
+Kind: interface. Source: [packages/wheel/src/components/meter/root/MeterRoot.tsx:111](../../../packages/wheel/src/components/meter/root/MeterRoot.tsx#L111).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -1286,13 +1286,13 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `RadioRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/radio/root/RadioRoot.tsx:330](../../../packages/wheel/src/components/radio/root/RadioRoot.tsx#L330).
+Kind: interface. Source: [packages/wheel/src/components/radio/root/RadioRoot.tsx:336](../../../packages/wheel/src/components/radio/root/RadioRoot.tsx#L336).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `RadioRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/radio/root/RadioRoot.tsx:311](../../../packages/wheel/src/components/radio/root/RadioRoot.tsx#L311).
+Kind: interface. Source: [packages/wheel/src/components/radio/root/RadioRoot.tsx:317](../../../packages/wheel/src/components/radio/root/RadioRoot.tsx#L317).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -1667,37 +1667,37 @@ A native form element with consolidated error handling. Renders a `<form>` eleme
 
 ### `FormActions`
 
-Kind: interface. Source: [packages/wheel/src/components/form/Form.tsx:190](../../../packages/wheel/src/components/form/Form.tsx#L190).
+Kind: interface. Source: [packages/wheel/src/components/form/Form.tsx:189](../../../packages/wheel/src/components/form/Form.tsx#L189).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `FormProps`
 
-Kind: interface. Source: [packages/wheel/src/components/form/Form.tsx:196](../../../packages/wheel/src/components/form/Form.tsx#L196).
+Kind: interface. Source: [packages/wheel/src/components/form/Form.tsx:195](../../../packages/wheel/src/components/form/Form.tsx#L195).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `FormState`
 
-Kind: interface. Source: [packages/wheel/src/components/form/Form.tsx:194](../../../packages/wheel/src/components/form/Form.tsx#L194).
+Kind: interface. Source: [packages/wheel/src/components/form/Form.tsx:193](../../../packages/wheel/src/components/form/Form.tsx#L193).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `FormSubmitEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/form/Form.tsx:186](../../../packages/wheel/src/components/form/Form.tsx#L186).
+Kind: type. Source: [packages/wheel/src/components/form/Form.tsx:185](../../../packages/wheel/src/components/form/Form.tsx#L185).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `FormSubmitEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/form/Form.tsx:185](../../../packages/wheel/src/components/form/Form.tsx#L185).
+Kind: type. Source: [packages/wheel/src/components/form/Form.tsx:184](../../../packages/wheel/src/components/form/Form.tsx#L184).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `FormValidationMode`
 
-Kind: type. Source: [packages/wheel/src/components/form/Form.tsx:188](../../../packages/wheel/src/components/form/Form.tsx#L188).
+Kind: type. Source: [packages/wheel/src/components/form/Form.tsx:187](../../../packages/wheel/src/components/form/Form.tsx#L187).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -1748,49 +1748,49 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `SliderRootChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:586](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L586).
+Kind: type. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:585](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L585).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SliderRootChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:580](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L580).
+Kind: type. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:579](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L579).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SliderRootCommitEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:597](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L597).
+Kind: type. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:596](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L596).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SliderRootCommitEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:591](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L591).
+Kind: type. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:590](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L590).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SliderRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:442](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L442).
+Kind: interface. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:441](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L441).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SliderRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:400](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L400).
+Kind: interface. Source: [packages/wheel/src/components/slider/root/SliderRoot.tsx:399](../../../packages/wheel/src/components/slider/root/SliderRoot.tsx#L399).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SliderThumbProps`
 
-Kind: interface. Source: [packages/wheel/src/components/slider/thumb/SliderThumb.tsx:575](../../../packages/wheel/src/components/slider/thumb/SliderThumb.tsx#L575).
+Kind: interface. Source: [packages/wheel/src/components/slider/thumb/SliderThumb.tsx:576](../../../packages/wheel/src/components/slider/thumb/SliderThumb.tsx#L576).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SliderThumbState`
 
-Kind: interface. Source: [packages/wheel/src/components/slider/thumb/SliderThumb.tsx:573](../../../packages/wheel/src/components/slider/thumb/SliderThumb.tsx#L573).
+Kind: interface. Source: [packages/wheel/src/components/slider/thumb/SliderThumb.tsx:574](../../../packages/wheel/src/components/slider/thumb/SliderThumb.tsx#L574).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -1820,7 +1820,7 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `ThumbMetadata`
 
-Kind: interface. Source: [packages/wheel/src/components/slider/thumb/SliderThumb.tsx:569](../../../packages/wheel/src/components/slider/thumb/SliderThumb.tsx#L569).
+Kind: interface. Source: [packages/wheel/src/components/slider/thumb/SliderThumb.tsx:570](../../../packages/wheel/src/components/slider/thumb/SliderThumb.tsx#L570).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -2741,13 +2741,13 @@ Positions the select popup. Renders a `<div>` element. Documentation: [Base UI S
 
 ### `SelectPositionerProps`
 
-Kind: interface. Source: [packages/wheel/src/components/select/positioner/SelectPositioner.tsx:279](../../../packages/wheel/src/components/select/positioner/SelectPositioner.tsx#L279).
+Kind: interface. Source: [packages/wheel/src/components/select/positioner/SelectPositioner.tsx:278](../../../packages/wheel/src/components/select/positioner/SelectPositioner.tsx#L278).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `SelectPositionerState`
 
-Kind: interface. Source: [packages/wheel/src/components/select/positioner/SelectPositioner.tsx:260](../../../packages/wheel/src/components/select/positioner/SelectPositioner.tsx#L260).
+Kind: interface. Source: [packages/wheel/src/components/select/positioner/SelectPositioner.tsx:259](../../../packages/wheel/src/components/select/positioner/SelectPositioner.tsx#L259).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -3410,25 +3410,25 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `ToolbarRootItemMetadata`
 
-Kind: interface. Source: [packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx:101](../../../packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx#L101).
+Kind: interface. Source: [packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx:100](../../../packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx#L100).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToolbarRootOrientation`
 
-Kind: type. Source: [packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx:106](../../../packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx#L106).
+Kind: type. Source: [packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx:105](../../../packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx#L105).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToolbarRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx:119](../../../packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx#L119).
+Kind: interface. Source: [packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx:118](../../../packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx#L118).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToolbarRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx:108](../../../packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx#L108).
+Kind: interface. Source: [packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx:107](../../../packages/wheel/src/components/toolbar/root/ToolbarRoot.tsx#L107).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -3851,19 +3851,19 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `PreviewCardTrigger`
 
-Kind: function. Source: [packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx:68](../../../packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx#L68).
+Kind: function. Source: [packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx:67](../../../packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx#L67).
 
 A link that opens the preview card. Renders an `<a>` element. Documentation: [Base UI Preview Card](https://base-ui.com/react/components/preview-card) Deviation: this port additionally supports upstream's `handle` prop (detached triggers), which the Tooltip/Popover ports in this repo explicitly cut. The resolved store (`handle`'s exposed store, or the `<PreviewCard.Root>` ancestor's) is re-resolved reactively — not read once at setup like `TooltipTrigger`/`PopoverTrigger` — inside a single `createEffect` that (re)registers this trigger's DOM element and (re)binds its hover/focus interactions whenever the resolved store's identity changes. This is necessary, not just defensive: a detached trigger commonly mounts *before* the `handle`'s root has attached (`usePopupHandleStore` initially exposes the handle's inert fallback store), and the attach itself happens in the root's own `createEffect` — deferred exactly like this one. Reading the store once at setup would permanently bind this trigger's registration and hover/focus listeners to the (inert) fallback, since Solid components run their body exactly once; wrapping the binding in an effect keyed on the resolved store lets it tear down and rebuild once the attach effect fires (including across later detach/reattach). `PreviewCardRoot`'s handle-attachment effect is the counterpart on the other side of this store-pointer handshake. The registration call itself (`registerTrigger(...)`) is wrapped in `untrack()`: it synchronously reads *and* writes plain store fields (`triggerElements`/`triggerCount`, via the shared `createTriggerRegistration` helper in `utils/popups/popupStoreUtils.ts`). That helper is normally invoked from a DOM `ref` callback (as `TooltipTrigger`/`PopoverTrigger` do), a non-tracking context — invoking it from inside a running `createEffect` without `untrack` makes its own `triggerCount` read a dependency of this effect, and the write a few lines later to that same key then re-triggers this same effect, forever (verified empirically: removing the `untrack` here reproduces a real, infinite `runUpdates`/`completeUpdates` cascade in Solid's scheduler). No other ported component calls this helper from inside an effect, so this mismatch wasn't observable before; flagged here rather than fixed in the shared helper itself.
 
 ### `PreviewCardTriggerProps`
 
-Kind: interface. Source: [packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx:203](../../../packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx#L203).
+Kind: interface. Source: [packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx:200](../../../packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx#L200).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `PreviewCardTriggerState`
 
-Kind: interface. Source: [packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx:196](../../../packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx#L196).
+Kind: interface. Source: [packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx:193](../../../packages/wheel/src/components/preview-card/trigger/PreviewCardTrigger.tsx#L193).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -4019,13 +4019,13 @@ A container for the chips in a multiselectable input. Renders a `<div>` element.
 
 ### `ComboboxChipsProps`
 
-Kind: interface. Source: [packages/wheel/src/components/combobox/chips/ComboboxChips.tsx:76](../../../packages/wheel/src/components/combobox/chips/ComboboxChips.tsx#L76).
+Kind: interface. Source: [packages/wheel/src/components/combobox/chips/ComboboxChips.tsx:75](../../../packages/wheel/src/components/combobox/chips/ComboboxChips.tsx#L75).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxChipsState`
 
-Kind: interface. Source: [packages/wheel/src/components/combobox/chips/ComboboxChips.tsx:74](../../../packages/wheel/src/components/combobox/chips/ComboboxChips.tsx#L74).
+Kind: interface. Source: [packages/wheel/src/components/combobox/chips/ComboboxChips.tsx:73](../../../packages/wheel/src/components/combobox/chips/ComboboxChips.tsx#L73).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -4103,7 +4103,7 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxGroup`
 
-Kind: function. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:15](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L15).
+Kind: function. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:16](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L16).
 
 Groups related items with the corresponding label. Renders a `<div>` element. Documentation: [Base UI Combobox](https://base-ui.com/react/components/combobox)
 
@@ -4127,13 +4127,13 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxGroupProps`
 
-Kind: interface. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:68](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L68).
+Kind: interface. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:69](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L69).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxGroupState`
 
-Kind: interface. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:66](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L66).
+Kind: interface. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:67](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L67).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -4319,37 +4319,37 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxRoot`
 
-Kind: function. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:87](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L87).
+Kind: function. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:88](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L88).
 
 Groups all parts of the combobox. Doesn't render its own HTML element. Documentation: [Base UI Combobox](https://base-ui.com/react/components/combobox) Solid port of upstream's `combobox/root/ComboboxRoot.tsx` + `AriaCombobox.tsx`, flattened into a single function (mirroring `SelectRoot`'s equivalent flattening of `AriaSelect`-style layering). Deviation: the public `Combobox.Root`'s `multiple` prop only ever maps `selectionMode` to `'single'` or `'multiple'` — never `'none'`. Upstream's lower-level `AriaCombobox` also supports a `selectionMode: 'none'` ("no persisted selection") mode together with `fillInputOnItemPress` and an `autoComplete` ('list' | 'both' | 'inline' | 'none') `aria-autocomplete` hint; none of those are reachable through `Combobox.Root`'s public API, but `Autocomplete.Root` (`packages/solid/src/autocomplete/root/AutocompleteRoot.tsx`) needs exactly this lower layer, so this component additionally accepts `selectionMode: 'none'`, `fillInputOnItemPress`, and `autoCompleteMode` as internal-only escape hatches for that composition — mirroring upstream's `AriaCombobox` semantics exactly. They're additive: omitted, behavior for `Combobox.Root` is unchanged (`selectionMode` still only ever resolves to `'single'`/`'multiple'`). The `'both'`/`'inline'` inline-autocompletion *text-mutation* itself is not part of this layer either upstream or here — `AutocompleteRoot` composes that entirely on top via this component's already-controlled `inputValue`/`onInputValueChange`. `actionsRef` (imperative `unmount`) is also not ported, matching `SelectRoot`'s equivalent deviation.
 
 ### `ComboboxRootChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1513](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1513).
+Kind: type. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1514](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1514).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxRootChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1499](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1499).
+Kind: type. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1500](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1500).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxRootHighlightEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1516](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1516).
+Kind: type. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1517](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1517).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxRootHighlightEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1515](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1515).
+Kind: type. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1516](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1516).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ComboboxRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1497](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1497).
+Kind: interface. Source: [packages/wheel/src/components/combobox/root/ComboboxRoot.tsx:1498](../../../packages/wheel/src/components/combobox/root/ComboboxRoot.tsx#L1498).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -4520,49 +4520,49 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `NumberFieldRoot`
 
-Kind: function. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:55](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L55).
+Kind: function. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:56](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L56).
 
 Groups all parts of the number field and manages its state. Renders a `<div>` element. Documentation: [Base UI Number Field](https://base-ui.com/react/components/number-field) Solid port of upstream's `NumberFieldRoot`. Notable deviations, all covered in CONVENTIONS.md / NumberFieldRootContext.ts: - React refs used only to dodge stale closures (`valueRef`, `formatOptionsRef`) collapse to plain accessors — Solid accessors are always live. - `useForcedRerendering` is dropped: Solid's fine-grained reactivity re-renders whatever reads `inputValue()`/`value()` automatically; there's nothing to force. - `suppressHydrationWarning` has no Solid equivalent and is omitted (no SSR hydration-mismatch concept in this port).
 
 ### `NumberFieldRootChangeEventCustomProperties`
 
-Kind: interface. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:702](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L702).
+Kind: interface. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:703](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L703).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NumberFieldRootChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:705](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L705).
+Kind: type. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:706](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L706).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NumberFieldRootChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:691](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L691).
+Kind: type. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:692](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L692).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NumberFieldRootCommitEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:721](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L721).
+Kind: type. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:722](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L722).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NumberFieldRootCommitEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:712](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L712).
+Kind: type. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:713](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L713).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NumberFieldRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:562](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L562).
+Kind: interface. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:563](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L563).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NumberFieldRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:535](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L535).
+Kind: interface. Source: [packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx:536](../../../packages/wheel/src/components/number-field/root/NumberFieldRoot.tsx#L536).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -4811,19 +4811,19 @@ Groups all parts of an individual toast. Renders a `<div>` element. Documentatio
 
 ### `ToastRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/toast/root/ToastRoot.tsx:604](../../../packages/wheel/src/components/toast/root/ToastRoot.tsx#L604).
+Kind: interface. Source: [packages/wheel/src/components/toast/root/ToastRoot.tsx:603](../../../packages/wheel/src/components/toast/root/ToastRoot.tsx#L603).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToastRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/toast/root/ToastRoot.tsx:577](../../../packages/wheel/src/components/toast/root/ToastRoot.tsx#L577).
+Kind: interface. Source: [packages/wheel/src/components/toast/root/ToastRoot.tsx:576](../../../packages/wheel/src/components/toast/root/ToastRoot.tsx#L576).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `ToastRootToastObject`
 
-Kind: type. Source: [packages/wheel/src/components/toast/root/ToastRoot.tsx:575](../../../packages/wheel/src/components/toast/root/ToastRoot.tsx#L575).
+Kind: type. Source: [packages/wheel/src/components/toast/root/ToastRoot.tsx:574](../../../packages/wheel/src/components/toast/root/ToastRoot.tsx#L574).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -4922,19 +4922,19 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `NavigationMenuContent`
 
-Kind: function. Source: [packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx:42](../../../packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx#L42).
+Kind: function. Source: [packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx:43](../../../packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx#L43).
 
 A container for the content of the navigation menu item that is moved into the popup when the item is active. Renders a `<div>` element. Documentation: [Base UI Navigation Menu](https://base-ui.com/react/components/navigation-menu)
 
 ### `NavigationMenuContentProps`
 
-Kind: interface. Source: [packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx:222](../../../packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx#L222).
+Kind: interface. Source: [packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx:223](../../../packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx#L223).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NavigationMenuContentState`
 
-Kind: interface. Source: [packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx:207](../../../packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx#L207).
+Kind: interface. Source: [packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx:208](../../../packages/wheel/src/components/navigation-menu/content/NavigationMenuContent.tsx#L208).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -5066,49 +5066,49 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `NavigationMenuRoot`
 
-Kind: function. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:68](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L68).
+Kind: function. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:69](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L69).
 
 Groups all parts of the navigation menu. Renders a `<nav>` element at the root, or `<div>` element when nested. Documentation: [Base UI Navigation Menu](https://base-ui.com/react/components/navigation-menu) Deviation: upstream also accepts an `actionsRef` prop (imperative `unmount`). Not ported — a React ref-forwarding pattern with no direct Solid equivalent and no behavior in this port's test slice exercises it (same cut `PopoverRoot`/`MenuRoot` make; see their doc comments). Every close here runs the automatic unmount-on-animation-complete path upstream only takes when `actionsRef` is absent.
 
 ### `NavigationMenuRootChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:395](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L395).
+Kind: type. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:396](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L396).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NavigationMenuRootChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:385](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L385).
+Kind: type. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:386](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L386).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NavigationMenuRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:341](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L341).
+Kind: interface. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:342](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L342).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NavigationMenuRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:330](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L330).
+Kind: interface. Source: [packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx:331](../../../packages/wheel/src/components/navigation-menu/root/NavigationMenuRoot.tsx#L331).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NavigationMenuTrigger`
 
-Kind: function. Source: [packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx:102](../../../packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx#L102).
+Kind: function. Source: [packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx:103](../../../packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx#L103).
 
 Opens the navigation menu popup when hovered or clicked, revealing the associated content. Renders a `<button>` element. Documentation: [Base UI Navigation Menu](https://base-ui.com/react/components/navigation-menu)
 
 ### `NavigationMenuTriggerProps`
 
-Kind: interface. Source: [packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx:890](../../../packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx#L890).
+Kind: interface. Source: [packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx:891](../../../packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx#L891).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `NavigationMenuTriggerState`
 
-Kind: interface. Source: [packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx:883](../../../packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx#L883).
+Kind: interface. Source: [packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx:884](../../../packages/wheel/src/components/navigation-menu/trigger/NavigationMenuTrigger.tsx#L884).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -5225,13 +5225,13 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `AutocompleteGroupProps`
 
-Kind: interface. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:68](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L68).
+Kind: interface. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:69](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L69).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `AutocompleteGroupState`
 
-Kind: interface. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:66](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L66).
+Kind: interface. Source: [packages/wheel/src/components/combobox/group/ComboboxGroup.tsx:67](../../../packages/wheel/src/components/combobox/group/ComboboxGroup.tsx#L67).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -5618,43 +5618,43 @@ Public export. Read the linked declaration for its complete contract.
 
 ### `DrawerRoot`
 
-Kind: function. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:62](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L62).
+Kind: function. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:61](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L61).
 
 Groups all parts of the drawer. Doesn't render its own HTML element. Documentation: [Base UI Drawer](https://base-ui.com/react/components/drawer) Deviation: upstream builds `Drawer.Root` on top of `Dialog.Root` (via an internal `IsDrawerContext` that makes `useRenderDialogRoot` treat itself as a drawer). This Solid port's `Dialog.Root`/ `DialogStore` don't expose a `handle` prop, `IsDrawerContext`, or an `outsidePressEnabledRef` escape hatch for `Drawer.SwipeArea` (see `dialog/root/DialogRoot.tsx` and `dialog/store/ DialogStore.ts`'s doc comments for those cuts, made before Drawer was ported), so `Drawer.Root` is self-contained here instead: it owns a `DrawerStore` (a sibling of `DialogStore`, not an instance of it) and re-implements the dismiss/scroll-lock/nested-count interactions directly, mirroring `DialogRoot`'s `renderDialogRoot`/`DialogInteractions`. Deviation: upstream also accepts an `actionsRef` (imperative `unmount`/`close`) — not ported, same as `DialogRoot`/`TooltipRoot` (a React ref-forwarding pattern with no direct Solid equivalent).
 
 ### `DrawerRootChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:572](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L572).
+Kind: type. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:571](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L571).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `DrawerRootChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:561](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L561).
+Kind: type. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:560](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L560).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `DrawerRootProps`
 
-Kind: interface. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:470](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L470).
+Kind: interface. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:469](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L469).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `DrawerRootSnapPointChangeEventDetails`
 
-Kind: type. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:578](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L578).
+Kind: type. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:577](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L577).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `DrawerRootSnapPointChangeEventReason`
 
-Kind: type. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:576](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L576).
+Kind: type. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:575](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L575).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `DrawerRootState`
 
-Kind: interface. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:468](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L468).
+Kind: interface. Source: [packages/wheel/src/components/drawer/root/DrawerRoot.tsx:467](../../../packages/wheel/src/components/drawer/root/DrawerRoot.tsx#L467).
 
 Public export. Read the linked declaration for its complete contract.
 
@@ -5702,13 +5702,13 @@ A button that opens the drawer. Renders a `<button>` element. Documentation: [Ba
 
 ### `DrawerTriggerProps`
 
-Kind: interface. Source: [packages/wheel/src/components/drawer/trigger/DrawerTrigger.tsx:180](../../../packages/wheel/src/components/drawer/trigger/DrawerTrigger.tsx#L180).
+Kind: interface. Source: [packages/wheel/src/components/drawer/trigger/DrawerTrigger.tsx:179](../../../packages/wheel/src/components/drawer/trigger/DrawerTrigger.tsx#L179).
 
 Public export. Read the linked declaration for its complete contract.
 
 ### `DrawerTriggerState`
 
-Kind: interface. Source: [packages/wheel/src/components/drawer/trigger/DrawerTrigger.tsx:169](../../../packages/wheel/src/components/drawer/trigger/DrawerTrigger.tsx#L169).
+Kind: interface. Source: [packages/wheel/src/components/drawer/trigger/DrawerTrigger.tsx:168](../../../packages/wheel/src/components/drawer/trigger/DrawerTrigger.tsx#L168).
 
 Public export. Read the linked declaration for its complete contract.
 

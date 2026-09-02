@@ -7,6 +7,9 @@ import { currentActorId, switchActor } from '../utils/tracker-client';
 
 /** Who this tab is acting as. */
 export class UserService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'UserService';
+
   /**
    * The current actor's userId ('' until picked → shell shows the switcher).
    * Connect directly (`view({ actorId: svc.actorId })`); read `.get()` elsewhere.

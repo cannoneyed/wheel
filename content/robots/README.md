@@ -19,6 +19,7 @@ Read the smallest topic that answers the task. Follow source links when exact si
 - [Components](components.md) - connections, views, props, directives, and stubs.
 - [Component library](component-library.md) - component families, deep entries, styles, and tokens.
 - [Debugging](debugging.md) - panel, bridge, driver, errors, snapshots, and states.
+- [Annotating](annotating.md) - notes on a running app, and the recorder behind them.
 - [Patterns](patterns.md) - menus, dialogs, systems, isolation, and imperative cores.
 - [Routing](routing.md) - route definitions, params, search, history, and errors.
 - [Framing](framing.md) - regions, geometry, persistence, docking, and gestures.

@@ -6,6 +6,9 @@ interface SearchResult {
 }
 
 class SearchService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SearchService';
+
   readonly results = this.atom<SearchResult[]>([], 'results');
 
   readonly search = async (query: string): Promise<void> => {

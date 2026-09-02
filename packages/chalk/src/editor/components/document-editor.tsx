@@ -499,7 +499,7 @@ export function DocumentEditor() {
         class={styles.editor}
       />
       <Show when={state.status.kind !== 'loading' && state.blocks.length === 0}>
-        <Button class={styles.addButton} onClick={() => state.add()}>
+        <Button data-wheel-role="add" class={styles.addButton} onClick={() => state.add()}>
           + add the first block
         </Button>
       </Show>
@@ -509,7 +509,7 @@ export function DocumentEditor() {
           <div class={styles.slashMenu} style={{ left: `${open.x}px`, top: `${open.y}px` }}>
             <For each={slashItems(open.query)}>
               {(item, index) => (
-                <Button
+                <Button data-wheel-role="slash"
                   class={styles.slashItem}
                   classList={{ [styles.slashActive]: index() === open.index }}
                   onMouseDown={(event) => {

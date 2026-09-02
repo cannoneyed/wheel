@@ -45,6 +45,9 @@ export interface IssueCommandActions {
 
 /** Owns Tracker's one global shortcut and command registration table. */
 export class IssueCommandService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'IssueCommandService';
+
   private readonly keyboard = this.service(KeyboardService);
   private readonly palette = this.service(CommandPaletteService);
   private readonly dialogs = this.service(DialogService);

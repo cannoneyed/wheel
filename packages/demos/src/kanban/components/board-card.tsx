@@ -45,7 +45,7 @@ export function BoardCard(props: { card: Card }) {
       <div class={styles.actions}>
         <Show when={state.neighbors.left}>
           {(left) => (
-            <Button
+            <Button data-wheel-role="move"
               class={styles.move}
               title={`Move to ${left().title}`}
               onClick={(event) => {
@@ -59,7 +59,7 @@ export function BoardCard(props: { card: Card }) {
         </Show>
         <Show when={state.neighbors.right}>
           {(right) => (
-            <Button
+            <Button data-wheel-role="move"
               class={styles.move}
               title={`Move to ${right().title}`}
               onClick={(event) => {

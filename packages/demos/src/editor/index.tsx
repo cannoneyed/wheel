@@ -10,6 +10,7 @@
  */
 import { ContextMenuSystem, DialogSystem, KeyboardSystem } from 'wheel/kit';
 import { WheelApp } from 'wheel/debug';
+import { WheelAnnotate } from 'wheel/annotate';
 import { DocumentEditor, HistoryControls } from 'wheel-chalk';
 
 import { demoClient } from '../shared/utils/demo-client';
@@ -25,6 +26,7 @@ export function EditorDemo() {
       <KeyboardSystem />
       <ContextMenuSystem />
       <DialogSystem />
+      <WheelAnnotate />
     </WheelApp>
   );
 }

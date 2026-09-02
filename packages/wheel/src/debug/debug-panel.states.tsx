@@ -106,6 +106,9 @@ const seekMachine = setup({
 });
 
 class MachineProofService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'MachineProofService';
+
   readonly seek = this.machine(seekMachine, {
     transitions: {
       request: (requestId: number, target: number) => ({ type: 'request', requestId, target }),
@@ -116,6 +119,9 @@ class MachineProofService extends Service {
 }
 
 class FieldProofService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'FieldProofService';
+
   private readonly retryCount = this.field(0);
 
   readonly recordRetry = this.action(() => {

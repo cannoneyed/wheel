@@ -60,7 +60,7 @@ export function EditorPane(props: {
         >
           ⠿ {props.editor.title}
         </span>
-        <Button
+        <Button data-wheel-role="close"
           type="button"
           class={styles.paneClose}
           aria-label={`Close ${props.editor.title}`}

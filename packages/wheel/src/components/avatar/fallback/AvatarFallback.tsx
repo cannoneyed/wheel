@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, onCleanup, splitProps } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, splitProps } from 'solid-js';
 import { createTimeout } from '../../base-utils/createTimeout';
 import { renderElement } from '../../internals/renderElement';
 import type { BaseUIComponentProps } from '../../internals/types';
@@ -28,7 +28,7 @@ export function AvatarFallback(componentProps: AvatarFallback.Props) {
   const delay = () => componentProps.delay ?? 0;
 
   const { imageLoadingStatus, size, shape } = useAvatarRootContext();
-  const [delayPassed, setDelayPassed] = createSignal(delay() === 0);
+  const [delayPassed, setDelayPassed] = useSignal(delay() === 0, 'delayPassed');
   const timeout = createTimeout();
 
   createEffect(() => {

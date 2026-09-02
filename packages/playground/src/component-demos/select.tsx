@@ -1,4 +1,6 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+/* eslint-disable wheel/require-component-role -- The catalog demonstrates the components themselves: every fixture here IS a Button or a Dialog, so a role would name the catalog rather than tell two instances of one app apart. */
+/* eslint-disable wheel/require-view-root -- The default export marks the catalog entry; the helpers below it are scaffolding, and marking them would put catalog noise between the reader and the library part on show. */
+import { viewRoot } from 'wheel/core';
 import type { JSX } from 'solid-js';
 import { Select, type SelectSize, type SelectStatus, type SelectVariant } from 'wheel/components';
 
@@ -65,7 +67,7 @@ export function AppleSelect(props: AppleSelectProps): JSX.Element {
 
 export default function ExampleSelect() {
   return (
-    <div class="select-family-fixture">
+    <div use:viewRoot={'ExampleSelect'} class="select-family-fixture">
       <DemoGroup title="Surfaces" description="Input and ghost surfaces keep the same behavior.">
         <AppleSelect label="Input" testId="select" />
         <AppleSelect label="Ghost" variant="ghost" defaultValue="gala" />

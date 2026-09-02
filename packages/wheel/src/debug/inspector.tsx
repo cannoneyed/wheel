@@ -58,6 +58,9 @@ function domDepth(element: Element): number {
 
 /** Global inspector state + hit-testing (see module doc). */
 export class InspectorService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'InspectorService';
+
   /** State-tree group: debug tooling — hidden from the panel it powers. */
   static override group = 'debug';
 
@@ -71,7 +74,14 @@ export class InspectorService extends Service {
   /** Hit instances, innermost-first, with nesting depth among the hits. */
   readonly hits = this.atom<readonly InspectorHit[]>([], 'hits');
   /** The instance currently highlighted on the page (debug-panel hover or panel hover). */
-  readonly highlighted = this.atom<string | null>(null, 'highlighted');
+  /**
+   * What is outlined right now.
+   *
+   * A LIST, because a tree row can stand for many components: hovering
+   * `TabsPanel[]` has to show all eight panels, not one of them and not
+   * nothing. Empty means nothing is outlined.
+   */
+  readonly highlighted = this.atom<readonly string[]>([], 'highlighted');
   private readonly restoreHighlight = this.field<(() => void) | null>(null);
 
 
@@ -126,31 +136,33 @@ export class InspectorService extends Service {
    * service so the debug panel's hover-to-locate works with no
    * InspectorSystem mounted.
    */
-  readonly highlight = this.action((instanceId: string | null) => {
+  readonly highlight = this.action((target: string | readonly string[] | null) => {
     this.restoreHighlight.get()?.();
     this.restoreHighlight.set(null);
-    this.highlighted.set(instanceId);
-    if (instanceId === null) {
-      return;
-    }
-    const record = this.instance(instanceId);
-    if (!record) {
-      return;
-    }
+    const ids = target === null ? [] : typeof target === 'string' ? [target] : [...target];
+    this.highlighted.set(ids);
     const restores: Array<() => void> = [];
-    for (const element of record.elements) {
-      if (!(element instanceof HTMLElement)) {
+    for (const instanceId of ids) {
+      const record = this.instance(instanceId);
+      if (!record) {
         continue;
       }
-      const previous = { outline: element.style.outline, offset: element.style.outlineOffset };
-      element.style.outline = '2px solid var(--wheel-indigo-bright, #6366f1)';
-      element.style.outlineOffset = '-2px';
-      restores.push(() => {
-        element.style.outline = previous.outline;
-        element.style.outlineOffset = previous.offset;
-      });
+      for (const element of record.elements) {
+        if (!(element instanceof HTMLElement)) {
+          continue;
+        }
+        const previous = { outline: element.style.outline, offset: element.style.outlineOffset };
+        element.style.outline = '2px solid var(--wheel-indigo-bright, #6366f1)';
+        element.style.outlineOffset = '-2px';
+        restores.push(() => {
+          element.style.outline = previous.outline;
+          element.style.outlineOffset = previous.offset;
+        });
+      }
     }
-    this.restoreHighlight.set(() => restores.forEach((restore) => restore()));
+    if (restores.length > 0) {
+      this.restoreHighlight.set(() => restores.forEach((restore) => restore()));
+    }
   }, 'highlight');
 
   /** Look up a mounted instance record (live state, elements) by id. */

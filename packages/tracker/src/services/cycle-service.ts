@@ -8,6 +8,9 @@ import { cycleStatsByTeam, cyclesByTeam, type Cycle, type CycleStats } from '../
 
 /** Reads a team's cycles and their derived stats. */
 export class CycleService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'CycleService';
+
   private readonly cyclesView = this.liveQueryFor(cyclesByTeam, (teamId: string) => ({ teamId }));
   private readonly statsView = this.liveQueryFor(cycleStatsByTeam, (teamId: string) => ({ teamId }));
   private readonly boundaryNow = this.atom(this.now(), 'boundaryNow');

@@ -51,7 +51,7 @@ export function PanelChips(): JSX.Element {
       <span class={styles.controlLabel}>Bottom panel</span>
       <For each={DOCK_PANEL_CATALOG}>
         {(entry) => (
-          <Button
+          <Button data-wheel-role="chip"
             type="button"
             class={styles.chip}
             data-testid={`chip-${entry.panelId}`}

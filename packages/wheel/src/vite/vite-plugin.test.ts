@@ -109,6 +109,16 @@ describe('wheelDevTools', () => {
     expect(served.esbuild.keepNames).toBe(true);
   });
 
+  it('keeps names by default, and lets an app take the bytes back', () => {
+    // keepNames rescues class names through minification at the cost of a
+    // __name() call per function. Services that declare `serviceName` do not
+    // need it, so an app whose services all declare can opt out.
+    expect(wheelDevTools().config({ root }, { command: 'build' }).esbuild.keepNames).toBe(true);
+    expect(
+      wheelDevTools({ keepNames: false }).config({ root }, { command: 'build' }).esbuild.keepNames
+    ).toBe(false);
+  });
+
   it('GET probes with the resolved snapshot dir', async () => {
     const { server, dispatch } = makeServer(root);
     wheelDevTools().configureServer(server as never);
@@ -149,6 +159,84 @@ describe('wheelDevTools', () => {
     wheelDevTools().configureServer(server as never);
     const res = await dispatch('/__wheel/snapshot', 'DELETE');
     expect(res.statusCode).toBe(405);
+  });
+});
+
+describe('wheelDevTools notes', () => {
+  it('GET lists the notes, which is also what proves saving is possible', async () => {
+    const { server, dispatch } = makeServer(root);
+    wheelDevTools().configureServer(server as never);
+    const res = await dispatch('/__wheel/note', 'GET');
+    expect(JSON.parse(res.body)).toEqual({
+      ok: true,
+      dir: join(root, '.wheel/notes'),
+      notes: []
+    });
+  });
+
+  it('writes note.md, note.json and every attachment, and returns a pasteable command', async () => {
+    const { server, dispatch } = makeServer(root);
+    wheelDevTools().configureServer(server as never);
+    const res = await dispatch('/__wheel/note', 'POST', {
+      id: '1755974400123-cell-clears',
+      payload: { id: '1755974400123-cell-clears', text: 'cell clears' },
+      markdown: '# cell clears\n',
+      png: `data:image/png;base64,${PNG_BASE64}`,
+      audio: `data:audio/webm;base64,${PNG_BASE64}`
+    });
+
+    const { ok, dir, command } = JSON.parse(res.body) as { ok: boolean; dir: string; command: string };
+    expect(ok).toBe(true);
+    expect(dir).toBe(join(root, '.wheel/notes/1755974400123-cell-clears'));
+    // This fixture writes to a temp dir OUTSIDE the working directory, where
+    // a relative path would be a wall of `../` — so it stays absolute.
+    expect(command).toBe(`read ${join(dir, 'note.md')}`);
+    expect(readFileSync(join(dir, 'note.md'), 'utf8')).toBe('# cell clears\n');
+    expect(JSON.parse(readFileSync(join(dir, 'note.json'), 'utf8'))).toMatchObject({ text: 'cell clears' });
+    expect(existsSync(join(dir, 'shot.png'))).toBe(true);
+    expect(existsSync(join(dir, 'audio.webm'))).toBe(true);
+    expect(existsSync(join(dir, 'clip.webm'))).toBe(false);
+  });
+
+  it('gives a path relative to where the server was started, not to the vite root', async () => {
+    // An app usually roots at its own package while the terminal — and the
+    // agent session being pasted into — sits at the repo root. A root-relative
+    // path would not resolve where it lands.
+    const insideCwd = join(process.cwd(), '.wheel-command-test');
+    try {
+      const { server, dispatch } = makeServer(root);
+      wheelDevTools({ noteDir: insideCwd }).configureServer(server as never);
+      const res = await dispatch('/__wheel/note', 'POST', { id: 'note-1', payload: {}, markdown: '# x\n' });
+      const { command } = JSON.parse(res.body) as { command: string };
+
+      expect(command).toBe('read .wheel-command-test/note-1/note.md');
+      expect(command).not.toContain('..');
+    } finally {
+      rmSync(insideCwd, { recursive: true, force: true });
+    }
+  });
+
+  it('lists saved notes newest first, skipping any that are unreadable', async () => {
+    const notesDir = join(root, '.wheel/notes');
+    mkdirSync(join(notesDir, '1000-first'), { recursive: true });
+    mkdirSync(join(notesDir, '2000-second'), { recursive: true });
+    mkdirSync(join(notesDir, '3000-broken'), { recursive: true });
+    writeFileSync(join(notesDir, '1000-first/note.json'), JSON.stringify({ id: '1000-first' }));
+    writeFileSync(join(notesDir, '2000-second/note.json'), JSON.stringify({ id: '2000-second' }));
+    writeFileSync(join(notesDir, '3000-broken/note.json'), 'not json');
+
+    const { server, dispatch } = makeServer(root);
+    wheelDevTools().configureServer(server as never);
+    const res = await dispatch('/__wheel/note', 'GET');
+    const { notes } = JSON.parse(res.body) as { notes: Array<{ id: string }> };
+    expect(notes.map((note) => note.id)).toEqual(['2000-second', '1000-first']);
+  });
+
+  it('answers an empty list before any note exists', async () => {
+    const { server, dispatch } = makeServer(root);
+    wheelDevTools({ noteDir: 'nowhere-yet' }).configureServer(server as never);
+    const res = await dispatch('/__wheel/note', 'GET');
+    expect(JSON.parse(res.body)).toMatchObject({ ok: true, notes: [] });
   });
 });
 

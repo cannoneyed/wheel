@@ -10,6 +10,9 @@ import { Service } from 'wheel/core';
 
 /** The team shown in the secondary split pane, or null when it is closed. */
 export class SplitViewService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SplitViewService';
+
   /** Secondary pane team id; null means no split. Connect directly. */
   readonly splitTeamId = this.atom<string | null>(null, 'splitTeamId');
 

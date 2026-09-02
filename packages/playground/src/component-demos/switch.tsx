@@ -1,4 +1,5 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture composition boundary. */
+/* eslint-disable wheel/require-component-role -- The catalog demonstrates the components themselves: every fixture here IS a Button or a Dialog, so a role would name the catalog rather than tell two instances of one app apart. */
+import { viewRoot } from 'wheel/core';
 import { Field, Switch, type SwitchSize, type SwitchStatus } from 'wheel/components';
 
 import { DemoGroup } from './demo-group';
@@ -29,7 +30,7 @@ function SwitchField(props: {
 
 export default function ExampleSwitch() {
   return (
-    <div class="switch-family-fixture">
+    <div use:viewRoot={'ExampleSwitch'} class="switch-family-fixture">
       <DemoGroup title="Values">
         <SwitchField label="Off" />
         <SwitchField label="On" defaultChecked />

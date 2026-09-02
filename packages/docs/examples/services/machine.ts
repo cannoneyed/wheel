@@ -79,6 +79,9 @@ const seekMachine = setup({
 });
 
 export class PlaybackService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'PlaybackService';
+
   private readonly nextRequestId = this.field(0);
 
   readonly seek = this.machine(seekMachine, {

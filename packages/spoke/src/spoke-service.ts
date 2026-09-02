@@ -26,6 +26,9 @@ interface ChannelPeer {
 
 /** Owns Spoke subscriptions, channel selection, writes, and ephemeral presence. */
 export class SpokeService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SpokeService';
+
   readonly members = this.liveQuery(membersAll, {});
   readonly channels = this.liveQuery(channelsForMember, {});
   readonly reads = this.liveQuery(readsForMember, {});

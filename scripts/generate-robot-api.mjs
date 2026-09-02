@@ -19,6 +19,7 @@ const entries = [
   ['kit', 'wheel/kit', 'kit/index.ts'],
   ['router', 'wheel/router', 'router/index.ts'],
   ['debug', 'wheel/debug', 'debug/index.ts'],
+  ['annotate', 'wheel/annotate', 'annotate/index.ts'],
   ['testing', 'wheel/testing', 'testing/index.ts'],
   ['testing-playwright', 'wheel/testing/playwright', 'testing/playwright.ts'],
   ['vite', 'wheel/vite', 'vite/index.ts'],

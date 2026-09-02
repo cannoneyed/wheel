@@ -1,6 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
+import { useSignal } from '../../../core/local-state';
 import {
   createContext,
   createEffect,
@@ -227,7 +228,7 @@ export function FloatingPortal(componentProps: FloatingPortal.Props): JSX.Elemen
   const beforeInsideRef: { current: HTMLSpanElement | null } = { current: null };
   const afterInsideRef: { current: HTMLSpanElement | null } = { current: null };
 
-  const [focusManagerState, setFocusManagerState] = createSignal<FocusManagerState>(null);
+  const [focusManagerState, setFocusManagerState] = useSignal<FocusManagerState>(null, 'focusManagerState');
   let focusInsideDisabled = false;
 
   const modal = () => focusManagerState()?.modal ?? false;

@@ -18,6 +18,9 @@ const DEFAULT_CHECKLIST_ID = 'checklist_safety';
 
 /** Owns the Rounds subscriptions, selected checklist, and product actions. */
 export class RoundsService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'RoundsService';
+
   readonly sites = this.liveQuery(sitesAll, {});
   readonly checklists = this.liveQuery(checklistsBySite, { siteId: SITE_ID });
   readonly progress = this.liveQuery(siteProgressAll, {});

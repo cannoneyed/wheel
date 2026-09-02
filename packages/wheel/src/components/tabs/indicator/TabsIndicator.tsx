@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createSignal, onCleanup, onMount, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { onCleanup, onMount, splitProps, type JSX } from 'solid-js';
 import { renderElement } from '../../internals/renderElement';
 import { getCssDimensions } from '../../utils/getCssDimensions';
 import type { BaseUIComponentProps, HTMLProps } from '../../internals/types';
@@ -36,7 +36,7 @@ export function TabsIndicator(componentProps: TabsIndicator.Props): JSX.Element 
   // list notifies of a layout change (e.g. a `ResizeObserver` entry). Solid
   // has no render-cycle concept to force; a tick signal read inside the
   // position computation below achieves the same "recompute on notify" effect.
-  const [tick, setTick] = createSignal(0);
+  const [tick, setTick] = useSignal(0, 'tick');
 
   onMount(() => {
     const unregister = registerIndicatorUpdateListener(() => setTick((t) => t + 1));

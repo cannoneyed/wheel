@@ -27,6 +27,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       'components',
       'component-library',
       'debugging',
+      'annotating',
       'patterns',
       'routing',
       'framing'

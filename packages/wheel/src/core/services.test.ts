@@ -10,6 +10,9 @@ import { assign, setup } from 'xstate';
 import { Service, ServiceContext } from './services';
 
 class CounterService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'CounterService';
+
   readonly count = this.atom(0, 'count');
   readonly doubled = this.computed(() => this.count.get() * 2, 'doubled');
   readonly addMany = this.action((amount: number) => {
@@ -20,6 +23,9 @@ class CounterService extends Service {
 }
 
 class GreetingService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'GreetingService';
+
   private readonly counter = this.service(CounterService);
   readonly label = this.computed(() => `count is ${this.counter.count.get()}`, 'label');
 }
@@ -61,6 +67,9 @@ const seekMachine = setup({
 });
 
 class SeekService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SeekService';
+
   readonly seek = this.machine(seekMachine, {
     transitions: {
       start: (position: number) => ({ type: 'start', position }),
@@ -112,6 +121,9 @@ describe('solid service kernel', () => {
       mutable = 0;
     }
     class FieldService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'FieldService';
+
       private readonly retries = this.field(0);
       private readonly handle = this.field<LiveHandle | null>(null);
       readonly readRetries = (): number => this.retries.get();
@@ -162,6 +174,9 @@ describe('solid service kernel', () => {
 
   it('fields keep the newest 50 writes', () => {
     class FieldService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'FieldService';
+
       private readonly count = this.field(0);
       readonly setCount = (value: number): void => this.count.set(value);
     }
@@ -183,6 +198,9 @@ describe('solid service kernel', () => {
       | { ms: number; run: () => void; cancelled: boolean }
       | undefined;
     class RuntimeService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'RuntimeService';
+
       readonly readNow = () => this.now();
       readonly later = (run: () => void) => this.defer(25, run);
     }
@@ -217,6 +235,9 @@ describe('solid service kernel', () => {
       releaseOld = resolve;
     });
     class AsyncService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'AsyncService';
+
       readonly commits: string[] = [];
       readonly load = async (work: PromiseLike<string>): Promise<string> => {
         const task = this.latestAsyncTask();
@@ -242,6 +263,9 @@ describe('solid service kernel', () => {
   it('service disposal cancels its active latest async task', async () => {
     const pending = new Promise<never>(() => {});
     class AsyncService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'AsyncService';
+
       readonly run = (): Promise<never> => {
         const task = this.latestAsyncTask();
         return task.wait(pending);
@@ -353,6 +377,9 @@ describe('solid service kernel', () => {
   it('computedFor memoizes per canonical tuple', () => {
     let runs = 0;
     class MathService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'MathService';
+
       readonly base = this.atom(10, 'base');
       readonly plus = this.computedFor((n: number) => {
         runs += 1;
@@ -376,6 +403,9 @@ describe('solid service kernel', () => {
     // mounted component observed it — and the row silently froze on screen.
     // computedFor never evicts, so a key read long ago still reflects state.
     class GridService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'GridService';
+
       readonly base = this.atom(0, 'base');
       readonly cell = this.computedFor((n: number) => this.base.get() + n, 'cell');
     }
@@ -412,6 +442,9 @@ describe('solid service kernel', () => {
   it('computedFor per-key memos dispose on service teardown (no leak)', () => {
     let disposals = 0;
     class LeakService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'LeakService';
+
       readonly base = this.atom(0, 'base');
       readonly cell = this.computedFor((n: number) => {
         // createMemo runs under a root that disposes with the service; register
@@ -435,6 +468,9 @@ describe('solid service kernel', () => {
     let runs = 0;
     let disposals = 0;
     class FamilyService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'FamilyService';
+
       readonly value = this.computedFor((key: string) => {
         runs += 1;
         onCleanup(() => {
@@ -473,7 +509,10 @@ describe('solid service kernel', () => {
 
   it('override injects fakes before first use, throws after', () => {
     const context = new ServiceContext();
-    class FakeCounter extends CounterService {}
+    class FakeCounter extends CounterService {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'FakeCounter';
+}
     const fakeContext = new ServiceContext();
     const fake = fakeContext.get(FakeCounter);
     context.override(CounterService, fake, { ownership: 'caller' });
@@ -493,11 +532,17 @@ describe('solid service kernel', () => {
     let callerDestroyed = 0;
     let contextDestroyed = 0;
     class CallerReplacement extends CounterService {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'CallerReplacement';
+
       protected override onDestroy(): void {
         callerDestroyed += 1;
       }
     }
     class ContextReplacement extends CounterService {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'ContextReplacement';
+
       protected override onDestroy(): void {
         contextDestroyed += 1;
       }
@@ -546,6 +591,9 @@ describe('solid service kernel', () => {
 
   it('atom.update: immer drafts for nested changes, structural sharing preserved', () => {
     class DocService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'DocService';
+
       readonly doc = this.atom(
         { title: 'a', body: { text: 'hello', tags: ['x'] }, meta: { views: 0 } },
         'doc'
@@ -569,6 +617,9 @@ describe('solid service kernel', () => {
 
   it('Set/Map atoms reject external mutation and still update through drafts', () => {
     class SelService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'SelService';
+
       readonly selected = this.atom(new Set<string>(['a']), 'selected');
       readonly labels = this.atom(new Map<string, { label: string }>([['a', { label: 'A' }]]), 'labels');
     }
@@ -604,6 +655,9 @@ describe('solid service kernel', () => {
 
   it('rejects Date values because Object.freeze cannot make their timestamp immutable', () => {
     class TimeService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'TimeService';
+
       readonly now = this.atom(0, 'now');
     }
     const context = new ServiceContext();
@@ -614,6 +668,9 @@ describe('solid service kernel', () => {
 
   it('atom values are deep-frozen: mutation outside the happy path throws', () => {
     class ProfileService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'ProfileService';
+
       readonly profile = this.atom({ name: 'ada', tags: ['a'] }, 'profile');
     }
     const context = new ServiceContext();
@@ -650,9 +707,15 @@ describe('solid service kernel', () => {
 
   it('registry keeps same-named constructors and nested scopes distinct', () => {
     const StoreA = class StoreService extends Service {
+                     /** Identity that survives minification (see require-service-name). */
+                     static override serviceName = 'StoreService';
+
       readonly value = this.atom('a', 'value');
     };
     const StoreB = class StoreService extends Service {
+                     /** Identity that survives minification (see require-service-name). */
+                     static override serviceName = 'StoreService';
+
       readonly value = this.atom('b', 'value');
     };
     const root = new ServiceContext({ scopeId: 'root' });
@@ -681,6 +744,9 @@ describe('solid service kernel', () => {
 
   it('registry shows a computedFor value PER KEY (not one opaque aggregate)', () => {
     class KeyedService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'KeyedService';
+
       readonly base = this.atom(10, 'base');
       readonly plus = this.computedFor((n: number) => this.base.get() + n, 'plus');
     }

@@ -132,6 +132,17 @@ export interface InstanceRecord {
 
 /** One node of the mounted-component tree (parents from DOM containment). */
 export interface InstanceTreeNode {
+  /**
+   * The instance's DURABLE identity (`Avatar#2`), assigned at mount and never
+   * reassigned while it lives.
+   *
+   * Not the same as `instanceId`, which drops its number while a name is
+   * unique and takes one back the moment a second component shares it. That
+   * makes `instanceId` the right thing to SHOW and the wrong thing to key UI
+   * state on — a panel that remembered which rows were open by instanceId lost
+   * the lot every time a sibling mounted.
+   */
+  readonly key: string;
   readonly instanceId: string;
   readonly name: string;
   readonly kind: InstanceRecord['kind'];
@@ -170,6 +181,25 @@ function domDepth(element: Element): number {
   return depth;
 }
 
+/**
+ * A service class's display identity: its declared `static serviceName`, or
+ * its class name when it has not declared one.
+ *
+ * The declaration exists because a minifier renames the class, and the class
+ * name is what the state tree, `actService` lookups and annotation timelines
+ * print. `BoardService.toggleCell` has to survive a production build; `iu.rT`
+ * helps nobody. `require-service-name` makes the declaration mandatory.
+ *
+ * Only an OWN property counts. Statics inherit, so reading the inherited one
+ * would make `class Child extends Parent {}` report itself as `Parent`.
+ */
+export function serviceDisplayName(ServiceType: Function): string {
+  const declared = Object.hasOwn(ServiceType, 'serviceName')
+    ? (ServiceType as { serviceName?: unknown }).serviceName
+    : undefined;
+  return typeof declared === 'string' && declared.length > 0 ? declared : ServiceType.name;
+}
+
 /** Live registry for one ServiceContext tree. */
 export class DebugRegistry {
   private readonly primitives = new Map<
@@ -187,6 +217,18 @@ export class DebugRegistry {
 
   /** Wired to the owning context's revision bump so debug surfaces re-render when registry state changes. */
   onChange: (() => void) | null = null;
+
+  /**
+   * Fired when the registry's SHAPE changes: an instance mounted, unmounted,
+   * was renumbered, or reported its visibility.
+   *
+   * Separate from `onChange` because the two have different audiences and very
+   * different rates. Values change constantly; shape rarely. A surface that
+   * redraws on shape — the component tree — must not redraw on values, or
+   * hovering one of its own rows (which writes a field) rebuilds it under the
+   * pointer.
+   */
+  onInstanceChange: (() => void) | null = null;
 
   /** Component currently running its connect declaration, if any. */
   currentComponent: string | null = null;
@@ -253,7 +295,7 @@ export class DebugRegistry {
     const id = `service_${typeId}@scope_${concreteScopeId}`;
     this.services.set(id, {
       id,
-      name: ServiceType.name,
+      name: serviceDisplayName(ServiceType),
       scopeId,
       // Static inheritance makes subclasses carry their base's group unless
       // they override it; absent entirely → 'app'.
@@ -261,6 +303,18 @@ export class DebugRegistry {
       primitiveIds
     });
     return id;
+  }
+
+  /**
+   * A registered service's state-tree group (`app`, `framework`, `debug`, or a
+   * custom string), by the id stamped on its primitives' `DebugMeta`.
+   *
+   * A cheap Map read on purpose: the annotation recorder calls it on every
+   * tapped write to drop wheel's OWN debug services from the timeline — a
+   * recorder that records itself is noise, not evidence.
+   */
+  serviceGroup(serviceId: string): string | undefined {
+    return this.services.get(serviceId)?.group;
   }
 
   /** Removes one disposed service from the shared context-tree graph. */
@@ -307,6 +361,12 @@ export class DebugRegistry {
    * instance shows its bare name, siblings show `#1`/`#2`. Mount and unmount
    * therefore renumber a name's group, and this method re-stamps the
    * affected DOM so `data-wheel-id` always matches what the tree shows.
+   *
+   * A ROLE joins the name to form that identity: `Button` with role `add` is
+   * `Button(add)`. Shared components are the reason — a todo list renders one
+   * `Button` to add and one per row to delete, and `Button#1` names none of
+   * them. `Button(add)` is legible, and being distinct from `Button(delete)`
+   * it usually needs no number at all.
    */
   registerInstance(
     name: string,
@@ -314,21 +374,26 @@ export class DebugRegistry {
     options?: {
       kind?: InstanceRecord['kind'];
       group?: string;
+      /** What this instance of a shared component IS (`add`, `delete`). */
+      role?: string | undefined;
       /** The PARENT'S STABLE KEY (never its display id — that can renumber). */
       parentId?: string | null;
       /** Live accessor for the component's props object (connect passes this automatically). */
       props?: () => object | undefined;
     }
   ): { record: InstanceRecord; unregister: () => void } {
-    const slot = this.allocateSlot(name);
-    const key = `${name}#${slot}`;
+    // The role is part of the identity, not a label beside it: it decides the
+    // slot, the key, the display id and the DOM stamp.
+    const identity = options?.role ? `${name}(${options.role})` : name;
+    const slot = this.allocateSlot(identity);
+    const key = `${identity}#${slot}`;
     const registry = this;
     const record: InstanceRecord = {
       key,
       get instanceId(): string {
-        return registry.countNamed(name) > 1 ? key : name;
+        return registry.displayIdOf(key);
       },
-      name,
+      name: identity,
       kind: options?.kind ?? 'connected',
       group: options?.group ?? 'app',
       hiddenBy: null,
@@ -353,17 +418,79 @@ export class DebugRegistry {
     };
     this.instanceRecords.set(key, record);
     // Crossing 1 → 2 renames the incumbent (`TodoRow` becomes `TodoRow#1`).
-    this.restampNamed(name);
-    this.notifyDebug();
+    this.restampNamed(identity);
+    this.notifyInstances();
     return {
       record,
       unregister: () => {
         this.instanceRecords.delete(key);
         // Dropping back to 1 gives the survivor its bare name again.
-        this.restampNamed(name);
-        this.notifyDebug();
+        this.restampNamed(identity);
+        this.notifyInstances();
       }
     };
+  }
+
+  /**
+   * Display id for a record's stable key, numbering only among SIBLINGS.
+   *
+   * Built for the whole registry at once and cached, because it cannot be
+   * answered one record at a time: knowing whether `Button(delete)` needs a
+   * number means knowing what else sits under the same parent, and parents
+   * come from DOM containment. Computing that per read — and `instanceId` is
+   * read on every stamp and every tree row — would be quadratic on every
+   * paint. The cache is dropped whenever the registry changes, which is the
+   * only thing that can change the answer.
+   */
+  displayIdOf(key: string): string {
+    if (!this.displayIds) this.displayIds = this.computeDisplayIds();
+    return this.displayIds.get(key) ?? key;
+  }
+
+  private displayIds: Map<string, string> | null = null;
+
+  private computeDisplayIds(): Map<string, string> {
+    // Group by (parent, name). The parent is a stable KEY: display ids are
+    // what we are in the middle of deciding.
+    const groups = new Map<string, InstanceRecord[]>();
+    for (const record of this.instanceRecords.values()) {
+      const parent = this.displayParentKey(record) ?? '';
+      const bucket = `${parent}\u0000${record.name}`;
+      const existing = groups.get(bucket);
+      if (existing) existing.push(record);
+      else groups.set(bucket, [record]);
+    }
+    const ids = new Map<string, string>();
+    for (const members of groups.values()) {
+      if (members.length === 1) {
+        const only = members[0]!;
+        ids.set(only.key, only.name);
+        continue;
+      }
+      // Several of one name under one parent: each shows its SLOT, which is
+      // what its key already carries. Not its position in the group — a
+      // position shifts when an earlier sibling unmounts, so a selector
+      // copied out of the tree would quietly start meaning a different
+      // component. The slot is held for as long as the instance lives, and
+      // reused lowest-first afterwards, so the same mount order reproduces
+      // the same ids after a reload.
+      for (const record of members) ids.set(record.key, record.key);
+    }
+    // The DOM stamp is written at registration, when this component's parent
+    // may not be mounted yet — so the id it got then can be wrong the moment
+    // the tree settles. Rewriting here keeps `data-wheel-id` and the tree
+    // saying the same thing, and costs one pass per change-burst rather than
+    // one per registration, because the map is rebuilt lazily on first read.
+    for (const record of this.instanceRecords.values()) {
+      const id = ids.get(record.key);
+      if (!id) continue;
+      for (const element of record.elements) {
+        if (element.isConnected && element.getAttribute('data-wheel-id') !== id) {
+          element.setAttribute('data-wheel-id', id);
+        }
+      }
+    }
+    return ids;
   }
 
   /** Smallest free slot for a name, so unmount/remount reproduces ids. */
@@ -404,10 +531,51 @@ export class DebugRegistry {
     }
   }
 
-  /** Notify debug surfaces after registry state changes without touching application data channels. */
+  /** Notify debug surfaces that a VALUE changed, without touching application data channels. */
   notifyDebug(): void {
     this.onChange?.();
   }
+
+  /** Notify debug surfaces that the registry's SHAPE changed — mounts, unmounts, renames. */
+  notifyInstances(): void {
+    // Any shape change can renumber a sibling group, so the display ids go.
+    this.displayIds = null;
+    this.scheduleRestamp();
+    this.onInstanceChange?.();
+  }
+
+  /**
+   * Settle once the mount burst is over: restamp the DOM, and say so again.
+   *
+   * NOTHING about a registration is final at the moment it happens. An id is
+   * scoped to siblings and a parent comes from DOM containment, but the
+   * element being registered is not in the document yet — its own
+   * `use:componentRoot` adds it on the next line, and its parent may mount
+   * after it. Anything computed during the burst is a guess.
+   *
+   * So the burst ends with a second notification, and that is not belt and
+   * braces: a surface that derived a tree DURING the burst has a wrong tree
+   * and no reason to ever recompute it. Reloading an app with the debug panel
+   * already open showed exactly that — rows parented under whichever sibling
+   * happened to be mounted when the panel asked, and left there, because the
+   * next thing to change the registry might be minutes away.
+   *
+   * Coalesced, so mounting a hundred rows costs one pass and not a hundred.
+   */
+  private scheduleRestamp(): void {
+    if (this.restampQueued) return;
+    this.restampQueued = true;
+    queueMicrotask(() => {
+      this.restampQueued = false;
+      // Rebuilding is what rewrites the stamps; see `computeDisplayIds`.
+      this.displayIds = this.computeDisplayIds();
+      // And now that the DOM is settled, every derived view is invited to
+      // recompute against it.
+      this.onInstanceChange?.();
+    });
+  }
+
+  private restampQueued = false;
 
   /** Every currently mounted instance (insertion order = mount order). */
   instances(): readonly InstanceRecord[] {
@@ -440,15 +608,37 @@ export class DebugRegistry {
    * containment is build-mode-independent. The recorded `parentId` remains
    * as the fallback for headless instances (no elements to contain).
    */
+  /**
+   * The parent's STABLE KEY, by the same DOM-containment rule as
+   * `displayParentId`.
+   *
+   * Anything that INDEXES on the parent wants this: display ids are only
+   * unique among siblings, so two `Button(delete)`s under different rows
+   * would collide in a map keyed by display id.
+   */
+  displayParentKey(record: InstanceRecord): string | null {
+    const parent = this.displayParentRecord(record);
+    return parent?.key ?? null;
+  }
+
+  /**
+   * The parent's DISPLAY id, for surfaces that show it to a person.
+   *
+   * Anything that keys a map on the parent wants `displayParentKey` instead:
+   * a display id is unique among siblings, not globally.
+   */
   displayParentId(record: InstanceRecord): string | null {
+    return this.displayParentRecord(record)?.instanceId ?? null;
+  }
+
+  private displayParentRecord(record: InstanceRecord): InstanceRecord | undefined {
     const element = [...record.elements].find((el) => el.isConnected);
     if (!element) {
       // Headless: the owner-chain hint is all there is. It may be a sibling
       // in production builds — a root beats a wrong nesting, so only trust
       // it when that parent is still mounted. The hint is a stable KEY;
       // callers want the display id.
-      const parent = record.parentId !== null ? this.instanceRecords.get(record.parentId) : undefined;
-      return parent?.instanceId ?? null;
+      return record.parentId !== null ? this.instanceRecords.get(record.parentId) : undefined;
     }
     let best: InstanceRecord | null = null;
     let bestDepth = -1;
@@ -465,7 +655,7 @@ export class DebugRegistry {
         }
       }
     }
-    return best?.instanceId ?? null;
+    return best ?? undefined;
   }
 
   /**
@@ -484,9 +674,13 @@ export class DebugRegistry {
    * a root rather than vanishing.
    */
   instanceTree(): InstanceTreeNode[] {
+    // Keyed by the STABLE key, never the display id: display ids are unique
+    // among siblings only, so two `Button(delete)`s in two rows would be one
+    // entry in a map keyed by display id, and one row would lose its button.
     const nodes = new Map<string, InstanceTreeNode>();
     for (const record of this.instanceRecords.values()) {
-      nodes.set(record.instanceId, {
+      nodes.set(record.key, {
+        key: record.key,
         instanceId: record.instanceId,
         name: record.name,
         kind: record.kind,
@@ -497,7 +691,7 @@ export class DebugRegistry {
     const rootRecords: InstanceRecord[] = [];
     const childRecords = new Map<string, InstanceRecord[]>();
     for (const record of this.instanceRecords.values()) {
-      const parent = this.displayParentId(record);
+      const parent = this.displayParentKey(record);
       if (parent && nodes.has(parent)) {
         const siblings = childRecords.get(parent);
         if (siblings) siblings.push(record);
@@ -509,8 +703,8 @@ export class DebugRegistry {
     const attach = (records: InstanceRecord[]): InstanceTreeNode[] =>
       // Array.sort is stable, so DOM-less siblings keep mount order.
       [...records].sort(compareDocumentOrder).map((record) => {
-        const node = nodes.get(record.instanceId)!;
-        node.children.push(...attach(childRecords.get(record.instanceId) ?? []));
+        const node = nodes.get(record.key)!;
+        node.children.push(...attach(childRecords.get(record.key) ?? []));
         return node;
       });
     return attach(rootRecords);

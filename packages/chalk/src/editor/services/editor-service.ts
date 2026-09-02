@@ -58,6 +58,9 @@ function peerColor(clientId: string): string {
 
 /** Chalk's synced document state and product commands. */
 export class EditorService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'EditorService';
+
   constructor(context: ServiceContext) {
     super(context);
     const keyboard = this.service(KeyboardService);

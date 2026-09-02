@@ -49,7 +49,7 @@ export function SequencerTracks() {
       <For each={state.lanes}>
         {(lane) => (
           <div class={styles.trackRow} data-testid={`sequencer-track-${lane.voice}`}>
-            <Input
+            <Input data-wheel-role="sequencer-name"
               type="text"
               class={styles.trackName}
               data-testid={`sequencer-name-${lane.voice}`}
@@ -71,7 +71,7 @@ export function SequencerTracks() {
                 // go, rather than one per pixel of the drag.
                 onChange={(event) => state.setGain(lane.id, Number(event.currentTarget.value) / 100)}
               />
-              <Button
+              <Button data-wheel-role="sequencer-clear"
                 class={styles.clearButton}
                 data-testid={`sequencer-clear-${lane.voice}`}
                 title={`Clear ${lane.name} (one undo step)`}

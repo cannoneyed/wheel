@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { type JSX } from 'solid-js';
 import { createBaseUiId } from '../createBaseUiId';
 import type { HTMLProps } from '../types';
 import { LabelableContext, useLabelableContext, type LabelableContext as LabelableContextType } from './LabelableContext';
@@ -13,11 +13,10 @@ export function LabelableProvider(props: LabelableProvider.Props): JSX.Element {
   const parent = useLabelableContext();
   const defaultId = createBaseUiId();
 
-  const [controlId, setControlIdState] = createSignal<string | null | undefined>(
-    props.controlId === undefined ? defaultId() : props.controlId,
-  );
-  const [labelId, setLabelId] = createSignal<string | undefined>(props.labelId);
-  const [messageIds, setMessageIdsState] = createSignal<string[]>([]);
+  const [controlId, setControlIdState] = useSignal<string | null | undefined>(
+    props.controlId === undefined ? defaultId() : props.controlId, 'controlId');
+  const [labelId, setLabelId] = useSignal<string | undefined>(props.labelId, 'labelId');
+  const [messageIds, setMessageIdsState] = useSignal<string[]>([], 'messageIds');
 
   const registrations = new Map<symbol, string | null>();
 

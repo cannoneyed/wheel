@@ -23,6 +23,9 @@ export type ProjectPatchArgs = Infer<typeof ProjectPatch>;
 
 /** Owns project subscriptions, derived progress, and project mutations. */
 export class ProjectService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ProjectService';
+
   private readonly toastService = this.service(ToastService);
   /** Every project in sidebar order — connect directly (`state.projects.rows`). */
   readonly projects = this.liveQuery(projectsAll, {});

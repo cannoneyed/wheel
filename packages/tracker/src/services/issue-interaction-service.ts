@@ -40,6 +40,9 @@ export type {
 
 /** Stable component API composed from bounded interaction services. */
 export class IssueInteractionService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'IssueInteractionService';
+
   private readonly targetsService = this.service(IssueTargetService);
   private readonly properties = this.service(IssuePropertyService);
   private readonly movement = this.service(IssueMovementService);

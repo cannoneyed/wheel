@@ -7,12 +7,15 @@
  *   auth          ← provider-neutral trust contracts; depends on nothing internal
  *   config        ← JSON application boot configuration; depends on nothing internal
  *   core          ← the service kernel; depends on nothing internal
- *   components    ← accessible UI primitives; depends on nothing internal
+ *   components    ← accessible UI primitives; may use core (they are components
+ *                   OF wheel apps, and register into the same component tree)
  *   router        ← may use core ONLY (RouterService is a Service like any other)
  *   sync          ← may use core
  *   sync/server   ← may use sync, core
  *   kit           ← may use core and components (never sync — verified per file)
- *   debug         ← may use core, sync (it renders the client's surfaces)
+ *   debug         ← may use core, sync, components, kit (it renders the client's
+ *                   surfaces, and builds its own with the same parts an app gets)
+ *   annotate      ← may use core, sync, debug (it reuses the picker and capture)
  *   testing       ← may use sync, sync/server, core
  *
  * Nothing in the type system enforces the arrows. A `core/` file that writes
@@ -65,6 +68,7 @@ function layerOf(srcRelPath) {
   if (p.startsWith('kit/')) return 'kit';
   if (p.startsWith('router/')) return 'router';
   if (p.startsWith('debug/')) return 'debug';
+  if (p.startsWith('annotate/')) return 'annotate';
   if (p.startsWith('testing/')) return 'testing';
   return null;
 }
@@ -78,12 +82,22 @@ const ALLOWED_EDGES = {
   auth: new Set([]),
   config: new Set([]),
   core: new Set([]),
-  components: new Set([]),
+  // components → core is a DOWN edge, not a cycle: core never imports
+  // components. The leaf status was a bet that `wheel/components` might ship
+  // standalone one day; the batteries-included design says otherwise, and the
+  // cost of the bet was that the library's own parts were the one thing in a
+  // wheel app the component tree could not see.
+  components: new Set(['core']),
   router: new Set(['core']),
   sync: new Set(['core']),
   'sync/server': new Set(['auth', 'sync', 'core']),
   kit: new Set(['core', 'components']),
-  debug: new Set(['core', 'sync']),
+  // The panel is a wheel app like any other: it lays itself out with the
+  // Frame kit and draws itself with the component library, rather than
+  // hand-rolling a second, worse copy of both. Still a DOWN edge — neither
+  // kit nor components imports debug.
+  debug: new Set(['core', 'sync', 'components', 'kit']),
+  annotate: new Set(['core', 'sync', 'debug']),
   testing: new Set(['sync', 'sync/server', 'core'])
 };
 
@@ -98,6 +112,7 @@ const WHEEL_SUBPATH_LAYER = {
   'wheel/kit': 'kit',
   'wheel/router': 'router',
   'wheel/debug': 'debug',
+  'wheel/annotate': 'annotate',
   'wheel/testing': 'testing'
 };
 
@@ -133,7 +148,7 @@ export default {
     type: 'problem',
     docs: {
       description:
-        'enforce the wheel layering DAG — independent auth/config/components leaves; core ← sync ← sync/server; core,components ← kit; core,sync ← debug'
+        'enforce the wheel layering DAG — independent auth/config leaves; core ← components,router,sync ← sync/server; core,components ← kit; core,sync ← debug'
     },
     messages: {
       upEdge:

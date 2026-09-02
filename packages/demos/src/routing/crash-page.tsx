@@ -16,6 +16,9 @@ import { connect, view } from 'wheel/core';
 
 /** Explodes on construction, the way a real broken dependency does. */
 class CrashService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'CrashService';
+
   readonly value = this.computed((): string => {
     throw new Error('CrashService failed to initialize (this is deliberate)');
   }, 'value');

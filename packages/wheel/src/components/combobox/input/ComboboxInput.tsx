@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { splitProps, type JSX } from 'solid-js';
 import { platform } from '../../base-utils/platform/index';
 import type { BaseUIComponentProps } from '../../internals/types';
 import {
@@ -93,7 +93,7 @@ export function ComboboxInput(componentProps: ComboboxInput.Props): JSX.Element 
   const ariaLabelledBy = () => resolveAriaLabelledBy(fieldLabelId(), undefined);
   const fieldStateForInput = () => (hasPositionerParent ? DEFAULT_FIELD_STATE_ATTRIBUTES : fieldState);
 
-  const [composingValue, setComposingValue] = createSignal<string | null>(null);
+  const [composingValue, setComposingValue] = useSignal<string | null>(null, 'composingValue');
   let isComposing = false;
   let lastActiveIndex: number | null = null;
   let shouldRestoreActiveIndex = false;

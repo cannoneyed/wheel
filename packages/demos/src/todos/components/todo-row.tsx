@@ -40,6 +40,7 @@ export function TodoRow(props: { todo: Todo }) {
       }}
     >
       <Checkbox.Root
+        data-wheel-role="done"
         checked={props.todo.done}
         onCheckedChange={() => state.toggle(props.todo.id)}
         aria-label={props.todo.text}
@@ -51,7 +52,12 @@ export function TodoRow(props: { todo: Todo }) {
       <span class={props.todo.done ? `${styles.rowText} ${styles.rowTextDone}` : styles.rowText}>
         {props.todo.text}
       </span>
-      <Button class={styles.iconButton} title="Delete todo" onClick={() => state.remove(props.todo.id)}>
+      <Button
+        class={styles.iconButton}
+        data-wheel-role="delete"
+        title="Delete todo"
+        onClick={() => state.remove(props.todo.id)}
+      >
         <Trash2 size={14} />
       </Button>
     </li>

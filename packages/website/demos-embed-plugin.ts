@@ -78,7 +78,22 @@ export function demosEmbed(): Plugin {
           const urlPath = (req.url ?? '/').split('?')[0]!;
           const safePath = normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
           let file = resolve(join(EMBED_DIR, safePath));
-          if (!file.startsWith(EMBED_DIR) || !existsSync(file) || extname(file) === '') {
+          const missing = !file.startsWith(EMBED_DIR) || !existsSync(file);
+          if (missing && extname(file) !== '') {
+            // An ASSET that is not there is a 404, never the SPA fallback.
+            //
+            // Falling through to index.html answered a missing
+            // `annotate-system-<hash>.js` with a 200 and a page of HTML, and
+            // the browser reported "Failed to fetch dynamically imported
+            // module" — which reads like a network problem and is really a
+            // stale hash: the page was loaded before a rebuild and is asking
+            // for a chunk that no longer exists. A 404 says that.
+            res.statusCode = 404;
+            res.setHeader('content-type', 'text/plain; charset=utf-8');
+            res.end(`${urlPath} is not in the demos embed — the page predates the last rebuild; reload it`);
+            return;
+          }
+          if (missing || extname(file) === '') {
             // SPA fallback: every non-asset path is a route of the demos app.
             file = join(EMBED_DIR, 'index.html');
           }

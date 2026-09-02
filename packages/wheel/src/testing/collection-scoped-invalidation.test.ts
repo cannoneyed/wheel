@@ -54,6 +54,9 @@ const serverModule = {
 };
 
 class TwoTables extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TwoTables';
+
   readonly alphas = this.liveQuery(alphaList, {});
   readonly betas = this.liveQuery(betaList, {});
 }

@@ -1,0 +1,347 @@
+---
+title: Annotating
+---
+
+import { Aside } from '@docs/components/Aside';
+
+# Annotating
+
+Leave a note on the running app, and record what the app actually did while you did it.
+
+Every other "annotate the page and send it to your agent" tool sends a screenshot, a CSS selector,
+and some text — a picture of a bug, with the cause left as an exercise. Wheel sends the cause,
+because it already owns the two doors everything goes through: actions are the only way to change
+anything, and atoms are the only way state moves. Tapping those two places yields a timeline like
+this, and an agent that reads it does not have to reproduce anything:
+
+```
++0ms     route     /board/42
++120ms   input     click → BoardCell:3-7 (x=412 y=90)
++121ms   action    BoardService.toggleCell("3-7")
++121ms   state     BoardService.selection [] → ["3-7"]
++124ms   write     cells/3-7 cause=optimistic:toggleCell
++380ms   write     cells/3-7 cause=sync-apply          ← the bug is right here
++382ms   state     BoardService.selection ["3-7"] → []
+```
+
+## Mount it
+
+```tsx
+// Excerpt: an app entry module (main.tsx).
+import { WheelApp } from 'wheel/debug';
+import { WheelAnnotate } from 'wheel/annotate';
+
+render(() => (
+  <WheelApp client={client}>
+    <YourApp />
+    <WheelAnnotate />
+  </WheelApp>
+), root);
+```
+
+The debug dock grows an **annotate** pane, beside state, components and errors. Press
+**✎ annotate this app** there, or **⌘⇧A** (Ctrl+Shift+A) from anywhere; Escape leaves.
+
+The whole flow lives in that pane — arming, the composer you write in, and the notes written so
+far. The app itself carries only what has to be ON it: the marquee you drag, the outline of the
+area, and the recording light. A note you save appears in the pane's list, so saving leaves
+something to point at instead of a clipboard you have to trust.
+
+Every key is printed on the control it drives: **⇧⌘A** arms and leaves, and while you are writing,
+**r** records, **t** talks, **s** saves, **d** discards. **Escape** ends a running recording without
+ending the note — it steps back one thing at a time — and discards the note when nothing is
+recording. The letters are ignored while the cursor is in a text box, so typing "the save button is
+broken" writes a note rather than saving three times.
+
+Press a note in that list to **rewrite** it. The first draft of a bug report is written in a
+hurry; the second one is the useful one. A rewrite changes the words and nothing else — the same
+anchor, the same timeline, the same picture — and saving it lands on the note it came from rather
+than beside it. The ⧉ beside a note copies its handle again.
+
+There is no floating button. Annotating is something you do to a wheel app, so the way in is the
+app's own instrument panel — which also means `<WheelAnnotate/>` needs a `<WheelApp/>` above it to
+have somewhere to live.
+`wheel/annotate` is a separate entry point from `wheel/debug` on purpose: a build can ship the
+annotator without the debug panel.
+
+Saving needs the dev-server endpoint, which comes from the same plugin the rich screenshots use:
+
+```ts
+// Excerpt: vite.config.ts.
+import { wheelDevTools } from 'wheel/vite';
+
+export default defineConfig({
+  plugins: [solid(), wheelDevTools({ noteDir: '.wheel/notes' })]
+});
+```
+
+## In production
+
+Mounting `<WheelAnnotate/>` costs a pane and a keyboard chord. Everything else — marquee,
+composer, voice, the recorder itself, note rendering — is behind a dynamic `import()` and arrives
+the first time someone arms. Measured on the tracker, by building it with and without the mount:
+
+| | gzipped |
+| --- | --- |
+| resident: pane, chord, loader | **2.1 KB** |
+| deferred: the whole armed experience | 13.4 KB, fetched on arm |
+| deferred: the DOM rasterizer | 10.2 KB, fetched when a note is first drawn |
+
+`enabled` defaults to dev mode, so a production build records nothing and shows nothing until the
+app says otherwise. That decision belongs to the app, because it decides whose application state
+may be captured:
+
+```tsx
+// Excerpt: a production entry.
+<WheelAnnotate enabled={session.actor?.isStaff === true} />
+<WheelAnnotate enabled={localStorage.getItem('wheel.annotate') === '1'} />
+```
+
+The second form is the one for a live deployment: set the key in the console, reload, and the
+pane is there — no deploy needed.
+
+<Aside kind="note">
+  <strong>Names are declared, not preserved.</strong> A timeline is only worth reading because it
+  says `BoardService.toggleCell`, and a minifier renames that class to `iu`. Every service declares
+  `static override serviceName` (enforced by `require-service-name`, auto-fixable), so identity is
+  a string literal that survives any build. If all your services declare it you can pass
+  `wheelDevTools({ keepNames: false })` and take back the 11.2 KB gzipped that esbuild's
+  `keepNames` costs — measured on Axle, which ships exactly that way.
+</Aside>
+
+### Where notes go
+
+By default a note is POSTed to the dev server's `/__wheel/note`, which writes the directory above.
+That endpoint is not special — it is one implementation of a two-method contract, and the app can
+point somewhere else:
+
+```tsx
+// Excerpt: an app entry that collects notes centrally.
+<WheelAnnotate sink={{ url: 'https://notes.example.com/annotations', headers: { authorization: token } }} />
+```
+
+| method | what it does |
+| --- | --- |
+| `POST <url>` | save one note. Body `{ id, payload, markdown, png?, video?, audio? }` — `payload` is the complete note, media are `data:` URLs. Answer `{ ok: true, command?, location? }`: `command` is something pasteable, `location` a URL where the note now lives. Whichever comes back is copied to the clipboard. `id` is the note's identity, not the request's: a rewrite re-POSTs the same id and must REPLACE that note. A rewrite sends no media, so keep the attachments already held under that id. |
+| `GET <url>` | the saved notes, `{ ok: true, notes: [{ id, payload }] }`, newest first. Nothing on the page needs the list — this is the capability probe, and answering at all is what tells the page saving is possible here rather than downloading. |
+
+That is the whole contract, so a Durable Object, an issue tracker or a bucket can stand in for the
+dev server without the annotator knowing the difference. A sink that cannot be reached costs
+nothing: saving falls back to the download below.
+
+### Why video is not rasterized too
+
+The obvious next thought is to rasterize a frame at a time and call it a video. It does not work.
+Serializing a subtree costs tens to hundreds of milliseconds **on the main thread** — the same
+thread the app you are debugging runs on. Sampling it per frame would stutter the app and change
+the behaviour under observation, which is the one thing a debugging tool must not do.
+
+Screen video comes from the compositor (`getDisplayMedia`), which costs the browser prompt and
+nothing on the main thread. That is the whole reason ⏺ record is a switch you throw deliberately.
+
+The browser only ever hands out a whole surface — a tab, a window, a screen — so the clip is
+cropped out of it, through a canvas, to the rectangle the note is about. A recording of the entire
+window is not a recording of that rectangle: it buries the subject in browser chrome and dock, and
+it is many times the bytes. `drawImage` from a video element is a GPU blit, so the crop costs the
+compositor rather than the app being observed — which is the same distinction that rules DOM
+rasterization out as a video source.
+
+### Delivery without a dev server
+
+A deployed app has no `/__wheel/note` to POST to, so the save button becomes **download note** and
+produces one self-contained markdown file: the note, the timeline, the captured state, the
+screenshot inlined as a data URL, and the complete payload as a fenced JSON block. Drop it wherever
+your agent is looking.
+
+The save path always tries the server first and falls back to the download, so it cannot be fooled
+by a slow capability probe. Audio and video are left out of a download on purpose — they are
+megabytes of base64, and the transcript is already in the prose.
+
+Nothing is sent anywhere. There is no collector endpoint, which is why production notes need no
+redaction story yet: the state stays on the machine that captured it until a human moves it.
+
+## One interaction
+
+**Arm, drag a rectangle, say what is wrong, save.** There is no mode to pick and nothing to press
+first: drawing the box IS the interaction.
+
+The rectangle is not final. Drag any edge or corner to resize it, or the triangle outside its
+top-left corner to move it whole — and what the note is ABOUT follows: the anchor, the components
+underneath and the picture are all re-taken when you let go. A box drawn in one gesture is rarely
+the box you meant, and the only fix used to be discarding the note and starting again.
+
+Its handles are shy. They appear when the pointer comes near the frame and hide while a recording
+is running, because eight squares and a triangle parked over the app are noise to look at — and
+worse, they would be IN the recording. The frame itself is click-through, so the app underneath
+keeps working while a note is open about it: that is how you reproduce the thing you are writing
+about.
+
+What you get is everything that was under it, whether or not you thought to ask:
+
+| | |
+| --- | --- |
+| every component under the rectangle | live state, props, and the actions you could drive |
+| the plain DOM under it | element, path, and a quote of its text — what a docs paragraph has instead of a component |
+| what the app did | the merged timeline of actions, state changes, input, sync writes, errors, routes and network — while ⏺ record is on |
+| the state tree | every service's atoms as they were when the recording started |
+| a screenshot | automatically, on every note — with the instruments filtered out of it |
+| a screen recording | while ⏺ record is on — cropped to the rectangle, not the whole window |
+| the rectangle | resizable by any edge or corner, movable by the triangle at its top-left |
+
+The screenshot costs nothing and nobody presses a button for it.
+
+**The picture** is rasterized out of the DOM, not grabbed from the screen, so it needs no
+permission and opens no share dialog. `getDisplayMedia` — what the debug panel's rich screenshots
+use — prompts once per tab session, and a screenshot that costs a modal is a screenshot nobody
+takes. The trade is that DOM capture cannot see a `<canvas>`, a `<video>`, or a cross-origin
+iframe.
+
+There used to be a **📷 re-take from screen** button for exactly those, at the cost of the share
+prompt. It is gone. Once ⏺ record captures true pixels of the same rectangle, a second button that
+also captures true pixels of the same rectangle is a choice nobody can make correctly from its
+label — and the case it covered is covered better by a two-second recording, which shows a canvas
+doing the thing rather than a still of it.
+
+Nothing wheel draws is in the picture. The rasterizer skips every element marked as chrome — the
+outline around the region, the dock, all of it — so a note's screenshot is a picture of the app,
+not of the tool pointing at it. Once you record, the clip replaces the still in the composer:
+until you can play it back, "🎥 attached" is a claim you have to take on trust.
+
+**The timeline** is what ⏺ **record** is for. Press it, reproduce the problem, and the note carries
+what the app did while you did it — named actions, the atoms they moved, the rows sync wrote and
+why. One switch covers both halves of a recording, the screen and the semantics, because they
+answer one question: a video with no timeline is a screen capture anyone could have sent, and a
+timeline with no video is a list of names with nothing to point at.
+
+Nothing is recorded until you press it. An earlier version kept a rolling 60-second buffer alive
+from the moment the annotator mounted, so a note could carry the minute BEFORE the box was drawn.
+That reads well and worked badly: every session paid for taps it would probably never use, and
+what the buffer mostly caught was the act of using the tools. Recording is a thing you ask for.
+
+<Aside kind="note">
+  <strong>Refusing the screen prompt does not cost the timeline.</strong> The recorder starts
+  first and the video is allowed to fail behind it, because the semantic half is the half no other
+  tool has. Input inside the dock is never recorded at all — arming, picking a label, pressing
+  save — or a timeline would be mostly the act of writing the note.
+</Aside>
+
+### Pages wheel does not own
+
+Not every page is a wheel app. A docs page, a landing scroll, a marketing site: plain DOM, no
+`connect()`, nothing in the component registry. There is nothing to name as a component, so the
+anchor says what prose does have — which element, where in the document, and what it reads:
+
+```yaml
+anchor: { instanceId: "", name: "", element: "p", domPath: "#root > main > p:nth-of-type(3)" }
+text: "Wheel is a web application framework designed for reliable development by AI agents."
+```
+
+Both halves are recorded whenever they exist, so a note on an app screen carries the component id
+AND the DOM path. Whichever the reader needs is there.
+
+Such a page still needs a provider for the annotator to hang off. `ServiceProvider` is clientless
+and can hold no services at all:
+
+```tsx
+// Excerpt: a plain Solid page's entry.
+render(() => (
+  <ServiceProvider scopeId="docs">
+    <DocsApp />
+    <WheelAnnotate />
+  </ServiceProvider>
+), root);
+```
+
+The rectangle is stored in **viewport coordinates** — where the thing was on screen when you drew
+the box. A note describes a moment, not a place in a document, so nothing tries to make it survive
+a scroll or a re-render.
+
+Type your note, or press **🎤 talk**. The words land in the same box you type in, after whatever
+is already there, so you can speak a sentence and then fix a word — dictation is a way of writing
+the note, not a separate thing attached to it. The audio is saved beside it as the receipt, and
+the raw transcript is kept in the payload: an agent cannot listen to a recording, so the words are
+the deliverable and the audio is only there to check against.
+
+## What lands on disk
+
+```
+.wheel/notes/1755974400123-cell-clears/
+  note.md        ← the file to hand an agent
+  note.json      ← the complete payload
+  shot.png
+  clip.webm      (when the screen was recorded)
+  audio.webm     (voice notes)
+```
+
+Saving copies `read .wheel/notes/1755974400123-cell-clears/note.md` to your clipboard, so handing
+the note over is one paste. A snackbar at the bottom of the screen says which way the note went —
+saved to the sink, or downloaded — and takes itself away after a few seconds. It sits outside the
+composer on purpose: saving closes the composer, so a confirmation drawn inside it would appear
+and vanish in the same instant.
+
+The snackbar ships with the annotator rather than being something an app provides. It lives in the
+lazily-loaded chrome and goes away with it, so an app that does not mount `<WheelAnnotate/>`
+carries none of it. `note.md` opens with frontmatter worth grepping (id, label, url,
+anchor, viewport, recorded window, event count), then your note, then the timeline as a table, then the
+state that produced it. `note.json` holds the same facts unabridged — the markdown is a projection
+of it and the two can never disagree.
+
+## Why the component id is worth having
+
+A note records the component **instance id** — `BoardCell:3-7` — alongside the DOM path, because
+wheel forces those ids to be stable (`require-stable-instance-name` makes a component with an
+identity prop name itself from that prop, so the id follows the data and never shifts when a list
+reorders).
+
+That is what makes a note answer "which one" a week later. `div > tr:nth-of-type(4) > td` says
+where something was; `BoardCell:3-7` says what it was.
+
+## What the timeline records
+
+Everything, by default. Each stream can be turned off, but the default is maximal capture:
+
+| stream | where it comes from |
+| --- | --- |
+| actions (service, name, arguments, duration) | the kernel tap on `Service.action` |
+| state transitions (atom, before → after) | the kernel tap on `Atom.set` / `.update` |
+| input (click, key, pointer, focus, scroll) | capture-phase listeners, each mapped to the component that owns the element |
+| sync writes | the client's provenance log — already recorded, harvested by timestamp. Each row names the collection and the mutations behind it (`optimistic:addRow+setTotal` when an atomic group wrote several) |
+| errors | the capture buffer — already recorded, with source-mapped stacks |
+| route changes | `popstate` / `hashchange`, so it works without wheel's router |
+| network | a `fetch` wrapper: method, url, status, round-trip |
+| video | the same tab-capture stream the rich screenshots use, and only when you switch it on |
+
+Three things keep a recording from becoming the bug:
+
+- **Values are diffed.** An object-to-object change is stored as the top-level keys that differ,
+  not two whole copies, and everything goes through wheel's bounded projection.
+- **Hot atoms coalesce.** Writes to one atom within 80ms collapse into a single entry that keeps
+  the first value, the latest value, and a count — a 400-frame drag is one line saying `×400`.
+- **Causes come before effects.** The kernel can only time an action when it returns, so the
+  recorder places it after the input that ran it and ahead of the writes it produced. A timeline
+  never prints an effect above its cause.
+- **Churn stays visible.** A value that leaves and comes back inside the coalesce window is kept
+  as two entries: merging it would print `null → null`, which reads as "nothing happened" — the
+  opposite of the truth.
+
+Wheel's own debug services are excluded, and so is everything inside the dock, so a recording
+never fills up with the act of recording.
+
+<Aside kind="note">
+  <strong>The cost when nothing is recording is one null check</strong> per action call and per
+  atom write. Nothing is timed, cloned, or serialized until a recorder installs itself
+  (`core/recorder-tap.ts`).
+</Aside>
+
+## Why the timeline is replayable in principle
+
+A note stores its actions with serialized arguments, and the state tree as it was when the
+recording started. Since actions are the only write door — the same door `__wheel.act()` uses — and wheel's
+clock and scheduler are already injectable seams, a note carries everything a re-drive would need.
+That is not built yet; it is why notes capture what they capture.
+
+## Next
+
+- [Debugging](#/debugging) — the panel, the bridge, error capture, and rich screenshots.
+- [Components](#/components) — the directives that make every component findable and anchorable.
+- [Testing](#/testing) — the harness `wheelDriver` runs against.

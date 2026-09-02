@@ -34,7 +34,7 @@ export function GraphToolbar() {
   const state = connectGraphToolbar({});
   return (
     <span use:componentRoot class={styles.controls}>
-      <Button
+      <Button data-wheel-role="graph-undo"
         class={styles.iconButton}
         title="Undo (mod+z)"
         data-testid="graph-undo"
@@ -43,7 +43,7 @@ export function GraphToolbar() {
       >
         <Undo2 size={14} />
       </Button>
-      <Button
+      <Button data-wheel-role="graph-redo"
         class={styles.iconButton}
         title="Redo (mod+shift+z)"
         data-testid="graph-redo"

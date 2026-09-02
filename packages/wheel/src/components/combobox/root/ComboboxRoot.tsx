@@ -1,7 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createMemo, createSignal, on, untrack, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, createMemo, on, untrack, type JSX } from 'solid-js';
 import { createControllableSignal } from '../../base-utils/createControllableSignal';
 import { EMPTY_ARRAY, EMPTY_OBJECT, NOOP } from '../../base-utils/empty';
 import { mergeRefs } from '../../base-utils/mergeRefs';
@@ -133,8 +134,8 @@ export function ComboboxRoot<Value, Multiple extends boolean | undefined = false
   const disabled = () => (fieldDisabled() || disabledProp()) ?? false;
   const name = () => fieldName() ?? componentProps.name;
 
-  const [queryChangedAfterOpenGet, setQueryChangedAfterOpen] = createSignal(false);
-  const [closeQuery, setCloseQuery] = createSignal<string | null>(null);
+  const [queryChangedAfterOpenGet, setQueryChangedAfterOpen] = useSignal(false, 'queryChangedAfterOpenGet');
+  const [closeQuery, setCloseQuery] = useSignal<string | null>(null, 'closeQuery');
 
   // Plain mutable containers (`{ current }`), matching every other port's `useRef` translation.
   const listElements: Array<HTMLElement | null> = [];

@@ -1,10 +1,10 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
+import { useSignal } from '../../../core/local-state';
 import {
   createComputed,
   createEffect,
-  createSignal,
   For,
   onCleanup,
   splitProps,
@@ -124,8 +124,8 @@ export function FieldError(componentProps: FieldError.Props): JSX.Element {
     return Array.isArray(error) ? JSON.stringify(error) : (error ?? '');
   };
 
-  const [lastRenderedMessage, setLastRenderedMessage] = createSignal<JSX.Element>(null);
-  const [lastRenderedMessageKey, setLastRenderedMessageKey] = createSignal<string | null>(null);
+  const [lastRenderedMessage, setLastRenderedMessage] = useSignal<JSX.Element>(null, 'lastRenderedMessage');
+  const [lastRenderedMessageKey, setLastRenderedMessageKey] = useSignal<string | null>(null, 'lastRenderedMessageKey');
 
   // Mirrors upstream's render-phase "hold the last message while exiting" cascade (see
   // `createTransitionStatus`'s doc comment for why `createComputed` reproduces React's

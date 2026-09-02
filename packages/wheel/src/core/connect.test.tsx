@@ -21,6 +21,9 @@ import { WheelContext } from './context';
 import type { ServiceContext } from './services';
 
 class CounterService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'CounterService';
+
   readonly count = this.atom(0, 'count');
   readonly doubled = this.computed(() => this.count.get() * 2, 'doubled');
   readonly add = this.action((n: number) => this.count.set(this.count.get() + n), 'add');
@@ -115,6 +118,9 @@ describe('connect in the DOM', () => {
 
   it('atoms and live-view objects connect DIRECTLY through view() — no mirror wrappers', () => {
     class DirectService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'DirectService';
+
       // Public atom, connected directly — the deleted pattern was a mirror:
       // `readonly filterMirror = this.computed(() => this.filter.get())`.
       readonly filter = this.atom(1, 'filter');

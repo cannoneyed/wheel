@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, onCleanup, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../core/local-state';
+import { createEffect, onCleanup, splitProps, type JSX } from 'solid-js';
 import { FloatingNode, FloatingTree, useFloatingNodeId, useFloatingTree } from '../floating-ui-solid';
 import type { MenuRoot } from '../menu/root/MenuRoot';
 import type { MenuOpenEventDetails } from '../menu/utils/types';
@@ -48,8 +48,8 @@ export function Menubar(componentProps: Menubar.Props): JSX.Element {
   const disabled = () => componentProps.disabled ?? false;
   const id = createBaseUiId(() => componentProps.id);
 
-  const [contentElement, setContentElement] = createSignal<HTMLElement | null>(null);
-  const [hasSubmenuOpen, setHasSubmenuOpen] = createSignal(false);
+  const [contentElement, setContentElement] = useSignal<HTMLElement | null>(null, 'contentElement');
+  const [hasSubmenuOpen, setHasSubmenuOpen] = useSignal(false, 'hasSubmenuOpen');
 
   const context: MenubarContextValue = {
     contentElement,

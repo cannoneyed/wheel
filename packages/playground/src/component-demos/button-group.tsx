@@ -1,4 +1,5 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture's inspection boundary. */
+/* eslint-disable wheel/require-component-role -- The catalog demonstrates the components themselves: every fixture here IS a Button or a Dialog, so a role would name the catalog rather than tell two instances of one app apart. */
+import { viewRoot } from 'wheel/core';
 import { Button, ButtonGroup, IconButton } from 'wheel/components';
 import { DirectionProvider } from 'wheel/components/direction-provider';
 import { MoreIcon, PlusIcon, TrashIcon } from './button-icons';
@@ -6,7 +7,7 @@ import { DemoGroup } from './demo-group';
 
 export default function ExampleButtonGroup() {
   return (
-    <div class="button-family-fixture button-family-fixture--documented">
+    <div use:viewRoot={'ExampleButtonGroup'} class="button-family-fixture button-family-fixture--documented">
       <DemoGroup title="Common groups">
         <ButtonGroup aria-label="Editing actions" data-testid="button-group-horizontal">
           <Button>Copy</Button>

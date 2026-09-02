@@ -48,6 +48,7 @@ function LiveDemoPane(props: { id: string; label: string }) {
         <span class="live-pane-name">{props.label}</span>
         <label class="live-pane-switch">
           <Switch.Root
+            data-wheel-role="connection"
             checked={online()}
             onCheckedChange={(next: boolean) => flip(next)}
             aria-label={`${props.label} connection`}

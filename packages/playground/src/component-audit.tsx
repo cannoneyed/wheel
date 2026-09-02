@@ -1,3 +1,4 @@
+/* eslint-disable wheel/require-component-role -- The catalog demonstrates the components themselves: every fixture here IS a Button or a Dialog, so a role would name the catalog rather than tell two instances of one app apart. */
 // wheel-view-root: this standalone review surface does not use application services.
 import { createMemo, For, onCleanup, Show, type JSX } from 'solid-js';
 import { Dynamic } from 'solid-js/web';

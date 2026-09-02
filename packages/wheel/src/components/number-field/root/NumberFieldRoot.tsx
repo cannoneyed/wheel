@@ -1,7 +1,8 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal, wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
+/* eslint-disable wheel/require-view-root -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, splitProps, type JSX } from 'solid-js';
 import { createControllableSignal } from '../../base-utils/createControllableSignal';
 import { mergeRefs } from '../../base-utils/mergeRefs';
 import { visuallyHidden, visuallyHiddenInput } from '../../base-utils/visuallyHidden';
@@ -114,7 +115,7 @@ export function NumberFieldRoot(componentProps: NumberFieldRoot.Props): JSX.Elem
   const disabled = () => (fieldDisabled() || disabledProp()) ?? false;
   const name = () => fieldName() ?? componentProps.name;
 
-  const [isScrubbing, setIsScrubbing] = createSignal(false);
+  const [isScrubbing, setIsScrubbing] = useSignal(false, 'isScrubbing');
 
   const minWithDefault = () => componentProps.min ?? Number.MIN_SAFE_INTEGER;
   const maxWithDefault = () => componentProps.max ?? Number.MAX_SAFE_INTEGER;
@@ -164,8 +165,8 @@ export function NumberFieldRoot(componentProps: NumberFieldRoot.Props): JSX.Elem
   const allowInputSyncRef: { current: boolean } = { current: true };
   const lastChangedValueRef: { current: number | null } = { current: null };
 
-  const [inputValue, setInputValue] = createSignal(formatNumber(value(), locale(), format()));
-  const [inputMode, setInputMode] = createSignal<InputMode>('numeric');
+  const [inputValue, setInputValue] = useSignal(formatNumber(value(), locale(), format()), 'inputValue');
+  const [inputMode, setInputMode] = useSignal<InputMode>('numeric', 'inputMode');
 
   function getAllowedNonNumericKeys(): Set<string> {
     const parts = getFormatParts(locale(), format());

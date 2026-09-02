@@ -25,6 +25,7 @@ import {
   createSignal,
   getOwner,
   runWithOwner,
+  untrack,
   type Accessor,
   type Owner,
   type Setter
@@ -43,7 +44,8 @@ import {
 
 import { canonicalParams } from './params';
 import { captureDeclSite } from './decl-site';
-import { DebugRegistry, type DebugMeta } from './debug-registry';
+import { DebugRegistry, serviceDisplayName, type DebugMeta } from './debug-registry';
+import { wheelTap } from './recorder-tap';
 import {
   systemClock,
   systemDefer,
@@ -355,6 +357,7 @@ export class ServiceContext {
   /** Per-collection data revisions, minted lazily by `trackCollection`. */
   private readonly collectionVersions = new Map<string, { version: Accessor<number>; bump: () => void }>();
   private readonly debugVersion: Accessor<number>;
+  private readonly instanceVersion: Accessor<number>;
   private releaseClient: (() => void) | null = null;
   private disposed = false;
 
@@ -381,17 +384,37 @@ export class ServiceContext {
     const [version, setVersion] = createSignal(0);
     this.version = version;
     this.bumpVersion = () => setVersion((v) => v + 1);
-    const [debugVersion, setDebugVersion] = createSignal(0);
-    this.debugVersion = debugVersion;
+    // The debug channels follow the REGISTRY. A child context shares its
+    // parent's registry (see above), so it must share the signals that report
+    // changes to it — a context with its own signals and no wiring is a
+    // channel that never fires.
+    //
+    // That was the bug behind "the component tree shows the app root but never
+    // the rows": a demo's panel lives in a child context, so its `trackDebug`
+    // never bumped. It appeared to work only because the tree ALSO tracked the
+    // data revision, which is genuinely per-context — so the tree redrew on
+    // sync traffic and looked live, while a mount alone did nothing.
+    const [ownDebugVersion, setDebugVersion] = createSignal(0);
+    const [ownInstanceVersion, setInstanceVersion] = createSignal(0);
+    this.debugVersion = options.parent ? options.parent.debugVersion : ownDebugVersion;
+    this.instanceVersion = options.parent ? options.parent.instanceVersion : ownInstanceVersion;
     if (!options.parent) {
       // Root context owns the registry. Registry-only changes get their OWN
-      // signal (trackDebug) — they must NOT ride the client-data revision
-      // channel: every liveQuery read tracks that channel, so bumping it per
-      // mount makes row components re-derive their vms on mount, which
-      // remounts rows, which bumps again — a feedback loop that starves
-      // long lists. Channel doctrine: data invalidation and debug-surface
-      // invalidation never share a wire.
+      // signals — they must NOT ride the client-data revision channel: every
+      // liveQuery read tracks that channel, so bumping it per mount makes row
+      // components re-derive their vms on mount, which remounts rows, which
+      // bumps again — a feedback loop that starves long lists. Channel
+      // doctrine: data invalidation and debug-surface invalidation never share
+      // a wire.
+      //
+      // And the debug surfaces get TWO wires, for the same reason one level
+      // down. Values change constantly (every field write); shape rarely (a
+      // mount, an unmount, a rename). A surface that redraws on shape must not
+      // redraw on values — the component tree writes a field when you hover
+      // one of its rows, so a shared wire had it rebuilding itself under the
+      // pointer, detaching the row mid-click.
       this.registry.onChange = () => setDebugVersion((v) => v + 1);
+      this.registry.onInstanceChange = () => setInstanceVersion((v) => v + 1);
     }
     if (this.clientRef) {
       // One client listener per context that owns a client reference; child
@@ -474,11 +497,23 @@ export class ServiceContext {
   }
 
   /**
-   * Tracked read of the debug revision. Instance changes, visibility reports,
-   * and field writes bump it. Application data must never track this signal.
+   * Tracked read of the debug VALUE revision: service field writes bump it.
+   * Application data must never track this signal.
    */
   trackDebug(): number {
     return this.debugVersion();
+  }
+
+  /**
+   * Tracked read of the debug SHAPE revision: an instance mounted, unmounted,
+   * was renumbered, or reported its visibility.
+   *
+   * The channel a surface that DRAWS THE TREE wants. Tracking `trackDebug()`
+   * instead means every field write rebuilds it, and a tree whose own rows
+   * write a field on hover then rebuilds itself under the pointer.
+   */
+  trackInstances(): number {
+    return this.instanceVersion();
   }
 
   /**
@@ -681,6 +716,22 @@ export abstract class Service {
    */
   static group = 'app';
 
+  /**
+   * This service's name in every debug surface: the state tree, the
+   * `serviceName` stamped on its atoms and actions, `actService` lookups, and
+   * annotation timelines.
+   *
+   *   static override serviceName = 'BoardService';
+   *
+   * Declared rather than derived because a minifier renames the class, and
+   * `iu.toggleCell("3-7")` is not a debug story. Declaring it costs ~30 bytes
+   * per service; the alternative (esbuild `keepNames`) costs 11.7 KB gzipped
+   * across a whole app. Empty means "fall back to the class name", which is
+   * what an undeclared service gets. `require-service-name` makes the
+   * declaration mandatory and checks it against the class it sits in.
+   */
+  static serviceName = '';
+
   private readonly cleanups: Array<() => void> = [];
   private __debugServiceId = '';
   private activeLatestAsyncTask: AbortController | null = null;
@@ -763,15 +814,38 @@ export abstract class Service {
       declaredAt: captureDeclSite()
     };
     const [get, set] = createSignal(freezeDeep(initial));
+    // The recording seam (core/recorder-tap.ts). Reading the previous value
+    // costs an untracked read, so it happens ONLY when a tap is installed —
+    // an app with no recorder pays one null check per write. `Object.is`
+    // equality mirrors the signal's own no-op rule: a write that changes
+    // nothing is not a state transition and never reaches the tap.
+    const tapState = (tap: NonNullable<ReturnType<typeof wheelTap>>, previous: T, next: T): void => {
+      if (Object.is(previous, next)) return;
+      tap.state({
+        at: this.now(),
+        service: meta.serviceName ?? '',
+        serviceId: meta.serviceId ?? '',
+        atom: meta.name,
+        previous,
+        next
+      });
+    };
     const atom: Atom<T> = {
       get,
       set: (value: T) => {
-        set(() => freezeDeep(value));
+        const tap = wheelTap();
+        const previous = tap ? untrack(get) : undefined;
+        const next = freezeDeep(value);
+        set(() => next);
+        if (tap) tapState(tap, previous as T, next);
       },
       update: (recipe) => {
+        const tap = wheelTap();
+        const previous = tap ? untrack(get) : undefined;
         // Uses the setter's prev-value form (no tracked read); produce()
         // auto-freezes its output, freezeDeep is a no-op backstop.
         set((prev) => freezeDeep(produce(prev, recipe)));
+        if (tap) tapState(tap, previous as T, untrack(get));
       },
       __debugMeta: meta
     };
@@ -894,7 +968,26 @@ export abstract class Service {
       kind: 'action',
       declaredAt: captureDeclSite()
     };
-    const wrapped = ((...args: never[]) => batch(() => fn(...args))) as unknown as F;
+    // The recording seam (core/recorder-tap.ts): actions are the only write
+    // door, so tapping here yields a complete, NAMED log of what the app did.
+    // With no tap installed the wrapper is the plain batch it always was.
+    const wrapped = ((...args: never[]) => {
+      const tap = wheelTap();
+      if (!tap) return batch(() => fn(...args));
+      const at = this.now();
+      try {
+        return batch(() => fn(...args));
+      } finally {
+        tap.action({
+          at,
+          service: meta.serviceName ?? '',
+          serviceId: meta.serviceId ?? '',
+          action: meta.name,
+          args,
+          durationMs: this.now() - at
+        });
+      }
+    }) as unknown as F;
     // The callable rides along so the bridge can invoke actions by
     // service+name — actions are the ONLY sanctioned external write door.
     registry.registerPrimitive(meta, () => `<action ${meta.name}>`, wrapped as unknown as (...args: unknown[]) => unknown);
@@ -1029,7 +1122,7 @@ export abstract class Service {
 
   /** @internal Walks own fields, stamps service ownership on primitives. */
   __registerPrimitives(): void {
-    const serviceName = this.constructor.name;
+    const serviceName = serviceDisplayName(this.constructor);
     const primitiveIds: string[] = [];
     const primitiveMetas: DebugMeta[] = [];
     for (const key of Object.getOwnPropertyNames(this)) {

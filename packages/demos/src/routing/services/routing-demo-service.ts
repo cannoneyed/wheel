@@ -42,6 +42,9 @@ const ISSUES: readonly DemoIssue[] = [
 
 /** Teams and issues for the routing demo, plus the lookups its pages need. */
 export class RoutingDemoService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'RoutingDemoService';
+
   /** Every team, in sidebar order. */
   readonly teams = this.atom<readonly DemoTeam[]>(TEAMS, 'teams');
 

@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createSignal, createEffect, onCleanup, onMount, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, onMount, splitProps, type JSX } from 'solid-js';
 import { addEventListener } from '../../base-utils/addEventListener';
 import { ownerDocument } from '../../base-utils/owner';
 import { inertValue } from '../../base-utils/inertValue';
@@ -66,17 +66,16 @@ export function ToastRoot(componentProps: ToastRoot.Props): JSX.Element {
 
   const store = useToastProviderContext();
 
-  const [currentSwipeDirection, setCurrentSwipeDirection] = createSignal<SwipeDirection | undefined>(
-    undefined,
-  );
-  const [isSwiping, setIsSwiping] = createSignal(false);
-  const [isRealSwipe, setIsRealSwipe] = createSignal(false);
-  const [dragDismissed, setDragDismissed] = createSignal(false);
-  const [dragOffset, setDragOffset] = createSignal({ x: 0, y: 0 });
-  const [initialTransform, setInitialTransform] = createSignal({ x: 0, y: 0, scale: 1 });
-  const [titleId, setTitleId] = createSignal<string | undefined>(undefined);
-  const [descriptionId, setDescriptionId] = createSignal<string | undefined>(undefined);
-  const [lockedDirection, setLockedDirection] = createSignal<'horizontal' | 'vertical' | null>(null);
+  const [currentSwipeDirection, setCurrentSwipeDirection] = useSignal<SwipeDirection | undefined>(
+    undefined, 'currentSwipeDirection');
+  const [isSwiping, setIsSwiping] = useSignal(false, 'isSwiping');
+  const [isRealSwipe, setIsRealSwipe] = useSignal(false, 'isRealSwipe');
+  const [dragDismissed, setDragDismissed] = useSignal(false, 'dragDismissed');
+  const [dragOffset, setDragOffset] = useSignal({ x: 0, y: 0 }, 'dragOffset');
+  const [initialTransform, setInitialTransform] = useSignal({ x: 0, y: 0, scale: 1 }, 'initialTransform');
+  const [titleId, setTitleId] = useSignal<string | undefined>(undefined, 'titleId');
+  const [descriptionId, setDescriptionId] = useSignal<string | undefined>(undefined, 'descriptionId');
+  const [lockedDirection, setLockedDirection] = useSignal<'horizontal' | 'vertical' | null>(null, 'lockedDirection');
 
   let rootRef: HTMLDivElement | undefined;
   let dragStartPos = { x: 0, y: 0 };

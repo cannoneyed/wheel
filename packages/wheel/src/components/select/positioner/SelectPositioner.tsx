@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, splitProps, type JSX } from 'solid-js';
 import { inertValue } from '../../base-utils/inertValue';
 import { useSelectFloatingContext, useSelectRootContext } from '../root/SelectRootContext';
 import { CompositeList } from '../../internals/composite/list/CompositeList';
@@ -80,9 +80,8 @@ export function SelectPositioner(componentProps: SelectPositioner.Props): JSX.El
   const scrollDownArrowRef: { current: HTMLDivElement | null } = { current: null };
 
   const alignItemWithTrigger = () => local.alignItemWithTrigger ?? false;
-  const [controlledAlignItemWithTrigger, setControlledAlignItemWithTrigger] = createSignal(
-    alignItemWithTrigger(),
-  );
+  const [controlledAlignItemWithTrigger, setControlledAlignItemWithTrigger] = useSignal(
+    alignItemWithTrigger(), 'controlledAlignItemWithTrigger');
   const alignItemWithTriggerActive = () =>
     mounted() && controlledAlignItemWithTrigger() && openMethod() !== 'touch';
 

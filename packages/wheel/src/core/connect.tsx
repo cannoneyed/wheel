@@ -15,7 +15,7 @@
  *   functions — never whole service instances.
  */
 
-import { getOwner, onCleanup, useContext, type JSX } from 'solid-js';
+import { createContext, getOwner, onCleanup, useContext, type JSX } from 'solid-js';
 
 import {
   ServiceContext,
@@ -35,7 +35,36 @@ import { assertSingleSolidRuntime } from './solid-runtime';
  * find it. Plain userland Solid (an expando on getOwner()) — no internals,
  * works identically in production builds.
  */
+/**
+ * Inside this, components do not register.
+ *
+ * The debug panel builds itself from the same kit and component library an app
+ * uses — that is the point of dogfooding them — but a `Frame` it mounts for
+ * its OWN layout is furniture, not the app being inspected. Without a
+ * boundary the panel fills its own component tree with its own scaffolding.
+ *
+ * It suppresses registration rather than filtering later: a name-based ignore
+ * list (`InspectorSystem|SnapshotSystem`) has to be kept in step with every
+ * new piece of chrome, and quietly hides an app component that happens to
+ * share a name.
+ */
+const ChromeBoundary = createContext(false);
+
+/**
+ * Mark a subtree as tooling: components inside it stay out of the component
+ * tree, the agent bridge, and anything else that reads the registry.
+ */
+export function DebugChrome(props: { children: JSX.Element }): JSX.Element {
+  return <ChromeBoundary.Provider value={true}>{props.children}</ChromeBoundary.Provider>;
+}
+
+/** Whether the caller is inside a {@link DebugChrome} subtree. */
+export function insideChrome(): boolean {
+  return useContext(ChromeBoundary);
+}
+
 const INSTANCE_KEY = Symbol('wheel.instance');
+
 
 type OwnerWithInstance = { [INSTANCE_KEY]?: InstanceRecord; owner: OwnerWithInstance | null };
 
@@ -215,7 +244,9 @@ export function connect<Props, Shape>(
     // The parent edge is resolved BEFORE stamping — the walk starts at this
     // component's own (unstamped) owner and finds the nearest enclosing
     // mounted instance.
-    if (shape !== null && typeof shape === 'object') {
+    // Chrome registers nothing: the panel builds itself from the same parts an
+    // app uses, and its own furniture is not part of the app it is inspecting.
+    if (shape !== null && typeof shape === 'object' && !insideChrome()) {
       const owner = getOwner() as OwnerWithInstance | null;
       const parent = nearestInstance(owner);
       const { record, unregister } = registry.registerInstance(name, shape, {
@@ -265,6 +296,25 @@ export function componentRoot(el: HTMLElement, _value: () => true): void {
 }
 
 /**
+ * What this instance of a shared component IS, from `data-wheel-role`.
+ *
+ * Shared components have no identity of their own — a todo list renders one
+ * `Button` to add and one per row to delete, and `Button#1` names none of
+ * them. The role is the caller saying which is which, and it becomes part of
+ * the instance id (`Button(add)`), so the tree, `data-wheel-id`, a note's
+ * anchor and `__wheel.component()` all agree.
+ */
+function roleOf(el: Element): string | undefined {
+  return el.getAttribute('data-wheel-role') ?? undefined;
+}
+
+/** The `data-wheel-role` in a props bag, for callers that spread rather than write markup. */
+export function roleOfProps(props: Record<string, unknown> | undefined): string | undefined {
+  const role = props?.['data-wheel-role'];
+  return typeof role === 'string' && role.length > 0 ? role : undefined;
+}
+
+/**
  * The `use:viewRoot` directive — how a DUMB (non-connected) component
  * registers in the component tree:
  *
@@ -287,7 +337,23 @@ export function componentRoot(el: HTMLElement, _value: () => true): void {
  */
 export function viewRoot(
   el: HTMLElement,
-  value: () => string | { name: string; group?: string; props?: object }
+  value: () =>
+    | string
+    | {
+        name: string;
+        group?: string;
+        role?: string | undefined;
+        /**
+         * The component's own reactive state, as an object of getters.
+         *
+         * A library part keeps its state in `createControllableSignal`, not in
+         * a `useSignal` the tree could name — so the part hands the whole
+         * state object over instead, and the tree reads it live exactly as it
+         * reads a `connect()` shape.
+         */
+        state?: object;
+        props?: object;
+      }
 ): void {
   if (!isWheelDevMode()) {
     return; // production: registration and DOM stamps are dev-only surfaces
@@ -297,12 +363,23 @@ export function viewRoot(
     return; // outside any provider (docs snippets, stub sandboxes): silently inert
   }
   const raw = value();
-  const named = typeof raw === 'string' ? { name: raw, group: undefined, props: undefined } : raw;
+  const named =
+    typeof raw === 'string'
+      ? { name: raw, group: undefined, role: undefined, state: undefined, props: undefined }
+      : raw;
+  // See `DebugChrome`: a view component the panel mounts for its own layout is
+  // furniture, not part of the tree it draws.
+  if (insideChrome()) return;
   const owner = getOwner() as OwnerWithInstance | null;
   const parent = nearestInstance(owner);
-  const { record, unregister } = context.services.registry.registerInstance(named.name, {}, {
+  const { record, unregister } = context.services.registry.registerInstance(named.name, named.state ?? {}, {
     kind: 'view',
     group: named.group,
+    // Explicit wins: a library part reads the role off the props it was given,
+    // because a SPREAD attribute is applied after this ref runs and would not
+    // be on the element yet. A hand-written `use:viewRoot` element can put it
+    // in the markup instead, where the template already carries it.
+    role: named.role ?? roleOf(el),
     // Stable key, not the display id (see connect()).
     parentId: parent?.key ?? null,
     // A dumb component's props are only visible if the directive passes
@@ -324,7 +401,15 @@ declare module 'solid-js' {
   namespace JSX {
     interface Directives {
       componentRoot: true;
-      viewRoot: string | { name: string; group?: string; props?: object };
+      viewRoot:
+        | string
+        | {
+            name: string;
+            group?: string;
+            role?: string | undefined;
+            state?: object;
+            props?: object;
+          };
     }
   }
 }

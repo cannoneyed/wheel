@@ -17,6 +17,9 @@ import { installWheelBridge, bridgeErrorFeeds } from '../debug/bridge';
 import { wheelDriver, WheelAppError, type DriverPage } from './driver';
 
 class TodoService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TodoService';
+
   readonly items = this.atom<readonly string[]>([], 'items');
   readonly add = this.action((text: string) => this.items.set([...this.items.get(), text]), 'add');
 }

@@ -9,6 +9,10 @@
  * landing scroll styles identically).
  */
 import { render } from 'solid-js/web';
+import { } from 'wheel/core';
+import { WheelAnnotate } from 'wheel/annotate';
+import { WheelApp } from 'wheel/debug';
+import { annotationEnabled } from './annotation';
 
 import './styles.css';
 // The live figure renders real wheel components (the unplug switch), so the
@@ -32,4 +36,21 @@ function App() {
   );
 }
 
-render(() => <App />, document.getElementById('root')!);
+/**
+ * A wheel app like every other page here.
+ *
+ * It held a bare `ServiceProvider` while the annotator carried its own chip.
+ * The chip is gone — annotating is something you do to a wheel app, so the way
+ * in is the app's own instrument dock, and a page that wants to be annotated
+ * has to have one. `WheelApp` is clientless here: no data to sync, just the
+ * shell the annotate pane lives in.
+ */
+render(
+  () => (
+    <WheelApp scopeId="app">
+      <App />
+      <WheelAnnotate enabled={annotationEnabled()} />
+    </WheelApp>
+  ),
+  document.getElementById('root')!
+);

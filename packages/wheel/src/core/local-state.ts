@@ -36,10 +36,10 @@ export function useSignal<T>(initial: T, name: string, options?: SignalOptions<T
   if (!isWheelDevMode()) {
     return signal;
   }
-  // Registration is per MOUNT, and the record is discarded with the
-  // instance, so nothing needs cleaning up here. Called outside a component
-  // (a module-level signal, a test helper), there is no instance to attach
-  // to and the signal is simply not tracked.
+  // Registration is per MOUNT, and the record is discarded with the instance,
+  // so nothing needs cleaning up here. Called outside a component (a
+  // module-level signal, a test helper), there is no owner to attach to and
+  // the signal is simply not tracked.
   if (getOwner()) {
     currentInstance()?.locals.push({ name, read: signal[0] });
   }

@@ -24,6 +24,9 @@ import { SequencerService } from './sequencer-service';
 
 /** Owns the local playhead and the AudioContext behind it. */
 export class TransportService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TransportService';
+
   constructor(context: ServiceContext) {
     super(context);
     const keyboardService = this.service(KeyboardService);

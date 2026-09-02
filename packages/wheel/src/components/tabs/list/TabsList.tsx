@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, onCleanup, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, splitProps, type JSX } from 'solid-js';
 import { EMPTY_ARRAY } from '../../base-utils/empty';
 import type { BaseUIComponentProps, HTMLProps } from '../../internals/types';
 import type { TabsRoot, TabsRootState } from '../root/TabsRoot';
@@ -35,8 +35,8 @@ export function TabsList(componentProps: TabsList.Props): JSX.Element {
   const { onValueChange, orientation, value, setTabMap, tabActivationDirection } =
     useTabsRootContext();
 
-  const [highlightedTabIndex, setHighlightedTabIndex] = createSignal(0);
-  const [tabsListElement, setTabsListElement] = createSignal<HTMLElement | null>(null);
+  const [highlightedTabIndex, setHighlightedTabIndex] = useSignal(0, 'highlightedTabIndex');
+  const [tabsListElement, setTabsListElement] = useSignal<HTMLElement | null>(null, 'tabsListElement');
 
   const indicatorUpdateListeners = new Set<() => void>();
   const tabResizeObserverElements = new Set<HTMLElement>();

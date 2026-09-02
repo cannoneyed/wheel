@@ -9,6 +9,9 @@
 import { Dynamic, render } from 'solid-js/web';
 import { createEffect, on } from 'solid-js';
 import { useSignal } from 'wheel/core';
+import { WheelAnnotate } from 'wheel/annotate';
+import { WheelApp } from 'wheel/debug';
+import { annotationEnabled } from './annotation';
 
 import '../../docs/src/styles.css';
 import '../../docs/src/site/site-chrome.css';
@@ -59,4 +62,21 @@ function DocsApp() {
   );
 }
 
-render(() => <DocsApp />, document.getElementById('root')!);
+/**
+ * A wheel app like every other page here.
+ *
+ * It held a bare `ServiceProvider` while the annotator carried its own chip.
+ * The chip is gone — annotating is something you do to a wheel app, so the way
+ * in is the app's own instrument dock, and a page that wants to be annotated
+ * has to have one. `WheelApp` is clientless here: no data to sync, just the
+ * shell the annotate pane lives in.
+ */
+render(
+  () => (
+    <WheelApp scopeId="docsapp">
+      <DocsApp />
+      <WheelAnnotate enabled={annotationEnabled()} />
+    </WheelApp>
+  ),
+  document.getElementById('root')!
+);

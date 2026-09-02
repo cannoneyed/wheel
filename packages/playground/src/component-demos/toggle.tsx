@@ -1,4 +1,5 @@
-/* eslint-disable wheel/require-view-root -- The catalog owns this fixture's inspection boundary. */
+/* eslint-disable wheel/require-component-role -- The catalog demonstrates the components themselves: every fixture here IS a Button or a Dialog, so a role would name the catalog rather than tell two instances of one app apart. */
+import { viewRoot } from 'wheel/core';
 import { For } from 'solid-js';
 import { Toggle, type ButtonSize, type ButtonVariant } from 'wheel/components';
 import { StarFilledIcon, StarIcon } from './button-icons';
@@ -9,7 +10,7 @@ const sizes: readonly ButtonSize[] = ['sm', 'md', 'lg'];
 
 export default function ExampleToggle() {
   return (
-    <div class="button-family-fixture button-family-fixture--documented">
+    <div use:viewRoot={'ExampleToggle'} class="button-family-fixture button-family-fixture--documented">
       <DemoGroup title="Variants">
         <For each={variants}>
           {(variant) => <Toggle label={variant} variant={variant} defaultPressed />}

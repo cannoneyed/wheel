@@ -35,7 +35,7 @@ export function HistoryControls() {
   const keepFocus = (event: MouseEvent) => event.preventDefault();
   return (
     <span use:componentRoot class={styles.controls}>
-      <Button
+      <Button data-wheel-role="undo"
         class={styles.iconButton}
         title="Undo (mod+z)"
         disabled={!state.canUndo}
@@ -44,7 +44,7 @@ export function HistoryControls() {
       >
         <Undo2 size={14} />
       </Button>
-      <Button
+      <Button data-wheel-role="redo"
         class={styles.iconButton}
         title="Redo (mod+shift+z)"
         disabled={!state.canRedo}

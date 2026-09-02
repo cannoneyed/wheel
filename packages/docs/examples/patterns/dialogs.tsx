@@ -4,6 +4,9 @@ import { DialogService } from 'wheel/kit';
 import { BoardService } from './board-service';
 
 class SelectionService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SelectionService';
+
   readonly selected = this.atom<readonly string[]>([], 'selected');
   readonly clear = this.action(() => this.selected.set([]));
 }

@@ -3,6 +3,9 @@ import { Outlet, createRouter, memoryHistoryOverride, type RouterService } from 
 import { z } from 'zod';
 
 class TeamTitleService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'TeamTitleService';
+
   readonly prefix = this.atom('Team', 'prefix');
 }
 

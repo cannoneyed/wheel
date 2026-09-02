@@ -5,7 +5,7 @@
  */
 import { For, Show } from 'solid-js';
 import { componentRoot, connect, systemClock, useSignal, view } from 'wheel/core';
-import { type WriteCause } from 'wheel/sync';
+import { causeMutations, type WriteCause } from 'wheel/sync';
 
 import { IssueService } from '../../services/issue-service';
 import { formatRelativeTime } from '../../utils/dates';
@@ -31,7 +31,10 @@ const CAUSE_LABELS: Record<string, string> = {
 function causeLabel(cause: WriteCause | undefined): string {
   if (!cause) return 'no local history';
   const base = CAUSE_LABELS[cause.kind] ?? cause.kind;
-  return 'mutation' in cause ? `${base} · ${cause.mutation}` : base;
+  // An atomic group commits several edits under one cause, so this can read
+  // "your local edit (awaiting confirm) · addTag + setDue".
+  const mutations = causeMutations(cause);
+  return mutations.length > 0 ? `${base} · ${mutations.join(' + ')}` : base;
 }
 
 /** The ⓘ button + popover. */

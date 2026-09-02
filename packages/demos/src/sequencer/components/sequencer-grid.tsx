@@ -92,7 +92,7 @@ export function SequencerGrid() {
               </span>
               <For each={lane.cells}>
                 {(cell) => (
-                  <Button
+                  <Button data-wheel-role="sequencer-cell"
                     class={styles.cell}
                     data-testid={`sequencer-cell-${lane.voice}-${cell.index}`}
                     data-on={cell.on ? 'true' : 'false'}

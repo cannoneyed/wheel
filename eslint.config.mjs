@@ -111,6 +111,10 @@ export default [
     rules: {
       'wheel/require-export-jsdoc': 'error',
       'wheel/require-member-jsdoc': 'error',
+      // A marker attribute is a contract between files that never import each
+      // other, so it gets one spelling. A stale copy of it fails silently: a
+      // selector that matches nothing lets everything through.
+      'wheel/no-literal-chrome-attribute': 'error',
       'wheel/prefer-computed': 'error',
       'wheel/invert-return-type': 'error',
       'wheel/no-direct-materializer-writes': 'error',
@@ -133,6 +137,9 @@ export default [
       // evaluates immediately — so a dependency assigned in the constructor is
       // still undefined when a computed field reads it.
       'wheel/no-early-field-read': 'error',
+      // Service identity has to survive minification: the class name is what
+      // the state tree, actService and annotation timelines print.
+      'wheel/require-service-name': 'error',
       'wheel/require-tracked-service-fields': 'error',
       // Color literals follow no theme. Tokens (src/styles/tokens.css) do.
       // var() FALLBACKS stay legal — kit ships into apps that may not have
@@ -178,6 +185,7 @@ export default [
       'wheel/require-view-root': 'error',
       'wheel/no-directive-on-component': 'error',
       'wheel/require-stable-instance-name': 'error',
+      'wheel/require-component-role': 'error',
       'wheel/require-component-states': 'error',
       'wheel/require-tracked-show': 'error',
       'wheel/no-dev-mode-show': 'error',
@@ -206,6 +214,7 @@ export default [
       'wheel/single-connect': 'error',
       'wheel/single-connect-per-file': 'error',
       'wheel/connect-only': 'error',
+      'wheel/no-literal-chrome-attribute': 'error',
       'wheel/invert-return-type': 'error',
       'wheel/no-direct-materializer-writes': 'error',
       'wheel/no-handles-in-atoms': 'error',
@@ -219,6 +228,7 @@ export default [
       'wheel/require-view-root': 'error',
       'wheel/no-directive-on-component': 'error',
       'wheel/require-stable-instance-name': 'error',
+      'wheel/require-component-role': 'error',
       'wheel/require-tracked-show': 'error',
       'wheel/no-dev-mode-show': 'error',
       'wheel/require-use-signal': 'error',
@@ -236,6 +246,9 @@ export default [
       'wheel/no-raw-anchor-navigation': 'error',
       // Constructor-assigned dependency read by an eagerly-evaluated field.
       'wheel/no-early-field-read': 'error',
+      // Service identity has to survive minification: the class name is what
+      // the state tree, actService and annotation timelines print.
+      'wheel/require-service-name': 'error',
       'wheel/require-tracked-service-fields': 'error',
       // One palette, defined once in tokens.css. A hex typed into a component
       // renders the same in light and dark forever. var() fallbacks are fine.
@@ -288,6 +301,11 @@ export default [
     files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.bun-test.ts'],
     plugins: { wheel },
     rules: {
+      // ON in tests, emphatically: a test that hardcodes a marker attribute
+      // agrees with a stale copy in the code and passes while the real page
+      // says something else. That is how the annotator's own outline got into
+      // every screenshot it took.
+      'wheel/no-literal-chrome-attribute': 'error',
       'wheel/require-export-jsdoc': 'off',
       'wheel/require-member-jsdoc': 'off',
       // Test files exercise the connect machinery itself — several fixture

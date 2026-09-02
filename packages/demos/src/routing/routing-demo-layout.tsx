@@ -55,10 +55,10 @@ export function RoutingDemoLayout() {
           Broken link
         </a>
         <span class={styles.spacer} />
-        <Button type="button" onClick={() => state.back()} data-testid="history-back">
+        <Button type="button" data-wheel-role="back" onClick={() => state.back()} data-testid="history-back">
           ← Back
         </Button>
-        <Button type="button" onClick={() => state.forward()} data-testid="history-forward">
+        <Button type="button" data-wheel-role="forward" onClick={() => state.forward()} data-testid="history-forward">
           Forward →
         </Button>
       </header>

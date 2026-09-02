@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createMemo, createSignal, onCleanup, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, createMemo, onCleanup, splitProps, type JSX } from 'solid-js';
 import { isElement } from '@floating-ui/utils/dom';
 import { addEventListener } from '../../base-utils/addEventListener';
 import { ownerDocument, ownerWindow } from '../../base-utils/owner';
@@ -115,7 +115,7 @@ export function DrawerViewport(componentProps: DrawerViewport.Props): JSX.Elemen
   const isVerticalScrollAxis = () => scrollAxis() === 'vertical';
   const crossScrollAxis = (): ScrollAxis => (isVerticalScrollAxis() ? 'horizontal' : 'vertical');
 
-  const [swipeRelease, setSwipeRelease] = createSignal<number | null>(null);
+  const [swipeRelease, setSwipeRelease] = useSignal<number | null>(null, 'swipeRelease');
 
   let pendingSwipeCloseSnapPoint: ReturnType<typeof activeSnapPoint> | undefined;
   let resetSwipeFn: (() => void) | null = null;

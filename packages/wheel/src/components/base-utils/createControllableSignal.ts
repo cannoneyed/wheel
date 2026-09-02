@@ -27,6 +27,10 @@ export interface CreateControllableSignalParams<T> {
  * controlled prop when provided, and manages its own state otherwise.
  * Whether the component is controlled is decided once, on first run, and
  * switching after that logs a dev warning (matching upstream behavior).
+ *
+ * This is where a library component's OWN state lives — `checked`, `open`,
+ * `value`. The component tree sees it through the part's `state` object, which
+ * `renderElement` hands to `use:viewRoot`; nothing needs registering here.
  */
 export function createControllableSignal<T>(
   params: CreateControllableSignalParams<T>,

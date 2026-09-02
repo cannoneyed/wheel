@@ -22,6 +22,9 @@ export const REACTION_EMOJI: readonly string[] = ['👍', '🎉', '👀', '❤�
 
 /** Owns comment/reaction subscriptions and mutations. */
 export class CommentService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'CommentService';
+
   private readonly toastService = this.service(ToastService);
   private readonly userService = this.service(UserService);
   private readonly commentsView = this.liveQueryFor(commentsByIssue, (issueId: string) => ({ issueId }));

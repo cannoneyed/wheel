@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../core/local-state';
+import { createEffect, splitProps, type JSX } from 'solid-js';
 import { createValueChanged } from '../base-utils/createValueChanged';
 import { EMPTY_OBJECT } from '../base-utils/empty';
 import { renderElement } from '../internals/renderElement';
@@ -52,9 +52,8 @@ export function Form<FormValues extends Record<string, any> = Record<string, any
     }
   };
 
-  const [errors, setErrors] = createSignal<Errors>(
-    componentProps.errors ?? (EMPTY_OBJECT as Errors),
-  );
+  const [errors, setErrors] = useSignal<Errors>(
+    componentProps.errors ?? (EMPTY_OBJECT as Errors), 'errors');
 
   createValueChanged(
     () => componentProps.errors,

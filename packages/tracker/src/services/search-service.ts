@@ -15,6 +15,9 @@ const MIN_QUERY = 2;
 
 /** Owns the search overlay state and the live results subscription. */
 export class SearchService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SearchService';
+
   private readonly view = this.liveQueryFor(searchQuery, (q: string) => ({ q }));
   /** Whether the search overlay is open. Connect directly. */
   readonly isOpen = this.atom<boolean>(false, 'isOpen');

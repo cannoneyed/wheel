@@ -1,6 +1,6 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
-import { createSignal, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { type JSX } from 'solid-js';
 import { Menu } from '../../menu';
 import { MenuRootContext } from '../../menu/root/MenuRootContext';
 import type { MenuRoot } from '../../menu/root/MenuRoot';
@@ -32,11 +32,11 @@ import {
  *   comment); not exercised by the ported test slice.
  */
 export function ContextMenuRoot(props: ContextMenuRoot.Props): JSX.Element {
-  const [anchor, setAnchorSignal] = createSignal<ContextMenuAnchor>({
+  const [anchor, setAnchorSignal] = useSignal<ContextMenuAnchor>({
     getBoundingClientRect() {
       return DOMRect.fromRect({ width: 0, height: 0, x: 0, y: 0 });
     },
-  });
+  }, 'anchor');
 
   const backdropRef: { current: HTMLElement | null } = { current: null };
   const internalBackdropRef: { current: HTMLElement | null } = { current: null };

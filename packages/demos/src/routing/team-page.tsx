@@ -65,7 +65,7 @@ export function TeamPage() {
         </nav>
         <nav class={styles.filters} data-testid="status-filter">
           {STATUSES.map((status) => (
-            <Button
+            <Button data-wheel-role="status"
               type="button"
               class={state.status === status ? styles.active : undefined}
               data-testid={`status-${status}`}

@@ -74,6 +74,9 @@ export interface StoredMenuRegistration extends MenuRegistration {
  * previous one.
  */
 export class ContextMenuService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'ContextMenuService';
+
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';
 

@@ -32,6 +32,7 @@
       "wheel/components/*": ["packages/wheel/src/components/*/index.ts"],
       "wheel/router": ["packages/wheel/src/router/index.ts"],
       "wheel/debug": ["packages/wheel/src/debug/index.ts"],
+      "wheel/annotate": ["packages/wheel/src/annotate/index.ts"],
       "wheel/testing": ["packages/wheel/src/testing/index.ts"],
       "wheel/testing/playwright": ["packages/wheel/src/testing/playwright.ts"],
       "wheel/vite": ["packages/wheel/src/vite/index.ts"],

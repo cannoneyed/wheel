@@ -10,17 +10,17 @@
  * and status tokens, never the theme aliases, and every value keeps its
  * original literal as the fallback for hosts that never load `wheel/styles`.
  *
- * Reactivity contract (same as the panel always had): registry snapshot
- * reads ride atom/memo signals, client reads ride the context revision
- * signal (`trackVersion`), and instance churn rides its OWN channel
- * (`trackInstances`) — data invalidation and debug-surface invalidation
- * never share a wire.
+ * Reactivity contract: client reads ride the context revision (`trackVersion`),
+ * service field VALUES ride `trackDebug`, and instance churn — mounts,
+ * unmounts, renames, visibility — rides `trackInstances`. Three wires, because
+ * they change at wildly different rates and a surface that redraws on the
+ * slowest must not redraw on the fastest.
  */
 // wheel-view-root: debug chrome — must not appear in the tree it renders
 // wheel-untracked-show: debug chrome — excluded from the component tree it renders
 import { createMemo, createSignal, For, Show, type JSX } from 'solid-js';
 
-import type { ProvenanceEntry, WriteCause } from '../sync/client/provenance';
+import { causeMutations, type ProvenanceEntry, type WriteCause } from '../sync/client/provenance';
 import type { SyncClient } from '../sync/client/client';
 import type { DebugMeta, InstanceRecord } from '../core/debug-registry';
 import type { ServiceContext } from '../core/services';
@@ -73,7 +73,39 @@ export const sectionStyles = {
     overflow: 'hidden',
     'text-overflow': 'ellipsis'
   },
-  summary: { display: 'flex', gap: '6px', padding: '1px 0', cursor: 'pointer', 'user-select': 'none' },
+  summary: {
+    display: 'flex',
+    // Tight: a caret, an icon and a name are one label, not three columns.
+    gap: '2px',
+    padding: '1px 0',
+    cursor: 'pointer',
+    'user-select': 'none',
+    'align-items': 'center',
+    // A tree row is one line: a long name is cut, not wrapped, and never
+    // widens the pane into a horizontal scroll.
+    'min-width': 0
+  },
+  /** The label itself, which is the part that gets cut. */
+  summaryLabel: {
+    overflow: 'hidden',
+    'text-overflow': 'ellipsis',
+    'white-space': 'nowrap',
+    'min-width': 0
+  },
+  /**
+   * The caret column.
+   *
+   * ONE element for both states, so every label in the tree starts in the same
+   * place. Faking the gap with a separate spacer drifted: a `▸` and a blank
+   * box of the "same" width are not the same width, and leaves ended up
+   * indented further than the branches beside them.
+   */
+  caret: {
+    width: '12px',
+    'flex-shrink': 0,
+    'text-align': 'center',
+    color: 'var(--wheel-stage-ink-faint, #8b8b8b)'
+  },
   indent: { 'padding-left': '12px' },
   dim: { color: 'var(--wheel-stage-ink-faint, #8b8b8b)' },
   badge: { color: 'var(--wheel-ok-soft, #2dd4bf)' }
@@ -170,27 +202,76 @@ export function Expandable(props: {
   accent?: string;
   /** Glyph before the label, for the same distinction. */
   icon?: string;
+  /**
+   * Whether this row opens at all.
+   *
+   * A childless component has nothing to reveal, so it gets no caret — and a
+   * caret that does nothing is worse than none. It keeps the caret's WIDTH,
+   * so every label in the tree still starts at the same place.
+   */
+  expandable?: boolean;
   /** Extra hover wiring for the label row (the component tree uses this to highlight). */
   onRowEnter?: () => void;
   onRowLeave?: () => void;
+  /**
+   * What pressing the NAME does, when that is different from opening the row.
+   *
+   * In the component tree the caret opens the children and the name opens the
+   * component — two questions, two targets, rather than one control that has
+   * to guess which you meant.
+   */
+  onLabelClick?: () => void;
+  /**
+   * A control between the caret and the label, where an icon would be.
+   *
+   * It sits INSIDE the row so it lines up with everything else, but outside
+   * the row's own click target — the component tree puts its inspect toggle
+   * here, and pressing that must not also expand the node.
+   */
+  leading?: JSX.Element;
   children: JSX.Element;
 }): JSX.Element {
   // Toggled paths XOR the default, so one set serves both default-open groups
   // and default-closed trees.
-  const open = (): boolean => props.ex.expanded(props.path) !== (props.defaultOpen ?? false);
+  const expandable = (): boolean => props.expandable ?? true;
+  const open = (): boolean =>
+    expandable() && props.ex.expanded(props.path) !== (props.defaultOpen ?? false);
   return (
     <div>
       <div
         style={sectionStyles.summary}
-        onClick={() => props.ex.toggle(props.path)}
+        data-tree-row=""
+        onClick={() => expandable() && props.ex.toggle(props.path)}
         onMouseEnter={props.onRowEnter}
         onMouseLeave={props.onRowLeave}
       >
-        <span style={sectionStyles.dim}>{open() ? '▾' : '▸'}</span>
+        <span style={sectionStyles.caret} aria-hidden="true">
+          {expandable() ? (open() ? '▾' : '▸') : '·'}
+        </span>
+        <Show when={props.leading}>
+          <span style={{ 'flex-shrink': 0 }} onClick={(event) => event.stopPropagation()}>
+            {props.leading}
+          </span>
+        </Show>
         <Show when={props.icon}>
           <span style={{ color: props.accent ?? 'var(--wheel-stage-ink-faint, #8b8b8b)' }}>{props.icon}</span>
         </Show>
-        <span style={props.accent ? { color: props.accent } : undefined}>{props.label}</span>
+        <span
+          style={{
+            ...sectionStyles.summaryLabel,
+            ...(props.accent ? { color: props.accent } : {}),
+            ...(props.onLabelClick ? { cursor: 'pointer' } : {})
+          }}
+          title={props.label}
+          data-tree-label=""
+          onClick={(event) => {
+            if (!props.onLabelClick) return;
+            event.stopPropagation();
+            props.onLabelClick();
+          }}
+        >
+          {props.label}
+        </span>
         <Show when={props.summary}>
           <span style={sectionStyles.dim}>{props.summary}</span>
         </Show>
@@ -371,7 +452,10 @@ export function ServiceStateSection(props: {
 }): JSX.Element {
   const partitioned = createMemo(() => {
     props.services.trackVersion();
+    // Values AND shape: a field write changes what a row shows, a mount can
+    // bring a whole service with it.
     props.services.trackDebug();
+    props.services.trackInstances();
     const all = serviceGroups(props.services).filter((entry) => entry.group !== 'debug');
     const custom = [...new Set(all.map((entry) => entry.group))]
       .filter((name) => name !== 'app' && name !== 'framework')
@@ -427,13 +511,13 @@ export function ServiceStateSection(props: {
 export function ComponentManifestSection(props: { services: ServiceContext; ex: ExpandState }): JSX.Element {
   const components = createMemo(() => {
     props.services.trackVersion();
-    props.services.trackDebug();
+    props.services.trackInstances();
     return props.services.registry.snapshot().components;
   });
   const instancesOf = (name: string): readonly InstanceRecord[] => {
     // Instance churn rides its OWN channel — never the data revision (the
     // shared wire caused a mount feedback loop; see ServiceContext).
-    props.services.trackDebug();
+    props.services.trackInstances();
     return props.services.registry.instances().filter((instance) => instance.name === name);
   };
   return (
@@ -491,7 +575,13 @@ function causeLabel(cause: WriteCause): JSX.Element {
   return (
     <span style={{ color: CAUSE_COLORS[cause.kind] }}>
       {cause.kind}
-      <span style={sectionStyles.dim}> {'seq' in cause ? `seq ${cause.seq}` : cause.mutations.join(', ')}</span>
+      {/* The mutation names come from the sync layer, which owns what a cause
+          contains — see `causeMutations`. Reading the union here is how the
+          annotator and the tracker both silently lost these names once. */}
+      <span style={sectionStyles.dim}>
+        {' '}
+        {'seq' in cause ? `seq ${cause.seq}` : causeMutations(cause).join(', ')}
+      </span>
     </span>
   );
 }

@@ -14,6 +14,9 @@ import { ViewService } from './view-service';
 
 /** Owns navigation pickers and saved-view flows. */
 export class IssueViewNavigationService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'IssueViewNavigationService';
+
   private readonly targets = this.service(IssueTargetService);
   private readonly teams = this.service(TeamService);
   private readonly projects = this.service(ProjectService);

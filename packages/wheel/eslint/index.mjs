@@ -21,6 +21,8 @@ import noHandlesInAtoms from './rules/no-handles-in-atoms.mjs';
 import noOptionalComputedArgs from './rules/no-optional-computed-args.mjs';
 import noBarrelIconImports from './rules/no-barrel-icon-imports.mjs';
 import requireComponentRoot from './rules/require-component-root.mjs';
+import noLiteralChromeAttribute from './rules/no-literal-chrome-attribute.mjs';
+import requireComponentRole from './rules/require-component-role.mjs';
 import noUnusedImports from './rules/no-unused-imports.mjs';
 import noCrossLayerImports from './rules/no-cross-layer-imports.mjs';
 import noCalledViewRead from './rules/no-called-view-read.mjs';
@@ -43,6 +45,7 @@ import noSnakeCaseMismatchInPrune from './rules/no-snake-case-mismatch-in-prune.
 import requireKeepNames from './rules/require-keep-names.mjs';
 import noRawSqlPlaceholders from './rules/no-raw-sql-placeholders.mjs';
 import requireLatestAsyncTaskWait from './rules/require-latest-async-task-wait.mjs';
+import requireServiceName from './rules/require-service-name.mjs';
 import requireTrackedServiceFields from './rules/require-tracked-service-fields.mjs';
 import noDevModeShow from './rules/no-dev-mode-show.mjs';
 import noDirectiveOnComponent from './rules/no-directive-on-component.mjs';
@@ -67,6 +70,8 @@ export default {
     'no-optional-computed-args': noOptionalComputedArgs,
     'no-barrel-icon-imports': noBarrelIconImports,
     'require-component-root': requireComponentRoot,
+    'no-literal-chrome-attribute': noLiteralChromeAttribute,
+    'require-component-role': requireComponentRole,
     'require-view-root': requireViewRoot,
     'require-stable-instance-name': requireStableInstanceName,
     'no-raw-console': noRawConsole,
@@ -89,6 +94,7 @@ export default {
     'require-keep-names': requireKeepNames,
     'no-raw-sql-placeholders': noRawSqlPlaceholders,
     'require-latest-async-task-wait': requireLatestAsyncTaskWait,
+    'require-service-name': requireServiceName,
     'require-tracked-service-fields': requireTrackedServiceFields,
     'no-dev-mode-show': noDevModeShow,
     'no-directive-on-component': noDirectiveOnComponent,

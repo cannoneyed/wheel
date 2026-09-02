@@ -10,6 +10,7 @@ const wheelFromSource = [
   { find: /^wheel\/core$/, replacement: here('../wheel/src/core/index.ts') },
   { find: /^wheel\/sync$/, replacement: here('../wheel/src/sync/index.ts') },
   { find: /^wheel\/debug$/, replacement: here('../wheel/src/debug/index.ts') },
+  { find: /^wheel\/annotate$/, replacement: here('../wheel/src/annotate/index.ts') },
   { find: /^wheel\/styles$/, replacement: here('../wheel/src/styles/tokens.css') }
 ];
 const syncOrigin = process.env.SPOKE_SYNC_ORIGIN ?? portlessOriginOr('wheel-spoke-sync', 'http://localhost:4806');

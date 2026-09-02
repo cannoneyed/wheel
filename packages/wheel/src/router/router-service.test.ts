@@ -145,6 +145,9 @@ describe('RouterService navigation', () => {
 
 describe('searchAtom', () => {
   class FilterService extends Service {
+    /** Identity that survives minification (see require-service-name). */
+    static override serviceName = 'FilterService';
+
     private readonly router = this.service(router.Service) as RouterService<typeof routes>;
     readonly query = this.router.searchAtom('q', z.string().default(''));
   }
@@ -194,6 +197,9 @@ describe('searchAtom', () => {
 
   it('rejects two services claiming the same key, naming both sites', () => {
     class OtherFilterService extends Service {
+      /** Identity that survives minification (see require-service-name). */
+      static override serviceName = 'OtherFilterService';
+
       private readonly router = this.service(router.Service) as RouterService<typeof routes>;
       readonly query = this.router.searchAtom('q', z.string().default(''));
     }

@@ -1,7 +1,7 @@
 /* eslint-disable wheel/require-export-jsdoc -- The port keeps public guidance on rendered parts; duplicate comments on aliases and structural types hide that guidance. */
-/* eslint-disable wheel/require-use-signal -- These framework-independent primitives cannot import Wheel application state or inspection helpers without a layer cycle. */
 /* eslint-disable wheel/require-effect-reason -- These effects preserve the audited Base UI lifecycle synchronization documented by the surrounding implementation. */
-import { createEffect, createSignal, onCleanup, splitProps, type JSX } from 'solid-js';
+import { useSignal } from '../../../core/local-state';
+import { createEffect, onCleanup, splitProps, type JSX } from 'solid-js';
 import { error } from '../../base-utils/error';
 import { EMPTY_OBJECT } from '../../base-utils/empty';
 import { useDrawerRootContext } from '../root/DrawerRootContext';
@@ -138,7 +138,7 @@ export function DrawerPopup(componentProps: DrawerPopup.Props): JSX.Element {
     });
   }
 
-  const [popupHeight, setPopupHeight] = createSignal(0);
+  const [popupHeight, setPopupHeight] = useSignal(0, 'popupHeight');
   let popupHeightValue = 0;
 
   function measureHeight() {

@@ -36,21 +36,22 @@
 // wheel-raw-signal: same reason — this chrome registers no instance, so a
 // named signal would be recorded against whatever app component happens to
 // be its nearest registered ancestor
-import { createEffect, createSignal, onCleanup, useContext, For, Show, type JSX } from 'solid-js';
+import { createContext, createEffect, createSignal, onCleanup, useContext, For, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
 import type { ContextClient, ServiceContext } from '../core/services';
 import type { SyncClient } from '../sync/client/client';
 import { WheelProvider, ServiceProvider } from '../core/connect';
 import { WheelContext } from '../core/context';
+import { DebugChrome } from '../core/connect';
+import { chromeMark } from '../core/chrome';
+import { debugPanes, type DebugPane } from './panes';
 import { isWheelDevMode } from '../core/dev-mode';
 
-import { InspectorService, InspectorSystem, HitRow } from './inspector';
 import { installWheelBridge } from './bridge';
 import { startErrorCapture } from './error-capture';
 import { ErrorSection } from './error-section';
 import { ComponentTreeSection } from './component-tree';
-import { SnapshotService, SnapshotSystem, SnapshotCard } from './snapshot';
 import {
   ClientSections,
   ServiceStateSection,
@@ -64,6 +65,18 @@ const WIDTH_KEY = 'wheel.debug-panel.width';
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 940;
 const DEFAULT_WIDTH = 420;
+
+/**
+ * The dock sits above every overlay wheel draws over the app — the annotator's
+ * shield (10_400), the inspector (10_600).
+ *
+ * It is the TOOL, never the thing being looked at. The annotate flow lives in
+ * here now: arming, writing, and the notes already written. A shield that
+ * covered the dock too swallowed the clicks meant for the pane that raised it,
+ * so you could arm annotation and then not be able to stop it, or open a saved
+ * note to rewrite it.
+ */
+const DOCK_LAYER = 10_700;
 
 type DockMode = 'panel' | 'overlay';
 
@@ -93,7 +106,7 @@ const dockStyles = {
     top: '0',
     right: '0',
     bottom: '0',
-    'z-index': 9500,
+    'z-index': DOCK_LAYER,
     display: 'flex',
     'flex-direction': 'column',
     background: 'var(--wheel-stage-5, #202124)',
@@ -179,7 +192,7 @@ const dockStyles = {
     position: 'fixed',
     right: '12px',
     bottom: '12px',
-    'z-index': 9499,
+    'z-index': DOCK_LAYER - 1,
     display: 'flex',
     'align-items': 'center',
     gap: '6px',
@@ -200,60 +213,22 @@ const dockStyles = {
   } as Record<string, string>
 } satisfies Record<string, JSX.CSSProperties | Record<string, string>>;
 
-/** The inspect section: rectangle-select + rich screenshots, results inline. */
-function InspectSection(props: { services: ServiceContext }): JSX.Element {
-  const inspector = (): InspectorService => props.services.get(InspectorService);
-  const snapshots = (): SnapshotService => props.services.get(SnapshotService);
-  return (
-    <>
-      <div style={sectionStyles.paneTitle}>inspect</div>
-      <button
-        type="button"
-        style={dockStyles.headerButton}
-        onClick={() => inspector().start()}
-        data-testid="wheel-debug-inspect"
-        aria-label="inspect components (draw a rectangle)"
-      >
-        ◰ select a region
-      </button>{' '}
-      <button
-        type="button"
-        style={dockStyles.headerButton}
-        onClick={() => snapshots().start()}
-        data-testid="wheel-debug-snapshot"
-        aria-label="capture a rich screenshot (draw a rectangle)"
-        title="capture: image + component state under the rectangle"
-      >
-        📷 capture
-      </button>
-      <SnapshotCard service={snapshots()} />
-      <Show
-        when={inspector().hits.get().length > 0}
-        fallback={<div style={{ ...sectionStyles.dim, padding: '6px 0' }}>drag a rectangle over the app — hits land here</div>}
-      >
-        <For each={inspector().hits.get()}>
-          {(hit) => (
-            <HitRow
-              hit={hit}
-              instance={(id) => inspector().instance(id)}
-              highlight={(id) => inspector().highlight(id)}
-            />
-          )}
-        </For>
-      </Show>
-    </>
-  );
-}
+/**
+ * The dock's own panes, in display order.
+ *
+ * `inspect` used to sit between components and errors: a region select and a
+ * rich screenshot. Annotation does both and then says what the app DID, so the
+ * pane it left behind is contributed by the annotator through
+ * `registerDebugPane` — the dock cannot import it (the DAG runs annotate →
+ * debug), and does not need to.
+ */
+const BUILT_IN_PANES: readonly DebugPane[] = [
+  { id: 'state', label: 'state', icon: '≡', weight: 5, render: () => null },
+  { id: 'components', label: 'components', icon: '⌸', weight: 5, render: () => null },
+  { id: 'errors', label: 'errors', icon: '⚠', weight: 2, render: () => null }
+];
 
-/** One pane of the dock, in display order. */
-const PANES = [
-  { id: 'state', label: 'state', icon: '≡', weight: 5 },
-  { id: 'components', label: 'components', icon: '⌸', weight: 5 },
-  { id: 'inspect', label: 'inspect', icon: '◰', weight: 3 },
-  { id: 'errors', label: 'errors', icon: '⚠', weight: 2 }
-] as const;
-
-type PaneId = (typeof PANES)[number]['id'];
+type PaneId = string;
 
 const VISIBLE_KEY = 'wheel.debug-panel.panes';
 const WEIGHTS_KEY = 'wheel.debug-panel.weights';
@@ -277,18 +252,23 @@ function DockPanel(props: {
   close: () => void;
 }): JSX.Element {
   const ex = createExpandState();
-  const [visible, setVisible] = createSignal(
-    readJson<Record<PaneId, boolean>>(VISIBLE_KEY, { state: true, components: true, inspect: true, errors: true })
-  );
-  const [weights, setWeights] = createSignal(
-    readJson<Record<PaneId, number>>(
-      WEIGHTS_KEY,
-      Object.fromEntries(PANES.map((pane) => [pane.id, pane.weight])) as Record<PaneId, number>
-    )
-  );
-  const shown = (): Array<(typeof PANES)[number]> => PANES.filter((pane) => visible()[pane.id]);
-  const togglePane = (id: PaneId): void => {
-    const next = { ...visible(), [id]: !visible()[id] };
+  // Built-ins first, then contributed panes, so the annotator's pane lands
+  // where `inspect` used to be rather than at the end.
+  const allPanes = (): readonly DebugPane[] => {
+    const contributed = debugPanes();
+    const errors = BUILT_IN_PANES.filter((pane) => pane.id === 'errors');
+    const rest = BUILT_IN_PANES.filter((pane) => pane.id !== 'errors');
+    return [...rest, ...contributed, ...errors];
+  };
+  // A pane that has never been seen before shows by default — a contributed
+  // pane must not arrive hidden behind a toggle nobody knows to press.
+  const [visible, setVisible] = createSignal(readJson<Record<PaneId, boolean>>(VISIBLE_KEY, {}));
+  const [weights, setWeights] = createSignal(readJson<Record<PaneId, number>>(WEIGHTS_KEY, {}));
+  const isVisible = (pane: DebugPane): boolean => visible()[pane.id] ?? true;
+  const weightOf = (pane: DebugPane): number => weights()[pane.id] ?? pane.weight;
+  const shown = (): readonly DebugPane[] => allPanes().filter(isVisible);
+  const togglePane = (pane: DebugPane): void => {
+    const next = { ...visible(), [pane.id]: !isVisible(pane) };
     setVisible(next);
     store(VISIBLE_KEY, JSON.stringify(next));
   };
@@ -343,7 +323,7 @@ function DockPanel(props: {
   return (
     <>
       <div style={dockStyles.header}>
-        <span>🐛</span>
+        <span>🥝</span>
         <strong>wheel</strong>
         <Show when={props.client !== null}>
           <span style={sectionStyles.badge}>seq {seq()}</span>
@@ -372,21 +352,21 @@ function DockPanel(props: {
         </button>
       </div>
       <div style={dockStyles.paneBar}>
-        <For each={PANES}>
+        <For each={allPanes()}>
           {(pane) => (
             <button
               type="button"
               style={{
                 ...dockStyles.paneToggle,
-                color: visible()[pane.id]
+                color: isVisible(pane)
                   ? 'var(--wheel-stage-ink, #d7d3cc)'
                   : 'var(--wheel-stage-ink-dim, #6b7280)',
-                background: visible()[pane.id] ? 'var(--wheel-stage-hover, rgba(99,102,241,0.15))' : 'none'
+                background: isVisible(pane) ? 'var(--wheel-stage-hover, rgba(99,102,241,0.15))' : 'none'
               }}
-              onClick={() => togglePane(pane.id)}
-              aria-pressed={visible()[pane.id]}
+              onClick={() => togglePane(pane)}
+              aria-pressed={isVisible(pane)}
               data-testid={`wheel-pane-toggle-${pane.id}`}
-              title={`${visible()[pane.id] ? 'hide' : 'show'} ${pane.label}`}
+              title={`${isVisible(pane) ? 'hide' : 'show'} ${pane.label}`}
             >
               <span>{pane.icon}</span>
               <span>{pane.label}</span>
@@ -394,6 +374,11 @@ function DockPanel(props: {
           )}
         </For>
       </div>
+      {/* Everything below is TOOLING. It is built from the same kit and
+          component library an app uses — deliberately, because the panel
+          should live on the parts it exists to show — and `DebugChrome` keeps
+          that furniture out of the component tree it is drawing. */}
+      <DebugChrome>
       <div style={dockStyles.sections} ref={(element) => (sectionsHost = element)}>
         <For each={shown()}>
           {(pane, index) => (
@@ -409,7 +394,7 @@ function DockPanel(props: {
                 />
               </Show>
               <div
-                style={{ ...dockStyles.sectionPane, flex: `${weights()[pane.id]} 1 0` }}
+                style={{ ...dockStyles.sectionPane, flex: `${weightOf(pane)} 1 0` }}
                 data-testid={`wheel-pane-${pane.id}`}
               >
                 <Show when={pane.id === 'state'}>
@@ -419,17 +404,16 @@ function DockPanel(props: {
                 <Show when={pane.id === 'components'}>
                   <ComponentTreeSection services={props.services} ex={ex} />
                 </Show>
-                <Show when={pane.id === 'inspect'}>
-                  <InspectSection services={props.services} />
-                </Show>
                 <Show when={pane.id === 'errors'}>
                   <ErrorSection ex={ex} />
                 </Show>
+                {pane.render(props.services)}
               </div>
             </>
           )}
         </For>
       </div>
+      </DebugChrome>
     </>
   );
 }
@@ -496,6 +480,7 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
               width: `${width()}px`
             }}
             data-testid="wheel-debug-panel"
+            {...chromeMark}
           >
             <div
               style={dockStyles.resizeHandle}
@@ -520,12 +505,11 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
           onClick={() => toggle(true)}
           data-testid="wheel-debug-toggle"
           aria-label="open debug panel"
+          {...chromeMark}
         >
-          🐛 wheel
+          🥝 wheel
         </button>
       </Show>
-      <InspectorSystem hideResults />
-      <SnapshotSystem service={services.get(SnapshotService)} />
     </>
   );
 }
@@ -541,8 +525,24 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
  * Dev mode is a module flag, not a signal. A plain branch gives the same
  * fixed-at-mount behavior without another reactive boundary.
  */
+/**
+ * Marks that a dock is already above this point in the tree.
+ *
+ * `WheelApp` nests legitimately — the website embeds live demos, and each one
+ * is a real app with its own client — but a dock is PAGE chrome, and three
+ * fixed docks stacked in the same corner is just three of them. The outermost
+ * shell owns it; inner ones provide their context and nothing else.
+ */
+const DockPresent = createContext(false);
+
 function AppTree(props: { children: JSX.Element }): JSX.Element {
-  return isWheelDevMode() ? <DevShell>{props.children}</DevShell> : props.children;
+  const nested = useContext(DockPresent);
+  if (!isWheelDevMode() || nested) return props.children;
+  return (
+    <DockPresent.Provider value={true}>
+      <DevShell>{props.children}</DevShell>
+    </DockPresent.Provider>
+  );
 }
 
 /**

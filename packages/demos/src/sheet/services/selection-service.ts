@@ -26,6 +26,9 @@ const clamp = (value: number, min: number, max: number): number =>
 
 /** Owns the selected/editing cell and the grid's keyboard bindings. */
 export class SelectionService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'SelectionService';
+
   private readonly sheetService = this.service(SheetService);
   /** The selected cell — always inside the grid (moves are clamped). Connect directly. */
   readonly selected = this.atom<CellAddress>({ row: 1, col: 1 }, 'selected');

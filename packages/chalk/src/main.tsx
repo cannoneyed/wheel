@@ -1,4 +1,5 @@
 import { render } from 'solid-js/web';
+import { WheelAnnotate } from 'wheel/annotate';
 import { WheelApp } from 'wheel/debug';
 import { ContextMenuSystem, DialogSystem, KeyboardSystem } from 'wheel/kit';
 import 'wheel/styles';
@@ -14,6 +15,7 @@ render(
       <KeyboardSystem />
       <ContextMenuSystem />
       <DialogSystem />
+      <WheelAnnotate />
     </WheelApp>
   ),
   document.getElementById('root')!

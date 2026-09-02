@@ -30,6 +30,9 @@ const COLUMNS: readonly Column[] = [
 
 /** Owns the board subscription, card mutations, and the tag filter. */
 export class BoardService extends SyncService {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'BoardService';
+
   /** The card subscription — read `list.rows` / `list.status` directly. */
   readonly list = this.liveQuery(cardList, {});
   /** The active tag filter (null = show every card). Read `tagFilter.get()`. */
