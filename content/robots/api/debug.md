@@ -64,6 +64,12 @@ Kind: function. Source: [packages/wheel/src/debug/snapshot.tsx:104](../../../pac
 
 Grab one viewport rectangle as a PNG data URL, through the same capture seam the marquee uses (so a test that stubbed `setSnapshotCapture` stubs this too).
 
+## `DebugPanelService`
+
+Kind: class. Source: [packages/wheel/src/debug/wheel-app.tsx:70](../../../packages/wheel/src/debug/wheel-app.tsx#L70).
+
+Shared state for WheelApp's dock and an app-owned debug control.
+
 ## `ErrorLog`
 
 Kind: class. Source: [packages/wheel/src/debug/error-capture.ts:47](../../../packages/wheel/src/debug/error-capture.ts#L47).
@@ -162,7 +168,7 @@ The cached tab-capture stream, opened on first use. Shared with the annotation l
 
 ## `WheelApp`
 
-Kind: function. Source: [packages/wheel/src/debug/wheel-app.tsx:552](../../../packages/wheel/src/debug/wheel-app.tsx#L552).
+Kind: function. Source: [packages/wheel/src/debug/wheel-app.tsx:567](../../../packages/wheel/src/debug/wheel-app.tsx#L567).
 
 The app root wrapper: provider + (dev only) the docked debug panel, inspector, and agent bridge. See the module doc for the full story.
 
