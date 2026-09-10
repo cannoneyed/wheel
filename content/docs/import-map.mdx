@@ -22,7 +22,7 @@ You install `wheel` and import from `wheel/core`, `wheel/sync`, and so on — ne
 | `wheel/sync/server/testing` | `runBackendConformance` and its runtime-neutral harness contract | Testing a custom sync backend against Wheel's backend rules |
 | `wheel/kit` | `Keyboard`, `Focus`, `Dialog`, `Command Palette`, `Context Menu`, `Toasts` (each a service + system + directive), plus `Frame` layout and `Scrollbar` | Adding ready-made UI surfaces and app-shell geometry |
 | `wheel/router` | `createRouter`, `RouterService`, `<Outlet/>`, typed `<Link>`, `matchUrl`/`buildUrl`, memory/browser history | Path routing where the URL is an atom and search params are Zod-typed |
-| `wheel/debug` | `WheelApp` (the app root wrapper), `WheelDebugPanel`, `InspectorService` + `InspectorSystem` | Wrapping your root; mounting the debug panel / on-screen inspector |
+| `wheel/debug` | `WheelApp` (the app root wrapper), `DebugPanelService`, `WheelDebugPanel`, `InspectorService` + `InspectorSystem` | Wrapping your root; controlling or mounting the debug panel / on-screen inspector |
 | `wheel/testing` | `World`, `simulate`, `wheelDriver`, deterministic clocks and ids | Writing engine-backed tests and Playwright driving scripts |
 | `wheel/testing/playwright` | `createBehaviorHarness`, recorded browser actions, configurable hosts and setup | Testing browser gestures and external-SDK races |
 | `wheel/vite` | `wheelDevTools` — the dev-server plugin behind rich snapshots, plus esbuild `keepNames` | Configuring `vite.config.ts` |

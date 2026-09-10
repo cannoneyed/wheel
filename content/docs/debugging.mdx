@@ -73,6 +73,36 @@ The dock's panes are not a fixed list. A surface the dock cannot import register
 Nested `<WheelApp/>`s — a site embedding live demos — share the outermost dock rather than stacking
 one per app.
 
+Set `debugControl="controlled"` to hide the bottom-right launcher and place the control in your app.
+`WheelApp` installs `DebugPanelService`; connect your button to its `open` state and `toggle` action:
+
+```tsx
+// Intentionally inline: complete app-owned debugger control example.
+import { connect, view } from 'wheel/core';
+import { DebugPanelService, WheelApp } from 'wheel/debug';
+
+const connectDebugButton = connect('DebugButton', (context) => {
+  const panel = context.service(DebugPanelService);
+  return view({ open: panel.open.get }, { toggle: panel.toggle });
+});
+
+function DebugButton() {
+  const panel = connectDebugButton({});
+  return (
+    <button use:componentRoot onClick={panel.toggle}>
+      {panel.open ? 'Close debugger' : 'Open debugger'}
+    </button>
+  );
+}
+
+render(() => (
+  <WheelApp client={client} debugControl="controlled">
+    <YourApp />
+    <DebugButton />
+  </WheelApp>
+), root);
+```
+
 Hosts that can't wrap their root (docs embeds, sandboxes) mount the floating `<WheelDebugPanel/>`
 widget instead — same sections, same storage keys.
 

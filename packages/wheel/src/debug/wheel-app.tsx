@@ -39,7 +39,7 @@
 import { createContext, createEffect, createSignal, onCleanup, useContext, For, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
-import type { ContextClient, ServiceContext } from '../core/services';
+import { Service, type ContextClient, type ServiceContext } from '../core/services';
 import type { SyncClient } from '../sync/client/client';
 import { WheelProvider, ServiceProvider } from '../core/connect';
 import { WheelContext } from '../core/context';
@@ -65,6 +65,25 @@ const WIDTH_KEY = 'wheel.debug-panel.width';
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 940;
 const DEFAULT_WIDTH = 420;
+
+/** Shared state for WheelApp's dock and an app-owned debug control. */
+export class DebugPanelService extends Service {
+  /** Identity that survives minification (see require-service-name). */
+  static override serviceName = 'DebugPanelService';
+
+  /** Debug tooling stays out of the state tree it controls. */
+  static override group = 'debug';
+
+  /** Whether the debug panel is open. */
+  readonly open = this.atom(readStored(OPEN_KEY) === 'open', 'open');
+
+  /** Open a closed panel or close an open panel. */
+  readonly toggle = this.action(() => {
+    const next = !this.open.get();
+    this.open.set(next);
+    store(OPEN_KEY, next ? 'open' : 'closed');
+  }, 'toggle');
+}
 
 /**
  * The dock sits above every overlay wheel draws over the app — the annotator's
@@ -419,7 +438,7 @@ function DockPanel(props: {
 }
 
 /** Dev-mode shell: unwrapped children, the fixed dock, the systems, the bridge. */
-function DevShell(props: { children: JSX.Element }): JSX.Element {
+function DevShell(props: { children: JSX.Element; debugControl: 'built-in' | 'controlled' }): JSX.Element {
   const context = useContext(WheelContext)!;
   const { services } = context;
   const client = context.client as SyncClient | null;
@@ -429,13 +448,9 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
   // still land in the buffer (window-scoped, idempotent, never uninstalled).
   startErrorCapture();
 
-  const [open, setOpen] = createSignal(readStored(OPEN_KEY) === 'open');
+  const debugPanel = services.get(DebugPanelService);
   const [mode, setModeSignal] = createSignal<DockMode>(readStored(MODE_KEY) === 'overlay' ? 'overlay' : 'panel');
   const [width, setWidthSignal] = createSignal(clampWidth(Number(readStored(WIDTH_KEY)) || DEFAULT_WIDTH));
-  const toggle = (next: boolean): void => {
-    setOpen(next);
-    store(OPEN_KEY, next ? 'open' : 'closed');
-  };
   const setMode = (next: DockMode): void => {
     setModeSignal(next);
     store(MODE_KEY, next);
@@ -448,7 +463,7 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
   // style) by pushing the document element's margin — the one lever that works
   // regardless of where in the tree WheelApp mounts. Overlay/closed restores it.
   createEffect(() => {
-    const squash = open() && mode() === 'panel';
+    const squash = debugPanel.open.get() && mode() === 'panel';
     document.documentElement.style.marginRight = squash ? `${width()}px` : '';
     onCleanup(() => {
       document.documentElement.style.marginRight = '';
@@ -471,7 +486,7 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
   return (
     <>
       {props.children}
-      <Show when={open()}>
+      <Show when={debugPanel.open.get()}>
         <Portal>
           <div
             style={{
@@ -493,16 +508,16 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
               client={client}
               mode={mode}
               setMode={setMode}
-              close={() => toggle(false)}
+              close={debugPanel.toggle}
             />
           </div>
         </Portal>
       </Show>
-      <Show when={!open()}>
+      <Show when={!debugPanel.open.get() && props.debugControl === 'built-in'}>
         <button
           type="button"
           style={dockStyles.chip}
-          onClick={() => toggle(true)}
+          onClick={debugPanel.toggle}
           data-testid="wheel-debug-toggle"
           aria-label="open debug panel"
           {...chromeMark}
@@ -535,12 +550,12 @@ function DevShell(props: { children: JSX.Element }): JSX.Element {
  */
 const DockPresent = createContext(false);
 
-function AppTree(props: { children: JSX.Element }): JSX.Element {
+function AppTree(props: { children: JSX.Element; debugControl: 'built-in' | 'controlled' }): JSX.Element {
   const nested = useContext(DockPresent);
   if (!isWheelDevMode() || nested) return props.children;
   return (
     <DockPresent.Provider value={true}>
-      <DevShell>{props.children}</DevShell>
+      <DevShell debugControl={props.debugControl}>{props.children}</DevShell>
     </DockPresent.Provider>
   );
 }
@@ -554,6 +569,8 @@ export function WheelApp(props: {
   client?: ContextClient | null;
   /** Scope id for the clientless provider (default 'root'). */
   scopeId?: string;
+  /** Hide the built-in launcher so the app can call DebugPanelService.toggle. */
+  debugControl?: 'built-in' | 'controlled';
   children: JSX.Element;
 }): JSX.Element {
   return (
@@ -561,13 +578,13 @@ export function WheelApp(props: {
       when={props.client ?? null}
       fallback={
         <ServiceProvider scopeId={props.scopeId ?? 'root'}>
-          <AppTree>{props.children}</AppTree>
+          <AppTree debugControl={props.debugControl ?? 'built-in'}>{props.children}</AppTree>
         </ServiceProvider>
       }
     >
       {(client) => (
         <WheelProvider client={client()}>
-          <AppTree>{props.children}</AppTree>
+          <AppTree debugControl={props.debugControl ?? 'built-in'}>{props.children}</AppTree>
         </WheelProvider>
       )}
     </Show>

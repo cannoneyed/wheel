@@ -20,7 +20,7 @@ import {
 } from '../core';
 import { createSignal, onCleanup, onMount } from 'solid-js';
 
-import { WheelApp } from './wheel-app';
+import { DebugPanelService, WheelApp } from './wheel-app';
 
 class GreetService extends Service {
   /** Identity that survives minification (see require-service-name). */
@@ -38,6 +38,20 @@ const connectGreeting = connect('Greeting', (c) => {
 function Greeting() {
   const state = connectGreeting({});
   return <p use:componentRoot data-testid="greeting">{`hi ${state.who}`}</p>;
+}
+
+const connectDebugControl = connect('DebugControl', (context) => {
+  const panel = context.service(DebugPanelService);
+  return view({ open: panel.open.get }, { toggle: panel.toggle });
+});
+
+function DebugControl() {
+  const panel = connectDebugControl({});
+  return (
+    <button use:componentRoot data-testid="custom-debug-toggle" onClick={panel.toggle}>
+      {panel.open ? 'close debug panel' : 'open debug panel'}
+    </button>
+  );
 }
 
 function Card() {
@@ -202,6 +216,29 @@ describe('WheelApp', () => {
     expect(panel.textContent).toContain('errors');
     // The app is still mounted and untouched.
     expect(testid('greeting')!.textContent).toBe('hi world');
+  });
+
+  it('lets an app-owned control toggle the panel without rendering the built-in launcher', () => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    dispose = render(
+      () => (
+        <WheelApp debugControl="controlled">
+          <DebugControl />
+        </WheelApp>
+      ),
+      host
+    );
+
+    expect(testid('wheel-debug-toggle')).toBeNull();
+    expect(testid('custom-debug-toggle')!.textContent).toBe('open debug panel');
+
+    testid('custom-debug-toggle')!.click();
+    expect(testid('wheel-debug-panel')).not.toBeNull();
+    expect(testid('custom-debug-toggle')!.textContent).toBe('close debug panel');
+
+    testid('custom-debug-toggle')!.click();
+    expect(testid('wheel-debug-panel')).toBeNull();
   });
 
   it('the component tree section lists the full tree — view layers included, chrome pruned', () => {

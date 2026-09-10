@@ -4,7 +4,7 @@
  * The debug panel and the on-screen inspector. Depends on `core` (the debug
  * registry it reads) and `sync` (the client status/provenance it renders).
  */
-export { WheelApp } from './wheel-app';
+export { DebugPanelService, WheelApp } from './wheel-app';
 export { WheelDebugPanel } from './debug-panel';
 export {
   SnapshotService,
