@@ -41,6 +41,7 @@ defmodule WheelSync.LiveQuery do
     else
       {:error, code, message} ->
         send(relay, {:snapshot, id, state.key, state.seq, from, {:error, code, message}})
+        send(state.owner, {:query_subscribe_failed, id})
         {:noreply, state}
     end
   end
@@ -53,7 +54,11 @@ defmodule WheelSync.LiveQuery do
     # Notifications collapse to one refresh at the newest known sequence.
     seq = drain_invalidations(seq)
     state = if seq > state.seq, do: refresh(state, seq), else: state
-    for {_id, relay} <- state.subscribers, do: send(relay, {:applied, state.key, state.seq})
+
+    if state.status["kind"] == "live" do
+      for {_id, relay} <- state.subscribers, do: send(relay, {:applied, state.key, state.seq})
+    end
+
     {:noreply, state}
   end
 
@@ -62,7 +67,11 @@ defmodule WheelSync.LiveQuery do
 
   def handle_info(:retry, state) do
     state = refresh(%{state | retry: nil}, state.seq)
-    for {_id, relay} <- state.subscribers, do: send(relay, {:applied, state.key, state.seq})
+
+    if state.status["kind"] == "live" do
+      for {_id, relay} <- state.subscribers, do: send(relay, {:applied, state.key, state.seq})
+    end
+
     {:noreply, state}
   end
 

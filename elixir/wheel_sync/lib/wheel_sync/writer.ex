@@ -7,7 +7,8 @@ defmodule WheelSync.Writer do
 
   def start_link(state), do: GenServer.start_link(__MODULE__, state)
   @impl true
-  def init(state), do: {:ok, state}
+  def init(state),
+    do: {:ok, %{state | names: %{state.names | postgres: state.names.writer_postgres}}}
 
   @impl true
   def handle_cast({:request, request, from}, state) do

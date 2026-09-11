@@ -53,7 +53,16 @@ defmodule WheelSync.Delivery do
     # here also orders the snapshot response before the first delta on the socket.
     if Map.has_key?(state.subscriptions, id) do
       WheelSync.Reply.send(from, result)
-      state = %{state | applied: Map.update(state.applied, key, seq, &max(&1, seq))}
+
+      state =
+        case result do
+          {:ok, %{"status" => %{"kind" => "live"}}} ->
+            %{state | applied: Map.update(state.applied, key, seq, &max(&1, seq))}
+
+          _ ->
+            state
+        end
+
       {:noreply, checkpoint(state)}
     else
       WheelSync.Reply.send(from, {:error, "cancelled", "The subscription was cancelled."})

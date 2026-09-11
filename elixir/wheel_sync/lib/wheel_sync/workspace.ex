@@ -226,6 +226,13 @@ defmodule WheelSync.Workspace do
   def handle_cast({:leave, pid}, state), do: {:noreply, remove_connection(state, pid)}
 
   @impl true
+  def handle_info({:query_subscribe_failed, id}, state) do
+    case state.subscriptions[id] do
+      %{pid: pid} -> {:noreply, remove_subscription(state, pid, id)}
+      nil -> {:noreply, state}
+    end
+  end
+
   def handle_info({:DOWN, ref, :process, _pid, reason}, %{catch_up: ref} = state) do
     Logger.error("wheel: catch-up failed #{inspect(reason)}")
     {:noreply, %{state | catch_up: nil}}

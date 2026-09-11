@@ -342,7 +342,7 @@ defmodule WheelSync.PostgresWorkspaceTest do
                       }
                     }}
 
-    assert_receive {:wheel_event, %{"type" => "checkpoint", "seq" => 2}}
+    refute_receive {:wheel_event, %{"type" => "checkpoint", "seq" => 2}}, 30
 
     assert_receive {:query_telemetry, [:wheel_sync, :query, :failure], %{count: 1}, metadata}
     assert metadata.query == "widgets.all"
@@ -450,7 +450,7 @@ defmodule WheelSync.PostgresWorkspaceTest do
                       "status" => %{"seq" => 1, "status" => %{"kind" => "stale"}}
                     }}
 
-    assert_receive {:subscriber_event, ^isolated, %{"type" => "checkpoint", "seq" => 1}}
+    refute_receive {:subscriber_event, ^isolated, %{"type" => "checkpoint", "seq" => 1}}, 30
 
     assert [[mutation_id, "job:phase3", ["widgets"], "system:phase3", "server:external"]] =
              Postgrex.query!(
@@ -571,7 +571,7 @@ defmodule WheelSync.PostgresWorkspaceTest do
                         "status" => %{"seq" => 2, "status" => %{"kind" => "stale"}}
                       }}
 
-      assert_receive {:subscriber_event, ^pid, %{"type" => "checkpoint", "seq" => 2}}
+      refute_receive {:subscriber_event, ^pid, %{"type" => "checkpoint", "seq" => 2}}, 30
     end
 
     WheelSync.Test.SourceWidgetsAll.put_rows([source_widget("After")])

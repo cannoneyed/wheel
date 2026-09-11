@@ -6,7 +6,15 @@ defmodule WheelSync.ConcurrentWorkspaceTest do
     @behaviour WheelSync.Query
     def name, do: "widgets.all"
 
+    def subscribe(_params, _invalidate, principal) do
+      if principal.actor == "broken-source", do: raise("fixture source cannot attach")
+      fn -> :ok end
+    end
+
     def run(params, principal) do
+      if :ets.take(WheelSync.ConcurrentWorkspaceTest, {:fail, principal.actor}) != [],
+        do: raise(DBConnection.ConnectionError, message: "fixture pool unavailable")
+
       [{:postgres, postgres}] = :ets.lookup(WheelSync.ConcurrentWorkspaceTest, :postgres)
       {sql, args} = WheelSync.Test.WidgetsAll.sql(params, principal)
       rows = postgres |> Postgrex.query!(sql, args) |> WheelSync.Storage.rows()
@@ -37,6 +45,7 @@ defmodule WheelSync.ConcurrentWorkspaceTest do
       |> WheelSync.Test.WireApp.options(0)
       |> Keyword.merge(
         serve: false,
+        pool_size: Map.get(context, :pool_size, 10),
         name: __MODULE__,
         supervisor_name: __MODULE__.Supervisor,
         query_cache_bytes: Map.get(context, :cache_limit, 128 * 1024 * 1024),
@@ -109,6 +118,30 @@ defmodule WheelSync.ConcurrentWorkspaceTest do
     assert {:ok, %{seq: 1, value: :done}} = Task.await(task)
   end
 
+  @tag pool_size: 1
+  test "exhausting the read pool does not block a write", %{workspace: ws, id: id, names: names} do
+    parent = self()
+
+    reader =
+      Task.async(fn ->
+        Postgrex.transaction(names.postgres, fn _ ->
+          send(parent, :read_pool_held)
+
+          receive do
+            :continue -> :ok
+          after
+            2_000 -> raise "read pool was not released"
+          end
+        end)
+      end)
+
+    assert_receive :read_pool_held
+    writer = Task.async(fn -> write(ws, id, "Independent write") end)
+    assert {:ok, %{seq: 1}} = Task.await(writer, 500)
+    send(reader.pid, :continue)
+    assert {:ok, :ok} = Task.await(reader)
+  end
+
   test "an edit during the first load arrives after its snapshot and before its checkpoint", %{
     workspace: ws,
     id: id
@@ -165,6 +198,39 @@ defmodule WheelSync.ConcurrentWorkspaceTest do
     assert_receive {:wheel_event, %{"type" => "checkpoint", "seq" => 2}}
   end
 
+  test "a failed refresh cannot checkpoint an edit before its retry loads the rows", %{
+    workspace: ws,
+    id: id
+  } do
+    principal = join(ws, id, "retry")
+    request(ws, principal, "load", "widgets.all")
+    assert_receive {:wheel_reply, "load", {:ok, _}}
+    :ets.insert(__MODULE__, {{:fail, "retry"}, true})
+    block("retry")
+    assert {:ok, %{seq: 1}} = write(ws, id, "Survives failed refresh")
+
+    assert_receive {:wheel_event,
+                    %{"type" => "query_status", "status" => %{"status" => %{"kind" => "stale"}}}},
+                   500
+
+    refute_receive {:wheel_event, %{"type" => "checkpoint", "seq" => 1}}, 50
+    assert_receive {:query_blocked, worker, "retry"}, 1_500
+    refute_receive {:wheel_event, %{"type" => "checkpoint", "seq" => 1}}, 30
+    send(worker, :continue)
+
+    assert_receive {:wheel_event,
+                    %{
+                      "type" => "delta",
+                      "delta" => %{
+                        "seq" => 1,
+                        "puts" => [%{"title" => "Survives failed refresh"}]
+                      }
+                    }},
+                   500
+
+    assert_receive {:wheel_event, %{"type" => "checkpoint", "seq" => 1}}, 500
+  end
+
   test "equal queries share rows and disconnect releases their workers", %{workspace: ws, id: id} do
     assert {:ok, _} = write(ws, id, "Shared rows")
     principal = join(ws, id, "shared")
@@ -201,6 +267,20 @@ defmodule WheelSync.ConcurrentWorkspaceTest do
                    500
 
     assert :atomics.get(:sys.get_state(ws).cache_budget, 1) == 0
+  end
+
+  test "failed source attachment releases its query and subscription", %{workspace: ws, id: id} do
+    principal = join(ws, id, "broken-source")
+    request(ws, principal, "load", "widgets.all")
+    assert_receive {:wheel_reply, "load", {:error, _, _}}, 500
+
+    wait_until(fn ->
+      state = :sys.get_state(ws)
+      map_size(state.queries) == 0 and map_size(state.subscriptions) == 0
+    end)
+
+    assert {:ok, %{seq: 1}} = write(ws, id, "Still connected")
+    assert_receive {:wheel_event, %{"type" => "checkpoint", "seq" => 1}}, 500
   end
 
   test "a failed query worker closes its connections for a fresh snapshot", %{

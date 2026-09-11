@@ -446,6 +446,9 @@ describe('mutation → sync log → delta', () => {
         }
       }
     });
+    expect(events).not.toContainEqual({ type: 'checkpoint', seq: 1 });
+    connection.unsubscribe(broken.subscriptionId);
+    await new Promise(resolve => setTimeout(resolve, 0));
     expect(events).toContainEqual({ type: 'checkpoint', seq: 1 });
   });
 

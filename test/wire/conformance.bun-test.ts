@@ -454,6 +454,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     inbox.send(request('touchAlpha'));
     await Promise.all([inbox.response('touch-alpha'), inbox.next(checkpointFor(2))]);
     await inbox.expectNo(deltaFor(subscriptionId, 2));
+    await inbox.expectNo(checkpointFor(2));
 
     inbox.send(request('noop'));
     await Promise.all([inbox.response('noop'), inbox.next(checkpointFor(3))]);
@@ -476,8 +477,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
     inbox.send(request('breakQuery'));
     const [committed, stale] = await Promise.all([
       inbox.response('break-query'),
-      inbox.next(statusFor(subscriptionId, 2, 'stale')),
-      inbox.next(checkpointFor(2))
+      inbox.next(statusFor(subscriptionId, 2, 'stale'))
     ]);
     expect(committed).toMatchObject({ ok: true, value: { ok: true, seq: 2 } });
     expect(stale).toMatchObject({
@@ -491,6 +491,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
       }
     });
     await inbox.expectNo(deltaFor(subscriptionId, 2));
+    await inbox.expectNo(checkpointFor(2));
 
     inbox.send(request('recoverQuery'));
     await Promise.all([
@@ -645,6 +646,7 @@ describe(`wire protocol conformance (${process.env.WHEEL_WIRE_LABEL ?? 'TypeScri
       value: { ok: false, error: { kind: 'error', code: 'handler_error' } }
     });
     await inbox.expectNo(deltaFor(subscriptionId, 2));
+    await inbox.expectNo(checkpointFor(2));
 
     inbox.send({ ...request('subscribe'), requestId: 'verify' });
     expect(await inbox.response('verify')).toMatchObject({
