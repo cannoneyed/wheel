@@ -58,6 +58,7 @@ defmodule WheelSync.Workspace do
       registry: Keyword.fetch!(options, :registry),
       workspace_id: workspace_id,
       owner: self(),
+      write_timeout: Keyword.get(options, :write_timeout, 25_000),
       detailed_errors: Keyword.get(options, :detailed_errors, false)
     }
 
@@ -318,7 +319,7 @@ defmodule WheelSync.Workspace do
     end
 
     for {_key, query} <- state.queries, do: Process.exit(query.pid, :shutdown)
-    Process.exit(state.writer, :shutdown)
+    if Process.alive?(state.writer), do: GenServer.stop(state.writer, :shutdown)
     :ok
   end
 

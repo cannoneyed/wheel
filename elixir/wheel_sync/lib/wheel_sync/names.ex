@@ -4,6 +4,7 @@ defmodule WheelSync.Names do
   @enforce_keys [:postgres, :notifications, :workspace_registry, :workspace_supervisor, :runtime]
   defstruct [
     :tasks,
+    :write_tasks,
     :postgres,
     :writer_postgres,
     :notifications,
@@ -17,6 +18,7 @@ defmodule WheelSync.Names do
 
     %__MODULE__{
       tasks: Module.concat(namespace, Tasks),
+      write_tasks: Module.concat(namespace, WriteTasks),
       writer_postgres: Module.concat(namespace, WriterPostgres),
       postgres: Keyword.get(options, :postgres_name, Module.concat(namespace, Postgres)),
       notifications: Module.concat(namespace, Notifications),

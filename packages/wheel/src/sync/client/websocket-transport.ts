@@ -245,6 +245,7 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
           connected = false;
         }
         rejectPending(new TransientSyncError('sync WebSocket closed before the operation completed'));
+        nudge();
         if (!hello) reject(error);
         settleEnd();
       };
@@ -453,7 +454,31 @@ export function createWebSocketTransport(options: WebSocketTransportOptions): Sy
         };
       }
       try {
-        return await request<MutateResult>({ type: 'mutateGroup', command });
+        const socket = activeSocket;
+        return await retryForever(
+          () => {
+            // Reconnect replay belongs to SyncClient. Never carry a delayed
+            // retry onto a new socket behind its fresh snapshot and outbox.
+            if (activeSocket !== socket) throw new TransientSyncError('sync connection changed');
+            return request<MutateResult>({ type: 'mutateGroup', command });
+          },
+          {
+            defer,
+            signal,
+            baseMs: BACKOFF_BASE_MS,
+            capMs: BACKOFF_CAP_MS,
+            jitter: BACKOFF_JITTER,
+            random01,
+            wake: attachWake,
+            onFailure: ({ error }) => {
+              if (
+                activeSocket !== socket ||
+                !(error instanceof SocketResponseError) ||
+                !error.detail.retryable
+              ) return 'stop';
+            }
+          }
+        );
       } catch (error) {
         if (error instanceof SocketResponseError && !error.detail.retryable) {
           return {

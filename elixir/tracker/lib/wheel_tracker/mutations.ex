@@ -59,6 +59,8 @@ defmodule WheelTracker.Mutations do
   end
 
   def run("issues.create", tx, args, ctx) do
+    WheelSync.Tx.lock!(tx, "issue-number:" <> args["teamId"])
+
     [[next]] =
       WheelSync.Tx.exec!(
         tx,
@@ -169,7 +171,7 @@ defmodule WheelTracker.Mutations do
   def run("issues.archive", tx, args, ctx) do
     now = WheelSync.Ctx.now(ctx)
 
-    for issue_id <- args["issueIds"] do
+    for issue_id <- Enum.sort(args["issueIds"]) do
       result =
         WheelSync.Tx.exec!(
           tx,
@@ -189,7 +191,7 @@ defmodule WheelTracker.Mutations do
   def run("issues.unarchive", tx, args, ctx) do
     now = WheelSync.Ctx.now(ctx)
 
-    for issue_id <- args["issueIds"] do
+    for issue_id <- Enum.sort(args["issueIds"]) do
       result =
         WheelSync.Tx.exec!(
           tx,
@@ -207,8 +209,8 @@ defmodule WheelTracker.Mutations do
   end
 
   def run("issues.delete", tx, args, _ctx) do
-    for issue_id <- args["issueIds"] do
-      case one(tx, "select archived_at from issues where workspace_id=$1 and id=$2", [
+    for issue_id <- Enum.sort(args["issueIds"]) do
+      case one(tx, "select archived_at from issues where workspace_id=$1 and id=$2 for update", [
              tx.workspace_id,
              issue_id
            ]) do
@@ -234,7 +236,10 @@ defmodule WheelTracker.Mutations do
   end
 
   def run("issues.bulkUpdate", tx, args, ctx) do
-    Enum.each(args["updates"], &require_active!(tx, &1["issueId"]))
+    args["updates"]
+    |> Enum.sort_by(& &1["issueId"])
+    |> Enum.each(&require_active!(tx, &1["issueId"]))
+
     now = WheelSync.Ctx.now(ctx)
 
     for update <- args["updates"] do
@@ -249,6 +254,16 @@ defmodule WheelTracker.Mutations do
   end
 
   def run("issues.setParent", tx, args, ctx) do
+    # A cycle is a team-wide graph invariant. Only parent changes share this
+    # lock; ordinary edits to different issues stay independent.
+    case one(tx, "select team_id from issues where workspace_id=$1 and id=$2", [
+           tx.workspace_id,
+           args["issueId"]
+         ]) do
+      [team] -> WheelSync.Tx.lock!(tx, "issue-hierarchy:" <> team)
+      nil -> reject!("missing", "This issue no longer exists.")
+    end
+
     require_active!(tx, args["issueId"])
     validate_parent!(tx, args["issueId"], args["parentId"])
 
@@ -316,14 +331,9 @@ defmodule WheelTracker.Mutations do
     row =
       one(
         tx,
-        "select issue_id,kind,related_id from issue_relations where workspace_id=$1 and id=$2",
+        "delete from issue_relations where workspace_id=$1 and id=$2 returning issue_id,kind,related_id",
         [tx.workspace_id, args["relationId"]]
       )
-
-    WheelSync.Tx.exec!(tx, "delete from issue_relations where workspace_id=$1 and id=$2", [
-      tx.workspace_id,
-      args["relationId"]
-    ])
 
     if row do
       [issue_id, kind, related_id] = row
@@ -553,7 +563,7 @@ defmodule WheelTracker.Mutations do
   end
 
   defp require_active!(tx, issue_id) do
-    case one(tx, "select archived_at from issues where workspace_id=$1 and id=$2", [
+    case one(tx, "select archived_at from issues where workspace_id=$1 and id=$2 for update", [
            tx.workspace_id,
            issue_id
          ]) do
@@ -644,7 +654,7 @@ defmodule WheelTracker.Mutations do
   defp require_comment_author!(tx, comment_id, ctx) do
     actor = actor_id(ctx)
 
-    case one(tx, "select author_id from comments where workspace_id=$1 and id=$2", [
+    case one(tx, "select author_id from comments where workspace_id=$1 and id=$2 for update", [
            tx.workspace_id,
            comment_id
          ]) do
@@ -655,6 +665,7 @@ defmodule WheelTracker.Mutations do
   end
 
   defp require_favorite_owner!(tx, favorite_id, ctx) do
+    WheelSync.Tx.lock!(tx, "favorite:" <> favorite_id)
     actor = actor_id(ctx)
 
     case one(tx, "select user_id from favorites where workspace_id=$1 and id=$2", [

@@ -1,44 +1,177 @@
 defmodule WheelSync.Writer do
   @moduledoc false
   use GenServer
-  require Logger
   @mutation_id ~r/^m_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
   @id ~r/^[A-Za-z][A-Za-z0-9_-]*_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
+  # Postgrex owns checkout and its bounded wait policy. The runtime task supervisor
+  # caps active plus waiting writes across every workspace, including source writes.
   def start_link(state), do: GenServer.start_link(__MODULE__, state)
+
   @impl true
-  def init(state),
-    do: {:ok, %{state | names: %{state.names | postgres: state.names.writer_postgres}}}
+  def init(state) do
+    Process.flag(:trap_exit, true)
+
+    {:ok,
+     Map.merge(state, %{
+       names: %{state.names | postgres: state.names.writer_postgres},
+       tasks: %{},
+       sources: MapSet.new(),
+       source_timer: nil
+     })}
+  end
 
   @impl true
   def handle_cast({:request, request, from}, state) do
-    {:reply, result, state} = handle_call(request, from, state)
-    WheelSync.Reply.send(from, result)
-    send(state.owner, :wheel_sync_catch_up)
-    send(state.owner, :write_finished)
-    {:noreply, state}
+    case start_write(state, request, from) do
+      {:ok, state} ->
+        {:noreply, state}
+
+      :full ->
+        :telemetry.execute([:wheel_sync, :write, :rejected], %{count: 1}, %{
+          workspace_id: state.workspace_id
+        })
+
+        reply(state, from, unavailable("The write queue is full."))
+        {:noreply, state}
+    end
   end
 
-  def handle_cast({:source, key}, state) do
-    case record_source_invalidation(state, key) do
-      :ok -> send(state.owner, :wheel_sync_catch_up)
-      {:error, reason} -> Logger.error("wheel: source invalidation failed #{inspect(reason)}")
-    end
-
-    {:noreply, state}
+  def handle_cast({:source, {key, _params, _principal}}, state) do
+    {:noreply, drain_sources(%{state | sources: MapSet.put(state.sources, key)})}
   end
 
   @impl true
-  def handle_call({:mutate_group, request, principal}, _from, state) do
+  def handle_info({:write_result, pid, result}, state) do
+    case Map.pop(state.tasks, pid) do
+      {nil, _} ->
+        {:noreply, state}
+
+      {entry, tasks} ->
+        Process.demonitor(entry.monitor, [:flush])
+        Process.cancel_timer(entry.timer)
+        state = %{state | tasks: tasks}
+        state = finish(state, entry.from, result)
+        {:noreply, drain_sources(state)}
+    end
+  end
+
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    case Map.pop(state.tasks, pid) do
+      {nil, _} ->
+        {:noreply, state}
+
+      {entry, tasks} ->
+        Process.cancel_timer(entry.timer)
+
+        state =
+          finish(%{state | tasks: tasks}, entry.from, unavailable("The write worker stopped."))
+
+        {:noreply, drain_sources(state)}
+    end
+  end
+
+  def handle_info({:write_timeout, pid}, state) do
+    # A timeout is an unknown commit outcome. Mutation retries resolve it by ID;
+    # external callbacks must not be blindly retried.
+    if Map.has_key?(state.tasks, pid), do: Process.exit(pid, :kill)
+    {:noreply, state}
+  end
+
+  def handle_info(:retry_sources, state),
+    do: {:noreply, drain_sources(%{state | source_timer: nil})}
+
+  def handle_info({:EXIT, owner, reason}, %{owner: owner} = state),
+    do: {:stop, reason, state}
+
+  def handle_info({:EXIT, _pid, _reason}, state), do: {:noreply, state}
+
+  @impl true
+  def terminate(_reason, state) do
+    for {pid, entry} <- state.tasks do
+      Process.exit(pid, :kill)
+      reply(state, entry.from, unavailable("The workspace stopped."))
+    end
+  end
+
+  defp start_write(state, request, from) do
+    writer = self()
+
+    context =
+      Map.take(state, [:names, :workspace_id, :registry, :detailed_errors, :write_timeout])
+
+    case Task.Supervisor.start_child(state.names.write_tasks, fn ->
+           # The link also kills the task if its writer is killed without terminate/2.
+           Process.link(writer)
+           result = execute(request, context)
+           send(writer, {:write_result, self(), result})
+         end) do
+      {:ok, pid} ->
+        entry = %{
+          monitor: Process.monitor(pid),
+          timer: Process.send_after(self(), {:write_timeout, pid}, state.write_timeout),
+          from: from
+        }
+
+        {:ok, %{state | tasks: Map.put(state.tasks, pid, entry)}}
+
+      {:error, :max_children} ->
+        :full
+    end
+  end
+
+  defp finish(state, {:source, _key}, :ok) do
+    send(state.owner, :wheel_sync_catch_up)
+    state
+  end
+
+  defp finish(state, {:source, key}, _error),
+    do: schedule_sources(%{state | sources: MapSet.put(state.sources, key)})
+
+  defp finish(state, from, result) do
+    reply(state, from, result)
+    send(state.owner, :wheel_sync_catch_up)
+    state
+  end
+
+  defp reply(_state, {:source, _key}, _result), do: :ok
+
+  defp reply(state, from, result) do
+    WheelSync.Reply.send(from, result)
+    send(state.owner, :write_finished)
+  end
+
+  defp drain_sources(%{source_timer: timer} = state) when timer != nil, do: state
+
+  defp drain_sources(state) do
+    busy = for {_pid, %{from: {:source, key}}} <- state.tasks, into: MapSet.new(), do: key
+
+    Enum.reduce(MapSet.difference(state.sources, busy), state, fn key, state ->
+      case start_write(state, {:source, key}, {:source, key}) do
+        {:ok, state} -> %{state | sources: MapSet.delete(state.sources, key)}
+        :full -> schedule_sources(state)
+      end
+    end)
+  end
+
+  defp schedule_sources(%{source_timer: nil} = state),
+    do: %{state | source_timer: Process.send_after(self(), :retry_sources, 100)}
+
+  defp schedule_sources(state), do: state
+
+  defp unavailable(message), do: {:error, "backend_unavailable", message, true}
+
+  defp execute({:source, key}, state), do: record_source_invalidation(state, key)
+
+  defp execute({:mutate_group, request, principal}, state) do
     case validate_mutation_group(state.registry, request) do
       :ok ->
         case apply_mutation_group(state, request, principal) do
           {:committed, seq} ->
-            state = state
-            {:reply, {:ok, %{"ok" => true, "seq" => seq}}, state}
+            {:ok, %{"ok" => true, "seq" => seq}}
 
           {:duplicate, seq} ->
-            {:reply, {:ok, %{"ok" => true, "seq" => seq}}, state}
+            {:ok, %{"ok" => true, "seq" => seq}}
 
           {:rejection, code, message} ->
             value = %{
@@ -46,7 +179,7 @@ defmodule WheelSync.Writer do
               "rejection" => %{"kind" => "rejection", "code" => code, "message" => message}
             }
 
-            {:reply, {:ok, value}, state}
+            {:ok, value}
 
           {:terminal, code, message} ->
             value = %{
@@ -54,10 +187,10 @@ defmodule WheelSync.Writer do
               "error" => %{"kind" => "error", "code" => code, "message" => message}
             }
 
-            {:reply, {:ok, value}, state}
+            {:ok, value}
 
           {:transient, message} ->
-            {:reply, {:error, "backend_unavailable", message, true}, state}
+            {:error, "backend_unavailable", message, true}
         end
 
       {:error, code, message} ->
@@ -66,23 +199,57 @@ defmodule WheelSync.Writer do
           "error" => %{"kind" => "error", "code" => code, "message" => message}
         }
 
-        {:reply, {:ok, value}, state}
+        {:ok, value}
     end
   end
 
-  def handle_call({:external_write, options, callback}, _from, state) do
+  defp execute({:external_write, options, callback}, state) do
     case apply_external_write(state, options, callback) do
       {:committed, seq, value} ->
-        {:reply, {:ok, %{seq: seq, value: value}}, state}
+        {:ok, %{seq: seq, value: value}}
 
       {:error, reason} ->
-        {:reply, {:error, reason}, state}
+        {:error, reason}
+    end
+  end
+
+  defp transaction(state, callback) do
+    started = System.monotonic_time()
+
+    try do
+      Postgrex.transaction(
+        state.names.postgres,
+        fn connection ->
+          :telemetry.execute(
+            [:wheel_sync, :write, :checkout],
+            %{duration: System.monotonic_time() - started},
+            %{workspace_id: state.workspace_id}
+          )
+
+          Postgrex.query!(connection, "set transaction isolation level read committed", [])
+          callback.(connection)
+        end,
+        timeout: state.write_timeout
+      )
+    after
+      :telemetry.execute(
+        [:wheel_sync, :write, :stop],
+        %{duration: System.monotonic_time() - started},
+        %{workspace_id: state.workspace_id}
+      )
     end
   end
 
   defp apply_mutation_group(state, request, principal) do
     result =
-      Postgrex.transaction(state.names.postgres, fn connection ->
+      transaction(state, fn connection ->
+        WheelSync.Storage.lock!(
+          connection,
+          state.workspace_id,
+          "wheel:mutation",
+          request["mutationId"]
+        )
+
         case WheelSync.Storage.find_committed(
                connection,
                state.workspace_id,
@@ -107,7 +274,7 @@ defmodule WheelSync.Writer do
 
   defp apply_external_write(state, options, callback) do
     result =
-      Postgrex.transaction(state.names.postgres, fn connection ->
+      transaction(state, fn connection ->
         tx = WheelSync.Tx.open(connection, state.workspace_id)
 
         try do
@@ -317,8 +484,8 @@ defmodule WheelSync.Writer do
   defp validate_ids(_values),
     do: {:error, "invalid_id", "A pre-generated id is not a valid prefixed UUIDv7."}
 
-  defp record_source_invalidation(state, {query, _params, _principal}) do
-    case Postgrex.transaction(state.names.postgres, fn connection ->
+  defp record_source_invalidation(state, query) do
+    case transaction(state, fn connection ->
            seq = WheelSync.Storage.next_seq!(connection, state.workspace_id)
 
            WheelSync.Storage.append_log!(connection, state.workspace_id, seq, %{

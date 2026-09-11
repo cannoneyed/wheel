@@ -15,6 +15,7 @@ defmodule WheelSync.Runtime do
     WheelSync.WorkspaceSupervisor.fetch(names, registry, workspace_id,
       presence_filter: Map.get(config, :presence_filter),
       detailed_errors: Map.get(config, :detailed_errors, false),
+      write_timeout: Map.get(config, :write_timeout, 25_000),
       query_cache_bytes: Map.get(config, :query_cache_bytes, 128 * 1024 * 1024)
     )
   end
