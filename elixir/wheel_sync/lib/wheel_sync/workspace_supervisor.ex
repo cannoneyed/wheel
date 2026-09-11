@@ -12,7 +12,9 @@ defmodule WheelSync.WorkspaceSupervisor do
            names: names,
            registry: registry,
            workspace_id: workspace_id,
-           presence_filter: Keyword.get(options, :presence_filter)}
+           presence_filter: Keyword.get(options, :presence_filter),
+           detailed_errors: Keyword.get(options, :detailed_errors, false),
+           query_cache_bytes: Keyword.get(options, :query_cache_bytes, 128 * 1024 * 1024)}
 
         case DynamicSupervisor.start_child(names.workspace_supervisor, spec) do
           {:ok, pid} -> {:ok, pid}

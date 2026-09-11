@@ -639,9 +639,16 @@ export class SyncServer {
     }
   }
 
+  /** Release a held checkpoint after the failed subscription is removed. */
+  checkpointAfterUnsubscribe(): void {
+    void this.enqueue(async () => this.emitCheckpoint());
+  }
+
   private emitCheckpoint(): void {
     for (const connection of this.connections.values()) {
-      connection.emit({ type: 'checkpoint', seq: this.lastSeq });
+      if ([...connection.subscriptions()].every(subscription => subscription.status.kind === 'live')) {
+        connection.emit({ type: 'checkpoint', seq: this.lastSeq });
+      }
     }
   }
 
@@ -1186,6 +1193,7 @@ class ConnectionImpl implements SyncConnection {
   unsubscribe(subscriptionId: string): void {
     this.subs.get(subscriptionId)?.unsubscribeHandler?.();
     this.subs.delete(subscriptionId);
+    this.server.checkpointAfterUnsubscribe();
   }
 
   onEvent(listener: (event: ServerEvent) => void): () => void {

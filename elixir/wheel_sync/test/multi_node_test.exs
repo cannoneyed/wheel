@@ -34,7 +34,8 @@ defmodule WheelSync.MultiNodeTest do
     end
 
     :erlang.trace_pattern({WheelSync.Test.WidgetsAll, :sql, 2}, true, [])
-    :erlang.trace(workspace_b, true, [:call])
+    worker = :sys.get_state(workspace_b).queries |> Map.values() |> hd() |> Map.fetch!(:pid)
+    :erlang.trace(worker, true, [:call])
 
     on_exit(fn ->
       :erlang.trace_pattern({WheelSync.Test.WidgetsAll, :sql, 2}, false, [])
@@ -47,7 +48,7 @@ defmodule WheelSync.MultiNodeTest do
       ])
     end
 
-    refute_receive {:trace, ^workspace_b, :call, {WheelSync.Test.WidgetsAll, :sql, _}}, 100
+    refute_receive {:trace, ^worker, :call, {WheelSync.Test.WidgetsAll, :sql, _}}, 100
     refute_receive {:subscriber_event, ^subscriber_b, _event}, 50
   end
 

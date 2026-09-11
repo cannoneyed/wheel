@@ -19,7 +19,17 @@ defmodule WheelSync.Supervisor do
     postgres_options =
       Keyword.merge(connection_options,
         name: names.postgres,
-        pool_size: Keyword.get(options, :pool_size, 10)
+        pool_size: Keyword.get(options, :pool_size, 10),
+        queue_target: Keyword.get(options, :queue_target, 50),
+        queue_interval: Keyword.get(options, :queue_interval, 1_000)
+      )
+
+    writer_options =
+      Keyword.merge(connection_options,
+        name: names.writer_postgres,
+        pool_size: Keyword.get(options, :write_pool_size, 2),
+        queue_target: Keyword.get(options, :queue_target, 50),
+        queue_interval: Keyword.get(options, :queue_interval, 1_000)
       )
 
     notification_options =
@@ -27,8 +37,10 @@ defmodule WheelSync.Supervisor do
 
     children = [
       {Postgrex, postgres_options},
+      Supervisor.child_spec({Postgrex, writer_options}, id: names.writer_postgres),
       {Postgrex.Notifications, notification_options},
       {Registry, keys: :unique, name: names.workspace_registry},
+      {Task.Supervisor, name: names.tasks},
       {DynamicSupervisor, strategy: :one_for_one, name: names.workspace_supervisor},
       {WheelSync.ChangeListener, names: names},
       {WheelSync.Runtime, names: names, registry: registry, options: options}

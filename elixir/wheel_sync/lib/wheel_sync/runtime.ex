@@ -13,7 +13,9 @@ defmodule WheelSync.Runtime do
     %{names: names, registry: registry} = config = config(server)
 
     WheelSync.WorkspaceSupervisor.fetch(names, registry, workspace_id,
-      presence_filter: Map.get(config, :presence_filter)
+      presence_filter: Map.get(config, :presence_filter),
+      detailed_errors: Map.get(config, :detailed_errors, false),
+      query_cache_bytes: Map.get(config, :query_cache_bytes, 128 * 1024 * 1024)
     )
   end
 
