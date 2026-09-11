@@ -29,6 +29,7 @@ defmodule WheelSync.Supervisor do
       {Postgrex, postgres_options},
       {Postgrex.Notifications, notification_options},
       {Registry, keys: :unique, name: names.workspace_registry},
+      {Task.Supervisor, name: names.tasks},
       {DynamicSupervisor, strategy: :one_for_one, name: names.workspace_supervisor},
       {WheelSync.ChangeListener, names: names},
       {WheelSync.Runtime, names: names, registry: registry, options: options}

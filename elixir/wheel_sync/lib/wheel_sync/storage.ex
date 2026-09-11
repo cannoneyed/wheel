@@ -50,6 +50,7 @@ defmodule WheelSync.Storage do
       from wheel_sync_log
       where workspace_id = $1 and seq > $2
       order by seq
+      limit 256
       """,
       [workspace_id, seq]
     ).rows

@@ -72,6 +72,7 @@ defmodule WheelSync.Socket do
       state =
         Map.merge(handshake, %{
           workspace: workspace,
+          pending_requests: MapSet.new(),
           connection_id: connection_id,
           messages_started_at: System.monotonic_time(:millisecond),
           messages_count: 0,
@@ -104,6 +105,11 @@ defmodule WheelSync.Socket do
     do: {:stop, :normal, {4400, "invalid_message"}, state}
 
   @impl true
+  def handle_info({:wheel_reply, id, result}, state) do
+    state = %{state | pending_requests: MapSet.delete(state.pending_requests, id)}
+    {:push, {:text, encode(response(id, result, state.detailed_errors))}, state}
+  end
+
   def handle_info({:wheel_event, payload}, state),
     do: {:push, {:text, encode(event(payload))}, state}
 
@@ -121,49 +127,19 @@ defmodule WheelSync.Socket do
   def terminate(_reason, _state), do: :ok
 
   defp handle_request(request, state) do
-    result =
-      case request["type"] do
-        "subscribe" ->
-          WheelSync.Workspace.subscribe(
-            state.workspace,
-            self(),
-            request["query"],
-            request["params"]
-          )
+    id = request["requestId"]
 
-        "unsubscribe" ->
-          :ok =
-            WheelSync.Workspace.unsubscribe(
-              state.workspace,
-              self(),
-              request["subscriptionId"]
-            )
+    if MapSet.size(state.pending_requests) >= 128 or MapSet.member?(state.pending_requests, id) do
+      {:stop, :normal, {4400, "too_many_requests"}, state}
+    else
+      request =
+        if request["type"] == "mutateGroup",
+          do: Map.update!(request, "command", &Map.put(&1, "clientId", state.connection_id)),
+          else: request
 
-          {:ok, %{}}
-
-        "presence" ->
-          case WheelSync.Workspace.presence(state.workspace, self(), request["state"]) do
-            :ok -> {:ok, %{}}
-            error -> error
-          end
-
-        "mutateGroup" ->
-          command = Map.put(request["command"], "clientId", state.connection_id)
-          WheelSync.Workspace.mutate_group(state.workspace, command, state.principal)
-      end
-
-    response = response(request["requestId"], result, state.detailed_errors)
-    {:push, {:text, encode(response)}, state}
-  rescue
-    error ->
-      response =
-        response(
-          request["requestId"],
-          {:error, "internal_error", Exception.message(error), true},
-          state.detailed_errors
-        )
-
-      {:push, {:text, encode(response)}, state}
+      WheelSync.Workspace.request(state.workspace, self(), request, state.principal)
+      {:ok, %{state | pending_requests: MapSet.put(state.pending_requests, id)}}
+    end
   end
 
   defp response(request_id, {:ok, value}, _detailed) do

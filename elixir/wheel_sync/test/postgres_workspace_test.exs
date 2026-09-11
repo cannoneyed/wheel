@@ -405,7 +405,12 @@ defmodule WheelSync.PostgresWorkspaceTest do
     assert isolated_snapshot["status"] == %{"kind" => "live"}
 
     :erlang.trace_pattern({WheelSync.Test.WidgetsAll, :sql, 2}, true, [])
-    :erlang.trace(workspace, true, [:call])
+    workers = :sys.get_state(workspace).queries
+    shared_worker = workers[{"widgets.all", %{}, shared}].pid
+    failed_worker = workers[{"widgets.all", %{}, failed}].pid
+
+    for worker <- [workspace, shared_worker, failed_worker],
+        do: :erlang.trace(worker, true, [:call])
 
     assert {:ok, %{seq: 1, value: :inserted}} =
              WheelSync.external_write(
@@ -425,11 +430,13 @@ defmodule WheelSync.PostgresWorkspaceTest do
                end
              )
 
-    assert_receive {:trace, ^workspace, :call, {WheelSync.Test.WidgetsAll, :sql, [%{}, ^shared]}}
+    assert_receive {:trace, ^shared_worker, :call,
+                    {WheelSync.Test.WidgetsAll, :sql, [%{}, ^shared]}}
 
-    assert_receive {:trace, ^workspace, :call, {WheelSync.Test.WidgetsAll, :sql, [%{}, ^failed]}}
+    assert_receive {:trace, ^failed_worker, :call,
+                    {WheelSync.Test.WidgetsAll, :sql, [%{}, ^failed]}}
 
-    refute_receive {:trace, ^workspace, :call, {WheelSync.Test.WidgetsAll, :sql, _}}, 50
+    refute_receive {:trace, _, :call, {WheelSync.Test.WidgetsAll, :sql, _}}, 50
 
     for pid <- [first, second] do
       assert_receive {:subscriber_event, ^pid, %{"type" => "delta", "delta" => %{"seq" => 1}}}
@@ -600,8 +607,11 @@ defmodule WheelSync.PostgresWorkspaceTest do
     assert_receive {:subscriber_unsubscribed, ^first, :ok}
     assert WheelSync.Test.SourceWidgetsAll.stats() == %{starts: 1, cleanups: 0}
 
+    worker = :sys.get_state(workspace).queries |> Map.values() |> hd() |> Map.fetch!(:pid)
+    monitor = Process.monitor(worker)
     send(second, {:unsubscribe, second_snapshot["subscriptionId"]})
     assert_receive {:subscriber_unsubscribed, ^second, :ok}
+    assert_receive {:DOWN, ^monitor, :process, ^worker, _}
     assert WheelSync.Test.SourceWidgetsAll.stats() == %{starts: 1, cleanups: 1}
     assert WheelSync.Storage.current_seq(names.postgres, @workspace_source) == 3
     cleanup(names.postgres)
