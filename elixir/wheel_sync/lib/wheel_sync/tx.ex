@@ -23,6 +23,13 @@ defmodule WheelSync.Tx do
     :ok
   end
 
+  @doc "Locks an application resource until commit or rollback, including resources without a row."
+  def lock!(%__MODULE__{connection: connection, workspace_id: workspace}, resource)
+      when is_binary(resource) and resource != "" do
+    WheelSync.Storage.lock!(connection, workspace, "wheel:resource", resource)
+    :ok
+  end
+
   def exec!(%__MODULE__{connection: connection}, sql, params \\ []) do
     Postgrex.query!(connection, sql, params)
   end

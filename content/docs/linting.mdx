@@ -123,6 +123,14 @@ Some rules are about runtime shape, not syntax. Those run as tests (`constraints
 
 ## What the linter cannot catch
 
+<Aside kind="note">
+  <strong>PostgreSQL transaction conflicts.</strong> A read followed by a write can race another
+  transaction. ESLint cannot infer dependencies from Elixir handlers, arbitrary SQL, database
+  constraints, and other writers. Requiring a lock for every read would reject safe atomic
+  operations and already-protected reads. PostgreSQL race tests check duplicate commands,
+  commit ordering, and application rules such as issue numbering and parent cycles.
+</Aside>
+
 <Aside kind="todo">
   <strong><code>no-prop-drilling</code>.</strong> Passing service values, atoms, or connect-shape
   fields as props to non-leaf components should fail the build — children connect themselves.

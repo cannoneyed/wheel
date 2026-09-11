@@ -99,7 +99,12 @@ children = [
 | `queries` | `[]` | Modules implementing `WheelSync.Query`. Must match the contract exactly. |
 | `mutations` | `[]` | Modules implementing `WheelSync.Mutation`. Must match the contract exactly. |
 | `migrations` | `[]` | Postgres DDL run before the endpoint starts. |
-| `pool_size` | `10` | Postgrex connection pool size. |
+| `pool_size` | `10` | Read and sync-log catch-up connections per runtime. |
+| `write_pool_size` | `2` | Concurrent PostgreSQL write connections per runtime, shared across workspaces. |
+| `write_queue_size` | `128` | Additional waiting write tasks per runtime. Postgrex can reject checkout earlier under sustained load. |
+| `write_timeout` | `25000` | Write-task deadline in milliseconds, including checkout and handler execution. |
+| `queue_target` | `50` | Postgrex target checkout wait in milliseconds for both pools. |
+| `queue_interval` | `1000` | Postgrex checkout pressure measurement interval in milliseconds. |
 | `serve` | `true` | Start the Bandit HTTP endpoint. |
 | `ip` | `{127, 0, 0, 1}` | Bandit bind address. |
 | `port` | `4001` | Bandit HTTP port. |
@@ -209,7 +214,7 @@ end
 
 ## Mutations
 
-A mutation runs inside one Postgres transaction. The workspace process applies one mutation at a time.
+Each mutation group runs inside one `READ COMMITTED` PostgreSQL transaction. Independent groups run concurrently, including groups from the same client. Calls within one group run in their declared order and commit or roll back together.
 
 ```elixir
 defmodule MyApp.Mutations.WidgetCreate do
@@ -239,6 +244,37 @@ Return `{:reject, code, message}` or raise `WheelSync.Rejection` for a business 
 
 `WheelSync.Tx.touch!/2` declares each changed physical source table. After commit, the workspace process reruns subscriptions whose `dependsOn` list overlaps those tables and sends whole-row deltas with the full order.
 
+### Concurrent writes
+
+If a command depends on an earlier command, await its successful `settled` result before sending the next command, or put both calls in one mutation group. Calling two mutations in order does not establish a server execution order. Optimistic state remains immediate.
+
+Use atomic SQL updates and database constraints for conflicting writes. A read that decides a later write must lock the relevant row before reading it, for example with `SELECT ... FOR UPDATE`. Acquire multiple locks in a consistent order. A lock on a resource can protect a rule spanning several rows or a row that does not exist yet:
+
+```elixir
+WheelSync.Tx.lock!(tx, "document-hierarchy:" <> document_id)
+```
+
+`lock!/2` takes a transaction-scoped PostgreSQL advisory lock, namespaced by workspace. Every mutation and external writer protecting the same rule must use the same resource name. Commit or rollback releases it. The engine does not infer application dependencies from SQL or touched tables.
+
+Wheel locks each mutation ID before running its handlers. A concurrent duplicate waits, then returns the original sequence if the first attempt committed. If the first attempt rolled back, the duplicate can execute. This works across runtimes sharing the database. Keep handler side effects inside the transaction; an aborted attempt can run again.
+
+After handlers finish, Wheel increments the workspace sequence, appends the log entry, and commits. This short shared step preserves commit order. A write stalled before that step allows an independent write to finish if a connection is available. A write holding the sequence lock still delays later commits.
+
+Active and waiting write tasks together cannot exceed `write_pool_size + write_queue_size` per runtime. Each workspace also limits outstanding command requests to 128. Repeated source invalidations coalesce by query name and retry when capacity returns. These limits do not impose a total-process memory ceiling or reserve capacity for a particular workspace.
+
+The WebSocket transport retries retryable server errors with capped backoff on the same connection. It preserves the mutation ID and allows other commands to run. Socket loss hands replay back to the durable outbox; closing the transport cancels delayed retries.
+
+Write telemetry uses native time units and includes `workspace_id` metadata:
+
+| Event | Measurement |
+|---|---|
+| `[:wheel_sync, :write, :checkout]` | `duration`: time until transaction checkout succeeds |
+| `[:wheel_sync, :write, :sequence]` | `duration`: time to allocate the sequence, including lock waits |
+| `[:wheel_sync, :write, :stop]` | `duration`: checkout plus transaction execution, including failures that unwind normally |
+| `[:wheel_sync, :write, :rejected]` | `count`: requests rejected by the runtime task limit |
+
+A killed task cannot emit its final telemetry event. Monitor worker failures and PostgreSQL connection errors alongside these events.
+
 ## External writes
 
 Use `WheelSync.external_write/3` or `WheelSync.external_write/4` when server code changes synced
@@ -264,7 +300,9 @@ WheelSync.external_write(
 
 The callback runs in one Postgres transaction. It must return `{:ok, value}` or `{:error, reason}`
 and touch at least one declared dependency table. A successful write appends the durable sync-log
-row before commit, then wakes local and remote Wheel nodes.
+row before commit, then wakes local and remote Wheel nodes. External writes share the write pool and application locking rules.
+
+An external callback has no mutation ID. Do not automatically retry it after a timeout, worker failure, or lost connection: its commit outcome can be unknown. Use an identified mutation or an application idempotency record when safe replay is required. A `{:error, reason}` callback return rolls back its transaction.
 
 Raw SQL that does not use a Wheel mutation or `WheelSync.external_write` creates no sync-log row.
 Notifications and periodic recovery cannot discover that write.
@@ -308,3 +346,18 @@ bun run test:browser:tracker:postgres  # full Tracker browser suite on Elixir/Po
 ```
 
 `test:browser:tracker:postgres` requires `DATABASE_URL`. `scripts/ci/test-elixir-backends.sh` creates an isolated Postgres 17 container and runs the Elixir wire suite plus both Tracker browser targets.
+
+Run the PostgreSQL race tests against a dedicated test database:
+
+```bash
+cd elixir/wheel_sync
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55433/wheel_concurrent_writes mix test --warnings-as-errors
+```
+
+The optional write benchmark runs 50 clients with 100 writes per case. It compares one, two, four, and eight connections for independent rows and one shared row, with 10 ms of work while holding each row lock. Each case checks the final data and log, and prints latency percentiles and throughput. It is excluded from regular CI:
+
+```bash
+WHEEL_WRITE_BENCHMARK=1 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55433/wheel_concurrent_writes mix test test/write_performance_test.exs
+```
+
+Tracker's PostgreSQL mutation tests run with `mix test --no-start` from `elixir/tracker`. Its issue-number uniqueness index rejects preexisting duplicate numbers; resolve such data before starting an upgraded Tracker database.

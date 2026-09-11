@@ -161,7 +161,7 @@ describe('createWebSocketTransport', () => {
     transport.close('ignored');
   });
 
-  test('returns terminal mutation errors and rejects retryable failures', async () => {
+  test('returns terminal errors and retries overload without reconnecting or blocking other writes', async () => {
     const { transport, socket } = await connectTransport();
     const mutation = {
       clientId: 'client-test',
@@ -192,8 +192,61 @@ describe('createWebSocketTransport', () => {
       ok: false,
       error: { code: 'engine_recovering', message: 'retry', retryable: true }
     });
-    await expect(retryable).rejects.toThrow(/engine_recovering/);
+    // Another independent command can complete while this one backs off.
+    const independent = transport.mutateGroup({ ...mutation, mutationId: 'm_other' });
+    const otherRequest = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
+    socket.serverMessage({ protocol: 3, type: 'response', requestId: otherRequest.requestId,
+      ok: true, value: { ok: true, seq: 1 } });
+    await expect(independent).resolves.toEqual({ ok: true, seq: 1 });
+    await vi.waitFor(() => expect(socket.sent).toHaveLength(4));
+    const retried = JSON.parse(socket.sent.at(-1)!) as { requestId: string; command: unknown };
+    expect(retried.command).toEqual(mutation);
+    expect(retried.requestId).not.toBe(retryableRequest.requestId);
+    socket.serverMessage({ protocol: 3, type: 'response', requestId: retried.requestId,
+      ok: true, value: { ok: true, seq: 2 } });
+    await expect(retryable).resolves.toEqual({ ok: true, seq: 2 });
     transport.close('ignored');
+  });
+
+  test('socket loss wakes a delayed mutation retry for outbox replay', async () => {
+    const { transport, socket } = await connectTransport();
+    vi.useFakeTimers();
+    try {
+      const result = transport.mutateGroup({ clientId: 'client', mutationId: 'm_retry',
+        calls: [{ name: 'todos.add', args: {}, ids: [] }] });
+      const request = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
+      socket.serverMessage({ protocol: 3, type: 'response', requestId: request.requestId,
+        ok: false, error: { code: 'backend_unavailable', message: 'full', retryable: true } });
+      await vi.advanceTimersByTimeAsync(0);
+      const rejected = expect(result).rejects.toThrow(/connection changed/);
+      socket.close(1006, 'lost');
+      await rejected; // Does not wait for the backoff timer.
+      expect(socket.sent).toHaveLength(1);
+    } finally {
+      transport.close('client');
+      vi.useRealTimers();
+    }
+  });
+
+  test('closing the transport cancels a delayed mutation retry', async () => {
+    const { transport, socket } = await connectTransport();
+    vi.useFakeTimers();
+    try {
+      const result = transport.mutateGroup({ clientId: 'client', mutationId: 'm_retry',
+        calls: [{ name: 'todos.add', args: {}, ids: [] }] });
+      const request = JSON.parse(socket.sent.at(-1)!) as { requestId: string };
+      socket.serverMessage({ protocol: 3, type: 'response', requestId: request.requestId,
+        ok: false, error: { code: 'backend_unavailable', message: 'full', retryable: true } });
+      await vi.advanceTimersByTimeAsync(0);
+      const rejected = expect(result).rejects.toMatchObject({ name: 'AbortError' });
+      transport.close('client');
+      await rejected;
+      expect(vi.getTimerCount()).toBe(0);
+      expect(socket.sent).toHaveLength(1);
+    } finally {
+      transport.close('client');
+      vi.useRealTimers();
+    }
   });
 
   test('reports a version mismatch before it retries', async () => {

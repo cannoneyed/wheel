@@ -18,6 +18,7 @@ fi
   mix deps.get
   mix format --check-formatted
   mix compile --warnings-as-errors
+  mix test --no-start --warnings-as-errors
 )
 
 (

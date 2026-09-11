@@ -14,6 +14,7 @@ defmodule WheelSync.WorkspaceSupervisor do
            workspace_id: workspace_id,
            presence_filter: Keyword.get(options, :presence_filter),
            detailed_errors: Keyword.get(options, :detailed_errors, false),
+           write_timeout: Keyword.get(options, :write_timeout, 25_000),
            query_cache_bytes: Keyword.get(options, :query_cache_bytes, 128 * 1024 * 1024)}
 
         case DynamicSupervisor.start_child(names.workspace_supervisor, spec) do

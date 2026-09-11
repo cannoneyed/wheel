@@ -34,6 +34,7 @@ defmodule WheelTracker.Schema do
         primary key (workspace_id, id))
       """,
       "create index if not exists tracker_issues_team_idx on issues (workspace_id, team_id)",
+      "create unique index if not exists tracker_issues_number_idx on issues (workspace_id, team_id, number)",
       """
       create table if not exists issue_relations (
         #{@workspace}, id text not null, team_id text not null, issue_id text not null,

@@ -59,6 +59,15 @@ defmodule WheelSync.Storage do
     end)
   end
 
+  def lock!(connection, workspace_id, namespace, key) do
+    # Stable across nodes, with length framing and a distinct namespace. A hash
+    # collision only serializes unrelated commands; the log checks the full ID.
+    <<key::signed-64, _::binary>> =
+      :crypto.hash(:sha256, :erlang.term_to_binary({namespace, workspace_id, key}))
+
+    Postgrex.query!(connection, "select pg_advisory_xact_lock($1)", [key])
+  end
+
   def find_committed(connection, workspace_id, mutation_id) do
     case Postgrex.query!(
            connection,
@@ -71,6 +80,8 @@ defmodule WheelSync.Storage do
   end
 
   def next_seq!(connection, workspace_id) do
+    started = System.monotonic_time()
+
     Postgrex.query!(
       connection,
       "insert into wheel_sync_workspaces (workspace_id) values ($1) on conflict do nothing",
@@ -83,6 +94,12 @@ defmodule WheelSync.Storage do
         "update wheel_sync_workspaces set last_seq = last_seq + 1 where workspace_id = $1 returning last_seq",
         [workspace_id]
       ).rows
+
+    :telemetry.execute(
+      [:wheel_sync, :write, :sequence],
+      %{duration: System.monotonic_time() - started},
+      %{workspace_id: workspace_id}
+    )
 
     seq
   end
