@@ -19,7 +19,9 @@ defmodule WheelSync.Supervisor do
     postgres_options =
       Keyword.merge(connection_options,
         name: names.postgres,
-        pool_size: Keyword.get(options, :pool_size, 10)
+        pool_size: Keyword.get(options, :pool_size, 10),
+        queue_target: Keyword.get(options, :queue_target, 50),
+        queue_interval: Keyword.get(options, :queue_interval, 1_000)
       )
 
     notification_options =
