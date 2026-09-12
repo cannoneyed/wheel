@@ -13,6 +13,48 @@ defmodule WheelSync.PostgresWorkspaceTest do
   @widget_id "widget_0190b62e-0000-7000-8000-000000000021"
   @mutation_id "m_0190b62e-0000-7000-8000-000000000021"
 
+  test "prepared statements stay bounded and collisions preserve SQL and parameters" do
+    connection =
+      start_supervised!(
+        {Postgrex, WheelSync.PostgresOptions.from_url!(System.fetch_env!("DATABASE_URL"))}
+      )
+
+    for index <- 1..1_024 do
+      assert [[index + 7]] ==
+               WheelSync.Storage.query!(
+                 connection,
+                 "SELECT $1::integer + #{index}",
+                 [7]
+               ).rows
+    end
+
+    [[count]] =
+      Postgrex.query!(
+        connection,
+        "SELECT count(*) FROM pg_prepared_statements WHERE name LIKE 'wheel_%'",
+        []
+      ).rows
+
+    assert count <= 256
+    assert count > 0
+
+    for index <- 1..1_024 do
+      assert [[index + 11]] ==
+               WheelSync.Storage.query!(
+                 connection,
+                 "SELECT $1::integer + #{index}",
+                 [11]
+               ).rows
+    end
+
+    assert [[^count]] =
+             Postgrex.query!(
+               connection,
+               "SELECT count(*) FROM pg_prepared_statements WHERE name LIKE 'wheel_%'",
+               []
+             ).rows
+  end
+
   test "workspaces isolate rows, sequences, and duplicate mutation ids" do
     database_url = System.fetch_env!("DATABASE_URL")
 

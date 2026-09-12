@@ -226,7 +226,12 @@ defmodule WheelSync.Writer do
             %{workspace_id: state.workspace_id}
           )
 
-          Postgrex.query!(connection, "set transaction isolation level read committed", [])
+          WheelSync.Storage.query!(
+            connection,
+            "set transaction isolation level read committed",
+            []
+          )
+
           callback.(connection)
         end,
         timeout: state.write_timeout
@@ -521,12 +526,18 @@ defmodule WheelSync.Writer do
     end
   end
 
-  defp classify_postgres_error(%Postgrex.Error{postgres: %{code: code}} = error)
-       when code in [:serialization_failure, :deadlock_detected] do
-    {:transient, Exception.message(error)}
+  defp classify_postgres_error(error) do
+    if transient_postgres?(error),
+      do: {:transient, Exception.message(error)},
+      else: {:terminal, "handler_error", Exception.message(error)}
   end
 
-  defp classify_postgres_error(error), do: {:terminal, "handler_error", Exception.message(error)}
+  # Postgrex evicts the stale plan, but an aborted transaction must retry from
+  # its receipt check. Other unsupported SQL remains a terminal handler error.
+  defp transient_postgres?(%Postgrex.Error{
+         postgres: %{code: :feature_not_supported, routine: "RevalidateCachedQuery"}
+       }),
+       do: true
 
   defp transient_postgres?(%Postgrex.Error{postgres: %{code: code}}),
     do: code in [:serialization_failure, :deadlock_detected]
