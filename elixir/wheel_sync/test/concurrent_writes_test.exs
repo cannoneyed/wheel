@@ -13,8 +13,15 @@ defmodule WheelSync.ConcurrentWritesTest do
       send(parent, {:entered, self()})
 
       receive do
-        :commit -> WheelSync.Test.WidgetCreate.run(tx, args, ctx)
-        :reject -> {:reject, "test", "abort first attempt"}
+        :commit ->
+          WheelSync.Test.WidgetCreate.run(tx, args, ctx)
+
+        :reject ->
+          {:reject, "test", "abort first attempt"}
+
+        {:query, sql} ->
+          WheelSync.Tx.query!(tx, sql)
+          WheelSync.Test.WidgetCreate.run(tx, args, ctx)
       after
         5_000 -> raise "test did not release mutation"
       end
@@ -42,6 +49,35 @@ defmodule WheelSync.ConcurrentWritesTest do
     end)
 
     %{ws: ws, names: names, id: id}
+  end
+
+  @tag write_pool_size: 1
+  test "a changed cached result shape retries the whole mutation", %{ws: ws, names: names, id: id} do
+    sql = "SELECT * FROM cached_shape_proof"
+
+    DBConnection.run(names.writer_postgres, fn connection ->
+      Postgrex.query!(connection, "CREATE TEMP TABLE cached_shape_proof (value integer)", [])
+      WheelSync.Storage.query!(connection, sql)
+      Postgrex.query!(connection, "ALTER TABLE cached_shape_proof ADD COLUMN note text", [])
+    end)
+
+    first = Task.async(fn -> WheelSync.Workspace.mutate_group(ws, request(), principal(id)) end)
+    assert_receive {:entered, worker}
+    send(worker, {:query, sql})
+    assert {:error, "backend_unavailable", _, true} = Task.await(first)
+    assert :missing = WheelSync.Storage.find_committed(names.postgres, id, @mutation)
+
+    retry = Task.async(fn -> WheelSync.Workspace.mutate_group(ws, request(), principal(id)) end)
+    assert_receive {:entered, worker}
+    send(worker, {:query, sql})
+    assert {:ok, %{"ok" => true, "seq" => 1}} = Task.await(retry)
+  end
+
+  test "unrelated unsupported SQL remains a terminal error", %{ws: ws, id: id} do
+    task = Task.async(fn -> WheelSync.Workspace.mutate_group(ws, request(), principal(id)) end)
+    assert_receive {:entered, worker}
+    send(worker, {:query, "SELECT 1 UNION SELECT 2 FOR UPDATE"})
+    assert {:ok, %{"ok" => false, "error" => %{"code" => "handler_error"}}} = Task.await(task)
   end
 
   test "B commits and checkpoints while A is stalled before sequence allocation", %{

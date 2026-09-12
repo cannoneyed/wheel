@@ -27,12 +27,20 @@ defmodule WheelSync.Storage do
     """
   ]
 
+  # Postgrex checks SQL equality and closes/replaces colliding named statements.
+  # Fixed slots bound both driver and server plans without another cache process.
+  def query!(connection, sql, params \\ [], options \\ []) do
+    sql = IO.iodata_to_binary(sql)
+    name = "wheel_#{:erlang.phash2(sql, 256)}"
+    Postgrex.query!(connection, sql, params, Keyword.put(options, :cache_statement, name))
+  end
+
   def ensure_schema!(postgres, statements) do
     Enum.each(@core_schema ++ statements, &Postgrex.query!(postgres, &1, []))
   end
 
   def current_seq(postgres, workspace_id) do
-    case Postgrex.query!(
+    case query!(
            postgres,
            "select last_seq from wheel_sync_workspaces where workspace_id = $1",
            [workspace_id]
@@ -43,7 +51,7 @@ defmodule WheelSync.Storage do
   end
 
   def changes_after(postgres, workspace_id, seq) do
-    Postgrex.query!(
+    query!(
       postgres,
       """
       select seq, name, touched, client_id
@@ -65,11 +73,11 @@ defmodule WheelSync.Storage do
     <<key::signed-64, _::binary>> =
       :crypto.hash(:sha256, :erlang.term_to_binary({namespace, workspace_id, key}))
 
-    Postgrex.query!(connection, "select pg_advisory_xact_lock($1)", [key])
+    query!(connection, "select pg_advisory_xact_lock($1)", [key])
   end
 
   def find_committed(connection, workspace_id, mutation_id) do
-    case Postgrex.query!(
+    case query!(
            connection,
            "select seq from wheel_sync_log where workspace_id = $1 and mutation_id = $2",
            [workspace_id, mutation_id]
@@ -82,14 +90,14 @@ defmodule WheelSync.Storage do
   def next_seq!(connection, workspace_id) do
     started = System.monotonic_time()
 
-    Postgrex.query!(
+    query!(
       connection,
       "insert into wheel_sync_workspaces (workspace_id) values ($1) on conflict do nothing",
       [workspace_id]
     )
 
     [[seq]] =
-      Postgrex.query!(
+      query!(
         connection,
         "update wheel_sync_workspaces set last_seq = last_seq + 1 where workspace_id = $1 returning last_seq",
         [workspace_id]
@@ -105,7 +113,7 @@ defmodule WheelSync.Storage do
   end
 
   def append_log!(connection, workspace_id, seq, entry) do
-    Postgrex.query!(
+    query!(
       connection,
       """
       insert into wheel_sync_log
@@ -124,7 +132,7 @@ defmodule WheelSync.Storage do
     )
 
     # PostgreSQL delivers this only after the surrounding transaction commits.
-    Postgrex.query!(connection, "select pg_notify($1, $2)", [
+    query!(connection, "select pg_notify($1, $2)", [
       @change_channel,
       notification_key(workspace_id)
     ])

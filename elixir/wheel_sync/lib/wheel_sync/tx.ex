@@ -31,7 +31,7 @@ defmodule WheelSync.Tx do
   end
 
   def exec!(%__MODULE__{connection: connection}, sql, params \\ []) do
-    Postgrex.query!(connection, sql, params)
+    WheelSync.Storage.query!(connection, sql, params)
   end
 
   def query!(tx, sql, params \\ []) do

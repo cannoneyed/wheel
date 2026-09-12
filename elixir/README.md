@@ -100,6 +100,7 @@ children = [
 | `mutations` | `[]` | Modules implementing `WheelSync.Mutation`. Must match the contract exactly. |
 | `migrations` | `[]` | Postgres DDL run before the endpoint starts. |
 | `pool_size` | `10` | Read and sync-log catch-up connections per runtime. |
+| `prepare` | `:named` | Reuse up to 256 prepared statements per connection. Set `:unnamed` for adapters that share one PostgreSQL session across clients, such as PGlite. |
 | `write_pool_size` | `2` | Concurrent PostgreSQL write connections per runtime, shared across workspaces. |
 | `write_queue_size` | `128` | Additional waiting write tasks per runtime. Postgrex can reject checkout earlier under sustained load. |
 | `write_timeout` | `25000` | Write-task deadline in milliseconds, including checkout and handler execution. |

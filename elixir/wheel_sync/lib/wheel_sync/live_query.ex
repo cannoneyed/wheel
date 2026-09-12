@@ -254,7 +254,7 @@ defmodule WheelSync.LiveQuery do
 
       rows =
         state.names.postgres
-        |> Postgrex.query!(sql, sql_params, log: log)
+        |> WheelSync.Storage.query!(sql, sql_params, log: log)
         |> WheelSync.Storage.rows()
 
       {:ok, rows}

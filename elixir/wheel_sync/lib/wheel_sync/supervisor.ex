@@ -14,7 +14,10 @@ defmodule WheelSync.Supervisor do
     database_url = Keyword.fetch!(options, :database_url)
     registry = WheelSync.Registry.build!(options)
 
-    connection_options = WheelSync.PostgresOptions.from_url!(database_url)
+    connection_options =
+      database_url
+      |> WheelSync.PostgresOptions.from_url!()
+      |> Keyword.put(:prepare, Keyword.get(options, :prepare, :named))
 
     postgres_options =
       Keyword.merge(connection_options,
