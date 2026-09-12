@@ -90,16 +90,15 @@ defmodule WheelSync.Storage do
   def next_seq!(connection, workspace_id) do
     started = System.monotonic_time()
 
-    query!(
-      connection,
-      "insert into wheel_sync_workspaces (workspace_id) values ($1) on conflict do nothing",
-      [workspace_id]
-    )
-
     [[seq]] =
       query!(
         connection,
-        "update wheel_sync_workspaces set last_seq = last_seq + 1 where workspace_id = $1 returning last_seq",
+        """
+        insert into wheel_sync_workspaces (workspace_id, last_seq) values ($1, 1)
+        on conflict (workspace_id) do update
+        set last_seq = wheel_sync_workspaces.last_seq + 1
+        returning last_seq
+        """,
         [workspace_id]
       ).rows
 
@@ -113,12 +112,14 @@ defmodule WheelSync.Storage do
   end
 
   def append_log!(connection, workspace_id, seq, entry) do
+    # PostgreSQL delivers this only after the surrounding transaction commits.
     query!(
       connection,
       """
       insert into wheel_sync_log
         (workspace_id, seq, mutation_id, name, touched, actor, client_id)
       values ($1, $2, $3, $4, $5, $6, $7)
+      returning pg_notify($8, $9)
       """,
       [
         workspace_id,
@@ -127,15 +128,11 @@ defmodule WheelSync.Storage do
         entry.name,
         entry.touched |> MapSet.to_list() |> Enum.sort(),
         entry.actor,
-        entry.client_id
+        entry.client_id,
+        @change_channel,
+        notification_key(workspace_id)
       ]
     )
-
-    # PostgreSQL delivers this only after the surrounding transaction commits.
-    query!(connection, "select pg_notify($1, $2)", [
-      @change_channel,
-      notification_key(workspace_id)
-    ])
   end
 
   def change_channel, do: @change_channel

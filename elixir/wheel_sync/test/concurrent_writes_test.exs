@@ -266,19 +266,35 @@ defmodule WheelSync.ConcurrentWritesTest do
     id: id
   } do
     parent = self()
+    channel = WheelSync.Storage.change_channel()
+    key = WheelSync.Storage.notification_key(id)
+    {:ok, ref} = Postgrex.Notifications.listen(names.notifications, channel)
+
+    entry = %{
+      mutation_id: "held",
+      name: "held",
+      touched: MapSet.new(),
+      actor: "test",
+      client_id: "test"
+    }
+
+    assert {:error, :cancelled} =
+             Postgrex.transaction(names.writer_postgres, fn conn ->
+               assert 1 == WheelSync.Storage.next_seq!(conn, id)
+               WheelSync.Storage.append_log!(conn, id, 1, entry)
+               Postgrex.rollback(conn, :cancelled)
+             end)
+
+    assert 0 == WheelSync.Storage.current_seq(names.postgres, id)
+    assert [] == WheelSync.Storage.changes_after(names.postgres, id, 0)
+    refute_receive {:notification, _, ^ref, ^channel, ^key}, 30
 
     held =
       Task.async(fn ->
         Postgrex.transaction(names.writer_postgres, fn conn ->
           seq = WheelSync.Storage.next_seq!(conn, id)
 
-          WheelSync.Storage.append_log!(conn, id, seq, %{
-            mutation_id: "held",
-            name: "held",
-            touched: MapSet.new(),
-            actor: "test",
-            client_id: "test"
-          })
+          WheelSync.Storage.append_log!(conn, id, seq, entry)
 
           gate(parent)
           seq
@@ -298,9 +314,11 @@ defmodule WheelSync.ConcurrentWritesTest do
     wait_for_lock(names.postgres)
     assert 0 == WheelSync.Storage.current_seq(names.postgres, id)
     assert [] == WheelSync.Storage.changes_after(names.postgres, id, 0)
+    refute_receive {:notification, _, ^ref, ^channel, ^key}, 30
     send(worker, :commit)
     assert {:ok, 1} = Task.await(held)
     assert {:ok, %{seq: 2}} = Task.await(later)
+    assert_receive {:notification, _, ^ref, ^channel, ^key}
     assert [1, 2] == Enum.map(WheelSync.Storage.changes_after(names.postgres, id, 0), & &1.seq)
   end
 
