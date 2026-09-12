@@ -55,6 +55,26 @@ defmodule WheelSync.PostgresWorkspaceTest do
              ).rows
   end
 
+  test "unnamed preparation supports shared-session database adapters" do
+    connection =
+      start_supervised!(
+        {Postgrex,
+         System.fetch_env!("DATABASE_URL")
+         |> WheelSync.PostgresOptions.from_url!()
+         |> Keyword.put(:prepare, :unnamed)}
+      )
+
+    assert [[7]] = WheelSync.Storage.query!(connection, "SELECT $1::integer", [7]).rows
+    assert [["eight"]] = WheelSync.Storage.query!(connection, "SELECT $1::text", ["eight"]).rows
+
+    assert [[0]] =
+             Postgrex.query!(
+               connection,
+               "SELECT count(*) FROM pg_prepared_statements WHERE name LIKE 'wheel_%'",
+               []
+             ).rows
+  end
+
   test "workspaces isolate rows, sequences, and duplicate mutation ids" do
     database_url = System.fetch_env!("DATABASE_URL")
 
