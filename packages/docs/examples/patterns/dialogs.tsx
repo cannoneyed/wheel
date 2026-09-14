@@ -51,6 +51,7 @@ function DeleteItemDialog(props: {
   cancel: () => void;
 }) {
   return (
+    // wheel-native-dialog: DialogService host owns focus, Escape, portal, and scrim behavior
     <div use:viewRoot={{ name: 'DeleteItemDialog', props }} role="dialog" aria-modal="true">
       <p>Delete {props.itemId}?</p>
       <button onClick={props.cancel}>Cancel</button>

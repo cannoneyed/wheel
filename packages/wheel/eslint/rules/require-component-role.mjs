@@ -22,7 +22,8 @@
  * thing still number — `Button(delete)#1`, `Button(delete)#2` — and now the
  * number means "which row", which is what a number should mean.
  *
- * Scope: JSX whose tag is imported from `wheel/components`. Compound PARTS
+ * Scope: JSX whose tag is imported from `wheel/components` or one of its
+ * public subpaths. Compound PARTS
  * (`Dialog.Portal`, `Radio.Indicator`) are exempt: their identity comes from
  * the root they belong to, and tagging every part would bury the roots. A
  * root used through a member expression (`Dialog.Root`, `Avatar.Root`) is NOT
@@ -35,6 +36,55 @@
 
 /** Parts whose identity comes from the root above them, not from the caller. */
 const ROOT_MEMBERS = new Set(['Root', 'Trigger']);
+
+/** Public subpaths whose main export is a namespace of compound parts. */
+const COMPOUND_SUBPATHS = new Set([
+  'accordion',
+  'alert-dialog',
+  'autocomplete',
+  'avatar',
+  'checkbox',
+  'collapsible',
+  'combobox',
+  'context-menu',
+  'dialog',
+  'drawer',
+  'field',
+  'fieldset',
+  'menu',
+  'meter',
+  'navigation-menu',
+  'number-field',
+  'otp-field',
+  'popover',
+  'preview-card',
+  'progress',
+  'radio',
+  'scroll-area',
+  'select',
+  'slider',
+  'switch',
+  'tabs',
+  'toast',
+  'toolbar',
+  'tooltip'
+]);
+
+function componentSource(value) {
+  if (value === 'wheel/components') return { kind: 'barrel' };
+  const prefix = 'wheel/components/';
+  if (typeof value !== 'string' || !value.startsWith(prefix)) return null;
+  const subpath = value.slice(prefix.length);
+  if (!subpath || subpath === 'styles' || subpath.includes('/')) return null;
+  return { kind: COMPOUND_SUBPATHS.has(subpath) ? 'compound' : 'simple', subpath };
+}
+
+function exportName(subpath) {
+  return subpath
+    .split('-')
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join('');
+}
 
 export default {
   meta: {
@@ -53,32 +103,73 @@ export default {
     if (/\.test\.(ts|tsx)$/.test(context.filename)) return {};
     if (/wheel-component-role:/.test(context.sourceCode.getText())) return {};
 
-    /** Local names imported from `wheel/components`. */
-    const shared = new Set();
+    /** Local bindings and the public component surface each binding names. */
+    const shared = new Map();
 
     return {
       ImportDeclaration(node) {
-        if (node.source?.value !== 'wheel/components') return;
+        const source = componentSource(node.source?.value);
+        if (!source) return;
         for (const specifier of node.specifiers ?? []) {
           // Types carry no runtime instance.
           if (specifier.importKind === 'type' || node.importKind === 'type') continue;
-          if (specifier.local?.name) shared.add(specifier.local.name);
+          if (!specifier.local?.name || specifier.type === 'ImportDefaultSpecifier') continue;
+          if (specifier.type === 'ImportNamespaceSpecifier') {
+            shared.set(specifier.local.name, { ...source, namespace: true });
+            continue;
+          }
+          const imported = specifier.imported?.name;
+          if (
+            source.kind === 'compound' &&
+            !ROOT_MEMBERS.has(imported) &&
+            imported !== exportName(source.subpath)
+          ) {
+            // The compound namespace and its Root/Trigger establish identity;
+            // Portal, Backdrop, Indicator, and other parts inherit it.
+            continue;
+          }
+          if (source.kind === 'simple' && !/^[A-Z]/.test(imported ?? '')) continue;
+          shared.set(specifier.local.name, { ...source, namespace: false, imported });
         }
       },
       JSXOpeningElement(node) {
         const name = node.name;
         let tag = null;
         let base = null;
+        let member = null;
         if (name?.type === 'JSXIdentifier') {
           base = name.name;
           tag = name.name;
         } else if (name?.type === 'JSXMemberExpression' && name.object?.type === 'JSXIdentifier') {
           base = name.object.name;
           tag = `${name.object.name}.${name.property?.name ?? ''}`;
-          // A PART belongs to the root above it; only roots need a role.
-          if (!ROOT_MEMBERS.has(name.property?.name)) return;
+          member = name.property?.name;
+        } else if (
+          name?.type === 'JSXMemberExpression' &&
+          name.object?.type === 'JSXMemberExpression' &&
+          name.object.object?.type === 'JSXIdentifier'
+        ) {
+          base = name.object.object.name;
+          tag = `${base}.${name.object.property?.name ?? ''}.${name.property?.name ?? ''}`;
+          member = name.property?.name;
         }
-        if (!base || !shared.has(base)) return;
+        const binding = base ? shared.get(base) : null;
+        if (!binding) return;
+
+        if (binding.namespace) {
+          if (binding.kind === 'simple') {
+            if (name.object?.type !== 'JSXIdentifier' || !/^[A-Z]/.test(member ?? '')) return;
+          } else if (binding.kind === 'barrel' && name.object?.type === 'JSXIdentifier') {
+            // A namespace member such as Components.Button is a root unless it
+            // names one of the compound namespaces.
+            if (COMPOUND_SUBPATHS.has(member?.replace(/[A-Z]/g, (c, i) => `${i ? '-' : ''}${c.toLowerCase()}`))) return;
+          } else if (!ROOT_MEMBERS.has(member)) {
+            return;
+          }
+        } else if (name.type === 'JSXMemberExpression' && !ROOT_MEMBERS.has(member)) {
+          // A PART belongs to the root above it; only roots need a role.
+          return;
+        }
 
         const hasRole = (node.attributes ?? []).some(
           (attribute) =>
@@ -89,7 +180,11 @@ export default {
         const hasSpread = (node.attributes ?? []).some((attribute) => attribute.type === 'JSXSpreadAttribute');
         if (hasRole || hasSpread) return;
 
-        context.report({ node: name, messageId: 'missingRole', data: { tag, name: base } });
+        context.report({
+          node: name,
+          messageId: 'missingRole',
+          data: { tag, name: binding.imported ?? member ?? base }
+        });
       }
     };
   }

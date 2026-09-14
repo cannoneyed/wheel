@@ -229,6 +229,7 @@ export default [
       'wheel/no-directive-on-component': 'error',
       'wheel/require-stable-instance-name': 'error',
       'wheel/require-component-role': 'error',
+      'wheel/no-native-dialog': 'error',
       'wheel/require-tracked-show': 'error',
       'wheel/no-dev-mode-show': 'error',
       'wheel/require-use-signal': 'error',

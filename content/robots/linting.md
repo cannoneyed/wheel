@@ -16,7 +16,8 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `require-view-root`: non-connected host roots use `viewRoot`.
 - `no-directive-on-component`: `use:` directives sit on native elements; Solid drops them on a component.
 - `require-stable-instance-name`: entity props produce entity-derived instance ids.
-- `require-component-role`: a component imported from `wheel/components` carries `data-wheel-role`. The role joins the name to form the instance id — `Button(add)`, not `Button#1` — so shared components are named rather than numbered by page-wide mount order, and the id is what the debug tree, `data-wheel-id`, a note's anchor and `__wheel.component()` all use. Distinct roles need no number; instances that truly share a role still get one (`Button(delete)#1`), where it means "which row". Compound parts (`Dialog.Portal`) are exempt, roots are not. Pragma: `// wheel-component-role: <reason>`.
+- `require-component-role`: a component imported from `wheel/components` or a public `wheel/components/*` subpath carries `data-wheel-role`. The role joins the name to form the instance id — `Button(add)`, not `Button#1` — so shared components are named rather than numbered by page-wide mount order, and the id is what the debug tree, `data-wheel-id`, a note's anchor and `__wheel.component()` all use. Distinct roles need no number; instances that truly share a role still get one (`Button(delete)#1`), where it means "which row". Compound parts (`Dialog.Portal`) are exempt, roots are not. Pragma: `// wheel-component-role: <reason>`.
+- `no-native-dialog`: native elements with static dialog or modal semantics use Wheel Dialog. Detected values are `role="dialog"`, `role="alertdialog"`, and statically true `aria-modal` in shorthand, boolean, or string form. The rule does not detect overlays, spreads, computed values, or custom wrappers. Pragma: adjacent `// wheel-native-dialog: <reason>` for a low-level boundary.
 - `require-component-states`: connected kit components provide typed states.
 - `require-tracked-show`: root `Show` imports the Wheel wrapper.
 - `require-use-signal`: component-local signals carry names.
@@ -50,7 +51,7 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `no-raw-console`: app logs use Wheel logger.
 - `no-hardcoded-color`: application theme colors use tokens.
 - `no-barrel-icon-imports`: icons use per-icon entries.
-- `require-keep-names`: Wheel Vite consumers install `wheelDevTools()`.
+- `require-keep-names`: Wheel Vite consumers put an imported `wheelDevTools()` directly in the static `plugins` array. Aliased and namespace imports from `wheel/vite` and Wheel's source entry are supported. The rule rejects direct serve-only logical and ternary forms, but does not evaluate helpers or dynamic configuration.
 - `no-worker-data-exports`: Worker entries keep runtime data private and export only entry points.
 - `no-browser-support-in-production`: production entries never import browser fault controls.
 
