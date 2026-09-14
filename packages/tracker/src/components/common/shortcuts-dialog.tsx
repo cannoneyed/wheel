@@ -32,6 +32,7 @@ export function ShortcutsDialog() {
   const state = connectShortcutsDialog({});
   const described = () => state.bindings.filter((binding) => binding.description !== undefined);
   return (
+    // wheel-native-dialog: DialogSystem hosts this content and owns focus, Escape, portal, and scrim behavior
     <div use:componentRoot class={styles.dialog} role="dialog" aria-modal="true">
       <h2 class={styles.title}>Keyboard shortcuts</h2>
       <div class={styles.grid}>

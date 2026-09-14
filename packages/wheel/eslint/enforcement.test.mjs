@@ -225,10 +225,18 @@ describe('effective repo config', () => {
     ['packages/wheel/src/kit/toast.tsx', 'wheel/single-connect'],
     ['packages/wheel/src/debug/inspector.tsx', 'wheel/require-component-root'],
     ['packages/tracker/src/components/list/issue-row.tsx', 'wheel/require-component-root'],
+    ['packages/tracker/src/components/list/issue-row.tsx', 'wheel/no-native-dialog'],
     ['packages/tracker/src/services/search-service.ts', 'wheel/no-raw-timers']
   ])('%s enables %s', async (filename, rule) => {
     const config = await eslint.calculateConfigForFile(filename);
     expect(config.rules[rule][0]).toBe(2);
+  });
+
+  it('leaves the low-level Wheel Dialog implementation outside modal enforcement', async () => {
+    const config = await eslint.calculateConfigForFile(
+      'packages/wheel/src/components/dialog/root/DialogRoot.tsx'
+    );
+    expect(config.rules['wheel/no-native-dialog']).toBeUndefined();
   });
 });
 

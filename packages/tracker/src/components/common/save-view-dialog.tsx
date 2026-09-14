@@ -18,6 +18,7 @@ export function SaveViewDialog() {
     state.save(name());
   };
   return (
+    // wheel-native-dialog: DialogSystem hosts this content and owns focus, Escape, portal, and scrim behavior
     <div use:componentRoot class={styles.dialog} role="dialog" aria-modal="true">
       <h2 class={styles.title}>Save view</h2>
       <p class={styles.hint}>Names the current filter + display configuration; saved views sync to everyone.</p>

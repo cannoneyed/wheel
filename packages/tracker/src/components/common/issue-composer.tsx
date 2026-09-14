@@ -74,6 +74,7 @@ export function IssueComposer(props: { teamId: string }) {
     );
 
   return (
+    // wheel-native-dialog: DialogSystem hosts this content and owns focus, Escape, portal, and scrim behavior
     <div use:componentRoot class={styles.composer} role="dialog" aria-modal="true">
       <input
         class={styles.title}
