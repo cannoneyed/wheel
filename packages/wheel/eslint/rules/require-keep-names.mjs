@@ -30,6 +30,11 @@
  *      plugins: [solid(), wheelDevTools()]
  *    });
  *
+ * The rule proves the direct static form `plugins: [wheelDevTools()]`. It also
+ * recognizes an aliased named import and a namespace import from `wheel/vite`,
+ * plus Wheel's monorepo source entry. It does not evaluate helper functions or
+ * dynamic configuration.
+ *
  * Scope: files named vite.config.ts whose nearest package depends on wheel,
  * or that alias wheel from source (a replacement path containing
  * `wheel/src/`). vitest configs are exempt. Escape: a
@@ -60,12 +65,25 @@ function packageUsesWheel(filename) {
   }
 }
 
+function isWheelViteSource(value) {
+  return value === 'wheel/vite' || /(?:^|\/)wheel\/src\/vite(?:\/index)?$/.test(value);
+}
+
+function isPluginsProperty(node) {
+  return (
+    node?.type === 'Property' &&
+    !node.computed &&
+    ((node.key.type === 'Identifier' && node.key.name === 'plugins') ||
+      (node.key.type === 'Literal' && node.key.value === 'plugins'))
+  );
+}
+
 export default {
   meta: {
     type: 'problem',
     docs: {
       description:
-        'A Wheel vite config must apply wheelDevTools() for dev mode, package checks, and stable service names'
+        'A Wheel vite config must apply wheelDevTools() unconditionally in its static plugins array'
     },
     schema: []
   },
@@ -76,7 +94,20 @@ export default {
     }
     let usesWheel = packageUsesWheel(filename);
     let appliesDevTools = false;
+    const namedImports = new Set();
+    const namespaceImports = new Set();
     return {
+      ImportDeclaration(node) {
+        if (!isWheelViteSource(node.source?.value) || node.importKind === 'type') return;
+        for (const specifier of node.specifiers ?? []) {
+          if (specifier.importKind === 'type') continue;
+          if (specifier.type === 'ImportSpecifier' && specifier.imported?.name === 'wheelDevTools') {
+            namedImports.add(specifier.local.name);
+          } else if (specifier.type === 'ImportNamespaceSpecifier') {
+            namespaceImports.add(specifier.local.name);
+          }
+        }
+      },
       Literal(node) {
         if (typeof node.value === 'string' && node.value.includes('wheel/src/')) {
           usesWheel = true;
@@ -88,9 +119,17 @@ export default {
         }
       },
       CallExpression(node) {
-        if (node.callee.type === 'Identifier' && node.callee.name === 'wheelDevTools') {
-          appliesDevTools = true;
-        }
+        const isImportedCall =
+          (node.callee.type === 'Identifier' && namedImports.has(node.callee.name)) ||
+          (node.callee.type === 'MemberExpression' &&
+            !node.callee.computed &&
+            node.callee.object.type === 'Identifier' &&
+            namespaceImports.has(node.callee.object.name) &&
+            node.callee.property.type === 'Identifier' &&
+            node.callee.property.name === 'wheelDevTools');
+        if (!isImportedCall) return;
+        const array = node.parent;
+        if (array?.type === 'ArrayExpression' && isPluginsProperty(array.parent)) appliesDevTools = true;
       },
       'Program:exit'(node) {
         if (!usesWheel || appliesDevTools) return;
@@ -103,8 +142,9 @@ export default {
           message:
             'This Wheel Vite config never applies wheelDevTools(). Without it, a prebuilt ' +
             'file dependency loses dev mode and can stay stale; minification can also ' +
-            'rename every service. Add wheelDevTools() to plugins, ' +
-            'or explain the opt-out in a `// wheel-keep-names: <reason>` comment.'
+            'rename every service. Add an imported wheelDevTools() directly to the static plugins array. ' +
+            'This check does not evaluate helper functions or dynamic configuration. ' +
+            'Explain an opt-out in a `// wheel-keep-names: <reason>` comment.'
         });
       }
     };

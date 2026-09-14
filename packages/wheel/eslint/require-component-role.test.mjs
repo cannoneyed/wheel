@@ -47,6 +47,21 @@ describe('require-component-role', () => {
     ).toHaveLength(0);
   });
 
+  it('checks an aliased component imported from its public subpath', () => {
+    expect(
+      verify(
+        "import { Button as SaveButton } from 'wheel/components/button';\n" +
+          'export const A = () => <SaveButton>save</SaveButton>;'
+      )
+    ).toHaveLength(1);
+    expect(
+      verify(
+        "import { Button as SaveButton } from 'wheel/components/button';\n" +
+          'export const A = () => <SaveButton data-wheel-role="save">save</SaveButton>;'
+      )
+    ).toHaveLength(0);
+  });
+
   it('leaves components that are not shared alone', () => {
     // An app's own component names itself; this rule is about the ones that
     // are the same component in twenty places.
@@ -71,6 +86,51 @@ describe('require-component-role', () => {
           'export const A = () => <Dialog.Portal><Dialog.Backdrop /></Dialog.Portal>;'
       )
     ).toHaveLength(0);
+  });
+
+  it('checks aliased compound roots from a public subpath', () => {
+    expect(
+      verify(
+        "import { Dialog as ConfirmDialog } from 'wheel/components/dialog';\n" +
+          'export const A = () => <ConfirmDialog.Root />;'
+      )
+    ).toHaveLength(1);
+    expect(
+      verify(
+        "import { Root as ConfirmDialog } from 'wheel/components/dialog';\n" +
+          'export const A = () => <ConfirmDialog />;'
+      )
+    ).toHaveLength(1);
+  });
+
+  it('leaves directly imported compound parts alone', () => {
+    expect(
+      verify(
+        "import { Portal as DialogPortal } from 'wheel/components/dialog';\n" +
+          'export const A = () => <DialogPortal />;'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('checks component roots through namespace imports', () => {
+    expect(
+      verify(
+        "import * as Components from 'wheel/components';\n" +
+          'export const A = () => <Components.Button />;'
+      )
+    ).toHaveLength(1);
+    expect(
+      verify(
+        "import * as Dialog from 'wheel/components/dialog';\n" +
+          'export const A = () => <Dialog.Root />;'
+      )
+    ).toHaveLength(1);
+    expect(
+      verify(
+        "import * as Buttons from 'wheel/components/button';\n" +
+          'export const A = () => <Buttons.Button />;'
+      )
+    ).toHaveLength(1);
   });
 
   it('says nothing when a spread might already carry the role', () => {

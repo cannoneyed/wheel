@@ -44,7 +44,46 @@ describe('require-keep-names', () => {
   });
 
   it('accepts wheelDevTools in a Wheel Vite config', () => {
-    expect(verify(`export default { plugins: [solid(), wheelDevTools()] };`)).toEqual([]);
+    expect(
+      verify(
+        `import { wheelDevTools } from 'wheel/vite';\n` +
+          `export default { plugins: [solid(), wheelDevTools()] };`
+      )
+    ).toEqual([]);
+  });
+
+  it('accepts aliases and namespace imports from the public Vite entry', () => {
+    expect(
+      verify(
+        `import { wheelDevTools as wheel } from 'wheel/vite';\n` +
+          `export default { plugins: [solid(), wheel()] };`
+      )
+    ).toEqual([]);
+    expect(
+      verify(
+        `import * as wheel from 'wheel/vite';\n` +
+          `export default { plugins: [solid(), wheel.wheelDevTools()] };`
+      )
+    ).toEqual([]);
+  });
+
+  it.each([
+    `import { wheelDevTools } from 'wheel/vite';\nexport default ({ command }) => ({ plugins: [command === 'serve' && wheelDevTools()] });`,
+    `import { wheelDevTools } from 'wheel/vite';\nexport default ({ command }) => ({ plugins: [command === 'serve' ? wheelDevTools() : null] });`
+  ])('rejects a known serve-only setup', (code) => {
+    expect(verify(code).map((message) => message.ruleId)).toEqual(['wheel/require-keep-names']);
+  });
+
+  it('rejects an unrelated same-named function and an unused imported call', () => {
+    expect(
+      verify(`const wheelDevTools = () => ({});\nexport default { plugins: [wheelDevTools()] };`)
+    ).toHaveLength(1);
+    expect(
+      verify(
+        `import { wheelDevTools } from 'wheel/vite';\n` +
+          `wheelDevTools();\nexport default { plugins: [solid()] };`
+      )
+    ).toHaveLength(1);
   });
 
   it('still covers a source alias without a Wheel dependency', () => {
