@@ -6,6 +6,7 @@
 import { defineStates } from '../core/states';
 
 import { CommandPaletteSystem, connectCommandPaletteSystem, type Command } from './command-palette';
+import type { CommandState } from './commands';
 
 const command = (id: string, title: string, keywords?: readonly string[]): Command => ({
   id,
@@ -33,6 +34,20 @@ const DESCRIBED: Command[] = [
   { ...command('go.board', 'Board'), group: 'Go to', icon: dot },
   { ...command('go.archive', 'Archive'), group: 'Go to', subtitle: 'Cards you finished', icon: dot },
   { ...command('card.rename', 'Rename card'), group: 'This card' }
+];
+
+/** Rows as the registry describes them: shortcut text, a check, a reason. */
+const STATEFUL: CommandState[] = [
+  { id: 'edit.undo', title: 'Undo', shortcut: '⌘Z', keys: ['mod+z'] },
+  { id: 'view.grid', title: 'Show gridlines', checked: true, shortcut: '⇧⌘G', keys: ['mod+shift+g'] },
+  { id: 'rows.insert', title: 'Insert row above', shortcut: '⌘↩', keys: ['mod+enter'] },
+  {
+    id: 'rows.delete',
+    title: 'Delete row',
+    shortcut: '⌘-',
+    keys: ['mod+-'],
+    disabledReason: 'The sheet is locked'
+  }
 ];
 
 const inertOverlay = (): (() => void) => () => {};
@@ -65,6 +80,21 @@ export default defineStates({
         lastRunId: null,
         openKeys: ['mod+k'],
         resultsFor: () => DESCRIBED,
+        open: () => {},
+        close: () => {},
+        run: () => {},
+        registerBinding: () => () => {},
+        enterOverlay: inertOverlay,
+        trapOverlayTab: () => false
+      }
+    },
+    'open, shortcuts and disabled rows': {
+      note: 'registry rows: shortcut text, a checked toggle, a disabled row with its reason (sorted last)',
+      shape: {
+        isOpen: true,
+        lastRunId: null,
+        openKeys: ['mod+k'],
+        resultsFor: () => STATEFUL,
         open: () => {},
         close: () => {},
         run: () => {},

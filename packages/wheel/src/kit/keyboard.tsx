@@ -25,7 +25,15 @@ import { connect } from '../core/connect';
 import { view } from '../core/view';
 import { captureDeclSite } from '../core/decl-site';
 import { FocusService } from './focus';
-import { isComposingEvent, matchesCombo, parseCombo, type ParsedCombo } from './key-combo';
+import {
+  detectPlatform,
+  findConflicts,
+  isComposingEvent,
+  matchesCombo,
+  parseCombo,
+  type ComboConflict,
+  type ParsedCombo
+} from './key-combo';
 
 /** A declarative shortcut registration. */
 export interface KeyBinding {
@@ -65,6 +73,12 @@ export interface KeyBinding {
    * such as the command palette's own toggle.
    */
   readonly inOverlays?: boolean;
+  /**
+   * The command this key runs, when `CommandService` registered it from a
+   * command's `keys`. Lets a help screen or debug panel link a key back to
+   * its command. Plain bindings leave it unset.
+   */
+  readonly command?: string;
 }
 
 /** Editable targets swallow shortcuts unless a binding opts in. */
@@ -127,6 +141,26 @@ export class KeyboardService extends Service {
   readonly registrations = this.computed(
     (): readonly KeyBinding[] => this.bindings.get().map((entry) => entry.binding),
     'registrations'
+  );
+
+  /**
+  /**
+   * Bindings that answer the same combo (see `findConflicts`): `same-scope`
+   * is always a bug, `gated` needs its gates to never hold at once, and
+   * `shadowed` is the innermost-scope-wins rule doing its job.
+   */
+  readonly conflicts = this.computed(
+    (): readonly ComboConflict[] =>
+      findConflicts(
+        this.registrations().map((binding) => ({
+          id: binding.id,
+          key: binding.key,
+          scope: binding.scope,
+          gated: binding.when !== undefined
+        })),
+        detectPlatform()
+      ),
+    'conflicts'
   );
 
   /**

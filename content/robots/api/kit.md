@@ -4,41 +4,125 @@
 
 Import only from `wheel/kit`. The linked declarations are the source of truth for signatures, members, defaults, and limits.
 
+## `AnyArgField`
+
+Kind: type. Source: [packages/wheel/src/kit/commands.ts:127](../../../packages/wheel/src/kit/commands.ts#L127).
+
+Any argument field, whatever its value type.
+
 ## `applyDockIntent`
 
 Kind: function. Source: [packages/wheel/src/kit/layout/split-tree.ts:46](../../../packages/wheel/src/kit/layout/split-tree.ts#L46).
 
 Apply one dock drop: detach the dragged panel, land it on the target panel's edge, and normalize. Same-axis drops insert a sibling; cross-axis drops wrap the target in a new split. Untouched branches keep their object identity so renderers can preserve their DOM. Impossible intents (unknown ids, self-drops) return the tree unchanged.
 
+## `ArgField`
+
+Kind: type. Source: [packages/wheel/src/kit/commands.ts:120](../../../packages/wheel/src/kit/commands.ts#L120).
+
+The field that describes one argument of type `T`.
+
+## `ArgSpec`
+
+Kind: type. Source: [packages/wheel/src/kit/commands.ts:130](../../../packages/wheel/src/kit/commands.ts#L130).
+
+The arguments a command takes, one field per key.
+
+## `ArgsPrompt`
+
+Kind: type. Source: [packages/wheel/src/kit/commands.ts:214](../../../packages/wheel/src/kit/commands.ts#L214).
+
+Asks a person for arguments the caller did not pass (a small dialog, or the palette's argument step). Resolve null to cancel.
+
+## `ChoiceArgField`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:111](../../../packages/wheel/src/kit/commands.ts#L111).
+
+One value out of a list.
+
+## `ComboConflict`
+
+Kind: interface. Source: [packages/wheel/src/kit/key-combo.ts:214](../../../packages/wheel/src/kit/key-combo.ts#L214).
+
+Two or more bindings on one combo.
+
 ## `Command`
 
-Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:35](../../../packages/wheel/src/kit/command-palette.tsx#L35).
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:45](../../../packages/wheel/src/kit/command-palette.tsx#L45).
 
-A registered command — pure data plus its action.
+A palette-only command for `registerCommand` — pure data plus its action. New code registers a full `CommandSpec` with `CommandService.register`, which adds keys, an `enabled` rule with a reason, checks, and arguments.
+
+## `CommandContext`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:59](../../../packages/wheel/src/kit/commands.ts#L59).
+
+The context every rule and `run` receives. Apps extend it with their own fields (`interface SheetCtx extends CommandContext { selection: … }`) and supply those fields with `CommandService.setContext`.
+
+## `CommandEnabled`
+
+Kind: type. Source: [packages/wheel/src/kit/commands.ts:70](../../../packages/wheel/src/kit/commands.ts#L70).
+
+`enabled`'s answer: runnable, or blocked with the reason a person reads.
 
 ## `CommandGroup`
 
-Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:59](../../../packages/wheel/src/kit/command-palette.tsx#L59).
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:69](../../../packages/wheel/src/kit/command-palette.tsx#L69).
 
 Ranked results cut into their headings — what the palette renders.
 
 ## `commandPaletteConfigSchema`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:245](../../../packages/wheel/src/kit/command-palette.tsx#L245).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:229](../../../packages/wheel/src/kit/command-palette.tsx#L229).
 
 The `commandPalette` section of the Wheel app config. export default defineWheelConfig({ // mod+k inserts a link in this app, so only mod+shift+p opens the palette. commandPalette: { openKeyCommand: 'mod+shift+p' } });
 
 ## `CommandPaletteService`
 
-Kind: class. Source: [packages/wheel/src/kit/command-palette.tsx:96](../../../packages/wheel/src/kit/command-palette.tsx#L96).
+Kind: class. Source: [packages/wheel/src/kit/command-palette.tsx:103](../../../packages/wheel/src/kit/command-palette.tsx#L103).
 
-Owns the command table, search ranking, and the palette's open state. Everything is headless: `commands()`/`search()` are computeds, `run(id)` invokes by id — the host component is just a viewer over this data.
+The palette's open state, plus a thin view over `CommandService`: the command list, search, and run-by-id all read the one registry. Everything is headless — the host component is just a viewer over this data.
 
 ## `CommandPaletteSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:279](../../../packages/wheel/src/kit/command-palette.tsx#L279).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:263](../../../packages/wheel/src/kit/command-palette.tsx#L263).
 
 Mount once at the app root. Registers the open keys (the `commandPalette.openKeyCommand` config, default mod+k and mod+shift+p) with KeyboardService while mounted and renders the palette overlay: scrim, query input, ranked results, arrow-key selection, Enter runs, Escape closes. Focus is captured on open and restored on close via FocusService. It takes no props: app-wide settings live in `src/wheel.config.ts`.
+
+## `CommandRequest`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:45](../../../packages/wheel/src/kit/commands.ts#L45).
+
+Who is asking, and about what. The app's context reader receives it.
+
+## `commandsConfigSchema`
+
+Kind: value. Source: [packages/wheel/src/kit/commands.ts:238](../../../packages/wheel/src/kit/commands.ts#L238).
+
+The `commands` section of the Wheel app config. export default defineWheelConfig({ commands: { blockedKeyFeedback: 'none' } });
+
+## `CommandService`
+
+Kind: class. Source: [packages/wheel/src/kit/commands.ts:304](../../../packages/wheel/src/kit/commands.ts#L304).
+
+Owns the command table and the one run path. See the module doc.
+
+## `CommandSource`
+
+Kind: type. Source: [packages/wheel/src/kit/commands.ts:42](../../../packages/wheel/src/kit/commands.ts#L42).
+
+Where an `execute` call came from.
+
+## `CommandSpec`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:133](../../../packages/wheel/src/kit/commands.ts#L133).
+
+One named action. `Ctx` is the app's context type; `Args` its arguments.
+
+## `CommandState`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:165](../../../packages/wheel/src/kit/commands.ts#L165).
+
+What a surface draws for one visible command.
 
 ## `ConfirmOptions`
 
@@ -46,9 +130,15 @@ Kind: interface. Source: [packages/wheel/src/kit/dialog.tsx:37](../../../package
 
 Options for the confirm/alert built-ins.
 
+## `ConflictCheckInput`
+
+Kind: interface. Source: [packages/wheel/src/kit/key-combo.ts:235](../../../packages/wheel/src/kit/key-combo.ts#L235).
+
+What `findConflicts` reads from each binding.
+
 ## `connectCommandPaletteSystem`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:194](../../../packages/wheel/src/kit/command-palette.tsx#L194).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:178](../../../packages/wheel/src/kit/command-palette.tsx#L178).
 
 CommandPaletteSystem's connection — exported for stubs and the states file.
 
@@ -108,13 +198,13 @@ Configuration for one DOM-bound gesture.
 
 ## `createMenuStack`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:221](../../../packages/wheel/src/kit/menu-stack.ts#L221).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:227](../../../packages/wheel/src/kit/menu-stack.ts#L227).
 
 Build a stack over `root`. `onChange` fires after every state change.
 
 ## `DEFAULT_PALETTE_OPEN_KEYS`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:222](../../../packages/wheel/src/kit/command-palette.tsx#L222).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:206](../../../packages/wheel/src/kit/command-palette.tsx#L206).
 
 The combos that open and close the palette when the app config sets none. BOTH, because both are muscle memory: mod+k from Linear and Slack, mod+shift+p from VS Code. A palette that answers one of them reads as missing to whoever learned the other.
 
@@ -160,9 +250,33 @@ Kind: interface. Source: [packages/wheel/src/kit/layout/split-tree.ts:25](../../
 
 A completed dock drop, reported by `Frame.Dock` and applied by an app action.
 
+## `ExecuteEvent`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:199](../../../packages/wheel/src/kit/commands.ts#L199).
+
+What `onExecute` hooks receive after every `execute`.
+
+## `ExecuteOptions`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:182](../../../packages/wheel/src/kit/commands.ts#L182).
+
+Options for `execute`.
+
+## `ExecuteResult`
+
+Kind: type. Source: [packages/wheel/src/kit/commands.ts:192](../../../packages/wheel/src/kit/commands.ts#L192).
+
+What `execute` reports. `run` was called only when `ok` is true.
+
+## `findConflicts`
+
+Kind: function. Source: [packages/wheel/src/kit/key-combo.ts:251](../../../packages/wheel/src/kit/key-combo.ts#L251).
+
+Group bindings that answer the same keys. Two combos conflict when they parse to the same modifiers and key, however they were written (`shift+mod+z` and `mod+shift+z`). Pure, so an app test can fail on a `same-scope` conflict: expect(keyboard.conflicts().filter((c) => c.kind === 'same-scope')).toEqual([]);
+
 ## `flattenLeaves`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:196](../../../packages/wheel/src/kit/menu-stack.ts#L196).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:202](../../../packages/wheel/src/kit/menu-stack.ts#L202).
 
 Every ACTION in the tree, depth first, with the groups dropped. A filtered list holds leaves only. Offering "Heading" beside "Heading 1" would make the user choose twice for one outcome. A level that carries a grid or an input is a WIDGET, and the search does not enter it. Its items configure that widget — "Header row" belongs to the size picker, not to the catalogue, and reaching that setting from a filter would flip it for a picker the user is not looking at. The GROUP stands in for it instead, so `/table` still finds the picker in one step.
 
@@ -330,13 +444,13 @@ Modifier-key state carried with every gesture sample.
 
 ## `GridPoint`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:108](../../../packages/wheel/src/kit/menu-stack.ts#L108).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:114](../../../packages/wheel/src/kit/menu-stack.ts#L114).
 
 Where the highlight sits inside a level's grid.
 
 ## `groupCommands`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:70](../../../packages/wheel/src/kit/command-palette.tsx#L70).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:80](../../../packages/wheel/src/kit/command-palette.tsx#L80).
 
 Cut ranked results into groups, keeping rank order. A group takes the position of its best-ranked member, so typing never reorders the list out from under the selection.
 
@@ -348,19 +462,19 @@ Whether a keydown belongs to an input method (IME) composition. While a Japanese
 
 ## `KeyBinding`
 
-Kind: interface. Source: [packages/wheel/src/kit/keyboard.tsx:31](../../../packages/wheel/src/kit/keyboard.tsx#L31).
+Kind: interface. Source: [packages/wheel/src/kit/keyboard.tsx:39](../../../packages/wheel/src/kit/keyboard.tsx#L39).
 
 A declarative shortcut registration.
 
 ## `KeyboardService`
 
-Kind: class. Source: [packages/wheel/src/kit/keyboard.tsx:93](../../../packages/wheel/src/kit/keyboard.tsx#L93).
+Kind: class. Source: [packages/wheel/src/kit/keyboard.tsx:107](../../../packages/wheel/src/kit/keyboard.tsx#L107).
 
 Owns the shortcut table and the matching logic. Bindings live in a reactive atom (they ARE data — auditable via `bindingsFor`); dispatch is a pure-ish action over that data, so scope precedence is testable without a DOM listener in the loop.
 
 ## `KeyboardSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:187](../../../packages/wheel/src/kit/keyboard.tsx#L187).
+Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:221](../../../packages/wheel/src/kit/keyboard.tsx#L221).
 
 Mount once at the app root: the single document keydown listener feeding `KeyboardService.dispatch`. Renders nothing.
 
@@ -369,6 +483,12 @@ Mount once at the app root: the single document keydown listener feeding `Keyboa
 Kind: type. Source: [packages/wheel/src/kit/key-combo.ts:12](../../../packages/wheel/src/kit/key-combo.ts#L12).
 
 The platforms that name and draw modifiers differently.
+
+## `KeySpec`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:73](../../../packages/wheel/src/kit/commands.ts#L73).
+
+One key that runs a command. Plain data, so a later remap is a lookup by id.
 
 ## `layoutConfigSchema`
 
@@ -462,43 +582,43 @@ A menu entry that runs an action.
 
 ## `MenuGrid`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:74](../../../packages/wheel/src/kit/menu-stack.ts#L74).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:80](../../../packages/wheel/src/kit/menu-stack.ts#L80).
 
 A size picker: a grid of empty squares the pointer sweeps to choose a count. Word, Google Docs, and Notion all insert a table this way, and it beats two number fields because the shape is the answer.
 
 ## `MenuGroup`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:50](../../../packages/wheel/src/kit/menu-stack.ts#L50).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:56](../../../packages/wheel/src/kit/menu-stack.ts#L56).
 
 A menu entry that opens a submenu.
 
 ## `MenuInput`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:88](../../../packages/wheel/src/kit/menu-stack.ts#L88).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:94](../../../packages/wheel/src/kit/menu-stack.ts#L94).
 
 A level that asks for a value: a link's address, a new name. The field takes the focus and the keys, so the items below it stay reachable with the pointer but stop answering the arrows.
 
 ## `MenuItem`
 
-Kind: type. Source: [packages/wheel/src/kit/menu-stack.ts:67](../../../packages/wheel/src/kit/menu-stack.ts#L67).
+Kind: type. Source: [packages/wheel/src/kit/menu-stack.ts:73](../../../packages/wheel/src/kit/menu-stack.ts#L73).
 
 One entry: it RUNS, or it PUSHES.
 
 ## `MenuLevel`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:97](../../../packages/wheel/src/kit/menu-stack.ts#L97).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:103](../../../packages/wheel/src/kit/menu-stack.ts#L103).
 
 One level of the stack: what it is called, and what it holds.
 
 ## `menuMatches`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:213](../../../packages/wheel/src/kit/menu-stack.ts#L213).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:219](../../../packages/wheel/src/kit/menu-stack.ts#L219).
 
 Entries matching `query` across the WHOLE tree, or the level's own.
 
 ## `MenuStack`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:139](../../../packages/wheel/src/kit/menu-stack.ts#L139).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:145](../../../packages/wheel/src/kit/menu-stack.ts#L145).
 
 The headless stack (see module doc).
 
@@ -516,7 +636,7 @@ What the panel needs to draw one stack.
 
 ## `MenuStackState`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:116](../../../packages/wheel/src/kit/menu-stack.ts#L116).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:122](../../../packages/wheel/src/kit/menu-stack.ts#L122).
 
 Everything a renderer needs to draw the menu.
 
@@ -531,6 +651,12 @@ No modifiers pressed; the initial machine state.
 Kind: function. Source: [packages/wheel/src/kit/layout/split-tree.ts:75](../../../packages/wheel/src/kit/layout/split-tree.ts#L75).
 
 Collapse single-child splits, drop empty splits, and merge a split into a same-axis parent. Returns null for an empty tree; returns the input reference when nothing changed.
+
+## `NumberArgField`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:91](../../../packages/wheel/src/kit/commands.ts#L91).
+
+A number argument.
 
 ## `OpenDialogEntry`
 
@@ -597,6 +723,12 @@ Live scroll metrics along one axis of a container.
 Kind: type. Source: [packages/wheel/src/kit/layout/split-tree.ts:8](../../../packages/wheel/src/kit/layout/split-tree.ts#L8).
 
 The app-owned workspace tree behind `Frame.Dock`. Plain JSON: it lives in an application atom, persists with application persistence, and stores only ids — components come from the app's render prop, never from here.
+
+## `TextArgField`
+
+Kind: interface. Source: [packages/wheel/src/kit/commands.ts:103](../../../packages/wheel/src/kit/commands.ts#L103).
+
+A text argument.
 
 ## `thumbGeometry`
 

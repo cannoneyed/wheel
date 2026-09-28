@@ -43,6 +43,12 @@ export interface MenuAction {
   readonly disabled?: boolean;
   /** Why the entry cannot run. The panel draws it beside the label. */
   readonly disabledReason?: string;
+  /**
+   * The key that runs the same action, as display text (`⇧⌘Z`). The panel
+   * draws it at the right edge. `CommandService.menuItem` fills it from the
+   * command's keys, so a menu and the palette show the same shortcut.
+   */
+  readonly shortcut?: string;
   readonly submenu?: never;
 }
 

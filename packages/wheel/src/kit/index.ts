@@ -17,13 +17,37 @@ export { FocusService, focusScope, type FocusScopeBinding } from './focus';
 export { KeyboardService, KeyboardSystem, type KeyBinding } from './keyboard';
 export {
   detectPlatform,
+  findConflicts,
   formatCombo,
   isComposingEvent,
   matchesCombo,
   parseCombo,
+  type ComboConflict,
+  type ConflictCheckInput,
   type KeyPlatform,
   type ParsedCombo
 } from './key-combo';
+export {
+  CommandService,
+  commandsConfigSchema,
+  type AnyArgField,
+  type ArgField,
+  type ArgSpec,
+  type ArgsPrompt,
+  type ChoiceArgField,
+  type CommandContext,
+  type CommandEnabled,
+  type CommandRequest,
+  type CommandSource,
+  type CommandSpec,
+  type CommandState,
+  type ExecuteEvent,
+  type ExecuteOptions,
+  type ExecuteResult,
+  type KeySpec,
+  type NumberArgField,
+  type TextArgField
+} from './commands';
 export {
   CommandPaletteService,
   CommandPaletteSystem,

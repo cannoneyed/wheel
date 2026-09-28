@@ -6,6 +6,7 @@ import { Diagram } from '@docs/components/Diagram';
 import { CodeExample } from '@docs/components/CodeExample';
 import contextMenuSource from '@docs/examples/patterns/context-menu.tsx?example';
 import dialogsSource from '@docs/examples/patterns/dialogs.tsx?example';
+import commandsSource from '@docs/examples/patterns/commands.ts?example';
 
 # Patterns
 
@@ -134,12 +135,15 @@ The same split carries the rest of `wheel/kit`'s built-ins:
   to an IME composition (a Japanese user confirming a candidate with Enter) never reach a
   binding. `formatCombo(combo, platform)` draws a combo for menus and help screens: `⇧⌘Z` on
   a Mac, `Ctrl+Shift+Z` on Windows and Linux.
-- **CommandPaletteService** (data-flavored — commands genuinely ARE data): services register
-  commands in their constructors (`registerCommand` + `addCleanup`), `search(query)` ranks
+- **CommandService** (data-flavored — commands genuinely ARE data): one record per action,
+  read by keys, the palette, menus, and agents. See [Commands](#commands) below.
+- **CommandPaletteService**: a viewer over `CommandService`. `search(query)` ranks
   headlessly, and `<CommandPaletteSystem/>` binds its open keys, renders an ARIA
-  combobox/listbox, and runs the selection. The open keys default to `mod+k` and
-  `mod+shift+p`. An app that needs one of them for itself sets `commandPalette.openKeyCommand`
-  in [`src/wheel.config.ts`](#/configuration):
+  combobox/listbox, and runs the selection. Each row shows the command's shortcut, its
+  check mark, and — when it cannot run — the reason. `registerCommand` still takes a
+  palette-only command and registers it as a command whose `visible` is its `when`. The open
+  keys default to `mod+k` and `mod+shift+p`. An app that needs one of them for itself sets
+  `commandPalette.openKeyCommand` in [`src/wheel.config.ts`](#/configuration):
 
   ```ts
   // mod+k inserts a link in this app, so only mod+shift+p opens the palette.
@@ -151,6 +155,70 @@ The same split carries the rest of `wheel/kit`'s built-ins:
   and reusing an id cancels that id's whole previous timer generation. `<ToastSystem/>`
   announces updates through a polite live region; each toast is focusable and dismissible
   with Enter or Space.
+
+## Commands
+
+A command is one named action — "Archive issue", "Insert row above" — with a title, its keys,
+a rule for when it applies, a rule for when it can run, and one function that does the work.
+The key, the palette row, a menu entry, and an agent all read that one record, and all run it
+through one call: `execute(id, args, { source })`.
+
+<CodeExample example={commandsSource} region="register" />
+
+**Two rules, kept apart.** `visible` says whether the command applies at all. A hidden command
+is not listed, and its key falls through to the next binding. `enabled` says whether it can
+run right now. A disabled command is still listed, drawn dim with its reason, and blocked; its
+key is consumed and the reason shows as a toast (`commands.blockedKeyFeedback` in the
+[Wheel config](#/configuration) turns the toast off). The type only accepts `true` or `{ reason }`,
+so a dim entry can always say what is missing.
+
+**The app owns the context.** Wheel does not know about selections or cells. Call
+`commands.setContext((request) => ({ ...yourFields }))` once. Every rule and `run` receives
+your fields plus `focus` (the working scope path), `source`, and the menu `target` or agent
+`actor`. Read reactive state inside the reader, so lists update when it changes.
+
+**One run path.** `execute` finds the command, builds the context, checks `visible`, checks
+`enabled`, fills arguments, runs, and calls every `onExecute` hook. It returns what happened:
+
+```ts
+// Excerpt: what execute reports.
+await commands.execute('issues.archive');
+// { ok: true }
+// { ok: false, why: 'disabled', reason: 'Select an issue first' }
+// { ok: false, why: 'hidden' } | { ok: false, why: 'unknown' } | { ok: false, why: 'cancelled' }
+// { ok: false, why: 'failed', message: "Missing argument 'count'" }
+```
+
+A synchronous command has already run when `execute` returns. `onExecute(hook)` sees the
+`source` (`key`, `palette`, `menu`, `toolbar`, `api`, `agent`), the `actor`, the result, and
+the time spent; apps use it to group undo steps and send telemetry.
+
+**Agents take the same door.** `execute('rows.insert', { count: 3 }, { source: 'agent', actor })`
+runs the same rules against the context your reader builds for that actor, so an agent gets
+the same reason a person sees. `listFor({ source: 'agent', actor })` is the agent's tool list;
+commands with `agent: false` are left out.
+
+**Arguments.** `args` describes each argument (`number` with `min`/`max`, `text`, or `choice`),
+with an optional `initial(ctx)` default. Agents and the API must pass required ones — a
+missing one fails with the field's name. For a person, `setArgsPrompt(prompt)` supplies the UI
+that asks; dismissing it returns `cancelled`.
+
+**Keys, checks, and shortcut text.** Each entry in `keys` becomes a `KeyboardService` binding
+(`'mod+b'`, or `{ key, scope, when, platform, display: false }`). The first displayed
+key is the `shortcut` every surface shows, formatted by `formatCombo` for the platform.
+`checked(ctx)` marks a toggle. `palette: false` keeps a key-only move (arrows) out of the
+palette. `commands.menuItem(id, { target })` turns a command into a `MenuStack` entry with its
+title, shortcut, check, and reason, running with `source: 'menu'`.
+
+**Conflicts.** `keyboard.conflicts()` lists combos that more than one binding answers.
+`same-scope` is always a bug. `gated` means every binding has a gate — fine when the gates
+never hold at once, like list `↓` and board `↓`. `shadowed` is the innermost-scope-wins rule
+doing its job. An app test can fail on the first kind:
+
+```ts
+// Excerpt: an app test.
+expect(keyboard.conflicts().filter((c) => c.kind === 'same-scope')).toEqual([]);
+```
 
 ## The three stub tiers
 

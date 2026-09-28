@@ -7,7 +7,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { ServiceContext, fakeService } from 'wheel/core';
-import { KeyboardService } from 'wheel/kit';
+import { CommandService, KeyboardService } from 'wheel/kit';
 import { World } from 'wheel/testing';
 
 import * as teamsSync from '../src/sync/teams.sync';
@@ -302,6 +302,9 @@ describe('inbox / search / views / favorites / split', () => {
     }
     // Every registration that shows in help is described.
     expect(keyboard.registrations().filter((binding) => binding.description).length).toBeGreaterThan(15);
+    // No two bindings fight over one key: shared keys (arrows on the list
+    // and the board, Escape for peek and selection) are all gated.
+    expect(keyboard.conflicts().filter((conflict) => conflict.kind === 'same-scope')).toEqual([]);
 
     // Headless dispatch: `j` moves the cursor once the team list is the route.
     const fakeKey = (key: string, extra: Partial<KeyboardEvent> = {}) =>
@@ -319,6 +322,14 @@ describe('inbox / search / views / favorites / split', () => {
     // moves the URL atom with no window involved.
     const { trackerRouter } = await import('../src/routes');
     ada.context.get(trackerRouter.Service).navigate('team.issues', { params: { teamId: TEAM } });
+
+    // One record per action: the palette row carries the key's text, and
+    // before any issue is targeted it is listed but disabled with a reason.
+    const commands = ada.context.get(CommandService);
+    expect(commands.stateOf('issues.status', { source: 'palette' })).toMatchObject({
+      shortcut: 'S',
+      disabledReason: 'Select an issue first'
+    });
 
     const selection = ada.context.get(SelectionService);
     expect(selection.cursor.get()).toBeNull();

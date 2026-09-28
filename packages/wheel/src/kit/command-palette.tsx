@@ -10,6 +10,12 @@
  * a centered overlay — input, ranked results, arrow-key selection, Enter runs,
  * Escape closes.
  *
+ * The command table itself lives in `CommandService` (see `commands.ts`):
+ * the palette is a viewer over it. A row shows the command's shortcut, its
+ * check mark, and — for a disabled command — the reason it cannot run.
+ * `registerCommand` stays as a small adapter for palette-only commands: it
+ * registers a `CommandService` command whose `visible` is the old `when`.
+ *
  * A command DESCRIBES itself — `group`, `subtitle`, `icon` — and the palette
  * decides how that reads. It does not RENDER itself: there is no per-command
  * component, because a palette whose rows each draw their own thing stops
@@ -24,14 +30,18 @@ import { Service } from '../core/services';
 import { componentRoot, connect } from '../core/connect';
 import { view } from '../core/view';
 import { useSignal } from '../core/local-state';
-import { captureDeclSite } from '../core/decl-site';
 import { WheelConfigService } from '../core/app-config';
 import { z } from 'zod';
 import { FocusService } from './focus';
 import { KeyboardService, type KeyBinding } from './keyboard';
 import { parseCombo } from './key-combo';
+import { CommandService, type CommandState } from './commands';
 
-/** A registered command — pure data plus its action. */
+/**
+ * A palette-only command for `registerCommand` — pure data plus its action.
+ * New code registers a full `CommandSpec` with `CommandService.register`,
+ * which adds keys, an `enabled` rule with a reason, checks, and arguments.
+ */
 export interface Command {
   /** Stable unique id (e.g. `'board.addColumn'`) — the invocation handle. */
   readonly id: string;
@@ -56,10 +66,10 @@ export interface Command {
 }
 
 /** Ranked results cut into their headings — what the palette renders. */
-export interface CommandGroup {
+export interface CommandGroup<T extends { readonly group?: string } = CommandState> {
   /** The heading, or null for the ungrouped commands that lead the list. */
   readonly group: string | null;
-  readonly commands: readonly Command[];
+  readonly commands: readonly T[];
 }
 
 /**
@@ -67,9 +77,11 @@ export interface CommandGroup {
  * position of its best-ranked member, so typing never reorders the list out
  * from under the selection.
  */
-export function groupCommands(commands: readonly Command[]): readonly CommandGroup[] {
+export function groupCommands<T extends { readonly group?: string }>(
+  commands: readonly T[]
+): readonly CommandGroup<T>[] {
   const order: Array<string | null> = [];
-  const byGroup = new Map<string | null, Command[]>();
+  const byGroup = new Map<string | null, T[]>();
   for (const command of commands) {
     const key = command.group ?? null;
     const bucket = byGroup.get(key);
@@ -83,15 +95,10 @@ export function groupCommands(commands: readonly Command[]): readonly CommandGro
   return order.map((group) => ({ group, commands: byGroup.get(group) ?? [] }));
 }
 
-interface RegisteredCommand {
-  readonly command: Command;
-  readonly declaredAt: string;
-}
-
 /**
- * Owns the command table, search ranking, and the palette's open state.
- * Everything is headless: `commands()`/`search()` are computeds, `run(id)`
- * invokes by id — the host component is just a viewer over this data.
+ * The palette's open state, plus a thin view over `CommandService`: the
+ * command list, search, and run-by-id all read the one registry. Everything
+ * is headless — the host component is just a viewer over this data.
  */
 export class CommandPaletteService extends Service {
   /** Identity that survives minification (see require-service-name). */
@@ -100,7 +107,7 @@ export class CommandPaletteService extends Service {
   /** State-tree group: wheel-internal plumbing, collapsed by default. */
   static override group = 'framework';
 
-  private readonly registered = this.atom<readonly RegisteredCommand[]>([], 'registered');
+  private readonly commandService = this.service(CommandService);
   private readonly configService = this.service(WheelConfigService);
   /** Whether the palette overlay is open. */
   readonly isOpen = this.atom(false, 'isOpen');
@@ -117,58 +124,33 @@ export class CommandPaletteService extends Service {
   readonly lastRunId = this.atom<string | null>(null, 'lastRunId');
 
   /**
-   * Register a command; returns the unregister function. Services register
-   * in their constructors and pair with `addCleanup`; components use
-   * `onCleanup`. Command ids are unique within one service context.
+   * Register a palette-only command; returns the unregister function. It
+   * becomes a `CommandService` command whose `visible` is `when`, so ids
+   * share one table: a duplicate throws and names both sites.
    */
   registerCommand(command: Command): () => void {
-    const declaredAt = captureDeclSite(/\/kit\/command-palette\.(?:tsx?|jsx?)/);
-    const existing = this.registered.get().find((entry) => entry.command.id === command.id);
-    if (existing) {
-      throw new Error(
-        `Duplicate command id '${command.id}'. First registered at ${existing.declaredAt}; duplicate registered at ${declaredAt}.`
-      );
-    }
-    const entry: RegisteredCommand = { command, declaredAt };
-    this.registered.set([...this.registered.get(), entry]);
-    return () => {
-      this.registered.set(this.registered.get().filter((existing) => existing !== entry));
-    };
+    const when = command.when;
+    return this.commandService.register({
+      id: command.id,
+      title: command.title,
+      keywords: command.keywords,
+      group: command.group,
+      subtitle: command.subtitle,
+      icon: command.icon,
+      visible: when ? () => when() : undefined,
+      run: () => command.run()
+    });
   }
 
-  /** Visible commands (their `when()` gates pass), registration order. */
-  readonly commands = this.computed(
-    () =>
-      this.registered
-        .get()
-        .map((entry) => entry.command)
-        .filter((command) => command.when?.() ?? true),
-    'commands'
-  );
+  /** The palette's commands (visible, not `palette: false`), registration order. */
+  readonly commands = this.computed(() => this.commandService.search(''), 'commands');
 
   /**
-   * Case-insensitive search over visible commands, ranked: title prefix >
-   * title substring > keyword substring. Empty query returns everything
-   * visible. Stable (registration order) within a rank.
+   * Case-insensitive search over the palette's commands, ranked: title
+   * prefix > title substring > keyword, enabled before disabled. Empty
+   * query returns everything. Stable (registration order) within a rank.
    */
-  readonly search = this.computedFor((query: string) => {
-    const visible = this.commands();
-    const needle = query.trim().toLowerCase();
-    if (!needle) return visible;
-    const ranked: Array<{ command: Command; rank: number }> = [];
-    for (const command of visible) {
-      const title = command.title.toLowerCase();
-      const rank = title.startsWith(needle)
-        ? 0
-        : title.includes(needle)
-          ? 1
-          : (command.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(needle))
-            ? 2
-            : -1;
-      if (rank >= 0) ranked.push({ command, rank });
-    }
-    return ranked.sort((a, b) => a.rank - b.rank).map((entry) => entry.command);
-  }, 'search');
+  readonly search = this.computedFor((query: string) => this.commandService.search(query), 'search');
 
   /** Open the palette. */
   readonly open = this.action(() => this.isOpen.set(true), 'open');
@@ -177,16 +159,18 @@ export class CommandPaletteService extends Service {
   readonly close = this.action(() => this.isOpen.set(false), 'close');
 
   /**
-   * Invoke a command by id — closes the palette first, then runs. No-op for
-   * unknown ids and commands whose `when()` currently fails (a hidden
-   * command must not be runnable through a stale reference).
+   * Run a command by id through `CommandService.execute` with
+   * `source: 'palette'` — closing the palette first, so a command that
+   * moves focus lands in the right place. Unknown and hidden ids are a
+   * no-op. A disabled command does not run and the palette stays open: its
+   * row already shows why.
    */
   readonly run = this.action((id: string) => {
-    const command = this.commands().find((candidate) => candidate.id === id);
-    if (!command) return;
+    const state = this.commandService.stateOf(id, { source: 'palette' });
+    if (!state || state.disabledReason !== undefined) return;
     this.isOpen.set(false);
     this.lastRunId.set(id);
-    command.run();
+    void this.commandService.execute(id, undefined, { source: 'palette' });
   }, 'run');
 }
 
@@ -472,12 +456,22 @@ export function CommandPaletteSystem(): JSX.Element {
                             tabIndex={-1}
                             data-testid={`wheel-palette-item-${command.id}`}
                             aria-selected={isSelected()}
+                            aria-disabled={command.disabledReason !== undefined ? 'true' : undefined}
+                            aria-checked={command.checked === undefined ? undefined : command.checked === 'mixed' ? 'mixed' : command.checked}
+                            aria-keyshortcuts={command.keys?.[0]}
+                            data-disabled={command.disabledReason !== undefined ? '' : undefined}
                             style={{
                               display: 'flex',
                               'align-items': 'center',
                               gap: '10px',
                               padding: '8px 16px',
-                              cursor: 'pointer',
+                              // A disabled row keeps the arrow cursor: it
+                              // says "this does nothing" before the click.
+                              cursor: command.disabledReason !== undefined ? 'default' : 'pointer',
+                              color:
+                                command.disabledReason !== undefined
+                                  ? 'var(--wheel-ink-muted, rgba(15,18,24,0.5))'
+                                  : 'inherit',
                               background: isSelected() ? 'var(--wheel-bg-hover, rgba(15,18,24,0.08))' : 'transparent'
                             }}
                             onPointerEnter={() => setSelected(flatIndex())}
@@ -519,7 +513,47 @@ export function CommandPaletteSystem(): JSX.Element {
                                   </span>
                                 )}
                               </Show>
+                              {/* Why it cannot run. A dim row that cannot say
+                                  why teaches nothing. */}
+                              <Show when={command.disabledReason}>
+                                {(reason) => (
+                                  <span
+                                    data-testid={`wheel-palette-reason-${command.id}`}
+                                    style={{
+                                      display: 'block',
+                                      'font-size': '12px',
+                                      color: 'var(--wheel-ink-muted, rgba(15,18,24,0.5))'
+                                    }}
+                                  >
+                                    {reason()}
+                                  </span>
+                                )}
+                              </Show>
                             </span>
+                            <Show when={command.checked === true || command.checked === 'mixed'}>
+                              <span
+                                aria-hidden="true"
+                                data-testid={`wheel-palette-check-${command.id}`}
+                                style={{ color: 'var(--wheel-accent, #3b82f6)', flex: '0 0 auto' }}
+                              >
+                                {command.checked === 'mixed' ? '–' : '✓'}
+                              </span>
+                            </Show>
+                            <Show when={command.shortcut}>
+                              {(shortcut) => (
+                                <kbd
+                                  data-testid={`wheel-palette-shortcut-${command.id}`}
+                                  style={{
+                                    flex: '0 0 auto',
+                                    'font-family': 'inherit',
+                                    'font-size': '12px',
+                                    color: 'var(--wheel-ink-muted, rgba(15,18,24,0.5))'
+                                  }}
+                                >
+                                  {shortcut()}
+                                </kbd>
+                              )}
+                            </Show>
                           </div>
                         );
                       }}

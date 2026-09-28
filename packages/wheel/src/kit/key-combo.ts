@@ -202,3 +202,91 @@ function formatStep(step: string, platform: KeyPlatform): string {
   parts.push(key);
   return parts.join('+');
 }
+
+/** A canonical, order-free spelling of a parsed combo for comparison. */
+function comboSignature(parsed: ParsedCombo): string {
+  return [parsed.ctrl && 'ctrl', parsed.meta && 'meta', parsed.alt && 'alt', parsed.shift && 'shift', parsed.key]
+    .filter(Boolean)
+    .join('+');
+}
+
+/** Two or more bindings on one combo. */
+export interface ComboConflict {
+  /** The combo as the first binding wrote it. */
+  readonly combo: string;
+  /** The binding ids, in registration order. */
+  readonly ids: readonly string[];
+  /** Each binding's scope, `null` for global, in the same order. */
+  readonly scopes: readonly (string | null)[];
+  /**
+   * - `same-scope`: same scope, and at least one binding has no gate, so a
+   *   later binding can never fire while an earlier ungated one matches.
+   *   Always a bug.
+   * - `gated`: same scope, every binding gated (`when`, or a command's
+   *   `visible`). Fine when the gates never hold at once (list `↓` and
+   *   board `↓`); listed so a reviewer can check that.
+   * - `shadowed`: different scopes. The innermost scope wins by design
+   *   (editor `Enter` over grid `Enter`); listed, not an error.
+   */
+  readonly kind: 'same-scope' | 'gated' | 'shadowed';
+}
+
+/** What `findConflicts` reads from each binding. */
+export interface ConflictCheckInput {
+  readonly id: string;
+  readonly key: string;
+  readonly scope?: string;
+  /** Whether the binding only fires while some gate holds. */
+  readonly gated: boolean;
+}
+
+/**
+ * Group bindings that answer the same keys. Two combos conflict when they
+ * parse to the same modifiers and key, however they were written
+ * (`shift+mod+z` and `mod+shift+z`). Pure, so an app test can fail on a
+ * `same-scope` conflict:
+ *
+ *   expect(keyboard.conflicts().filter((c) => c.kind === 'same-scope')).toEqual([]);
+ */
+export function findConflicts(
+  bindings: readonly ConflictCheckInput[],
+  platform: KeyPlatform = detectPlatform()
+): readonly ComboConflict[] {
+  const mac = platform === 'mac';
+  const groups = new Map<string, ConflictCheckInput[]>();
+  for (const binding of bindings) {
+    const signature = comboSignature(parseCombo(binding.key, mac));
+    const group = groups.get(signature);
+    if (group) group.push(binding);
+    else groups.set(signature, [binding]);
+  }
+  const conflicts: ComboConflict[] = [];
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const byScope = new Map<string | null, ConflictCheckInput[]>();
+    for (const binding of group) {
+      const scope = binding.scope ?? null;
+      const bucket = byScope.get(scope);
+      if (bucket) bucket.push(binding);
+      else byScope.set(scope, [binding]);
+    }
+    for (const [scope, bucket] of byScope) {
+      if (bucket.length < 2) continue;
+      conflicts.push({
+        combo: bucket[0].key,
+        ids: bucket.map((binding) => binding.id),
+        scopes: bucket.map(() => scope),
+        kind: bucket.every((binding) => binding.gated) ? 'gated' : 'same-scope'
+      });
+    }
+    if (byScope.size > 1) {
+      conflicts.push({
+        combo: group[0].key,
+        ids: group.map((binding) => binding.id),
+        scopes: group.map((binding) => binding.scope ?? null),
+        kind: 'shadowed'
+      });
+    }
+  }
+  return conflicts;
+}

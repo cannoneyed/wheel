@@ -103,6 +103,7 @@ validated by its owner's schema the first time it is read, so a bad value fails 
 | Section | Owner | Fields |
 | --- | --- | --- |
 | `commandPalette` | `wheel/kit` | `openKeyCommand`: a combo or a list of combos. Default `['mod+k', 'mod+shift+p']`; `[]` registers none. |
+| `commands` | `wheel/kit` | `blockedKeyFeedback`: `'toast'` (default) or `'none'` — what a key that runs a disabled command shows. |
 | `layout` | `wheel/kit` | `storage`: `'local'` (default) or `'memory'`; `storagePrefix` (default `'wheel.layout'`); `storageKey` (default `'frames'`). |
 | `debug` | `wheel/debug` | `control`: `'built-in'` (default) or `'controlled'` — hide the dock's launcher and use your own. |
 | `annotate` | `wheel/annotate` | `enabled` (default: dev mode); `sink`: `{ url, headers? }` for notes. |
