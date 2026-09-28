@@ -73,7 +73,8 @@ The dock's panes are not a fixed list. A surface the dock cannot import register
 Nested `<WheelApp/>`s — a site embedding live demos — share the outermost dock rather than stacking
 one per app.
 
-Set `debugControl="controlled"` to hide the bottom-right launcher and place the control in your app.
+Set `debug: { control: 'controlled' }` in [`src/wheel.config.ts`](#/configuration) to hide the
+bottom-right launcher and place the control in your app.
 `WheelApp` installs `DebugPanelService`; connect your button to its `open` state and `toggle` action:
 
 ```tsx
@@ -96,7 +97,8 @@ function DebugButton() {
 }
 
 render(() => (
-  <WheelApp client={client} debugControl="controlled">
+  // wheelConfig = defineWheelConfig({ debug: { control: 'controlled' } })
+  <WheelApp client={client} config={wheelConfig}>
     <YourApp />
     <DebugButton />
   </WheelApp>

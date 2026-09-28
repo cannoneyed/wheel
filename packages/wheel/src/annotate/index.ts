@@ -16,7 +16,7 @@
  * Kept separate from `wheel/debug` on purpose: a production build can ship the
  * annotator without the debug panel.
  */
-export { WheelAnnotate, type WheelAnnotateProps } from './annotate-lazy';
+export { WheelAnnotate, annotateConfigSchema } from './annotate-lazy';
 export {
   AnnotateService,
   type AnnotateCapture,

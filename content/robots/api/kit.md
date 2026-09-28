@@ -12,27 +12,33 @@ Apply one dock drop: detach the dragged panel, land it on the target panel's edg
 
 ## `Command`
 
-Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:31](../../../packages/wheel/src/kit/command-palette.tsx#L31).
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:34](../../../packages/wheel/src/kit/command-palette.tsx#L34).
 
 A registered command — pure data plus its action.
 
 ## `CommandGroup`
 
-Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:55](../../../packages/wheel/src/kit/command-palette.tsx#L55).
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:58](../../../packages/wheel/src/kit/command-palette.tsx#L58).
 
 Ranked results cut into their headings — what the palette renders.
 
+## `commandPaletteConfigSchema`
+
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:244](../../../packages/wheel/src/kit/command-palette.tsx#L244).
+
+The `commandPalette` section of the Wheel app config. export default defineWheelConfig({ // mod+k inserts a link in this app, so only mod+shift+p opens the palette. commandPalette: { openKeyCommand: 'mod+shift+p' } });
+
 ## `CommandPaletteService`
 
-Kind: class. Source: [packages/wheel/src/kit/command-palette.tsx:92](../../../packages/wheel/src/kit/command-palette.tsx#L92).
+Kind: class. Source: [packages/wheel/src/kit/command-palette.tsx:95](../../../packages/wheel/src/kit/command-palette.tsx#L95).
 
 Owns the command table, search ranking, and the palette's open state. Everything is headless: `commands()`/`search()` are computeds, `run(id)` invokes by id — the host component is just a viewer over this data.
 
 ## `CommandPaletteSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:217](../../../packages/wheel/src/kit/command-palette.tsx#L217).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:278](../../../packages/wheel/src/kit/command-palette.tsx#L278).
 
-Mount once at the app root. Registers the toggle combos with KeyboardService while mounted and renders the palette overlay: scrim, query input, ranked results, arrow-key selection, Enter runs, Escape closes. Focus is captured on open and restored on close via FocusService.
+Mount once at the app root. Registers the open keys (the `commandPalette.openKeyCommand` config, default mod+k and mod+shift+p) with KeyboardService while mounted and renders the palette overlay: scrim, query input, ranked results, arrow-key selection, Enter runs, Escape closes. Focus is captured on open and restored on close via FocusService. It takes no props: app-wide settings live in `src/wheel.config.ts`.
 
 ## `ConfirmOptions`
 
@@ -42,7 +48,7 @@ Options for the confirm/alert built-ins.
 
 ## `connectCommandPaletteSystem`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:184](../../../packages/wheel/src/kit/command-palette.tsx#L184).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:193](../../../packages/wheel/src/kit/command-palette.tsx#L193).
 
 CommandPaletteSystem's connection — exported for stubs and the states file.
 
@@ -105,6 +111,12 @@ Configuration for one DOM-bound gesture.
 Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:221](../../../packages/wheel/src/kit/menu-stack.ts#L221).
 
 Build a stack over `root`. `onChange` fires after every state change.
+
+## `DEFAULT_PALETTE_OPEN_KEYS`
+
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:221](../../../packages/wheel/src/kit/command-palette.tsx#L221).
+
+The combos that open and close the palette when the app config sets none. BOTH, because both are muscle memory: mod+k from Linear and Slack, mod+shift+p from VS Code. A palette that answers one of them reads as missing to whoever learned the other.
 
 ## `Dialog`
 
@@ -312,7 +324,7 @@ Where the highlight sits inside a level's grid.
 
 ## `groupCommands`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:66](../../../packages/wheel/src/kit/command-palette.tsx#L66).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:69](../../../packages/wheel/src/kit/command-palette.tsx#L69).
 
 Cut ranked results into groups, keeping rank order. A group takes the position of its best-ranked member, so typing never reorders the list out from under the selection.
 
@@ -333,6 +345,12 @@ Owns the shortcut table and the matching logic. Bindings live in a reactive atom
 Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:263](../../../packages/wheel/src/kit/keyboard.tsx#L263).
 
 Mount once at the app root: the single document keydown listener feeding `KeyboardService.dispatch`. Renders nothing.
+
+## `layoutConfigSchema`
+
+Kind: value. Source: [packages/wheel/src/kit/layout/layout-service.ts:26](../../../packages/wheel/src/kit/layout/layout-service.ts#L26).
+
+The `layout` section of the Wheel app config. Saved frame geometry goes to `localStorage` under `<storagePrefix>:<storageKey>` by default. export default defineWheelConfig({ layout: { storagePrefix: 'tracker.layout' } });
 
 ## `LayoutDiagnostic`
 
@@ -372,15 +390,15 @@ A resize transaction; drafts never enter persisted geometry.
 
 ## `LayoutService`
 
-Kind: class. Source: [packages/wheel/src/kit/layout/layout-service.ts:41](../../../packages/wheel/src/kit/layout/layout-service.ts#L41).
+Kind: class. Source: [packages/wheel/src/kit/layout/layout-service.ts:71](../../../packages/wheel/src/kit/layout/layout-service.ts#L71).
 
 The batteries-included owner of frame geometry. Mounted `Frame` components register themselves by id; applications read `node(id)` and call `open`/`close`/`toggle`/`resize`/`reset`. The service owns only geometry — sizes, open state, constraints, measurements, resize drafts, and persistence. Structure belongs to application JSX.
 
 ## `LayoutServiceOptions`
 
-Kind: interface. Source: [packages/wheel/src/kit/layout/layout-service.ts:18](../../../packages/wheel/src/kit/layout/layout-service.ts#L18).
+Kind: interface. Source: [packages/wheel/src/kit/layout/layout-service.ts:50](../../../packages/wheel/src/kit/layout/layout-service.ts#L50).
 
-Optional configuration; the zero-config default persists to local storage.
+Constructor options for a subclass. They win over the `layout` config; `storage` is the one setting config cannot hold (it is an object with methods, not JSON).
 
 ## `LayoutSnapshot`
 

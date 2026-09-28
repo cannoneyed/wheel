@@ -6,15 +6,14 @@ import { WheelAnnotate } from 'wheel/annotate';
 import './styles/tokens.css';
 import { trackerClient } from './utils/tracker-client';
 import { AppShell } from './components/shell/app-shell';
+import wheelConfig from './wheel.config';
 
 render(
   () => (
-    <WheelApp client={trackerClient()}>
+    <WheelApp client={trackerClient()} config={wheelConfig}>
       <AppShell />
-      {/* Axle is our own app, so annotation is on in every build — including
-          the production preview the browser suite runs against. That is the
-          production story working, not a dev convenience. */}
-      <WheelAnnotate enabled />
+      {/* On in every build: see annotate.enabled in wheel.config.ts. */}
+      <WheelAnnotate />
     </WheelApp>
   ),
   document.getElementById('root')!

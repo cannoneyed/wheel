@@ -15,6 +15,7 @@
  *   functions — never whole service instances.
  */
 
+import type { WheelAppConfig } from './index';
 import { createContext, getOwner, onCleanup, useContext, type JSX } from 'solid-js';
 
 import {
@@ -92,13 +93,17 @@ function nearestInstance(owner: OwnerWithInstance | null): InstanceRecord | unde
   return undefined;
 }
 
-/** Client-backed root provider. Mount once at the app root. */
+/**
+ * Client-backed root provider. Mount once at the app root. `config` is the
+ * app's `src/wheel.config.ts` (see `defineWheelConfig`); it is read once.
+ */
 export function WheelProvider(props: {
   client: ContextClient;
+  config?: WheelAppConfig;
   children: JSX.Element;
 }): JSX.Element {
   assertSingleSolidRuntime();
-  const services = new ServiceContext({ client: props.client, scopeId: 'root' });
+  const services = new ServiceContext({ client: props.client, scopeId: 'root', config: props.config });
   onCleanup(() => services.dispose());
   return (
     <WheelContext.Provider value={{ client: props.client, services }}>
@@ -113,6 +118,12 @@ export function WheelProvider(props: {
  */
 export function ServiceProvider(props: {
   scopeId?: string;
+  /**
+   * The app's Wheel config — only when this provider is the ROOT (a
+   * clientless app or sandbox). A nested provider inherits its parent's
+   * config and throws if given one.
+   */
+  config?: WheelAppConfig;
   inheritServices?: boolean | 'live';
   overrides?: Array<{
     original: ServiceClass;
@@ -124,8 +135,8 @@ export function ServiceProvider(props: {
   assertSingleSolidRuntime();
   const parent = useContext(WheelContext);
   const services = parent
-    ? parent.services.child({ scopeId: props.scopeId, inheritServices: props.inheritServices })
-    : new ServiceContext({ scopeId: props.scopeId ?? 'sandbox' });
+    ? parent.services.child({ scopeId: props.scopeId, inheritServices: props.inheritServices, config: props.config })
+    : new ServiceContext({ scopeId: props.scopeId ?? 'sandbox', config: props.config });
   for (const { original, replacement, ownership } of props.overrides ?? []) {
     services.override(original, replacement, { ownership });
   }

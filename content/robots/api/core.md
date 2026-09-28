@@ -12,7 +12,7 @@ Erased form the playground iterates over (the glob loses the generics).
 
 ## `Atom`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:61](../../../packages/wheel/src/core/services.ts#L61).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:62](../../../packages/wheel/src/core/services.ts#L62).
 
 Writable reactive cell. Reads are tracked by whatever computation reads them.
 
@@ -90,7 +90,7 @@ A component's declared dependency edge, recorded at connect() time.
 
 ## `componentRoot`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:284](../../../packages/wheel/src/core/connect.tsx#L284).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:295](../../../packages/wheel/src/core/connect.tsx#L295).
 
 The `use:componentRoot` directive — mark a connected component's root element(s) so rectangle selection and the inspector can find it: <li use:componentRoot class={styles.row}> No arguments: the directive walks the owner chain to the nearest connect() instance and attaches this element to it. Multi-root components mark each root sibling (bounds = union). Detachment is automatic on cleanup, so roots inside <Show> re-register correctly and unmounted instances can't leak elements.
 
@@ -102,31 +102,31 @@ One named state: the stubbed shape, mount props, and an optional note.
 
 ## `ComputedAccessor`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:101](../../../packages/wheel/src/core/services.ts#L101).
+Kind: type. Source: [packages/wheel/src/core/services.ts:102](../../../packages/wheel/src/core/services.ts#L102).
 
 A plain zero-arg derivation carrying debug provenance. Returned by `computed`.
 
 ## `ComputedFor`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:90](../../../packages/wheel/src/core/services.ts#L90).
+Kind: type. Source: [packages/wheel/src/core/services.ts:91](../../../packages/wheel/src/core/services.ts#L91).
 
 A KEYED derived value: callable with arguments, one memoized node per canonical argument tuple. Unlike `computed` (a plain zero-arg derivation), this retains one live memo per distinct key until the service disposes — there is NO LRU and NO eviction, so a memo a mounted component is observing can never be silently dropped out from under it. Returned by `computedFor`.
 
 ## `connect`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:190](../../../packages/wheel/src/core/connect.tsx#L190).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:201](../../../packages/wheel/src/core/connect.tsx#L201).
 
 Declare a component's complete state manifest. Returns the component's ONE connection function, called once at the top of the component: const connectTodoList = connect('TodoList', (c, props: { listId: string }) => { const todoService = c.service(TodoService); return { get rows() { return todoService.rows(); }, get status() { return todoService.status(); }, add: todoService.add }; }); export function TodoList(props: { listId: string }) { const state = connectTodoList(props); ... }
 
 ## `Connector`
 
-Kind: interface. Source: [packages/wheel/src/core/connect.tsx:141](../../../packages/wheel/src/core/connect.tsx#L141).
+Kind: interface. Source: [packages/wheel/src/core/connect.tsx:152](../../../packages/wheel/src/core/connect.tsx#L152).
 
 The declaration surface available inside connect() callbacks.
 
 ## `ContextClient`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:237](../../../packages/wheel/src/core/services.ts#L237).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:238](../../../packages/wheel/src/core/services.ts#L238).
 
 The minimum the kernel needs from a client: a change-subscription seam. The core `ServiceContext` holds only this — it subscribes once and bumps its revision signal whenever the client reports a data change. It never subscribes queries or fires mutations; those live on the full sync client (`SyncClient`), which `SyncService` narrows to at one documented boundary. Keeping the kernel's dependency this narrow is what lets core compile with no knowledge of the sync layer.
 
@@ -160,6 +160,12 @@ Kind: function. Source: [packages/wheel/src/core/states.tsx:64](../../../package
 
 Identity with inference: holds `states` to the connection's exact Shape.
 
+## `defineWheelConfig`
+
+Kind: function. Source: [packages/wheel/src/core/app-config.ts:80](../../../packages/wheel/src/core/app-config.ts#L80).
+
+Declare the app's Wheel config. Checks that it is JSON and freezes it. The one convention: `src/wheel.config.ts` default-exports this.
+
 ## `fakeService`
 
 Kind: function. Source: [packages/wheel/src/core/stubs.tsx:57](../../../packages/wheel/src/core/stubs.tsx#L57).
@@ -168,19 +174,19 @@ Build a partial service fake for `ServiceProvider overrides` without class cerem
 
 ## `Field`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:75](../../../packages/wheel/src/core/services.ts#L75).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:76](../../../packages/wheel/src/core/services.ts#L76).
 
 Mutable cell with debug history and no reactive or immutable-state behavior.
 
 ## `freezeDeep`
 
-Kind: function. Source: [packages/wheel/src/core/services.ts:276](../../../packages/wheel/src/core/services.ts#L276).
+Kind: function. Source: [packages/wheel/src/core/services.ts:277](../../../packages/wheel/src/core/services.ts#L277).
 
 Deep-freeze a value so mutation outside the happy path throws (in strict mode) instead of silently corrupting state. Applied to every atom write — the framework depends on data being immutable, so this is on always, not just in dev. Immer's deep freeze replaces Set/Map mutators with throwing functions while preserving draft updates. Date is rejected because its internal timestamp remains mutable even when the object is frozen; store a number instead.
 
 ## `INHERIT_SCOPE`
 
-Kind: value. Source: [packages/wheel/src/core/services.ts:265](../../../packages/wheel/src/core/services.ts#L265).
+Kind: value. Source: [packages/wheel/src/core/services.ts:266](../../../packages/wheel/src/core/services.ts#L266).
 
 Marker a service class sets to opt into scope inheritance under `inheritServices: 'live'`. Core defines the symbol and reads it in `shouldInherit`; `SyncService` sets it to `true`. This is the seam that lets the kernel decide "should this class inherit through the parent scope?" WITHOUT naming the sync `SyncService` class (the layering violation the previous `instanceof SyncService` check baked in). Static fields are inherited down the constructor chain, so every `SyncService` subclass carries the marker automatically; plain `Service` subclasses never do.
 
@@ -210,7 +216,7 @@ Whether wheel's dev-only surfaces (viewRoot registration, DOM id stamps, window.
 
 ## `LatestAsyncTask`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:214](../../../packages/wheel/src/core/services.ts#L214).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:215](../../../packages/wheel/src/core/services.ts#L215).
 
 Latest-call-wins token for one service async chain. Opening a new task on the same service aborts this token and makes every pending `wait` reject.
 
@@ -234,25 +240,25 @@ Log severities, console-aligned.
 
 ## `MachineStateAccessor`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:129](../../../packages/wheel/src/core/services.ts#L129).
+Kind: type. Source: [packages/wheel/src/core/services.ts:130](../../../packages/wheel/src/core/services.ts#L130).
 
 Reactive XState snapshot read carried by a Service-owned machine.
 
 ## `MachineTransitionActions`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:109](../../../packages/wheel/src/core/services.ts#L109).
+Kind: type. Source: [packages/wheel/src/core/services.ts:110](../../../packages/wheel/src/core/services.ts#L110).
 
 Named, typed actions that send events to one Service-owned machine actor.
 
 ## `MachineTransitionCreators`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:104](../../../packages/wheel/src/core/services.ts#L104).
+Kind: type. Source: [packages/wheel/src/core/services.ts:105](../../../packages/wheel/src/core/services.ts#L105).
 
 Typed event builders exposed as named Service actions by `machine()`.
 
 ## `makeConnector`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:158](../../../packages/wheel/src/core/connect.tsx#L158).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:169](../../../packages/wheel/src/core/connect.tsx#L169).
 
 Build the connector surface for a component's connect declaration.
 
@@ -318,49 +324,49 @@ Project any value into bounded, JSON-safe data (see the module doc for the bound
 
 ## `Service`
 
-Kind: class. Source: [packages/wheel/src/core/services.ts:705](../../../packages/wheel/src/core/services.ts#L705).
+Kind: class. Source: [packages/wheel/src/core/services.ts:727](../../../packages/wheel/src/core/services.ts#L727).
 
 Framework-neutral DI singleton holding reactive state. Subclasses declare fields with the protected factories; components reach them only through connect().
 
 ## `ServiceClass`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:225](../../../packages/wheel/src/core/services.ts#L225).
+Kind: type. Source: [packages/wheel/src/core/services.ts:226](../../../packages/wheel/src/core/services.ts#L226).
 
 Constructor shape every service must have — one ServiceContext argument, so the container can build any service the same way (and tests can too).
 
 ## `ServiceContext`
 
-Kind: class. Source: [packages/wheel/src/core/services.ts:337](../../../packages/wheel/src/core/services.ts#L337).
+Kind: class. Source: [packages/wheel/src/core/services.ts:347](../../../packages/wheel/src/core/services.ts#L347).
 
 Hierarchical DI container owning every service singleton, the Solid ownership root all service primitives live under, and the debug registry.
 
 ## `ServiceContextOptions`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:307](../../../packages/wheel/src/core/services.ts#L307).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:308](../../../packages/wheel/src/core/services.ts#L308).
 
 Construction options for a ServiceContext — the client it syncs through, the parent scope it inherits from, and how much of the parent it inherits.
 
 ## `ServiceMachine`
 
-Kind: interface. Source: [packages/wheel/src/core/services.ts:133](../../../packages/wheel/src/core/services.ts#L133).
+Kind: interface. Source: [packages/wheel/src/core/services.ts:134](../../../packages/wheel/src/core/services.ts#L134).
 
 One Service-owned XState actor with reactive state and named transition actions.
 
 ## `ServiceMachineOptions`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:121](../../../packages/wheel/src/core/services.ts#L121).
+Kind: type. Source: [packages/wheel/src/core/services.ts:122](../../../packages/wheel/src/core/services.ts#L122).
 
 Options for `Service.machine()`: actor input plus its public transition actions.
 
 ## `ServiceOverrideOptions`
 
-Kind: type. Source: [packages/wheel/src/core/services.ts:324](../../../packages/wheel/src/core/services.ts#L324).
+Kind: type. Source: [packages/wheel/src/core/services.ts:331](../../../packages/wheel/src/core/services.ts#L331).
 
 Explicit cleanup ownership for a service override.
 
 ## `ServiceProvider`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:114](../../../packages/wheel/src/core/connect.tsx#L114).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:119](../../../packages/wheel/src/core/connect.tsx#L119).
 
 Child scope (or clientless root, for pure-local sandboxes). Overrides inject service fakes for the subtree — the substitution seam for tests/sandboxes.
 
@@ -504,15 +510,27 @@ What a read form produces on the shape: call result, atom value, or the value it
 
 ## `viewRoot`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:338](../../../packages/wheel/src/core/connect.tsx#L338).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:349](../../../packages/wheel/src/core/connect.tsx#L349).
 
 The `use:viewRoot` directive — how a DUMB (non-connected) component registers in the component tree: export function Avatar(props: { url: string }) { return <img use:viewRoot={'Avatar'} src={props.url} />; } The string names the component (lint checks it matches the enclosing function); the object form additionally carries `group` and the component's `props`, so the tree can show them. Dev mode only — in production builds this is a flag check and nothing else, so marking every dumb component costs nothing. In dev each marked mount gets a live-slot instance id (`Avatar`, `Avatar#2`), a `data-wheel-id` DOM stamp, and a parent edge to the nearest enclosing instance — which is what makes the debug panel's component tree and the agent bridge see the WHOLE component tree, not just the connected layer. Mark ONE root element per view component. Components that render no DOM of their own carry the `// wheel-view-root: <reason>` pragma instead. Lint-enforced by `require-view-root`.
+
+## `WheelAppConfig`
+
+Kind: interface. Source: [packages/wheel/src/core/index.ts:117](../../../packages/wheel/src/core/index.ts#L117).
+
+The app-wide config, one optional section per package. Packages add their sections with module augmentation: declare module 'wheel/core' { interface WheelAppConfig { readonly commandPalette?: z.input<typeof commandPaletteConfig>; } }
 
 ## `WheelBridgeApp`
 
 Kind: interface. Source: [packages/wheel/src/core/bridge-contract.ts:78](../../../packages/wheel/src/core/bridge-contract.ts#L78).
 
 The per-app bridge surface — every method returns plain JSON.
+
+## `WheelConfigService`
+
+Kind: class. Source: [packages/wheel/src/core/app-config.ts:90](../../../packages/wheel/src/core/app-config.ts#L90).
+
+Read-only access to the app config. Sections are parsed with their owner's schema the first time they are read, so a bad value fails loudly with its path, and a missing value takes its default.
 
 ## `WheelGlobal`
 
@@ -522,9 +540,9 @@ The `window.__wheel` global: per-app bridges plus sole-app conveniences.
 
 ## `WheelProvider`
 
-Kind: function. Source: [packages/wheel/src/core/connect.tsx:96](../../../packages/wheel/src/core/connect.tsx#L96).
+Kind: function. Source: [packages/wheel/src/core/connect.tsx:100](../../../packages/wheel/src/core/connect.tsx#L100).
 
-Client-backed root provider. Mount once at the app root.
+Client-backed root provider. Mount once at the app root. `config` is the app's `src/wheel.config.ts` (see `defineWheelConfig`); it is read once.
 
 ## `wheelTap`
 

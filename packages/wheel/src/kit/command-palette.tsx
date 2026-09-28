@@ -5,8 +5,9 @@
  * `addCleanup`, the contribution pattern that was wrong for menus and is
  * right here), searchable, invokable headlessly by id. The service owns the
  * command table, the ranking, and open/close state; `<CommandPaletteSystem/>`
- * (mounted once) registers mod+k through KeyboardService and renders a
- * centered overlay — input, ranked results, arrow-key selection, Enter runs,
+ * (mounted once) registers its open keys (the `commandPalette.openKeyCommand`
+ * config, default mod+k and mod+shift+p) through KeyboardService and renders
+ * a centered overlay — input, ranked results, arrow-key selection, Enter runs,
  * Escape closes.
  *
  * A command DESCRIBES itself — `group`, `subtitle`, `icon` — and the palette
@@ -24,8 +25,10 @@ import { componentRoot, connect } from '../core/connect';
 import { view } from '../core/view';
 import { useSignal } from '../core/local-state';
 import { captureDeclSite } from '../core/decl-site';
+import { WheelConfigService } from '../core/app-config';
+import { z } from 'zod';
 import { FocusService } from './focus';
-import { KeyboardService, type KeyBinding } from './keyboard';
+import { KeyboardService, parseCombo, type KeyBinding } from './keyboard';
 
 /** A registered command — pure data plus its action. */
 export interface Command {
@@ -97,8 +100,14 @@ export class CommandPaletteService extends Service {
   static override group = 'framework';
 
   private readonly registered = this.atom<readonly RegisteredCommand[]>([], 'registered');
+  private readonly configService = this.service(WheelConfigService);
   /** Whether the palette overlay is open. */
   readonly isOpen = this.atom(false, 'isOpen');
+  /** The combos that open it: the `commandPalette.openKeyCommand` config. */
+  readonly openKeys = this.computed(
+    () => this.configService.section('commandPalette', commandPaletteConfigSchema).openKeyCommand,
+    'openKeys'
+  );
   /**
    * The last command `run` invoked, or null before the first run. The
    * palette opens with this row selected — the command you reach for is
@@ -186,7 +195,11 @@ export const connectCommandPaletteSystem = connect('CommandPaletteSystem', (c) =
   const keyboardService = c.service(KeyboardService);
   const focusService = c.service(FocusService);
   return view(
-    { isOpen: paletteService.isOpen, lastRunId: paletteService.lastRunId },
+    {
+      isOpen: paletteService.isOpen,
+      lastRunId: paletteService.lastRunId,
+      openKeys: paletteService.openKeys
+    },
     {
       resultsFor: (query: string) => paletteService.search(query),
       open: paletteService.open,
@@ -199,20 +212,68 @@ export const connectCommandPaletteSystem = connect('CommandPaletteSystem', (c) =
   );
 }, { group: 'framework' });
 
-/** The combos that open and close the palette, as `[binding id, combo]`. */
-const TOGGLE_COMBOS: readonly (readonly [string, string])[] = [
-  ['wheel.commandPalette.toggle', 'mod+k'],
-  ['wheel.commandPalette.toggleAlt', 'mod+shift+p']
-];
+/**
+ * The combos that open and close the palette when the app config sets none.
+ * BOTH, because both are muscle memory: mod+k from Linear and Slack,
+ * mod+shift+p from VS Code. A palette that answers one of them reads as
+ * missing to whoever learned the other.
+ */
+export const DEFAULT_PALETTE_OPEN_KEYS: readonly string[] = ['mod+k', 'mod+shift+p'];
+
+/** A combo `parseCombo` accepts. */
+const combo = z.string().refine(
+  (value) => {
+    try {
+      parseCombo(value, false);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: 'not a key combo like "mod+shift+p"' }
+);
+
+/**
+ * The `commandPalette` section of the Wheel app config.
+ *
+ *   export default defineWheelConfig({
+ *     // mod+k inserts a link in this app, so only mod+shift+p opens the palette.
+ *     commandPalette: { openKeyCommand: 'mod+shift+p' }
+ *   });
+ */
+export const commandPaletteConfigSchema = z.strictObject({
+  /**
+   * The combo, or combos, that open and close the palette. Default
+   * `['mod+k', 'mod+shift+p']`. An empty list registers no keys; open the
+   * palette with `CommandPaletteService.open()` from your own UI.
+   */
+  openKeyCommand: z
+    .union([combo, z.array(combo)])
+    .default([...DEFAULT_PALETTE_OPEN_KEYS])
+    .transform((value): readonly string[] => (typeof value === 'string' ? [value] : value))
+});
+
+declare module '../core/index' {
+  interface WheelAppConfig {
+    /** The command palette. */
+    readonly commandPalette?: z.input<typeof commandPaletteConfigSchema>;
+  }
+}
+
+/** The keyboard binding id for the open key at `index`. */
+const openKeyBindingId = (index: number) =>
+  index === 0 ? 'wheel.commandPalette.toggle' : `wheel.commandPalette.toggle.${index}`;
 
 const COMMAND_LISTBOX_ID = 'wheel-command-palette-listbox';
 const commandOptionId = (id: string) => `wheel-command-option-${encodeURIComponent(id)}`;
 
 /**
- * Mount once at the app root. Registers the toggle combos with
+ * Mount once at the app root. Registers the open keys (the
+ * `commandPalette.openKeyCommand` config, default mod+k and mod+shift+p) with
  * KeyboardService while mounted and renders the palette overlay: scrim,
  * query input, ranked results, arrow-key selection, Enter runs, Escape
  * closes. Focus is captured on open and restored on close via FocusService.
+ * It takes no props: app-wide settings live in `src/wheel.config.ts`.
  */
 export function CommandPaletteSystem(): JSX.Element {
   const state = connectCommandPaletteSystem({});
@@ -225,20 +286,26 @@ export function CommandPaletteSystem(): JSX.Element {
   const [inputEl, setInputEl] = useSignal<HTMLInputElement | undefined>(undefined, 'inputEl');
   const [panelEl, setPanelEl] = useSignal<HTMLDivElement | undefined>(undefined, 'panelEl');
 
-  // BOTH palette combos, because both are muscle memory: mod+k from Linear
-  // and Slack, mod+shift+p from VS Code. A palette that answers one of them
-  // reads as missing to whoever learned the other.
-  for (const [id, key] of TOGGLE_COMBOS) {
-    onCleanup(
-      state.registerBinding({
-        id,
-        key,
-        inInputs: true,
-        inOverlays: true,
-        run: () => (state.isOpen ? state.close() : state.open())
-      })
-    );
-  }
+  // subscription boundary: the open keys register with KeyboardService while
+  // mounted. They come from the app config, read once. Each key toggles,
+  // so any one of them both opens and closes the palette. Registration is
+  // untracked: it reads the binding table, and tracking that would re-run
+  // this effect on its own write.
+  createEffect(() => {
+    const keys = state.openKeys;
+    keys.forEach((key, index) => {
+      onCleanup(
+        untrack(() => state.registerBinding({
+          id: openKeyBindingId(index),
+          key,
+          description: 'Command palette',
+          inInputs: true,
+          inOverlays: true,
+          run: () => (state.isOpen ? state.close() : state.open())
+        }))
+      );
+    });
+  });
 
   // Grouping decides the RENDER order, so the selection index must count
   // through the grouped list — not through the raw ranking behind it.

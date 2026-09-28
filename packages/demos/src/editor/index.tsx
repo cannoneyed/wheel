@@ -15,11 +15,12 @@ import { DocumentEditor, HistoryControls } from 'wheel-chalk';
 
 import { demoClient } from '../shared/utils/demo-client';
 import { DemoStage } from '../shared/components/demo-stage';
+import wheelConfig from '../wheel.config';
 
 /** The demo root the shell mounts. */
 export function EditorDemo() {
   return (
-    <WheelApp client={demoClient('editor')}>
+    <WheelApp client={demoClient('editor')} config={wheelConfig}>
       <DemoStage title="Editor" toolbar={<HistoryControls />}>
         <DocumentEditor />
       </DemoStage>

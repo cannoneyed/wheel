@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ServiceContext } from '../../core/services';
+import { defineWheelConfig } from '../../core/app-config';
 import { LayoutService } from './layout-service';
 import { parseFrameSize, parseLayoutSnapshot } from './model';
 import { memoryLayoutStorage, type LayoutStorage } from './storage';
@@ -95,6 +96,30 @@ describe('LayoutService v3', () => {
     expect(written?.nodes['nav']).toEqual({ open: false });
     service.toggle('nav');
     expect(storage.read('test')).toBeUndefined();
+  });
+
+  it('saves under the layout config’s prefix and key', () => {
+    const saved = new Map<string, string>();
+    const local = {
+      getItem: (key: string) => saved.get(key) ?? null,
+      setItem: (key: string, value: string) => void saved.set(key, value),
+      removeItem: (key: string) => void saved.delete(key)
+    };
+    const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', { value: local, configurable: true });
+    const context = new ServiceContext({
+      config: defineWheelConfig({ layout: { storagePrefix: 'todos.layout', storageKey: 'main' } })
+    });
+    try {
+      const service = context.get(LayoutService);
+      register(service, 'nav', { size: '240px' });
+      service.resize('nav', '300px');
+      expect([...saved.keys()]).toEqual(['todos.layout:main']);
+    } finally {
+      context.dispose();
+      if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
+      else delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
   });
 
   it('restores persisted geometry when a frame re-registers', () => {

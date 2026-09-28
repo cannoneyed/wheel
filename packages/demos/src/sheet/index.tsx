@@ -15,11 +15,12 @@ import { WheelAnnotate } from 'wheel/annotate';
 import { demoClient } from '../shared/utils/demo-client';
 import { DemoStage } from '../shared/components/demo-stage';
 import { SheetGrid } from './components/sheet-grid';
+import wheelConfig from '../wheel.config';
 
 /** The demo root the shell mounts. */
 export function SheetDemo() {
   return (
-    <WheelApp client={demoClient('sheet')}>
+    <WheelApp client={demoClient('sheet')} config={wheelConfig}>
       <DemoStage title="Spreadsheet">
         <SheetGrid />
       </DemoStage>

@@ -1,4 +1,7 @@
+import { z } from 'zod';
+
 import { Service, type ServiceContext } from '../../core/services';
+import { WheelConfigService } from '../../core/app-config';
 import {
   parseFrameSize,
   parseLayoutSnapshot,
@@ -14,7 +17,36 @@ import {
 } from './model';
 import { localLayoutStorage, memoryLayoutStorage, type LayoutStorage } from './storage';
 
-/** Optional configuration; the zero-config default persists to local storage. */
+/**
+ * The `layout` section of the Wheel app config. Saved frame geometry goes
+ * to `localStorage` under `<storagePrefix>:<storageKey>` by default.
+ *
+ *   export default defineWheelConfig({ layout: { storagePrefix: 'tracker.layout' } });
+ */
+export const layoutConfigSchema = z.strictObject({
+  /**
+   * `'local'` (default): `localStorage`, falling back to memory where there
+   * is none. `'memory'`: nothing survives a reload.
+   */
+  storage: z.enum(['local', 'memory']).default('local'),
+  /** The `localStorage` key prefix. Default `'wheel.layout'`. */
+  storagePrefix: z.string().min(1).default('wheel.layout'),
+  /** The key the snapshot is saved under. Default `'frames'`. */
+  storageKey: z.string().min(1).default('frames')
+});
+
+declare module '../../core/index' {
+  interface WheelAppConfig {
+    /** Where `Frame` geometry is saved. */
+    readonly layout?: z.input<typeof layoutConfigSchema>;
+  }
+}
+
+/**
+ * Constructor options for a subclass. They win over the `layout` config;
+ * `storage` is the one setting config cannot hold (it is an object with
+ * methods, not JSON).
+ */
 export interface LayoutServiceOptions {
   readonly storage?: LayoutStorage;
   readonly storageKey?: string;
@@ -27,8 +59,6 @@ interface StoredNode extends FrameRegistrationInput {
   readonly fitLocked: boolean;
 }
 
-const DEFAULT_STORAGE_PREFIX = 'wheel.layout';
-const DEFAULT_STORAGE_KEY = 'frames';
 
 /**
  * The batteries-included owner of frame geometry.
@@ -75,8 +105,9 @@ export class LayoutService extends Service {
 
   constructor(context: ServiceContext, options: LayoutServiceOptions = {}) {
     super(context);
-    this.storage = options.storage ?? defaultStorage();
-    this.storageKey = options.storageKey ?? DEFAULT_STORAGE_KEY;
+    const config = this.service(WheelConfigService).section('layout', layoutConfigSchema);
+    this.storage = options.storage ?? defaultStorage(config.storage, config.storagePrefix);
+    this.storageKey = options.storageKey ?? config.storageKey;
     this.restore();
   }
 
@@ -706,9 +737,9 @@ export class LayoutService extends Service {
   }
 }
 
-function defaultStorage(): LayoutStorage {
-  if (globalThis.localStorage === undefined) return memoryLayoutStorage();
-  return localLayoutStorage(DEFAULT_STORAGE_PREFIX);
+function defaultStorage(kind: 'local' | 'memory', prefix: string): LayoutStorage {
+  if (kind === 'memory' || globalThis.localStorage === undefined) return memoryLayoutStorage();
+  return localLayoutStorage(prefix);
 }
 
 function sameOrder(a: readonly string[], b: readonly string[]): boolean {

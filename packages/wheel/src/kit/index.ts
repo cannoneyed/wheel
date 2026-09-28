@@ -26,8 +26,10 @@ export {
   CommandPaletteService,
   CommandPaletteSystem,
   connectCommandPaletteSystem,
+  DEFAULT_PALETTE_OPEN_KEYS,
   groupCommands,
   type Command,
+  commandPaletteConfigSchema,
   type CommandGroup
 } from './command-palette';
 /**
@@ -87,6 +89,7 @@ export {
 } from './layout/dock';
 export {
   LayoutService,
+  layoutConfigSchema,
   type LayoutServiceOptions
 } from './layout/layout-service';
 export {

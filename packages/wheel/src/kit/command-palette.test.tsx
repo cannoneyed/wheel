@@ -10,10 +10,13 @@ import { describe, expect, it } from 'vitest';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 
-import { Service, ServiceContext, ServiceProvider, connect } from '../core/index';
+import { Service, ServiceContext, ServiceProvider, WheelConfigService, connect, defineWheelConfig } from '../core/index';
 import {
   CommandPaletteService,
   CommandPaletteSystem,
+  DEFAULT_PALETTE_OPEN_KEYS,
+  commandPaletteConfigSchema,
+  KeyboardService,
   KeyboardSystem,
   groupCommands
 } from './index';
@@ -184,8 +187,10 @@ class DeckService extends Service {
 
 describe('<CommandPaletteSystem /> (integration)', () => {
   let deckService!: DeckService;
+  let keyboardService!: KeyboardService;
   const connectDeckProbe = connect('DeckProbe', (c) => {
     deckService = c.service(DeckService);
+    keyboardService = c.service(KeyboardService);
     return {};
   });
   function DeckProbe() {
@@ -193,12 +198,15 @@ describe('<CommandPaletteSystem /> (integration)', () => {
     return null;
   }
 
-  function mountSystems() {
+  function mountSystems(openKeys?: readonly string[]) {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const dispose = render(
       () => (
-        <ServiceProvider scopeId="palette-dom">
+        <ServiceProvider
+          scopeId="palette-dom"
+          config={openKeys === undefined ? undefined : defineWheelConfig({ commandPalette: { openKeyCommand: [...openKeys] } })}
+        >
           <DeckProbe />
           <button data-testid="outside">outside</button>
           <KeyboardSystem />
@@ -316,6 +324,59 @@ describe('<CommandPaletteSystem /> (integration)', () => {
       expect(deckService.played.get()).toEqual([]);
     } finally {
       cleanup();
+    }
+  });
+
+  // An app that needs mod+k for itself (a spreadsheet's "Insert link") must
+  // be able to take it back from the palette.
+  it('commandPalette.openKeyCommand replaces the default combos; mod+k is left for the app', () => {
+    const { cleanup } = mountSystems(['mod+shift+p']);
+    try {
+      document.dispatchEvent(keydown({ key: 'k', ctrlKey: true }));
+      expect(paletteInput()).toBeNull();
+
+      document.dispatchEvent(keydown({ key: 'P', ctrlKey: true, shiftKey: true }));
+      expect(paletteInput()).not.toBeNull();
+      paletteInput()!.dispatchEvent(keydown({ key: 'P', ctrlKey: true, shiftKey: true }));
+      expect(paletteInput()).toBeNull();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('an empty openKeyCommand registers no keys; the service still opens it', () => {
+    const { cleanup } = mountSystems([]);
+    try {
+      document.dispatchEvent(keydown({ key: 'k', ctrlKey: true }));
+      document.dispatchEvent(keydown({ key: 'P', ctrlKey: true, shiftKey: true }));
+      expect(paletteInput()).toBeNull();
+      expect(keyboardService.registrations().filter((b) => b.id.startsWith('wheel.commandPalette'))).toEqual([]);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('registers one described binding per open key, and removes them on unmount', () => {
+    const { cleanup } = mountSystems();
+    const paletteBindings = () =>
+      keyboardService.registrations().filter((b) => b.id.startsWith('wheel.commandPalette'));
+    expect(paletteBindings().map((b) => b.key)).toEqual([...DEFAULT_PALETTE_OPEN_KEYS]);
+    expect(paletteBindings().every((b) => b.description === 'Command palette')).toBe(true);
+    cleanup();
+    expect(paletteBindings()).toEqual([]);
+  });
+
+  it('rejects a config value that is not a combo, naming the field', () => {
+    const context = new ServiceContext({
+      scopeId: 'palette-bad-config',
+      config: defineWheelConfig({ commandPalette: { openKeyCommand: 'mod+shift' } })
+    });
+    try {
+      expect(() =>
+        context.get(WheelConfigService).section('commandPalette', commandPaletteConfigSchema)
+      ).toThrow(/Invalid wheel config: commandPalette\.openKeyCommand/);
+    } finally {
+      context.dispose();
     }
   });
 

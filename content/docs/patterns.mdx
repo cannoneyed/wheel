@@ -133,8 +133,17 @@ The same split carries the rest of `wheel/kit`'s built-ins:
   `bindingsFor(scope)` makes the active shortcut table auditable data.
 - **CommandPaletteService** (data-flavored — commands genuinely ARE data): services register
   commands in their constructors (`registerCommand` + `addCleanup`), `search(query)` ranks
-  headlessly, and `<CommandPaletteSystem/>` binds mod+k, renders an ARIA combobox/listbox,
-  and runs the selection.
+  headlessly, and `<CommandPaletteSystem/>` binds its open keys, renders an ARIA
+  combobox/listbox, and runs the selection. The open keys default to `mod+k` and
+  `mod+shift+p`. An app that needs one of them for itself sets `commandPalette.openKeyCommand`
+  in [`src/wheel.config.ts`](#/configuration):
+
+  ```ts
+  // mod+k inserts a link in this app, so only mod+shift+p opens the palette.
+  export default defineWheelConfig({ commandPalette: { openKeyCommand: 'mod+shift+p' } });
+  ```
+
+  An empty list registers no keys; call `CommandPaletteService.open()` from your own UI.
 - **ToastService** (data-flavored): lifecycle timers use the owning context clock/scheduler,
   and reusing an id cancels that id's whole previous timer generation. `<ToastSystem/>`
   announces updates through a polite live region; each toast is focusable and dismissible

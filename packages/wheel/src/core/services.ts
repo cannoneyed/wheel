@@ -18,6 +18,7 @@
  * full sync client at one documented boundary.
  */
 
+import type { WheelAppConfig } from './index';
 import {
   batch,
   createMemo,
@@ -313,6 +314,12 @@ export interface ServiceContextOptions {
   /** Controlled one-shot scheduler for clientless contexts; client-backed roots use the client's scheduler. */
   defer?: Defer;
   /**
+   * The app's Wheel config (`defineWheelConfig`). A ROOT context takes it;
+   * child contexts inherit their parent's and may not set their own, because
+   * app-wide config that changes inside the tree is not app-wide.
+   */
+  config?: WheelAppConfig;
+  /**
    * Which services resolve through the parent: `true` = all, `false` = none,
    * `'live'` = only SyncService subclasses (local UI state isolates, shared
    * data singletons and the client inherit).
@@ -329,6 +336,9 @@ interface ServiceOverride {
   readonly instance: Service;
   readonly ownership: ServiceOverrideOptions['ownership'];
 }
+
+/** The config a root without one reads: every section at its defaults. */
+const NO_CONFIG: WheelAppConfig = Object.freeze({});
 
 /**
  * Hierarchical DI container owning every service singleton, the Solid
@@ -359,10 +369,17 @@ export class ServiceContext {
   private readonly debugVersion: Accessor<number>;
   private readonly instanceVersion: Accessor<number>;
   private releaseClient: (() => void) | null = null;
+  private readonly configRef: WheelAppConfig;
   private disposed = false;
 
   constructor(options: ServiceContextOptions = {}) {
+    if (options.parent && options.config) {
+      throw new Error(
+        `ServiceContext '${options.scopeId ?? 'child'}': config enters at the root only. Pass it to WheelApp, WheelProvider, or a root ServiceContext.`
+      );
+    }
     this.parent = options.parent;
+    this.configRef = options.config ?? options.parent?.configRef ?? NO_CONFIG;
     this.clientRef = options.client ?? options.parent?.clientRef;
     this.nowRef =
       options.clock?.now.bind(options.clock) ??
@@ -442,6 +459,11 @@ export class ServiceContext {
   /** Whether this context (or an ancestor) carries a sync client. */
   hasClient(): boolean {
     return this.clientRef !== undefined;
+  }
+
+  /** The app's Wheel config, from the root. Read it through `WheelConfigService`. */
+  get config(): WheelAppConfig {
+    return this.configRef;
   }
 
   /** Deterministic epoch-millisecond read; no ticking signal or global clock service. */

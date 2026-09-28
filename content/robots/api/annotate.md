@@ -16,6 +16,12 @@ Kind: interface. Source: [packages/wheel/src/annotate/annotate-service.ts:134](.
 
 The injected capture seam, so the service runs headless in tests. One method, because there is one thing the annotator needs from the browser that it cannot do itself: the display stream. Stills come from the DOM rasterizer, which needs no permission and no seam of its own here.
 
+## `annotateConfigSchema`
+
+Kind: value. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:105](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L105).
+
+The `annotate` section of the Wheel app config. export default defineWheelConfig({ annotate: { enabled: true, sink: { url: 'https://notes.example.com/api' } } });
+
 ## `AnnotateMode`
 
 Kind: type. Source: [packages/wheel/src/annotate/annotate-service.ts:68](../../../packages/wheel/src/annotate/annotate-service.ts#L68).
@@ -282,12 +288,6 @@ A capture in progress.
 
 ## `WheelAnnotate`
 
-Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:112](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L112).
+Kind: function. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:137](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L137).
 
-Mount the annotator: a rolling recorder now, the chrome on demand.
-
-## `WheelAnnotateProps`
-
-Kind: interface. Source: [packages/wheel/src/annotate/annotate-lazy.tsx:90](../../../packages/wheel/src/annotate/annotate-lazy.tsx#L90).
-
-Props for {@link WheelAnnotate}.
+Mount the annotator: a rolling recorder now, the chrome on demand. Takes no props; the `annotate` section of the app config sets it up.
