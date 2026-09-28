@@ -13,7 +13,9 @@
  *
  * Editable targets (input/textarea/select/contenteditable) are skipped unless
  * a binding opts in with `inInputs: true` — typing must never trigger
- * single-letter shortcuts.
+ * single-letter shortcuts. Keydowns that belong to an IME composition never
+ * reach any binding. Parsing, matching, and display text live in
+ * `key-combo.ts`.
  */
 // wheel-component-root: headless — KeyboardSystem renders no DOM, only a document listener
 import { onCleanup, type JSX } from 'solid-js';
@@ -23,6 +25,7 @@ import { connect } from '../core/connect';
 import { view } from '../core/view';
 import { captureDeclSite } from '../core/decl-site';
 import { FocusService } from './focus';
+import { isComposingEvent, matchesCombo, parseCombo, type ParsedCombo } from './key-combo';
 
 /** A declarative shortcut registration. */
 export interface KeyBinding {
@@ -62,88 +65,6 @@ export interface KeyBinding {
    * such as the command palette's own toggle.
    */
   readonly inOverlays?: boolean;
-}
-
-/** A parsed key combo: exact modifier set + lowercased `event.key`. */
-export interface ParsedCombo {
-  /** Lowercased non-modifier key (`'k'`, `'escape'`, `'arrowdown'`). */
-  readonly key: string;
-  /** Ctrl must be held. */
-  readonly ctrl: boolean;
-  /** Meta (cmd) must be held. */
-  readonly meta: boolean;
-  /** Alt (option) must be held. */
-  readonly alt: boolean;
-  /** Shift must be held. */
-  readonly shift: boolean;
-}
-
-/** Whether this runtime is an Apple platform (decides what `mod` means). */
-function isMacPlatform(): boolean {
-  return typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.platform ?? '');
-}
-
-/**
- * Parse a `'mod+k'`-style combo into an exact modifier set. `mod` resolves
- * to cmd on macOS and ctrl elsewhere (override `mac` for headless tests).
- * Throws on combos with no non-modifier key — a modifier-only "shortcut" is
- * always a registration bug.
- */
-export function parseCombo(combo: string, mac: boolean = isMacPlatform()): ParsedCombo {
-  let ctrl = false;
-  let meta = false;
-  let alt = false;
-  let shift = false;
-  let key = '';
-  for (const raw of combo.split('+')) {
-    const part = raw.trim().toLowerCase();
-    switch (part) {
-      case 'mod':
-        if (mac) meta = true;
-        else ctrl = true;
-        break;
-      case 'ctrl':
-      case 'control':
-        ctrl = true;
-        break;
-      case 'cmd':
-      case 'meta':
-        meta = true;
-        break;
-      case 'alt':
-      case 'option':
-        alt = true;
-        break;
-      case 'shift':
-        shift = true;
-        break;
-      case 'space':
-        // The word form — a literal ' ' would be trimmed away by the parser.
-        key = ' ';
-        break;
-      default:
-        key = part;
-    }
-  }
-  if (!key) {
-    throw new Error(`Key combo '${combo}' has no non-modifier key`);
-  }
-  return { key, ctrl, meta, alt, shift };
-}
-
-/**
- * Whether a keydown event matches a parsed combo — key compared
- * case-insensitively, modifiers exactly (`ctrl+k` does NOT match
- * `ctrl+shift+k`).
- */
-export function matchesCombo(event: KeyboardEvent, combo: ParsedCombo): boolean {
-  return (
-    event.key?.toLowerCase() === combo.key &&
-    event.ctrlKey === combo.ctrl &&
-    event.metaKey === combo.meta &&
-    event.altKey === combo.alt &&
-    event.shiftKey === combo.shift
-  );
 }
 
 /** Editable targets swallow shortcuts unless a binding opts in. */
@@ -226,10 +147,13 @@ export class KeyboardService extends Service {
   /**
    * Match a keydown against the table and run the first hit: active scope
    * path innermost-first, then globals; registration order within a scope.
-   * Editable targets skip bindings without `inInputs`. Returns whether a
-   * binding ran (after `preventDefault()`).
+   * Editable targets skip bindings without `inInputs`. A keydown inside an
+   * IME composition runs nothing, whatever the binding opts into — Enter
+   * that confirms a Japanese candidate must not also submit the form.
+   * Returns whether a binding ran (after `preventDefault()`).
    */
   readonly dispatch = this.action((event: KeyboardEvent): boolean => {
+    if (isComposingEvent(event)) return false;
     const entries = this.bindings.get();
     const editable = isEditableTarget(event.target);
     const overlayOpen = this.focusService.hasOverlay();

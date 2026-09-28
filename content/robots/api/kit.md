@@ -12,31 +12,31 @@ Apply one dock drop: detach the dragged panel, land it on the target panel's edg
 
 ## `Command`
 
-Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:34](../../../packages/wheel/src/kit/command-palette.tsx#L34).
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:35](../../../packages/wheel/src/kit/command-palette.tsx#L35).
 
 A registered command — pure data plus its action.
 
 ## `CommandGroup`
 
-Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:58](../../../packages/wheel/src/kit/command-palette.tsx#L58).
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:59](../../../packages/wheel/src/kit/command-palette.tsx#L59).
 
 Ranked results cut into their headings — what the palette renders.
 
 ## `commandPaletteConfigSchema`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:244](../../../packages/wheel/src/kit/command-palette.tsx#L244).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:245](../../../packages/wheel/src/kit/command-palette.tsx#L245).
 
 The `commandPalette` section of the Wheel app config. export default defineWheelConfig({ // mod+k inserts a link in this app, so only mod+shift+p opens the palette. commandPalette: { openKeyCommand: 'mod+shift+p' } });
 
 ## `CommandPaletteService`
 
-Kind: class. Source: [packages/wheel/src/kit/command-palette.tsx:95](../../../packages/wheel/src/kit/command-palette.tsx#L95).
+Kind: class. Source: [packages/wheel/src/kit/command-palette.tsx:96](../../../packages/wheel/src/kit/command-palette.tsx#L96).
 
 Owns the command table, search ranking, and the palette's open state. Everything is headless: `commands()`/`search()` are computeds, `run(id)` invokes by id — the host component is just a viewer over this data.
 
 ## `CommandPaletteSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:278](../../../packages/wheel/src/kit/command-palette.tsx#L278).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:279](../../../packages/wheel/src/kit/command-palette.tsx#L279).
 
 Mount once at the app root. Registers the open keys (the `commandPalette.openKeyCommand` config, default mod+k and mod+shift+p) with KeyboardService while mounted and renders the palette overlay: scrim, query input, ranked results, arrow-key selection, Enter runs, Escape closes. Focus is captured on open and restored on close via FocusService. It takes no props: app-wide settings live in `src/wheel.config.ts`.
 
@@ -48,7 +48,7 @@ Options for the confirm/alert built-ins.
 
 ## `connectCommandPaletteSystem`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:193](../../../packages/wheel/src/kit/command-palette.tsx#L193).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:194](../../../packages/wheel/src/kit/command-palette.tsx#L194).
 
 CommandPaletteSystem's connection — exported for stubs and the states file.
 
@@ -114,9 +114,15 @@ Build a stack over `root`. `onChange` fires after every state change.
 
 ## `DEFAULT_PALETTE_OPEN_KEYS`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:221](../../../packages/wheel/src/kit/command-palette.tsx#L221).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:222](../../../packages/wheel/src/kit/command-palette.tsx#L222).
 
 The combos that open and close the palette when the app config sets none. BOTH, because both are muscle memory: mod+k from Linear and Slack, mod+shift+p from VS Code. A palette that answers one of them reads as missing to whoever learned the other.
+
+## `detectPlatform`
+
+Kind: function. Source: [packages/wheel/src/kit/key-combo.ts:29](../../../packages/wheel/src/kit/key-combo.ts#L29).
+
+The platform this runtime reports. Headless runtimes count as linux.
 
 ## `Dialog`
 
@@ -177,6 +183,12 @@ What a `use:focusScope` site declares: the scope's identity, and its subject.
 Kind: class. Source: [packages/wheel/src/kit/focus.ts:100](../../../packages/wheel/src/kit/focus.ts#L100).
 
 Tracks which focus scopes contain the focused element and offers the capture/restore ritual overlays need. Scope registration comes from the `use:focusScope` directive (or `registerScope` directly in headless tests); the active path is plain reactive data, inspectable in the debug panel.
+
+## `formatCombo`
+
+Kind: function. Source: [packages/wheel/src/kit/key-combo.ts:183](../../../packages/wheel/src/kit/key-combo.ts#L183).
+
+The text a menu, palette row, or help screen shows for a combo. Every surface calls this one function, so a shortcut reads the same everywhere. formatCombo('mod+shift+z', 'mac'); // '⇧⌘Z' formatCombo('mod+shift+z', 'win'); // 'Ctrl+Shift+Z' formatCombo('alt+arrowup', 'linux'); // 'Alt+Up' Mac uses Apple's modifier order (⌃ ⌥ ⇧ ⌘) and symbols, with no separator. Windows and Linux use words joined with `+`. Steps separated by a space (`'g i'`) format one by one and keep the space.
 
 ## `Frame`
 
@@ -324,27 +336,39 @@ Where the highlight sits inside a level's grid.
 
 ## `groupCommands`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:69](../../../packages/wheel/src/kit/command-palette.tsx#L69).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:70](../../../packages/wheel/src/kit/command-palette.tsx#L70).
 
 Cut ranked results into groups, keeping rank order. A group takes the position of its best-ranked member, so typing never reorders the list out from under the selection.
 
+## `isComposingEvent`
+
+Kind: function. Source: [packages/wheel/src/kit/key-combo.ts:117](../../../packages/wheel/src/kit/key-combo.ts#L117).
+
+Whether a keydown belongs to an input method (IME) composition. While a Japanese or Chinese user picks a candidate, Enter and the arrows belong to the IME, not to the app. Browsers mark those events with `isComposing`, and some (Safari) send `keyCode` 229 for the key that ends composition.
+
 ## `KeyBinding`
 
-Kind: interface. Source: [packages/wheel/src/kit/keyboard.tsx:28](../../../packages/wheel/src/kit/keyboard.tsx#L28).
+Kind: interface. Source: [packages/wheel/src/kit/keyboard.tsx:31](../../../packages/wheel/src/kit/keyboard.tsx#L31).
 
 A declarative shortcut registration.
 
 ## `KeyboardService`
 
-Kind: class. Source: [packages/wheel/src/kit/keyboard.tsx:172](../../../packages/wheel/src/kit/keyboard.tsx#L172).
+Kind: class. Source: [packages/wheel/src/kit/keyboard.tsx:93](../../../packages/wheel/src/kit/keyboard.tsx#L93).
 
 Owns the shortcut table and the matching logic. Bindings live in a reactive atom (they ARE data — auditable via `bindingsFor`); dispatch is a pure-ish action over that data, so scope precedence is testable without a DOM listener in the loop.
 
 ## `KeyboardSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:263](../../../packages/wheel/src/kit/keyboard.tsx#L263).
+Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:187](../../../packages/wheel/src/kit/keyboard.tsx#L187).
 
 Mount once at the app root: the single document keydown listener feeding `KeyboardService.dispatch`. Renders nothing.
+
+## `KeyPlatform`
+
+Kind: type. Source: [packages/wheel/src/kit/key-combo.ts:12](../../../packages/wheel/src/kit/key-combo.ts#L12).
+
+The platforms that name and draw modifiers differently.
 
 ## `layoutConfigSchema`
 
@@ -420,7 +444,7 @@ Local-storage adapter with lazy browser resolution and an injectable test host.
 
 ## `matchesCombo`
 
-Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:139](../../../packages/wheel/src/kit/keyboard.tsx#L139).
+Kind: function. Source: [packages/wheel/src/kit/key-combo.ts:101](../../../packages/wheel/src/kit/key-combo.ts#L101).
 
 Whether a keydown event matches a parsed combo — key compared case-insensitively, modifiers exactly (`ctrl+k` does NOT match `ctrl+shift+k`).
 
@@ -522,15 +546,15 @@ Every panelId in the tree, in depth-first order.
 
 ## `parseCombo`
 
-Kind: function. Source: [packages/wheel/src/kit/keyboard.tsx:92](../../../packages/wheel/src/kit/keyboard.tsx#L92).
+Kind: function. Source: [packages/wheel/src/kit/key-combo.ts:55](../../../packages/wheel/src/kit/key-combo.ts#L55).
 
-Parse a `'mod+k'`-style combo into an exact modifier set. `mod` resolves to cmd on macOS and ctrl elsewhere (override `mac` for headless tests). Throws on combos with no non-modifier key — a modifier-only "shortcut" is always a registration bug.
+Parse a `'mod+k'`-style combo into an exact modifier set. `mod` resolves to cmd on macOS and ctrl elsewhere (override `mac` for headless tests). Throws on combos with no non-modifier key — a modifier-only "shortcut" is always a registration bug. Write `space` and `plus` for those two keys.
 
 ## `ParsedCombo`
 
-Kind: interface. Source: [packages/wheel/src/kit/keyboard.tsx:68](../../../packages/wheel/src/kit/keyboard.tsx#L68).
+Kind: interface. Source: [packages/wheel/src/kit/key-combo.ts:15](../../../packages/wheel/src/kit/key-combo.ts#L15).
 
-A parsed key combo: exact modifier set + lowercased `event.key`.
+A parsed key combo: exact modifier set plus the key to compare.
 
 ## `parseFrameSize`
 
