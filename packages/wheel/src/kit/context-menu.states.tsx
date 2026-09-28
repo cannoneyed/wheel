@@ -65,6 +65,8 @@ const dataRegistration = {
 };
 
 const inert = {
+  submenus: 'auto' as const,
+  flyoutMinWidth: 640,
   close: () => {},
   anchorElementOf: () => undefined,
   schedule: () => () => {},
@@ -90,24 +92,24 @@ export default defineStates({
     },
     'data menu, stacked': {
       note: 'a MenuService target: dividers between slots, shortcut text, a disabled reason, a runtime item with its source',
-      props: { submenus: 'stacked' },
       shape: {
+        ...inert,
+        submenus: 'stacked',
         openId: 'cell:demo',
         anchorPoint: { x: 160, y: 120 },
         openedAtElement: false,
-        registrationOf: () => dataRegistration,
-        ...inert
+        registrationOf: () => dataRegistration
       }
     },
     'data menu, flyout': {
       note: 'the same data drawn with flyout submenus',
-      props: { submenus: 'flyout' },
       shape: {
+        ...inert,
+        submenus: 'flyout',
         openId: 'cell:demo',
         anchorPoint: { x: 160, y: 120 },
         openedAtElement: false,
-        registrationOf: () => dataRegistration,
-        ...inert
+        registrationOf: () => dataRegistration
       }
     },
     closed: {

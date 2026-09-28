@@ -11,6 +11,7 @@ export {
   ContextMenuSystem,
   ContextMenu,
   contextMenu,
+  contextMenuConfigSchema,
   isContextMenuKey,
   type ContextMenuBinding,
   type ContextMenuDataBinding,

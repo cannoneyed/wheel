@@ -47,7 +47,7 @@ Imperative custom dialogs render at root context because event handlers have no 
 - `contributeItems({ target, instance?, slot, source, items })` adds runtime `MenuAction`s; disabled items without `disabledReason` are dropped.
 - `levelFor(target, { subject, instance })` → `MenuLevel` (headless). Command entries come from `CommandService.menuItem` and run with `source: 'menu'`, `target: subject`, after the menu closes.
 - Trigger: `use:contextMenu={{ id, target, subject?, instance?, label? }}`. JSX `menu` form unchanged.
-- `<ContextMenuSystem submenus="auto" | "flyout" | "stacked" />`: same data, same keys (↑ ↓ → ← Enter Esc Home End).
+- Wheel config `contextMenu.submenus`: `'auto'` (default) | `'flyout'` | `'stacked'`; `contextMenu.flyoutMinWidth` (640). Same data, same keys (↑ ↓ → ← Enter Esc Home End). Icons: `<ContextMenuSystem renderIcon={fn} />` (a view prop).
 - Shift+F10 / Menu key inside the trigger → `openAt` the focused element, first item focused. `ContextMenuService.openAt(id, element)` for custom bindings.
 
 ## Isolation tiers

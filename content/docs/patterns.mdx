@@ -102,7 +102,8 @@ must carry a `disabledReason`; one without it is dropped.
 **Flyout or stacked.** The same data draws two ways. Flyouts open a submenu beside its row,
 on hover (after a short delay, with a "safe triangle" so a diagonal move into the submenu
 does not close it) or on →. Stacked levels replace the panel in place, with a back control,
-which suits touch and narrow screens. `<ContextMenuSystem submenus="auto" />` (the default)
+which suits touch and narrow screens. The `contextMenu.submenus` setting in the
+[Wheel config](#/configuration) chooses: `'auto'` (the default)
 picks flyouts for a fine pointer on a wide window, and a level with a size grid or a value
 field is always stacked. Both answer the same keys: ↑ ↓ move, → or Enter opens a submenu,
 ← or Esc closes one level, and Esc at the top closes the menu.

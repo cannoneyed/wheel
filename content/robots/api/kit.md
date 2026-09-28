@@ -150,51 +150,57 @@ DialogSystem's connection — exported for stubs and the states file.
 
 ## `contextMenu`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:228](../../../packages/wheel/src/kit/context-menu.tsx#L228).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:258](../../../packages/wheel/src/kit/context-menu.tsx#L258).
 
 The `use:contextMenu` directive — attach a menu to an existing element, no wrapper, no ref plumbing: <div use:contextMenu={{ id: `item:${props.id}`, menu: () => <ItemMenu id={props.id} /> }}> <div use:contextMenu={{ id: `cell:${id}`, target: 'cell', subject: () => ({ cellId: id }) }}> The first form mounts JSX; the second resolves a `MenuService` target. Shift+F10 or the Menu key, pressed inside the element, opens the menu at the focused element. Re-registers reactively if the binding changes (e.g. id derived from props).
 
 ## `ContextMenu`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:294](../../../packages/wheel/src/kit/context-menu.tsx#L294).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:324](../../../packages/wheel/src/kit/context-menu.tsx#L324).
 
 Component-form fallback (directives only work on native elements): wraps the trigger surface in a plain div and binds it.
 
 ## `ContextMenuBinding`
 
-Kind: type. Source: [packages/wheel/src/kit/context-menu.tsx:89](../../../packages/wheel/src/kit/context-menu.tsx#L89).
+Kind: type. Source: [packages/wheel/src/kit/context-menu.tsx:91](../../../packages/wheel/src/kit/context-menu.tsx#L91).
 
 What a trigger site declares: identity, content (JSX or a target), anchor mode.
 
+## `contextMenuConfigSchema`
+
+Kind: value. Source: [packages/wheel/src/kit/context-menu.tsx:123](../../../packages/wheel/src/kit/context-menu.tsx#L123).
+
+The `contextMenu` section of the Wheel app config. export default defineWheelConfig({ contextMenu: { submenus: 'stacked' } });
+
 ## `ContextMenuDataBinding`
 
-Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:78](../../../packages/wheel/src/kit/context-menu.tsx#L78).
+Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:80](../../../packages/wheel/src/kit/context-menu.tsx#L80).
 
 A menu built from data: a `MenuService` target's contributions.
 
 ## `ContextMenuJsxBinding`
 
-Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:71](../../../packages/wheel/src/kit/context-menu.tsx#L71).
+Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:73](../../../packages/wheel/src/kit/context-menu.tsx#L73).
 
 A menu whose content is JSX: any component, mounted only while open.
 
 ## `ContextMenuService`
 
-Kind: class. Source: [packages/wheel/src/kit/context-menu.tsx:121](../../../packages/wheel/src/kit/context-menu.tsx#L121).
+Kind: class. Source: [packages/wheel/src/kit/context-menu.tsx:148](../../../packages/wheel/src/kit/context-menu.tsx#L148).
 
 Global menu awareness: which menu is open and where. Single-open is enforced by `open` being a scalar atom — opening one menu IS closing the previous one.
 
 ## `ContextMenuSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:520](../../../packages/wheel/src/kit/context-menu.tsx#L520).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:548](../../../packages/wheel/src/kit/context-menu.tsx#L548).
 
 Mount once at the app root. Owns the portal, positioning, scrim, Escape, and focus restore for whatever menu is open — JSX menus and data menus.
 
 ## `ContextMenuSystemProps`
 
-Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:363](../../../packages/wheel/src/kit/context-menu.tsx#L363).
+Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:398](../../../packages/wheel/src/kit/context-menu.tsx#L398).
 
-Props for `<ContextMenuSystem/>`.
+Props for `<ContextMenuSystem/>`: view customization only. App-wide behavior (how submenus open) is the `contextMenu` config section.
 
 ## `createGesture`
 
@@ -486,7 +492,7 @@ Whether a keydown belongs to an input method (IME) composition. While a Japanese
 
 ## `isContextMenuKey`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:212](../../../packages/wheel/src/kit/context-menu.tsx#L212).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:242](../../../packages/wheel/src/kit/context-menu.tsx#L242).
 
 Whether a keydown asks for the context menu: Shift+F10, or the Menu key.
 
@@ -816,7 +822,7 @@ The app-owned workspace tree behind `Frame.Dock`. Plain JSON: it lives in an app
 
 ## `SubmenuStyle`
 
-Kind: type. Source: [packages/wheel/src/kit/context-menu.tsx:360](../../../packages/wheel/src/kit/context-menu.tsx#L360).
+Kind: type. Source: [packages/wheel/src/kit/context-menu.tsx:392](../../../packages/wheel/src/kit/context-menu.tsx#L392).
 
 How a data menu draws its submenus.
 

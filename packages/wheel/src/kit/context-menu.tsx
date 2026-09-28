@@ -22,8 +22,8 @@
  * target's contributions into a `MenuLevel` when the menu opens and draws
  * it with the same keys either way: as FLYOUTS (submenus open beside their
  * row) or STACKED (a submenu replaces the panel, with a back control).
- * `<ContextMenuSystem submenus="auto" />` picks flyouts for a fine pointer
- * on a wide window, stacked levels otherwise.
+ * The `contextMenu.submenus` config (default `'auto'`) picks flyouts for a
+ * fine pointer on a wide window, stacked levels otherwise.
  *
  * Keyboard users open the menu with Shift+F10 or the Menu key while the
  * trigger (or something inside it) has focus. The menu opens at the element,
@@ -50,6 +50,8 @@ import { componentRoot, connect, viewRoot } from '../core/connect';
 import { view } from '../core/view';
 import { WheelContext } from '../core/context';
 import { useSignal } from '../core/local-state';
+import { WheelConfigService } from '../core/app-config';
+import { z } from 'zod';
 import { captureDeclSite } from '../core/decl-site';
 import { FocusService } from './focus';
 import { createMenuStack, type MenuAction, type MenuItem, type MenuLevel } from './menu-stack';
@@ -114,6 +116,31 @@ export interface StoredMenuRegistration extends MenuRegistration {
 }
 
 /**
+ * The `contextMenu` section of the Wheel app config.
+ *
+ *   export default defineWheelConfig({ contextMenu: { submenus: 'stacked' } });
+ */
+export const contextMenuConfigSchema = z.strictObject({
+  /**
+   * How data menus draw submenus. `'flyout'`: beside their row, on hover or
+   * →. `'stacked'`: in place, with a back control. `'auto'` (default):
+   * flyouts for a fine pointer on a window at least `flyoutMinWidth` wide,
+   * stacked otherwise. A level with a size grid or a value field is always
+   * stacked. JSX menus draw themselves and ignore this.
+   */
+  submenus: z.enum(['auto', 'flyout', 'stacked']).default('auto'),
+  /** The narrowest window, in CSS pixels, where `'auto'` picks flyouts. Default 640. */
+  flyoutMinWidth: z.number().int().nonnegative().default(640)
+});
+
+declare module '../core/index' {
+  interface WheelAppConfig {
+    /** Context menus. */
+    readonly contextMenu?: z.input<typeof contextMenuConfigSchema>;
+  }
+}
+
+/**
  * Global menu awareness: which menu is open and where. Single-open is
  * enforced by `open` being a scalar atom — opening one menu IS closing the
  * previous one.
@@ -126,6 +153,9 @@ export class ContextMenuService extends Service {
   static override group = 'framework';
 
   private readonly registrations = new Map<string, StoredMenuRegistration>();
+  /** The `contextMenu` config section. */
+  readonly settings = this.service(WheelConfigService).section('contextMenu', contextMenuConfigSchema);
+
   private readonly current = this.atom<{ id: string; x: number; y: number; atElement: boolean } | null>(null, 'open');
   private readonly elements = this.field<ReadonlyMap<string, HTMLElement>>(new Map(), 'openAtElements');
 
@@ -316,7 +346,9 @@ export const connectContextMenuSystem = connect('ContextMenuSystem', (c) => {
     {
       openId: menuService.openId,
       anchorPoint: menuService.anchorPoint,
-      openedAtElement: menuService.openedAtElement
+      openedAtElement: menuService.openedAtElement,
+      submenus: () => menuService.settings.submenus,
+      flyoutMinWidth: () => menuService.settings.flyoutMinWidth
     },
     {
       close: menuService.close,
@@ -359,25 +391,20 @@ function prepareMenuItems(panel: HTMLElement): HTMLElement[] {
 /** How a data menu draws its submenus. */
 export type SubmenuStyle = 'auto' | 'flyout' | 'stacked';
 
-/** Props for `<ContextMenuSystem/>`. */
+/**
+ * Props for `<ContextMenuSystem/>`: view customization only. App-wide
+ * behavior (how submenus open) is the `contextMenu` config section.
+ */
 export interface ContextMenuSystemProps {
-  /**
-   * How data menus draw submenus. `'flyout'`: beside their row, on hover or
-   * →. `'stacked'`: in place, with a back control. `'auto'` (default):
-   * flyouts for a fine pointer on a window at least 640px wide, stacked
-   * otherwise. A level with a size grid or a value field is always stacked.
-   * JSX menus draw themselves and ignore this.
-   */
-  readonly submenus?: SubmenuStyle;
-  /** Render a data menu entry's icon key. */
+  /** Draw a data menu entry's icon key (`MenuAction.icon`) with your icon set. */
   readonly renderIcon?: (icon: string) => JSX.Element;
 }
 
 /** Resolve `'auto'` against the pointer and the window width. */
-function resolveSubmenus(style: SubmenuStyle): 'flyout' | 'stacked' {
+function resolveSubmenus(style: SubmenuStyle, flyoutMinWidth: number): 'flyout' | 'stacked' {
   if (style !== 'auto') return style;
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'stacked';
-  return window.matchMedia('(pointer: fine)').matches && window.innerWidth >= 640 ? 'flyout' : 'stacked';
+  return window.matchMedia('(pointer: fine)').matches && window.innerWidth >= flyoutMinWidth ? 'flyout' : 'stacked';
 }
 
 /**
@@ -415,6 +442,7 @@ function closingFirst(level: MenuLevel, close: () => void): MenuLevel {
 interface DataMenuProps {
   readonly level: MenuLevel;
   readonly submenus: SubmenuStyle;
+  readonly flyoutMinWidth: number;
   readonly close: () => void;
   readonly schedule: (ms: number, fn: () => void) => () => void;
   readonly renderIcon?: (icon: string) => JSX.Element;
@@ -441,7 +469,7 @@ function DataMenu(props: DataMenuProps): JSX.Element {
   // A size grid or a value field needs the whole panel: always stacked.
   const style = () => {
     const current = state();
-    return current.grid || current.input ? 'stacked' : resolveSubmenus(props.submenus);
+    return current.grid || current.input ? 'stacked' : resolveSubmenus(props.submenus, props.flyoutMinWidth);
   };
 
   /** Pop one level and put the highlight back on the group that opened it. */
@@ -665,7 +693,8 @@ export function ContextMenuSystem(props: ContextMenuSystemProps): JSX.Element {
               {level ? (
                 <DataMenu
                   level={level()}
-                  submenus={props.submenus ?? 'auto'}
+                  submenus={state.submenus}
+                  flyoutMinWidth={state.flyoutMinWidth}
                   close={state.close}
                   schedule={state.schedule}
                   renderIcon={props.renderIcon}

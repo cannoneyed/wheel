@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 
-import { ServiceContext, connect } from '../core/index';
+import { ServiceContext, connect, defineWheelConfig } from '../core/index';
 import { WheelContext } from '../core/context';
 import type { Defer } from '../core/runtime-defaults';
 import {
@@ -236,7 +236,11 @@ describe('<ContextMenuSystem /> data menus', () => {
 
   function mount(submenus: SubmenuStyle) {
     const clock = manualDefer();
-    const context = new ServiceContext({ scopeId: `data-menu-${submenus}`, defer: clock.defer });
+    const context = new ServiceContext({
+      scopeId: `data-menu-${submenus}`,
+      defer: clock.defer,
+      config: defineWheelConfig({ contextMenu: { submenus } })
+    });
     const host = document.createElement('div');
     document.body.appendChild(host);
     const dispose = render(
@@ -249,7 +253,7 @@ describe('<ContextMenuSystem /> data menus', () => {
           >
             A1
           </button>
-          <ContextMenuSystem submenus={submenus} />
+          <ContextMenuSystem />
         </WheelContext.Provider>
       ),
       host
