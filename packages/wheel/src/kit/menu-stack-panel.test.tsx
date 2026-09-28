@@ -37,6 +37,26 @@ describe('MenuStackPanel', () => {
     host.remove();
   });
 
+  it('draws an entry’s shortcut, and the reason instead when it is disabled', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const stack = createMenuStack({
+      title: '',
+      items: [
+        { id: 'undo', label: 'Undo', shortcut: '⌘Z', run: () => {} },
+        { id: 'redo', label: 'Redo', shortcut: '⇧⌘Z', disabled: true, disabledReason: 'Nothing to redo', run: () => {} }
+      ]
+    });
+    const dispose = render(() => <MenuStackPanel stack={stack} state={stack.state} />, host);
+
+    expect(host.querySelector('[data-testid="wheel-menu-shortcut-undo"]')?.textContent).toBe('⌘Z');
+    expect(host.querySelector('[data-testid="wheel-menu-shortcut-redo"]')).toBeNull();
+    expect(host.querySelector('[data-testid="wheel-menu-item-redo"]')?.textContent).toContain('Nothing to redo');
+
+    dispose();
+    host.remove();
+  });
+
   it('keeps a navigable back item in a fixed header', () => {
     const host = document.createElement('div');
     document.body.appendChild(host);

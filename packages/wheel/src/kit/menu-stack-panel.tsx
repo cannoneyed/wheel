@@ -336,6 +336,23 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
                   {item.disabledReason}
                 </span>
               </Show>
+              {/* The key that does the same thing, where menus always put it. */}
+              <Show when={!item.submenu && item.disabled !== true ? item.shortcut : undefined}>
+                {(shortcut) => (
+                  <kbd
+                    data-testid={`wheel-menu-shortcut-${item.id}`}
+                    style={{
+                      'margin-left': 'auto',
+                      'padding-left': '12px',
+                      color: 'var(--wheel-ink-muted, #6b7280)',
+                      'font-family': 'inherit',
+                      'font-size': '12px'
+                    }}
+                  >
+                    {shortcut()}
+                  </kbd>
+                )}
+              </Show>
               {/* A group says it goes deeper; a toggle says whether it is on. */}
               <Show when={item.submenu}>
                 <span style={{ color: 'var(--wheel-ink-muted, #6b7280)' }}>›</span>

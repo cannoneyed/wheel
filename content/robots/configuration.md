@@ -52,6 +52,7 @@ Wheel's own app-wide settings. Separate from `wheel/config` app configuration ab
 | Section | Fields (defaults) |
 | --- | --- |
 | `commandPalette` | `openKeyCommand`: string or string[] (`['mod+k', 'mod+shift+p']`) |
+| `commands` | `blockedKeyFeedback`: `'toast'` \| `'none'` (`'toast'`) |
 | `layout` | `storage`: `'local'` \| `'memory'` (`'local'`); `storagePrefix` (`'wheel.layout'`); `storageKey` (`'frames'`) |
 | `debug` | `control`: `'built-in'` \| `'controlled'` (`'built-in'`) |
 | `annotate` | `enabled` (dev mode); `sink`: `{ url, headers? }` (`/__wheel/note`) |

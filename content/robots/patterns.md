@@ -11,7 +11,8 @@ Global UI uses one service for inspectable state and one mounted system for DOM 
 | Context menu | `use:contextMenu` or `ContextMenu` | `ContextMenuService` | `ContextMenuSystem` |
 | Dialog | `Dialog`, `openDialog`, `confirm`, `alert` | `DialogService` | `DialogSystem` |
 | Keyboard | binding registration | `KeyboardService` | `KeyboardSystem` |
-| Command palette | command registration | `CommandPaletteService` | `CommandPaletteSystem` |
+| Commands | `CommandService.register` | `CommandService` | read by keys, palette, menus |
+| Command palette | viewer over `CommandService` (`registerCommand` adapter) | `CommandPaletteService` | `CommandPaletteSystem` |
 | Toast | service method | `ToastService` | `ToastSystem` |
 
 `FocusService` provides shared focus scopes and overlay restoration.
@@ -28,6 +29,17 @@ Imperative custom dialogs render at root context because event handlers have no 
 - Duplicate registration throws with both declaration sites.
 - Cleanup removes only the registration that created it.
 - Closed lazy surfaces mount no content.
+
+## Commands
+
+- One record per action: `CommandService.register({ id, title, keys, visible, enabled, checked, args, run })`.
+- `visible(ctx)` false: not listed, key falls through. `enabled(ctx)` returns `true` or `{ reason }` (no bare `false`): listed dim with the reason, key consumed, reason toasted.
+- `setContext((request) => appFields)` supplies app context; Wheel adds `focus`, `source`, `target`, `actor`.
+- Every surface runs `execute(id, args, { source, target, actor })` → `{ ok: true }` or `{ ok: false, why: 'unknown' | 'hidden' | 'disabled' | 'cancelled' | 'failed' }`. Sync `run` finishes before `execute` returns.
+- `onExecute(hook)` for undo grouping and telemetry. `listFor({ source: 'agent', actor })` is an agent's tool list.
+- Missing required `args`: `failed` naming the field for `api`/`agent`; `setArgsPrompt` asks people.
+- Keys become `KeyboardService` bindings (`command` field set). `shortcut` = `formatCombo` of the first displayed key. `menuItem(id, { target })` builds a `MenuAction`.
+- `keyboard.conflicts()`: `same-scope` (bug), `gated`, `shadowed`.
 
 ## Isolation tiers
 
