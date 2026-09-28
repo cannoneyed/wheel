@@ -235,8 +235,8 @@ const commandOptionId = (id: string) => `wheel-command-option-${encodeURICompone
  * Enter runs, Escape closes. Focus is captured on open and restored on close
  * via FocusService.
  */
-export function CommandPaletteSystem(props: CommandPaletteSystemProps = {}): JSX.Element {
-  const state = connectCommandPaletteSystem({});
+export function CommandPaletteSystem(props: CommandPaletteSystemProps): JSX.Element {
+  const state = connectCommandPaletteSystem(props);
   const [query, setQuery] = useSignal('', 'query');
   const [selected, setSelected] = useSignal(0, 'selected');
   // SIGNALS, not plain refs: the focus effect must re-run when the portal
