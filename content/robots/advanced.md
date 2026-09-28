@@ -43,6 +43,8 @@ The demos combine a WASM SQLite driver with a SharedWorker message transport. Th
 - `thumbGeometry` and `Scrollbar` for custom scroll surfaces.
 - `createGestureActor`, `gestureMachine`, and `NO_MODIFIERS` for headless gesture input.
 - `parseCombo` and `matchesCombo` for keyboard parsing.
+- `formatCombo(combo, platform?)` for shortcut text (`⇧⌘Z` on a Mac, `Ctrl+Shift+Z` elsewhere).
+- `isComposingEvent` for IME keydowns.
 - `createMenuStack`, `flattenLeaves`, and `menuMatches` for menu data.
 - `applyDockIntent`, `normalizeSplitTree`, `removePanel`, and `panelIds` for split trees.
 

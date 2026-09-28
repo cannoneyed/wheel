@@ -28,7 +28,8 @@ import { captureDeclSite } from '../core/decl-site';
 import { WheelConfigService } from '../core/app-config';
 import { z } from 'zod';
 import { FocusService } from './focus';
-import { KeyboardService, parseCombo, type KeyBinding } from './keyboard';
+import { KeyboardService, type KeyBinding } from './keyboard';
+import { parseCombo } from './key-combo';
 
 /** A registered command — pure data plus its action. */
 export interface Command {

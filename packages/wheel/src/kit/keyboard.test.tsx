@@ -161,6 +161,32 @@ describe('KeyboardService (headless dispatch)', () => {
     }
   });
 
+  it('runs nothing during IME composition, even inInputs + inOverlays bindings', () => {
+    const { context, keyboardService } = setup();
+    try {
+      const runs: string[] = [];
+      keyboardService.register({
+        id: 'form.submit',
+        key: 'enter',
+        inInputs: true,
+        inOverlays: true,
+        run: () => runs.push('submit')
+      });
+      const composing = keydown({ key: 'Enter', isComposing: true });
+      expect(keyboardService.dispatch(composing)).toBe(false);
+      expect(composing.defaultPrevented).toBe(false);
+      const safari = keydown({ key: 'Enter' });
+      Object.defineProperty(safari, 'keyCode', { value: 229 });
+      expect(keyboardService.dispatch(safari)).toBe(false);
+      expect(runs).toEqual([]);
+
+      expect(keyboardService.dispatch(keydown({ key: 'Enter' }))).toBe(true);
+      expect(runs).toEqual(['submit']);
+    } finally {
+      context.dispose();
+    }
+  });
+
   it('gives overlays keyboard ownership unless a binding explicitly opts in', () => {
     const { context, focusService, keyboardService } = setup();
     const overlay = document.createElement('div');

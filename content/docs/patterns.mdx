@@ -130,7 +130,10 @@ The same split carries the rest of `wheel/kit`'s built-ins:
   editable targets are skipped unless a binding opts in, and open overlays suppress app
   shortcuts unless `inOverlays` is explicit. The whole matching pipeline is a headless
   `dispatch(event)` action. `<KeyboardSystem/>` is one document listener feeding it;
-  `bindingsFor(scope)` makes the active shortcut table auditable data.
+  `bindingsFor(scope)` makes the active shortcut table auditable data. Keydowns that belong
+  to an IME composition (a Japanese user confirming a candidate with Enter) never reach a
+  binding. `formatCombo(combo, platform)` draws a combo for menus and help screens: `⇧⌘Z` on
+  a Mac, `Ctrl+Shift+Z` on Windows and Linux.
 - **CommandPaletteService** (data-flavored — commands genuinely ARE data): services register
   commands in their constructors (`registerCommand` + `addCleanup`), `search(query)` ranks
   headlessly, and `<CommandPaletteSystem/>` binds its open keys, renders an ARIA

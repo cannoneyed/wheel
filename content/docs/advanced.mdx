@@ -145,7 +145,9 @@ The job also declares the narrowest interfaces it needs. `RolloverDb` has one `q
 | `Scrollbar`, `ScrollMetrics` | `wheel/kit` | A custom scrolling pane that needs framework scrollbar chrome instead of the browser's. |
 | `thumbGeometry(track, metrics, minThumb?)` | `wheel/kit` | Unit-testing or reimplementing thumb sizing: pure function, returns `{ size, offset }` or `null` when nothing overflows. |
 | `createGestureActor`, `gestureMachine`, `NO_MODIFIERS` | `wheel/kit` | Driving drag semantics (press → slop threshold → draft → commit/cancel) from a test script or a non-DOM input, without `createGesture`'s pointer plumbing. |
-| `parseCombo`, `matchesCombo` | `wheel/kit` | Rendering a shortcut hint, or matching keys outside `KeyboardService`. `mod` resolves to cmd on macOS, ctrl elsewhere; pass `mac` explicitly for headless tests. |
+| `parseCombo`, `matchesCombo` | `wheel/kit` | Matching keys outside `KeyboardService`. `mod` resolves to cmd on macOS, ctrl elsewhere; pass `mac` explicitly for headless tests. |
+| `formatCombo`, `detectPlatform` | `wheel/kit` | Rendering a shortcut hint. `formatCombo('mod+shift+z', 'mac')` is `⇧⌘Z`; on `'win'` and `'linux'` it is `Ctrl+Shift+Z`. The platform defaults to the detected one. |
+| `isComposingEvent` | `wheel/kit` | Skipping IME keydowns in your own key handlers, the way `KeyboardService` does. |
 | `applyDockIntent`, `normalizeSplitTree`, `panelIds`, `removePanel` | `wheel/kit` | Manipulating a `SplitTree` in an app action — the workspace layout is plain JSON in your own atom. |
 
 The `SplitTree` API is the one most likely to matter. `Frame.Dock` reports a completed drop as a `DockIntent` and renders whatever tree you hand it; your action decides what the tree becomes. `applyDockIntent(tree, intent)` detaches the dragged panel, lands it on the target's edge, and normalizes — same-axis drops insert a sibling, cross-axis drops wrap the target in a new split. `removePanel` returns `null` when the tree empties. `normalizeSplitTree` collapses single-child splits and merges same-axis nesting; all of them keep untouched branches at their original object identity, so renderers preserve DOM.

@@ -14,14 +14,16 @@ export {
   type ContextMenuBinding
 } from './context-menu';
 export { FocusService, focusScope, type FocusScopeBinding } from './focus';
+export { KeyboardService, KeyboardSystem, type KeyBinding } from './keyboard';
 export {
-  KeyboardService,
-  KeyboardSystem,
-  parseCombo,
+  detectPlatform,
+  formatCombo,
+  isComposingEvent,
   matchesCombo,
-  type KeyBinding,
+  parseCombo,
+  type KeyPlatform,
   type ParsedCombo
-} from './keyboard';
+} from './key-combo';
 export {
   CommandPaletteService,
   CommandPaletteSystem,
