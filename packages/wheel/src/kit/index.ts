@@ -26,9 +26,11 @@ export {
   CommandPaletteService,
   CommandPaletteSystem,
   connectCommandPaletteSystem,
+  DEFAULT_PALETTE_OPEN_KEYS,
   groupCommands,
   type Command,
-  type CommandGroup
+  type CommandGroup,
+  type CommandPaletteSystemProps
 } from './command-palette';
 /**
  * Stacked menus — the one model and the one look for a menu with submenus.

@@ -12,27 +12,33 @@ Apply one dock drop: detach the dragged panel, land it on the target panel's edg
 
 ## `Command`
 
-Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:31](../../../packages/wheel/src/kit/command-palette.tsx#L31).
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:32](../../../packages/wheel/src/kit/command-palette.tsx#L32).
 
 A registered command — pure data plus its action.
 
 ## `CommandGroup`
 
-Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:55](../../../packages/wheel/src/kit/command-palette.tsx#L55).
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:56](../../../packages/wheel/src/kit/command-palette.tsx#L56).
 
 Ranked results cut into their headings — what the palette renders.
 
 ## `CommandPaletteService`
 
-Kind: class. Source: [packages/wheel/src/kit/command-palette.tsx:92](../../../packages/wheel/src/kit/command-palette.tsx#L92).
+Kind: class. Source: [packages/wheel/src/kit/command-palette.tsx:93](../../../packages/wheel/src/kit/command-palette.tsx#L93).
 
 Owns the command table, search ranking, and the palette's open state. Everything is headless: `commands()`/`search()` are computeds, `run(id)` invokes by id — the host component is just a viewer over this data.
 
 ## `CommandPaletteSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:217](../../../packages/wheel/src/kit/command-palette.tsx#L217).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:238](../../../packages/wheel/src/kit/command-palette.tsx#L238).
 
-Mount once at the app root. Registers the toggle combos with KeyboardService while mounted and renders the palette overlay: scrim, query input, ranked results, arrow-key selection, Enter runs, Escape closes. Focus is captured on open and restored on close via FocusService.
+Mount once at the app root. Registers the open keys (`openKeys`, default mod+k and mod+shift+p) with KeyboardService while mounted and renders the palette overlay: scrim, query input, ranked results, arrow-key selection, Enter runs, Escape closes. Focus is captured on open and restored on close via FocusService.
+
+## `CommandPaletteSystemProps`
+
+Kind: interface. Source: [packages/wheel/src/kit/command-palette.tsx:216](../../../packages/wheel/src/kit/command-palette.tsx#L216).
+
+Props for `<CommandPaletteSystem/>`.
 
 ## `ConfirmOptions`
 
@@ -42,7 +48,7 @@ Options for the confirm/alert built-ins.
 
 ## `connectCommandPaletteSystem`
 
-Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:184](../../../packages/wheel/src/kit/command-palette.tsx#L184).
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:185](../../../packages/wheel/src/kit/command-palette.tsx#L185).
 
 CommandPaletteSystem's connection — exported for stubs and the states file.
 
@@ -105,6 +111,12 @@ Configuration for one DOM-bound gesture.
 Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:221](../../../packages/wheel/src/kit/menu-stack.ts#L221).
 
 Build a stack over `root`. `onChange` fires after every state change.
+
+## `DEFAULT_PALETTE_OPEN_KEYS`
+
+Kind: value. Source: [packages/wheel/src/kit/command-palette.tsx:209](../../../packages/wheel/src/kit/command-palette.tsx#L209).
+
+The combos that open and close the palette when an app passes no `openKeys`. BOTH, because both are muscle memory: mod+k from Linear and Slack, mod+shift+p from VS Code. A palette that answers one of them reads as missing to whoever learned the other.
 
 ## `Dialog`
 
@@ -312,7 +324,7 @@ Where the highlight sits inside a level's grid.
 
 ## `groupCommands`
 
-Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:66](../../../packages/wheel/src/kit/command-palette.tsx#L66).
+Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:67](../../../packages/wheel/src/kit/command-palette.tsx#L67).
 
 Cut ranked results into groups, keeping rank order. A group takes the position of its best-ranked member, so typing never reorders the list out from under the selection.
 
