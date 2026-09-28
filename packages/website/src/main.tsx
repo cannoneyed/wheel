@@ -12,7 +12,7 @@ import { render } from 'solid-js/web';
 import { } from 'wheel/core';
 import { WheelAnnotate } from 'wheel/annotate';
 import { WheelApp } from 'wheel/debug';
-import { annotationEnabled } from './annotation';
+import wheelConfig from './wheel.config';
 
 import './styles.css';
 // The live figure renders real wheel components (the unplug switch), so the
@@ -47,9 +47,9 @@ function App() {
  */
 render(
   () => (
-    <WheelApp scopeId="app">
+    <WheelApp scopeId="app" config={wheelConfig}>
       <App />
-      <WheelAnnotate enabled={annotationEnabled()} />
+      <WheelAnnotate />
     </WheelApp>
   ),
   document.getElementById('root')!

@@ -2,7 +2,7 @@ import { render } from 'solid-js/web';
 import { viewRoot } from 'wheel/core';
 import { WheelApp } from 'wheel/debug';
 import { WheelAnnotate } from 'wheel/annotate';
-import { annotationEnabled } from './annotation';
+import wheelConfig from './wheel.config';
 
 import '../../docs/src/theme.css';
 import 'wheel/components/styles';
@@ -35,9 +35,9 @@ function ComponentsApp() {
  */
 render(
   () => (
-    <WheelApp scopeId="componentsapp">
+    <WheelApp scopeId="componentsapp" config={wheelConfig}>
       <ComponentsApp />
-      <WheelAnnotate enabled={annotationEnabled()} />
+      <WheelAnnotate />
     </WheelApp>
   ),
   document.getElementById('root')!

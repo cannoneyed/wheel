@@ -11,7 +11,7 @@ import { createEffect, on } from 'solid-js';
 import { useSignal } from 'wheel/core';
 import { WheelAnnotate } from 'wheel/annotate';
 import { WheelApp } from 'wheel/debug';
-import { annotationEnabled } from './annotation';
+import wheelConfig from './wheel.config';
 
 import '../../docs/src/styles.css';
 import '../../docs/src/site/site-chrome.css';
@@ -73,9 +73,9 @@ function DocsApp() {
  */
 render(
   () => (
-    <WheelApp scopeId="docsapp">
+    <WheelApp scopeId="docsapp" config={wheelConfig}>
       <DocsApp />
-      <WheelAnnotate enabled={annotationEnabled()} />
+      <WheelAnnotate />
     </WheelApp>
   ),
   document.getElementById('root')!

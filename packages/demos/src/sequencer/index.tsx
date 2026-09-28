@@ -31,11 +31,12 @@ import { SequencerGrid } from './components/sequencer-grid';
 import { SequencerToolbar } from './components/sequencer-toolbar';
 import { SequencerTracks } from './components/sequencer-tracks';
 import styles from './sequencer.module.css';
+import wheelConfig from '../wheel.config';
 
 /** The demo root the shell mounts. */
 export function SequencerDemo() {
   return (
-    <WheelApp client={demoClient('sequencer')}>
+    <WheelApp client={demoClient('sequencer')} config={wheelConfig}>
       <DemoStage title="Sequencer" toolbar={<SequencerToolbar />}>
         <div use:viewRoot={'SequencerDemo'} class={styles.layout}>
           <SequencerGrid />

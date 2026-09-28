@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { useContext } from 'solid-js';
 
-import { ServiceProvider, Service } from '../core';
+import { ServiceProvider, Service, defineWheelConfig } from '../core';
 import { WheelContext, type WheelContextValue } from '../core/context';
 
 import { WheelAnnotate } from './annotate-lazy';
@@ -40,9 +40,9 @@ function mountApp(enabled?: boolean): WheelContextValue {
   };
   teardown = render(
     () => (
-      <ServiceProvider>
+      <ServiceProvider config={enabled === undefined ? undefined : defineWheelConfig({ annotate: { enabled } })}>
         <Probe />
-        {enabled === undefined ? <WheelAnnotate /> : <WheelAnnotate enabled={enabled} />}
+        <WheelAnnotate />
       </ServiceProvider>
     ),
     host

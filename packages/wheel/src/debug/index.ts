@@ -5,6 +5,7 @@
  * registry it reads) and `sync` (the client status/provenance it renders).
  */
 export { DebugPanelService, WheelApp } from './wheel-app';
+export { debugConfigSchema } from './config';
 export { WheelDebugPanel } from './debug-panel';
 export {
   SnapshotService,

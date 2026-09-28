@@ -25,11 +25,12 @@ import { GraphCanvas } from './components/graph-canvas';
 import { GraphSidebar } from './components/graph-sidebar';
 import { GraphToolbar } from './components/graph-toolbar';
 import styles from './graph.module.css';
+import wheelConfig from '../wheel.config';
 
 /** The demo root the shell mounts. */
 export function GraphDemo() {
   return (
-    <WheelApp client={demoClient('graph')}>
+    <WheelApp client={demoClient('graph')} config={wheelConfig}>
       <DemoStage title="Graph" toolbar={<GraphToolbar />}>
         <div use:viewRoot={'GraphDemo'} class={styles.layout}>
           <GraphCanvas />

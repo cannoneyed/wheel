@@ -39,4 +39,21 @@ Every source value and final schema output must be plain JSON. Reject `undefined
 
 Client configuration is public. Keep secrets in server process environment. Server environment parsing is application code, not `wheel/config`.
 
-Primary source: [`packages/wheel/src/config/index.ts`](../../packages/wheel/src/config/index.ts).
+## Wheel config (`src/wheel.config.ts`)
+
+Wheel's own app-wide settings. Separate from `wheel/config` app configuration above.
+
+- One file per app: `src/wheel.config.ts` default-exports `defineWheelConfig({...})` (from `wheel/core`). JSON only (throws on functions, non-finite numbers, class instances); returns a frozen copy.
+- Enters ONCE at the root: `<WheelApp config>`, `<WheelProvider config>`, root `<ServiceProvider config>`, or `new ServiceContext({ config })` in tests. Child contexts inherit; a child given `config` throws.
+- Read with `WheelConfigService.section(key, schema)`: Zod-parsed, defaults applied, cached; bad values throw `Invalid wheel config: <section>.<field>: …`.
+- Packages declare sections by augmenting `interface WheelAppConfig` (in `core/app-config`).
+- Global components take no behavior settings as props (`no-global-system-props`). Config is app-wide behavior; view render functions stay props (allowlisted: `ToastSystem renderToast`).
+
+| Section | Fields (defaults) |
+| --- | --- |
+| `commandPalette` | `openKeyCommand`: string or string[] (`['mod+k', 'mod+shift+p']`) |
+| `layout` | `storage`: `'local'` \| `'memory'` (`'local'`); `storagePrefix` (`'wheel.layout'`); `storageKey` (`'frames'`) |
+| `debug` | `control`: `'built-in'` \| `'controlled'` (`'built-in'`) |
+| `annotate` | `enabled` (dev mode); `sink`: `{ url, headers? }` (`/__wheel/note`) |
+
+Primary sources: [`packages/wheel/src/config/index.ts`](../../packages/wheel/src/config/index.ts), [`packages/wheel/src/core/app-config.ts`](../../packages/wheel/src/core/app-config.ts).

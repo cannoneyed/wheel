@@ -87,18 +87,21 @@ the first time someone arms. Measured on the tracker, by building it with and wi
 | deferred: the whole armed experience | 13.4 KB, fetched on arm |
 | deferred: the DOM rasterizer | 10.2 KB, fetched when a note is first drawn |
 
-`enabled` defaults to dev mode, so a production build records nothing and shows nothing until the
-app says otherwise. That decision belongs to the app, because it decides whose application state
-may be captured:
+The `annotate.enabled` setting in [`src/wheel.config.ts`](#/configuration) defaults to dev
+mode, so a production build records nothing and shows nothing until the app says otherwise.
+That decision belongs to the app, because it decides whose application state may be captured.
+Config is read at bootstrap, so it can be computed there:
 
-```tsx
-// Excerpt: a production entry.
-<WheelAnnotate enabled={session.actor?.isStaff === true} />
-<WheelAnnotate enabled={localStorage.getItem('wheel.annotate') === '1'} />
+```ts
+// Excerpt: src/wheel.config.ts in a production app.
+export default defineWheelConfig({
+  annotate: { enabled: localStorage.getItem('wheel.annotate') === '1' }
+});
 ```
 
-The second form is the one for a live deployment: set the key in the console, reload, and the
-pane is there — no deploy needed.
+That is the one for a live deployment: set the key in the console, reload, and the pane is
+there — no deploy needed. For a gate known only after sign-in (staff only), set
+`enabled: true` and mount `<WheelAnnotate/>` only for those people.
 
 <Aside kind="note">
   <strong>Names are declared, not preserved.</strong> A timeline is only worth reading because it
@@ -115,9 +118,11 @@ By default a note is POSTed to the dev server's `/__wheel/note`, which writes th
 That endpoint is not special — it is one implementation of a two-method contract, and the app can
 point somewhere else:
 
-```tsx
-// Excerpt: an app entry that collects notes centrally.
-<WheelAnnotate sink={{ url: 'https://notes.example.com/annotations', headers: { authorization: token } }} />
+```ts
+// Excerpt: src/wheel.config.ts in an app that collects notes centrally.
+export default defineWheelConfig({
+  annotate: { sink: { url: 'https://notes.example.com/annotations', headers: { authorization: token } } }
+});
 ```
 
 | method | what it does |

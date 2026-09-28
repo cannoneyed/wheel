@@ -47,6 +47,9 @@ import { DebugChrome } from '../core/connect';
 import { chromeMark } from '../core/chrome';
 import { debugPanes, type DebugPane } from './panes';
 import { isWheelDevMode } from '../core/dev-mode';
+import { WheelConfigService } from '../core/app-config';
+import type { WheelAppConfig } from '../core/index';
+import { debugConfigSchema } from './config';
 
 import { installWheelBridge } from './bridge';
 import { startErrorCapture } from './error-capture';
@@ -438,8 +441,9 @@ function DockPanel(props: {
 }
 
 /** Dev-mode shell: unwrapped children, the fixed dock, the systems, the bridge. */
-function DevShell(props: { children: JSX.Element; debugControl: 'built-in' | 'controlled' }): JSX.Element {
+function DevShell(props: { children: JSX.Element }): JSX.Element {
   const context = useContext(WheelContext)!;
+  const debugConfig = context.services.get(WheelConfigService).section('debug', debugConfigSchema);
   const { services } = context;
   const client = context.client as SyncClient | null;
 
@@ -513,7 +517,7 @@ function DevShell(props: { children: JSX.Element; debugControl: 'built-in' | 'co
           </div>
         </Portal>
       </Show>
-      <Show when={!debugPanel.open.get() && props.debugControl === 'built-in'}>
+      <Show when={!debugPanel.open.get() && debugConfig.control === 'built-in'}>
         <button
           type="button"
           style={dockStyles.chip}
@@ -550,12 +554,12 @@ function DevShell(props: { children: JSX.Element; debugControl: 'built-in' | 'co
  */
 const DockPresent = createContext(false);
 
-function AppTree(props: { children: JSX.Element; debugControl: 'built-in' | 'controlled' }): JSX.Element {
+function AppTree(props: { children: JSX.Element }): JSX.Element {
   const nested = useContext(DockPresent);
   if (!isWheelDevMode() || nested) return props.children;
   return (
     <DockPresent.Provider value={true}>
-      <DevShell debugControl={props.debugControl}>{props.children}</DevShell>
+      <DevShell>{props.children}</DevShell>
     </DockPresent.Provider>
   );
 }
@@ -569,22 +573,25 @@ export function WheelApp(props: {
   client?: ContextClient | null;
   /** Scope id for the clientless provider (default 'root'). */
   scopeId?: string;
-  /** Hide the built-in launcher so the app can call DebugPanelService.toggle. */
-  debugControl?: 'built-in' | 'controlled';
+  /**
+   * The app's Wheel config — `src/wheel.config.ts`, made with
+   * `defineWheelConfig`. The one place config enters the app.
+   */
+  config?: WheelAppConfig;
   children: JSX.Element;
 }): JSX.Element {
   return (
     <Show
       when={props.client ?? null}
       fallback={
-        <ServiceProvider scopeId={props.scopeId ?? 'root'}>
-          <AppTree debugControl={props.debugControl ?? 'built-in'}>{props.children}</AppTree>
+        <ServiceProvider scopeId={props.scopeId ?? 'root'} config={props.config}>
+          <AppTree>{props.children}</AppTree>
         </ServiceProvider>
       }
     >
       {(client) => (
-        <WheelProvider client={client()}>
-          <AppTree debugControl={props.debugControl ?? 'built-in'}>{props.children}</AppTree>
+        <WheelProvider client={client()} config={props.config}>
+          <AppTree>{props.children}</AppTree>
         </WheelProvider>
       )}
     </Show>

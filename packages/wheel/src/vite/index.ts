@@ -28,7 +28,7 @@
  *   page saving is possible here.
  *
  * That pair IS the annotator's wire contract, and it is deliberately small:
- * an app can point `<WheelAnnotate sink={{ url }}/>` at anything that speaks
+ * an app can point the `annotate.sink` config (`{ url }`) at anything that speaks
  * it — a Durable Object, an issue tracker, a bucket — and this plugin becomes
  * just the local implementation of it.
  * - `GET /__wheel/identity` — which checkout is serving this. A browser suite

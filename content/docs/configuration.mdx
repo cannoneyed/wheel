@@ -5,6 +5,8 @@ title: Configuration
 import { Aside } from '@docs/components/Aside';
 import { CodeExample } from '@docs/components/CodeExample';
 import configSource from '@docs/examples/routing-config/config.ts?example';
+import wheelConfigSource from '@docs/examples/getting-started/wheel.config.ts?example';
+import mainSource from '@docs/examples/getting-started/main.tsx?example';
 
 # Configuration
 
@@ -69,6 +71,63 @@ The check runs on schema output too, so a Zod transform cannot smuggle a `Date` 
 </Aside>
 
 Server configuration is a different system: `process.env`, read once, in a process you control. Secrets must never cross into the browser's config. See [Production](#/production).
+
+## Configure Wheel
+
+The sections above configure **your app**. Wheel's own app-wide behavior — which keys open the
+command palette, where frame geometry is saved, whether the annotator is on — has its own
+typed object, the **Wheel config**. It lives in one file, `src/wheel.config.ts`:
+
+<CodeExample example={wheelConfigSource} />
+
+`main.tsx` imports it and passes it to the root. That is the one place config enters the app:
+
+<CodeExample example={mainSource} />
+
+`WheelApp`, `WheelProvider`, and a root `ServiceProvider` take `config`. A nested
+`ServiceProvider` inherits its parent's and throws if given its own: app-wide config that changes
+halfway down the tree is not app-wide. A test passes its own with
+`new ServiceContext({ config })`. Services read it through `WheelConfigService`.
+
+**Why not props?** The systems mounted once at the root — `<CommandPaletteSystem/>`,
+`<ToastSystem/>`, `<WheelApp/>` — own behavior for the whole app. A behavior prop on one of them
+hides app config in whatever file mounts it, lets two mounts disagree, and cannot be read without
+rendering. The `no-global-system-props` lint rule keeps those props out; see [Linting](#/linting).
+Components used many times (a button, a frame) keep their props.
+
+**Sections.** Every section and every field is optional, and every default keeps Wheel's
+behavior without a config. `defineWheelConfig` type-checks the object, and each section is
+validated by its owner's schema the first time it is read, so a bad value fails with its path:
+`Invalid wheel config: commandPalette.openKeyCommand: not a key combo like "mod+shift+p"`.
+
+| Section | Owner | Fields |
+| --- | --- | --- |
+| `commandPalette` | `wheel/kit` | `openKeyCommand`: a combo or a list of combos. Default `['mod+k', 'mod+shift+p']`; `[]` registers none. |
+| `layout` | `wheel/kit` | `storage`: `'local'` (default) or `'memory'`; `storagePrefix` (default `'wheel.layout'`); `storageKey` (default `'frames'`). |
+| `debug` | `wheel/debug` | `control`: `'built-in'` (default) or `'controlled'` — hide the dock's launcher and use your own. |
+| `annotate` | `wheel/annotate` | `enabled` (default: dev mode); `sink`: `{ url, headers? }` for notes. |
+
+**Config is JSON.** Strings, numbers, booleans, arrays, and plain objects — `defineWheelConfig`
+throws on anything else, naming the path. That keeps it loggable and lets you layer overrides with
+the sources above.
+
+**Behavior is config; looks are props.** Config holds app-wide behavior: which keys, which
+mode, where to save. A render function — `<ToastSystem renderToast={…} />` — customizes how
+something looks. It is view code, it is not JSON, and it stays a prop on the component that
+draws it.
+
+A package adds its own section with module augmentation and reads it with a Zod schema that
+carries its defaults:
+
+```ts
+// Excerpt: how wheel/kit declares a section.
+declare module 'wheel/core' {
+  interface WheelAppConfig {
+    readonly commandPalette?: z.input<typeof commandPaletteConfigSchema>;
+  }
+}
+const { openKeyCommand } = config.section('commandPalette', commandPaletteConfigSchema);
+```
 
 ## Next
 

@@ -52,10 +52,12 @@ import noDirectiveOnComponent from './rules/no-directive-on-component.mjs';
 import noDirectMaterializerWrites from './rules/no-direct-materializer-writes.mjs';
 import noWorkerDataExports from './rules/no-worker-data-exports.mjs';
 import noBrowserSupportInProduction from './rules/no-browser-support-in-production.mjs';
+import noGlobalSystemProps from './rules/no-global-system-props.mjs';
 
 export default {
   meta: { name: 'wheel' },
   rules: {
+    'no-global-system-props': noGlobalSystemProps,
     'require-export-jsdoc': requireExportJsdoc,
     'prefer-computed': preferComputed,
     'connect-only': connectOnly,

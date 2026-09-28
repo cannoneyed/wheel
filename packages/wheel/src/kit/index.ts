@@ -29,8 +29,8 @@ export {
   DEFAULT_PALETTE_OPEN_KEYS,
   groupCommands,
   type Command,
-  type CommandGroup,
-  type CommandPaletteSystemProps
+  commandPaletteConfigSchema,
+  type CommandGroup
 } from './command-palette';
 /**
  * Stacked menus — the one model and the one look for a menu with submenus.
@@ -89,6 +89,7 @@ export {
 } from './layout/dock';
 export {
   LayoutService,
+  layoutConfigSchema,
   type LayoutServiceOptions
 } from './layout/layout-service';
 export {

@@ -48,6 +48,7 @@ export default defineStates({
       shape: {
         isOpen: true,
         lastRunId: null,
+        openKeys: ['mod+k'],
         resultsFor: () => COMMANDS,
         open: () => {},
         close: () => {},
@@ -62,6 +63,7 @@ export default defineStates({
       shape: {
         isOpen: true,
         lastRunId: null,
+        openKeys: ['mod+k'],
         resultsFor: () => DESCRIBED,
         open: () => {},
         close: () => {},
@@ -75,6 +77,7 @@ export default defineStates({
       shape: {
         isOpen: true,
         lastRunId: null,
+        openKeys: ['mod+k'],
         resultsFor: () => [],
         open: () => {},
         close: () => {},
@@ -89,6 +92,7 @@ export default defineStates({
       shape: {
         isOpen: false,
         lastRunId: null,
+        openKeys: ['mod+k'],
         resultsFor: () => [],
         open: () => {},
         close: () => {},

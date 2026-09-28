@@ -92,7 +92,7 @@ Saving tries the dev server first and falls back to a download, so the delivery 
 
 Every note carries the rolling window as its timeline: `buildPayload` harvests from the oldest buffered event to the save, so `startedAt` predates the moment the box was drawn. `startState` is the state tree at that moment. Both are always present.
 
-Notes go to a SINK, configured with `<WheelAnnotate sink={{ url, headers }}/>` and defaulting to `/__wheel/note`. The contract is two methods on one URL:
+Notes go to a SINK, configured with the `annotate.sink` config (`{ url, headers }`, in `src/wheel.config.ts`) and defaulting to `/__wheel/note`. The contract is two methods on one URL:
 
 - `POST <url>` — save one note. Body `{ id, payload, markdown, png?, video?, audio? }`; media are `data:` URLs. Answer `{ ok: true, command?, location? }`. `command` is pasteable text, `location` a URL; whichever is returned is copied to the clipboard. A non-ok answer, or an unreachable sink, falls back to downloading the note as one file.
 - `GET <url>` — `{ ok: true, notes: [{ id, payload }] }`, newest first. Nothing on the page consumes the list; answering at all sets `canSave`, which decides only whether the button says "save note" or "download note".

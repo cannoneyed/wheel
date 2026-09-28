@@ -10,11 +10,12 @@ import { describe, expect, it } from 'vitest';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 
-import { Service, ServiceContext, ServiceProvider, connect } from '../core/index';
+import { Service, ServiceContext, ServiceProvider, WheelConfigService, connect, defineWheelConfig } from '../core/index';
 import {
   CommandPaletteService,
   CommandPaletteSystem,
   DEFAULT_PALETTE_OPEN_KEYS,
+  commandPaletteConfigSchema,
   KeyboardService,
   KeyboardSystem,
   groupCommands
@@ -202,11 +203,14 @@ describe('<CommandPaletteSystem /> (integration)', () => {
     document.body.appendChild(host);
     const dispose = render(
       () => (
-        <ServiceProvider scopeId="palette-dom">
+        <ServiceProvider
+          scopeId="palette-dom"
+          config={openKeys === undefined ? undefined : defineWheelConfig({ commandPalette: { openKeyCommand: [...openKeys] } })}
+        >
           <DeckProbe />
           <button data-testid="outside">outside</button>
           <KeyboardSystem />
-          <CommandPaletteSystem openKeys={openKeys} />
+          <CommandPaletteSystem />
         </ServiceProvider>
       ),
       host
@@ -325,7 +329,7 @@ describe('<CommandPaletteSystem /> (integration)', () => {
 
   // An app that needs mod+k for itself (a spreadsheet's "Insert link") must
   // be able to take it back from the palette.
-  it('openKeys replaces the default combos; mod+k is left for the app', () => {
+  it('commandPalette.openKeyCommand replaces the default combos; mod+k is left for the app', () => {
     const { cleanup } = mountSystems(['mod+shift+p']);
     try {
       document.dispatchEvent(keydown({ key: 'k', ctrlKey: true }));
@@ -340,7 +344,7 @@ describe('<CommandPaletteSystem /> (integration)', () => {
     }
   });
 
-  it('an empty openKeys registers no keys; the service still opens it', () => {
+  it('an empty openKeyCommand registers no keys; the service still opens it', () => {
     const { cleanup } = mountSystems([]);
     try {
       document.dispatchEvent(keydown({ key: 'k', ctrlKey: true }));
@@ -360,6 +364,20 @@ describe('<CommandPaletteSystem /> (integration)', () => {
     expect(paletteBindings().every((b) => b.description === 'Command palette')).toBe(true);
     cleanup();
     expect(paletteBindings()).toEqual([]);
+  });
+
+  it('rejects a config value that is not a combo, naming the field', () => {
+    const context = new ServiceContext({
+      scopeId: 'palette-bad-config',
+      config: defineWheelConfig({ commandPalette: { openKeyCommand: 'mod+shift' } })
+    });
+    try {
+      expect(() =>
+        context.get(WheelConfigService).section('commandPalette', commandPaletteConfigSchema)
+      ).toThrow(/Invalid wheel config: commandPalette\.openKeyCommand/);
+    } finally {
+      context.dispose();
+    }
   });
 
   it('scrim pointerdown closes; clicking a result runs it', () => {

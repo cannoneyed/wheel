@@ -1,9 +1,9 @@
 /**
  * `<WheelAnnotate/>` — the resident half: a rolling recorder and a chip.
  *
- *   <WheelApp client={client}>
+ *   <WheelApp client={client} config={wheelConfig}>
  *     <YourApp />
- *     <WheelAnnotate enabled={user.isStaff} />
+ *     <WheelAnnotate />
  *   </WheelApp>
  *
  * Mounting this does two cheap things and defers everything else:
@@ -26,16 +26,21 @@
  *
  * ## Who can arm it
  *
- * `enabled` defaults to dev mode, so a production build records nothing and
- * shows nothing unless the app says otherwise. Production annotation is a
- * decision about whose application state gets captured, so it belongs to the
- * app, not to the framework:
+ * The `annotate.enabled` config defaults to dev mode, so a production build
+ * records nothing and shows nothing unless the app says otherwise.
+ * Production annotation is a decision about whose application state gets
+ * captured, so it belongs to the app, not to the framework. The config is
+ * read at bootstrap, so it can be computed there:
  *
- *   <WheelAnnotate enabled={session.actor?.isStaff === true} />
- *   <WheelAnnotate enabled={localStorage.getItem('wheel.annotate') === '1'} />
+ *   // src/wheel.config.ts
+ *   export default defineWheelConfig({
+ *     annotate: { enabled: localStorage.getItem('wheel.annotate') === '1' }
+ *   });
  *
- * The second form is the one to reach for when something is wrong on a live
+ * That is the one to reach for when something is wrong on a live
  * deployment: set the key in the console, reload, and the buffer is running.
+ * For a per-person gate known only after sign-in, set `enabled: true` and
+ * mount `<WheelAnnotate/>` only for those people.
  */
 // wheel-component-root: annotation chrome — must never appear in its own picks
 // wheel-view-root: annotation chrome — must not appear in the tree it annotates
@@ -46,7 +51,10 @@
 import { Show, createEffect, createSignal, onCleanup, useContext, type JSX } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
+import { z } from 'zod';
+
 import { WheelContext } from '../core/context';
+import { WheelConfigService } from '../core/app-config';
 import { isWheelDevMode } from '../core/dev-mode';
 import { registerDebugPane } from '../debug/panes';
 import { logger } from '../core/logger';
@@ -87,32 +95,51 @@ const paneStyles = {
 } satisfies Record<string, JSX.CSSProperties>;
 
 /** Props for {@link WheelAnnotate}. */
-export interface WheelAnnotateProps {
-  /**
-   * Where notes are sent and read back from. Defaults to the dev server's
-   * `/__wheel/note`, which writes a directory per note.
-   *
-   * Point it at anything that speaks the two-method contract in
-   * {@link AnnotateSink} — a Durable Object, an issue tracker, a bucket — and
-   * nothing else about the annotator changes. A sink that cannot be reached
-   * makes saving fall back to downloading the note as one file, so a
-   * misconfigured URL loses nothing.
-   */
-  readonly sink?: AnnotateSink;
+/**
+ * The `annotate` section of the Wheel app config.
+ *
+ *   export default defineWheelConfig({
+ *     annotate: { enabled: true, sink: { url: 'https://notes.example.com/api' } }
+ *   });
+ */
+export const annotateConfigSchema = z.strictObject({
   /**
    * Whether annotation is available on this page. Defaults to dev mode.
    *
    * In production this is the app's call, because it decides whose state may
-   * be captured — usually a staff flag or a local opt-in.
+   * be captured. For a per-person gate (a staff flag), mount
+   * `<WheelAnnotate/>` only for those people.
    */
-  readonly enabled?: boolean;
+  enabled: z.boolean().optional(),
+  /**
+   * Where notes are sent and read back from. Defaults to the dev server's
+   * `/__wheel/note`, which writes a directory per note. Point it at anything
+   * that speaks the two-method contract in {@link AnnotateSink}. A sink that
+   * cannot be reached makes saving fall back to downloading the note as one
+   * file, so a misconfigured URL loses nothing.
+   */
+  sink: z
+    .strictObject({ url: z.string().min(1), headers: z.record(z.string(), z.string()).optional() })
+    .optional()
+});
+
+declare module '../core/index' {
+  interface WheelAppConfig {
+    /** The annotator (`<WheelAnnotate/>`). */
+    readonly annotate?: z.input<typeof annotateConfigSchema>;
+  }
 }
 
-/** Mount the annotator: a rolling recorder now, the chrome on demand. */
-export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
+/**
+ * Mount the annotator: a rolling recorder now, the chrome on demand. Takes
+ * no props; the `annotate` section of the app config sets it up.
+ */
+export function WheelAnnotate(): JSX.Element {
   const context = useContext(WheelContext);
   if (!context) return null;
-  const enabled = (): boolean => props.enabled ?? isWheelDevMode();
+  const config = context.services.get(WheelConfigService).section('annotate', annotateConfigSchema);
+  const sink: AnnotateSink | undefined = config.sink;
+  const enabled = (): boolean => config.enabled ?? isWheelDevMode();
 
   const [chrome, setChrome] = createSignal<((props: { sink?: AnnotateSink }) => JSX.Element) | null>(
     null
@@ -169,7 +196,7 @@ export function WheelAnnotate(props: WheelAnnotateProps): JSX.Element {
 
   return (
     <Show when={enabled() && chrome()}>
-      {(loaded) => <Dynamic component={loaded()} sink={props.sink} />}
+      {(loaded) => <Dynamic component={loaded()} sink={sink} />}
     </Show>
   );
 }

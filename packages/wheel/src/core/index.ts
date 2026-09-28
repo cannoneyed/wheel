@@ -101,3 +101,17 @@ export {
   type Defer
 } from './runtime-defaults';
 export { retryForever, isAbortError, type RetryFailure, type RetryForeverOptions } from './retry';
+
+export { WheelConfigService, defineWheelConfig } from './app-config';
+
+/**
+ * The app-wide config, one optional section per package. Packages add their
+ * sections with module augmentation:
+ *
+ *   declare module 'wheel/core' {
+ *     interface WheelAppConfig {
+ *       readonly commandPalette?: z.input<typeof commandPaletteConfig>;
+ *     }
+ *   }
+ */
+export interface WheelAppConfig {}

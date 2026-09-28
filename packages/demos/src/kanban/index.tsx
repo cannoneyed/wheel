@@ -19,11 +19,12 @@ import { DemoStage } from '../shared/components/demo-stage';
 import { BulkDeleteBar } from './components/bulk-delete-bar';
 import { FilterBar } from './components/filter-bar';
 import { Board } from './components/board';
+import wheelConfig from '../wheel.config';
 
 /** The demo root the shell mounts. */
 export function KanbanDemo() {
   return (
-    <WheelApp client={demoClient('kanban')}>
+    <WheelApp client={demoClient('kanban')} config={wheelConfig}>
       <DemoStage title="Kanban" toolbar={<BulkDeleteBar />}>
         <FilterBar />
         <Board />

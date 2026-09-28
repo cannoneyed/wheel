@@ -135,11 +135,12 @@ The same split carries the rest of `wheel/kit`'s built-ins:
   commands in their constructors (`registerCommand` + `addCleanup`), `search(query)` ranks
   headlessly, and `<CommandPaletteSystem/>` binds its open keys, renders an ARIA
   combobox/listbox, and runs the selection. The open keys default to `mod+k` and
-  `mod+shift+p`. An app that needs one of them for itself passes its own list:
+  `mod+shift+p`. An app that needs one of them for itself sets `commandPalette.openKeyCommand`
+  in [`src/wheel.config.ts`](#/configuration):
 
-  ```tsx
+  ```ts
   // mod+k inserts a link in this app, so only mod+shift+p opens the palette.
-  <CommandPaletteSystem openKeys={['mod+shift+p']} />
+  export default defineWheelConfig({ commandPalette: { openKeyCommand: 'mod+shift+p' } });
   ```
 
   An empty list registers no keys; call `CommandPaletteService.open()` from your own UI.

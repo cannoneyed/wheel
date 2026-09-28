@@ -56,6 +56,8 @@ export default [
       'wheel/no-direct-materializer-writes': 'error',
       'wheel/no-handles-in-atoms': 'error',
       'wheel/no-unused-imports': 'error',
+      // Global components take app config from src/wheel.config.ts, not props.
+      'wheel/no-global-system-props': 'error',
       // Default-on so a *.server.ts that ever lands outside src/ is covered too;
       // the rule itself only fires on *.server.ts filenames.
       'wheel/no-snake-case-mismatch-in-prune': 'error',
@@ -130,6 +132,7 @@ export default [
       // exempts runtime-defaults (the one blessed real-time module) and tests.
       'wheel/no-raw-timers': 'error',
       'wheel/no-raw-console': 'error',
+      'wheel/no-global-system-props': 'error',
       // The URL has one owner. router/history.ts is the seam; everything else
       // navigates through RouterService.
       'wheel/no-raw-location': 'error',
@@ -240,6 +243,9 @@ export default [
       // presentation-only timing with one adjacent wheel-view-timing reason.
       'wheel/no-raw-timers': ['error', { allowViewTimingReasons: true }],
       'wheel/no-raw-console': 'error',
+      // Global components take app config from src/wheel.config.ts, not props.
+      // (The rule skips kernel source itself; it bites in kernel tests.)
+      'wheel/no-global-system-props': 'error',
       // Navigation goes through the router, not the address bar or a bare
       // <a href> that reloads the document.
       'wheel/no-raw-location': 'error',

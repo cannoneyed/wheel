@@ -48,6 +48,7 @@ Run `bun run lint`. Repository CI accepts zero errors. Escapes are adjacent sour
 - `no-raw-location`: navigation uses `RouterService`.
 - `no-raw-anchor-navigation`: internal anchors use typed `Link`.
 - `no-raw-console`: app logs use Wheel logger.
+- `no-global-system-props`: global components (`*System`, `WheelApp`, `WheelProvider`, `WheelAnnotate`, `WheelDebugPanel`) take no settings as props — use `src/wheel.config.ts`. Only `client`, `config`, `scopeId` on the root and `data-wheel-role` are allowed.
 - `no-hardcoded-color`: application theme colors use tokens.
 - `no-barrel-icon-imports`: icons use per-icon entries.
 - `require-keep-names`: Wheel Vite consumers install `wheelDevTools()`.

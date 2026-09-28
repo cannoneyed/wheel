@@ -9,6 +9,7 @@ import { render } from 'solid-js/web';
 
 import {
   Service,
+  defineWheelConfig,
   Show,
   connect,
   componentRoot,
@@ -223,7 +224,7 @@ describe('WheelApp', () => {
     document.body.appendChild(host);
     dispose = render(
       () => (
-        <WheelApp debugControl="controlled">
+        <WheelApp config={defineWheelConfig({ debug: { control: 'controlled' } })}>
           <DebugControl />
         </WheelApp>
       ),
