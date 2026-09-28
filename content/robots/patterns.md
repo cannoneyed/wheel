@@ -41,6 +41,15 @@ Imperative custom dialogs render at root context because event handlers have no 
 - Keys become `KeyboardService` bindings (`command` field set). `shortcut` = `formatCombo` of the first displayed key. `menuItem(id, { target })` builds a `MenuAction`.
 - `keyboard.conflicts()`: `same-scope` (bug), `gated`, `shadowed`.
 
+## Menus from data
+
+- `MenuService.defineTarget(target, slots, { label })` fixes slot order; `contribute({ target, slot, entry, order?, when? })` adds `{ command }`, `{ submenu: otherTarget, label }`, or `{ separator: true }`.
+- `contributeItems({ target, instance?, slot, source, items })` adds runtime `MenuAction`s; disabled items without `disabledReason` are dropped.
+- `levelFor(target, { subject, instance })` → `MenuLevel` (headless). Command entries come from `CommandService.menuItem` and run with `source: 'menu'`, `target: subject`, after the menu closes.
+- Trigger: `use:contextMenu={{ id, target, subject?, instance?, label? }}`. JSX `menu` form unchanged.
+- Wheel config `contextMenu.submenus`: `'auto'` (default) | `'flyout'` | `'stacked'`; `contextMenu.flyoutMinWidth` (640). Same data, same keys (↑ ↓ → ← Enter Esc Home End). Icons: `<ContextMenuSystem renderIcon={fn} />` (a view prop).
+- Shift+F10 / Menu key inside the trigger → `openAt` the focused element, first item focused. `ContextMenuService.openAt(id, element)` for custom bindings.
+
 ## Isolation tiers
 
 1. Stub one connection shape.

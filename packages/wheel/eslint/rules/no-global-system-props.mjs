@@ -30,7 +30,7 @@
  * Allowed: the bootstrap root's identity props (`client`, `config`,
  * `scopeId`, and children on `WheelApp`/`WheelProvider`),
  * `data-wheel-role` everywhere, and a short allowlist of VIEW render props
- * (`renderToast` on `ToastSystem`). The line is behavior vs. looks: config
+ * (`renderToast` on `ToastSystem`, `renderIcon` on `ContextMenuSystem`). The line is behavior vs. looks: config
  * holds app-wide behavior (which keys, which mode, where to save); a render
  * function only changes how something is drawn, is not JSON, and belongs
  * with the JSX that draws it. Add to the allowlist only a prop that is a
@@ -48,7 +48,8 @@
 const GLOBAL_COMPONENTS = new Map([
   ['KeyboardSystem', []],
   ['DialogSystem', []],
-  ['ContextMenuSystem', []],
+  // renderIcon: view customization (how a data menu draws an icon key).
+  ['ContextMenuSystem', ['renderIcon']],
   ['CommandPaletteSystem', []],
   // renderToast: view customization (how a toast looks), not behavior.
   ['ToastSystem', ['renderToast']],

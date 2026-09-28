@@ -288,6 +288,14 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
       >
         <For each={rowItems()}>
           {(item) => (
+            <>
+            <Show when={item.separatorBefore === true}>
+              <div
+                role="separator"
+                data-testid={`wheel-menu-separator-${item.id}`}
+                style={{ height: '1px', margin: '4px 6px', background: 'var(--wheel-line, #d8dee9)' }}
+              />
+            </Show>
             <button
               type="button"
               role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
@@ -329,6 +337,17 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
                   {(icon) => <span aria-hidden="true">{props.renderIcon!(icon)}</span>}
                 </Show>
                 <span>{item.label}</span>
+                {/* Who added it, when it is not one of the app's own commands. */}
+                <Show when={item.source}>
+                  {(source) => (
+                    <span
+                      data-testid={`wheel-menu-source-${item.id}`}
+                      style={{ color: 'var(--wheel-ink-muted, #6b7280)', 'font-size': '11px' }}
+                    >
+                      {source()}
+                    </span>
+                  )}
+                </Show>
               </span>
               {/* Why it cannot run. Without this the dim entry only says "no". */}
               <Show when={item.disabled === true && item.disabledReason}>
@@ -364,6 +383,7 @@ export function MenuStackPanel(props: MenuStackPanelProps): JSX.Element {
                 <span style={{ color: 'var(--wheel-accent, #3b82f6)' }}>✓</span>
               </Show>
             </button>
+            </>
           )}
         </For>
         <Show

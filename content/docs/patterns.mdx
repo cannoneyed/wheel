@@ -60,6 +60,64 @@ Because it is an ordinary component, all three stub tiers apply unchanged: stub 
   caption="The trigger site declares; the service enforces single-open; the system renders; the content connects like any component."
 />
 
+### Menus from data
+
+When a menu is a list of actions, it can be data instead of JSX. The app names a
+**target** — the kind of thing the menu opens on — and fixes the order of its **slots**:
+
+```ts
+// Excerpt: once, at startup.
+menus.defineTarget('card', ['edit', 'move', 'danger'], { label: 'Card menu' });
+```
+
+Each feature then **contributes** entries to a slot. An entry names a command, a nested
+target (a submenu), or a divider. Features never edit one shared menu component:
+
+```ts
+// Excerpt: in a feature service's constructor.
+this.addCleanup(menus.contribute({ target: 'card', slot: 'danger', entry: { command: 'cards.delete' } }));
+this.addCleanup(menus.contribute({ target: 'card', slot: 'move', entry: { submenu: 'card.move', label: 'Move to' } }));
+```
+
+The trigger site names the target instead of passing JSX. `subject` is what the menu
+opens on; commands receive it as `ctx.target`:
+
+```tsx
+// Excerpt: inside a connected card component.
+<article use:contextMenu={{ id: `card:${props.id}`, target: 'card', subject: () => ({ cardId: props.id }) }}>
+```
+
+When the menu opens, `MenuService.levelFor(target)` resolves the contributions into a
+`MenuLevel`. Each command entry takes its title, shortcut text, check, and disabled reason
+from the command registry, and runs through `execute` with `source: 'menu'` after the menu
+closes. A hidden command draws nothing. Empty slots draw nothing, and dividers never double
+up or sit at the top or bottom. `levelFor` is headless, so a test can check a menu without a
+DOM.
+
+Some items exist only while the app runs, like a sandboxed widget's own actions.
+`menus.contributeItems({ target, instance, slot, source, items })` adds them for one
+instance of a target. The panel draws `source` beside each item. A disabled runtime item
+must carry a `disabledReason`; one without it is dropped.
+
+**Flyout or stacked.** The same data draws two ways. Flyouts open a submenu beside its row,
+on hover (after a short delay, with a "safe triangle" so a diagonal move into the submenu
+does not close it) or on →. Stacked levels replace the panel in place, with a back control,
+which suits touch and narrow screens. The `contextMenu.submenus` setting in the
+[Wheel config](#/configuration) chooses: `'auto'` (the default)
+picks flyouts for a fine pointer on a wide window, and a level with a size grid or a value
+field is always stacked. Both answer the same keys: ↑ ↓ move, → or Enter opens a submenu,
+← or Esc closes one level, and Esc at the top closes the menu.
+
+**Opening from the keyboard.** Shift+F10 or the Menu key, pressed while the trigger or
+something inside it has focus, opens the menu at the focused element with its first item
+focused. The browser's own coordinates for a keyboard-opened menu are ignored, because they
+differ by browser. `ContextMenuService.openAt(id, element)` does the same for apps that bind
+their own key, like a grid whose active cell is not the focused element. The menu's
+accessible name is the binding's `label`, or the target's label.
+
+JSX menus (`menu: () => <CardContextMenu />`) keep working unchanged. Use them when the menu is
+more than a list of actions.
+
 ### Why a directive instead of a ref prop
 
 The obvious sketch — `<div ref={el}>` then `<ContextMenu attachElement={el}>` — silently fails. `el` is a bare identifier, so the compiler passes its **value at JSX-creation time** (bare identifiers can't be wrapped in tracking getters), and refs assign later, during render: the child receives `undefined`, forever. Solid's own answer for "attach behavior to an existing element" is the directive — `use:contextMenu` calls your function with the real DOM element. No wrapper element, no ref plumbing, no timing trap possible.

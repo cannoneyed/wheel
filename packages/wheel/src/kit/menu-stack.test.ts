@@ -72,6 +72,25 @@ describe('the stack', () => {
     expect(stack.state().index).toBe(0);
   });
 
+  test('the trail records which group opened each level, for flyout renderers', () => {
+    const stack = createMenuStack(root());
+    expect(stack.state().trail).toEqual([]);
+    stack.move(2);
+    expect(stack.choose()).toBe('pushed');
+    expect(stack.state().trail).toEqual([2]);
+    stack.pop();
+    expect(stack.state().trail).toEqual([]);
+  });
+
+  test('right opens a highlighted group and does nothing on an action', () => {
+    const stack = createMenuStack(root());
+    expect(stack.handleKey('ArrowRight')).toBe(false);
+    stack.move(1);
+    expect(stack.handleKey('ArrowRight')).toBe(true);
+    expect(stack.state().title).toBe('Heading');
+    expect(stack.state().trail).toEqual([1]);
+  });
+
   test('choosing an action runs it', () => {
     const run = vi.fn();
     const stack = createMenuStack(root(run));

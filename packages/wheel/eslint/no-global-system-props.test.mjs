@@ -42,6 +42,7 @@ describe('no-global-system-props', () => {
     expect(verify(`${kit}const a = <ToastSystem {...options} />;`)).toHaveLength(1);
     expect(verify(`${kit}const a = <ToastSystem renderToast={(t) => t.text} />;`)).toEqual([]);
     expect(verify(`${kit}const a = <ToastSystem position="top" />;`)).toHaveLength(1);
+    expect(verify("import { ContextMenuSystem } from 'wheel/kit';\nconst a = <ContextMenuSystem renderIcon={icon} submenus=\"stacked\" />;")).toHaveLength(1);
   });
 
   it('lets the bootstrap root take client, config, and scopeId, and nothing else', () => {

@@ -47,11 +47,12 @@ Wheel's own app-wide settings. Separate from `wheel/config` app configuration ab
 - Enters ONCE at the root: `<WheelApp config>`, `<WheelProvider config>`, root `<ServiceProvider config>`, or `new ServiceContext({ config })` in tests. Child contexts inherit; a child given `config` throws.
 - Read with `WheelConfigService.section(key, schema)`: Zod-parsed, defaults applied, cached; bad values throw `Invalid wheel config: <section>.<field>: …`.
 - Packages declare sections by augmenting `interface WheelAppConfig` (in `core/app-config`).
-- Global components take no behavior settings as props (`no-global-system-props`). Config is app-wide behavior; view render functions stay props (allowlisted: `ToastSystem renderToast`).
+- Global components take no behavior settings as props (`no-global-system-props`). Config is app-wide behavior; view render functions stay props (allowlisted: `ToastSystem renderToast`, `ContextMenuSystem renderIcon`).
 
 | Section | Fields (defaults) |
 | --- | --- |
 | `commandPalette` | `openKeyCommand`: string or string[] (`['mod+k', 'mod+shift+p']`) |
+| `contextMenu` | `submenus`: `'auto'` \| `'flyout'` \| `'stacked'` (`'auto'`); `flyoutMinWidth` (`640`) |
 | `commands` | `blockedKeyFeedback`: `'toast'` \| `'none'` (`'toast'`) |
 | `layout` | `storage`: `'local'` \| `'memory'` (`'local'`); `storagePrefix` (`'wheel.layout'`); `storageKey` (`'frames'`) |
 | `debug` | `control`: `'built-in'` \| `'controlled'` (`'built-in'`) |
