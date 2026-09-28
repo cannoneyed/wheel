@@ -115,6 +115,28 @@ describe('solid service kernel', () => {
     context.dispose();
   });
 
+  it('an action called from an effect does not subscribe the effect to what it reads', () => {
+    const context = new ServiceContext();
+    const counter = context.get(CounterService);
+    let runs = 0;
+    const dispose = createRoot((d) => {
+      // effect: calls an action that READS count; the effect must not depend on it
+      createEffect(() => {
+        runs += 1;
+        counter.addMany(1);
+      });
+      return d;
+    });
+    expect(runs).toBe(1);
+    counter.addMany(3);
+    // Before actions ran untracked, this write re-ran the effect, which wrote
+    // again: the loop behind the palette/focus-scope stack overflow.
+    expect(runs).toBe(1);
+    expect(counter.count.get()).toBe(4);
+    dispose();
+    context.dispose();
+  });
+
   it('fields keep live values unchanged and never create reactive dependencies', () => {
     let now = 100;
     class LiveHandle {

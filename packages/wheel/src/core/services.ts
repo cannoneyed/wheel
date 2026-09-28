@@ -981,7 +981,14 @@ export abstract class Service {
     return computed;
   }
 
-  /** Groups its writes into one Solid batch (single downstream flush). */
+  /**
+   * Groups its writes into one Solid batch (single downstream flush), and
+   * runs untracked: an action is a write, so the reads it makes to decide
+   * what to write never subscribe its caller. Without this, an effect that
+   * calls an action silently depends on every atom the action reads — the
+   * palette's focus effect called `enterOverlay`, which reads the focus path
+   * it then changes, and re-entered itself forever.
+   */
   protected action<F extends (...args: never[]) => unknown>(fn: F, name?: string): F {
     const registry = this.context.registry;
     const meta: DebugMeta = {
@@ -995,10 +1002,10 @@ export abstract class Service {
     // With no tap installed the wrapper is the plain batch it always was.
     const wrapped = ((...args: never[]) => {
       const tap = wheelTap();
-      if (!tap) return batch(() => fn(...args));
+      if (!tap) return batch(() => untrack(() => fn(...args)));
       const at = this.now();
       try {
-        return batch(() => fn(...args));
+        return batch(() => untrack(() => fn(...args)));
       } finally {
         tap.action({
           at,
