@@ -11,8 +11,25 @@ export {
   ContextMenuSystem,
   ContextMenu,
   contextMenu,
-  type ContextMenuBinding
+  isContextMenuKey,
+  type ContextMenuBinding,
+  type ContextMenuDataBinding,
+  type ContextMenuJsxBinding,
+  type ContextMenuSystemProps,
+  type SubmenuStyle
 } from './context-menu';
+/**
+ * Menus from data — targets, slots, and contributions resolved into the
+ * `MenuLevel` that `MenuStack` draws. Command entries take their title,
+ * shortcut, check, and reason from `CommandService`.
+ */
+export {
+  MenuService,
+  type MenuContribution,
+  type MenuEntry,
+  type MenuRequest,
+  type RuntimeMenuItems
+} from './menus';
 export { FocusService, focusScope, type FocusScopeBinding } from './focus';
 export { KeyboardService, KeyboardSystem, type KeyBinding } from './keyboard';
 export {
@@ -80,6 +97,14 @@ export {
   type MenuStackState
 } from './menu-stack';
 export { MenuStackPanel, type MenuStackPanelProps } from './menu-stack-panel';
+export {
+  MenuFlyout,
+  OPEN_DELAY_MS,
+  SAFE_TRIANGLE_MS,
+  insideTriangle,
+  type MenuFlyoutProps,
+  type Point
+} from './menu-flyout';
 /**
  * Toasts — a global stack of transient status messages with a per-toast pacing
  * machine so fast sync feedback never flashes: `begin` shows a progress toast,

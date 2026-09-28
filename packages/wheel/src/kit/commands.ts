@@ -456,19 +456,33 @@ export class CommandService extends Service {
    * and disabled reason from the registry, and a `run` that goes through
    * `execute` with `source: 'menu'`. Null when the command is unknown or
    * hidden for this target.
+   *
+   * The label, check, and disabled state are GETTERS over the registry, so
+   * an open menu redraws a toggle the moment its command's state changes.
    */
   menuItem(id: string, options: { readonly args?: unknown; readonly target?: unknown; readonly label?: string } = {}): MenuAction | null {
-    const state = this.stateOf(id, { source: 'menu', target: options.target });
-    if (!state) return null;
+    const request: CommandRequest = { source: 'menu', target: options.target };
+    const first = this.stateOf(id, request);
+    if (!first) return null;
+    const live = () => this.stateOf(id, request) ?? first;
     return {
-      id: state.id,
-      label: options.label ?? state.title,
-      shortcut: state.shortcut,
-      keywords: state.keywords,
-      checked: state.checked === undefined ? undefined : state.checked === true,
-      disabled: state.disabledReason !== undefined ? true : undefined,
-      disabledReason: state.disabledReason,
-      run: () => void this.execute(id, options.args, { source: 'menu', target: options.target })
+      id: first.id,
+      get label() {
+        return options.label ?? live().title;
+      },
+      shortcut: first.shortcut,
+      keywords: first.keywords,
+      get checked() {
+        const checked = live().checked;
+        return checked === undefined ? undefined : checked === true;
+      },
+      get disabled() {
+        return live().disabledReason !== undefined ? true : undefined;
+      },
+      get disabledReason() {
+        return live().disabledReason;
+      },
+      run: () => void this.execute(id, options.args, request)
     };
   }
 

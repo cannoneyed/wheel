@@ -49,6 +49,14 @@ export interface MenuAction {
    * command's keys, so a menu and the palette show the same shortcut.
    */
   readonly shortcut?: string;
+  /** Draw a divider line above this entry: it starts a new section. */
+  readonly separatorBefore?: boolean;
+  /**
+   * Who added the entry, when it did not come from the app's own commands
+   * (a widget's name). The panel draws it beside the label, so a person can
+   * tell app entries from contributed ones.
+   */
+  readonly source?: string;
   readonly submenu?: never;
 }
 
@@ -65,6 +73,10 @@ export interface MenuGroup {
   readonly disabled?: boolean;
   /** Why the group cannot open. The panel draws it beside the label. */
   readonly disabledReason?: string;
+  /** Draw a divider line above this entry. See `MenuAction.separatorBefore`. */
+  readonly separatorBefore?: boolean;
+  readonly source?: never;
+  readonly shortcut?: never;
   readonly run?: never;
   readonly checked?: never;
 }
@@ -139,6 +151,12 @@ export interface MenuStackState {
   readonly gridPoint: GridPoint;
   /** The value field to draw, or null. A query hides it, like the grid. */
   readonly input: MenuInput | null;
+  /**
+   * For each level below the one on screen, the index of the group that
+   * opened the next level. A flyout renderer draws every open level side by
+   * side and highlights these groups in the parent panels.
+   */
+  readonly trail: readonly number[];
 }
 
 /** The headless stack (see module doc). */
@@ -168,8 +186,8 @@ export interface MenuStack {
   /**
    * Apply one key. Returns whether the menu consumed it.
    *
-   * Up and down move. Enter and Tab choose. Backspace and Left pop, but
-   * ONLY when the query is empty — inside a query, Backspace edits the
+   * Up and down move. Right opens a highlighted group. Enter and Tab
+   * choose. Backspace and Left pop, but ONLY when the query is empty — inside a query, Backspace edits the
    * query, because a key that both deletes text and navigates is a key you
    * cannot trust.
    */
@@ -229,6 +247,8 @@ export function createMenuStack(root: MenuLevel, onChange?: () => void): MenuSta
   let query = '';
   let index = 0;
   let gridPoint: GridPoint = { rows: 0, columns: 0 };
+  // The index of the group that opened each level above the root.
+  let trail: number[] = [];
 
   const current = () => stack[stack.length - 1]!;
   const items = () => menuMatches(root, current(), query);
@@ -250,7 +270,8 @@ export function createMenuStack(root: MenuLevel, onChange?: () => void): MenuSta
       title: stack.length > 1 ? current().title : null,
       grid: grid(),
       gridPoint,
-      input: input()
+      input: input(),
+      trail: [...trail]
     };
   };
 
@@ -264,6 +285,7 @@ export function createMenuStack(root: MenuLevel, onChange?: () => void): MenuSta
       return false;
     }
     stack = stack.slice(0, -1);
+    trail = trail.slice(0, -1);
     index = 0;
     gridPoint = { rows: 0, columns: 0 };
     changed();
@@ -281,6 +303,8 @@ export function createMenuStack(root: MenuLevel, onChange?: () => void): MenuSta
       return null;
     }
     if (target.submenu) {
+      const opener = items().indexOf(target);
+      trail = [...trail, opener < 0 ? index : opener];
       stack = [...stack, target.submenu];
       // A push clears the query: the submenu you asked for must show its
       // own items, not the filtered list that led you to it.
@@ -327,6 +351,7 @@ export function createMenuStack(root: MenuLevel, onChange?: () => void): MenuSta
       changed();
     },
     push: (level) => {
+      trail = [...trail, index];
       stack = [...stack, level];
       query = '';
       index = 0;
@@ -377,6 +402,10 @@ export function createMenuStack(root: MenuLevel, onChange?: () => void): MenuSta
         }
         return true;
       }
+      if (key === 'ArrowRight' && query === '') {
+        const item = items()[index];
+        return item?.submenu !== undefined && choose(item) === 'pushed';
+      }
       if (key === 'ArrowLeft' && query === '') {
         return pop();
       }
@@ -387,6 +416,7 @@ export function createMenuStack(root: MenuLevel, onChange?: () => void): MenuSta
     },
     reset: () => {
       stack = [root];
+      trail = [];
       query = '';
       index = 0;
       gridPoint = { rows: 0, columns: 0 };

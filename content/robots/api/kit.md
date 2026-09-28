@@ -150,33 +150,51 @@ DialogSystem's connection — exported for stubs and the states file.
 
 ## `contextMenu`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:143](../../../packages/wheel/src/kit/context-menu.tsx#L143).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:228](../../../packages/wheel/src/kit/context-menu.tsx#L228).
 
-The `use:contextMenu` directive — attach a menu to an existing element, no wrapper, no ref plumbing: <div use:contextMenu={{ id: `item:${props.id}`, menu: () => <ItemMenu id={props.id} /> }}> Re-registers reactively if the binding changes (e.g. id derived from props).
+The `use:contextMenu` directive — attach a menu to an existing element, no wrapper, no ref plumbing: <div use:contextMenu={{ id: `item:${props.id}`, menu: () => <ItemMenu id={props.id} /> }}> <div use:contextMenu={{ id: `cell:${id}`, target: 'cell', subject: () => ({ cellId: id }) }}> The first form mounts JSX; the second resolves a `MenuService` target. Shift+F10 or the Menu key, pressed inside the element, opens the menu at the focused element. Re-registers reactively if the binding changes (e.g. id derived from props).
 
 ## `ContextMenu`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:186](../../../packages/wheel/src/kit/context-menu.tsx#L186).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:294](../../../packages/wheel/src/kit/context-menu.tsx#L294).
 
 Component-form fallback (directives only work on native elements): wraps the trigger surface in a plain div and binds it.
 
 ## `ContextMenuBinding`
 
-Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:42](../../../packages/wheel/src/kit/context-menu.tsx#L42).
+Kind: type. Source: [packages/wheel/src/kit/context-menu.tsx:89](../../../packages/wheel/src/kit/context-menu.tsx#L89).
 
-What a trigger site declares: identity, lazy content, anchor mode.
+What a trigger site declares: identity, content (JSX or a target), anchor mode.
+
+## `ContextMenuDataBinding`
+
+Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:78](../../../packages/wheel/src/kit/context-menu.tsx#L78).
+
+A menu built from data: a `MenuService` target's contributions.
+
+## `ContextMenuJsxBinding`
+
+Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:71](../../../packages/wheel/src/kit/context-menu.tsx#L71).
+
+A menu whose content is JSX: any component, mounted only while open.
 
 ## `ContextMenuService`
 
-Kind: class. Source: [packages/wheel/src/kit/context-menu.tsx:76](../../../packages/wheel/src/kit/context-menu.tsx#L76).
+Kind: class. Source: [packages/wheel/src/kit/context-menu.tsx:121](../../../packages/wheel/src/kit/context-menu.tsx#L121).
 
 Global menu awareness: which menu is open and where. Single-open is enforced by `open` being a scalar atom — opening one menu IS closing the previous one.
 
 ## `ContextMenuSystem`
 
-Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:247](../../../packages/wheel/src/kit/context-menu.tsx#L247).
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:520](../../../packages/wheel/src/kit/context-menu.tsx#L520).
 
-Mount once at the app root. Owns the portal, positioning, scrim, Escape, and focus restore for whatever menu is open.
+Mount once at the app root. Owns the portal, positioning, scrim, Escape, and focus restore for whatever menu is open — JSX menus and data menus.
+
+## `ContextMenuSystemProps`
+
+Kind: interface. Source: [packages/wheel/src/kit/context-menu.tsx:363](../../../packages/wheel/src/kit/context-menu.tsx#L363).
+
+Props for `<ContextMenuSystem/>`.
 
 ## `createGesture`
 
@@ -198,7 +216,7 @@ Configuration for one DOM-bound gesture.
 
 ## `createMenuStack`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:227](../../../packages/wheel/src/kit/menu-stack.ts#L227).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:245](../../../packages/wheel/src/kit/menu-stack.ts#L245).
 
 Build a stack over `root`. `onChange` fires after every state change.
 
@@ -276,7 +294,7 @@ Group bindings that answer the same keys. Two combos conflict when they parse to
 
 ## `flattenLeaves`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:202](../../../packages/wheel/src/kit/menu-stack.ts#L202).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:220](../../../packages/wheel/src/kit/menu-stack.ts#L220).
 
 Every ACTION in the tree, depth first, with the groups dropped. A filtered list holds leaves only. Offering "Heading" beside "Heading 1" would make the user choose twice for one outcome. A level that carries a grid or an input is a WIDGET, and the search does not enter it. Its items configure that widget — "Header row" belongs to the size picker, not to the catalogue, and reaching that setting from a filter would flip it for a picker the user is not looking at. The GROUP stands in for it instead, so `/table` still finds the picker in one step.
 
@@ -444,7 +462,7 @@ Modifier-key state carried with every gesture sample.
 
 ## `GridPoint`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:114](../../../packages/wheel/src/kit/menu-stack.ts#L114).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:126](../../../packages/wheel/src/kit/menu-stack.ts#L126).
 
 Where the highlight sits inside a level's grid.
 
@@ -454,11 +472,23 @@ Kind: function. Source: [packages/wheel/src/kit/command-palette.tsx:80](../../..
 
 Cut ranked results into groups, keeping rank order. A group takes the position of its best-ranked member, so typing never reorders the list out from under the selection.
 
+## `insideTriangle`
+
+Kind: function. Source: [packages/wheel/src/kit/menu-flyout.tsx:55](../../../packages/wheel/src/kit/menu-flyout.tsx#L55).
+
+Whether `point` lies inside the triangle `a`, `b`, `c` (edges count). The flyout's safe triangle: `a` is where the pointer was, `b` and `c` are the near corners of the open submenu.
+
 ## `isComposingEvent`
 
 Kind: function. Source: [packages/wheel/src/kit/key-combo.ts:117](../../../packages/wheel/src/kit/key-combo.ts#L117).
 
 Whether a keydown belongs to an input method (IME) composition. While a Japanese or Chinese user picks a candidate, Enter and the arrows belong to the IME, not to the app. Browsers mark those events with `isComposing`, and some (Safari) send `keyCode` 229 for the key that ends composition.
+
+## `isContextMenuKey`
+
+Kind: function. Source: [packages/wheel/src/kit/context-menu.tsx:212](../../../packages/wheel/src/kit/context-menu.tsx#L212).
+
+Whether a keydown asks for the context menu: Shift+F10, or the Menu key.
 
 ## `KeyBinding`
 
@@ -580,45 +610,81 @@ Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:21](../../../pack
 
 A menu entry that runs an action.
 
+## `MenuContribution`
+
+Kind: interface. Source: [packages/wheel/src/kit/menus.ts:40](../../../packages/wheel/src/kit/menus.ts#L40).
+
+A feature's entry in one target's slot.
+
+## `MenuEntry`
+
+Kind: type. Source: [packages/wheel/src/kit/menus.ts:31](../../../packages/wheel/src/kit/menus.ts#L31).
+
+One contributed entry.
+
+## `MenuFlyout`
+
+Kind: function. Source: [packages/wheel/src/kit/menu-flyout.tsx:90](../../../packages/wheel/src/kit/menu-flyout.tsx#L90).
+
+The flyout renderer (see module doc).
+
+## `MenuFlyoutProps`
+
+Kind: interface. Source: [packages/wheel/src/kit/menu-flyout.tsx:66](../../../packages/wheel/src/kit/menu-flyout.tsx#L66).
+
+What the flyout needs to draw one stack.
+
 ## `MenuGrid`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:80](../../../packages/wheel/src/kit/menu-stack.ts#L80).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:92](../../../packages/wheel/src/kit/menu-stack.ts#L92).
 
 A size picker: a grid of empty squares the pointer sweeps to choose a count. Word, Google Docs, and Notion all insert a table this way, and it beats two number fields because the shape is the answer.
 
 ## `MenuGroup`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:56](../../../packages/wheel/src/kit/menu-stack.ts#L56).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:64](../../../packages/wheel/src/kit/menu-stack.ts#L64).
 
 A menu entry that opens a submenu.
 
 ## `MenuInput`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:94](../../../packages/wheel/src/kit/menu-stack.ts#L94).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:106](../../../packages/wheel/src/kit/menu-stack.ts#L106).
 
 A level that asks for a value: a link's address, a new name. The field takes the focus and the keys, so the items below it stay reachable with the pointer but stop answering the arrows.
 
 ## `MenuItem`
 
-Kind: type. Source: [packages/wheel/src/kit/menu-stack.ts:73](../../../packages/wheel/src/kit/menu-stack.ts#L73).
+Kind: type. Source: [packages/wheel/src/kit/menu-stack.ts:85](../../../packages/wheel/src/kit/menu-stack.ts#L85).
 
 One entry: it RUNS, or it PUSHES.
 
 ## `MenuLevel`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:103](../../../packages/wheel/src/kit/menu-stack.ts#L103).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:115](../../../packages/wheel/src/kit/menu-stack.ts#L115).
 
 One level of the stack: what it is called, and what it holds.
 
 ## `menuMatches`
 
-Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:219](../../../packages/wheel/src/kit/menu-stack.ts#L219).
+Kind: function. Source: [packages/wheel/src/kit/menu-stack.ts:237](../../../packages/wheel/src/kit/menu-stack.ts#L237).
 
 Entries matching `query` across the WHOLE tree, or the level's own.
 
+## `MenuRequest`
+
+Kind: interface. Source: [packages/wheel/src/kit/menus.ts:68](../../../packages/wheel/src/kit/menus.ts#L68).
+
+What a menu is being built for.
+
+## `MenuService`
+
+Kind: class. Source: [packages/wheel/src/kit/menus.ts:105](../../../packages/wheel/src/kit/menus.ts#L105).
+
+Owns menu targets and their contributions. See the module doc.
+
 ## `MenuStack`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:145](../../../packages/wheel/src/kit/menu-stack.ts#L145).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:163](../../../packages/wheel/src/kit/menu-stack.ts#L163).
 
 The headless stack (see module doc).
 
@@ -636,7 +702,7 @@ What the panel needs to draw one stack.
 
 ## `MenuStackState`
 
-Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:122](../../../packages/wheel/src/kit/menu-stack.ts#L122).
+Kind: interface. Source: [packages/wheel/src/kit/menu-stack.ts:134](../../../packages/wheel/src/kit/menu-stack.ts#L134).
 
 Everything a renderer needs to draw the menu.
 
@@ -657,6 +723,12 @@ Collapse single-child splits, drop empty splits, and merge a split into a same-a
 Kind: interface. Source: [packages/wheel/src/kit/commands.ts:91](../../../packages/wheel/src/kit/commands.ts#L91).
 
 A number argument.
+
+## `OPEN_DELAY_MS`
+
+Kind: value. Source: [packages/wheel/src/kit/menu-flyout.tsx:39](../../../packages/wheel/src/kit/menu-flyout.tsx#L39).
+
+How long the pointer rests on a group before its submenu opens.
 
 ## `OpenDialogEntry`
 
@@ -694,11 +766,29 @@ Kind: function. Source: [packages/wheel/src/kit/layout/model.ts:147](../../../pa
 
 Parse one untrusted storage payload; null when the shape is not usable.
 
+## `Point`
+
+Kind: interface. Source: [packages/wheel/src/kit/menu-flyout.tsx:45](../../../packages/wheel/src/kit/menu-flyout.tsx#L45).
+
+A point in viewport pixels.
+
 ## `removePanel`
 
 Kind: function. Source: [packages/wheel/src/kit/layout/split-tree.ts:64](../../../packages/wheel/src/kit/layout/split-tree.ts#L64).
 
 Remove one panel; null when the tree becomes empty.
+
+## `RuntimeMenuItems`
+
+Kind: interface. Source: [packages/wheel/src/kit/menus.ts:53](../../../packages/wheel/src/kit/menus.ts#L53).
+
+Items that exist only while the app runs (a widget's own actions).
+
+## `SAFE_TRIANGLE_MS`
+
+Kind: value. Source: [packages/wheel/src/kit/menu-flyout.tsx:42](../../../packages/wheel/src/kit/menu-flyout.tsx#L42).
+
+How long a move toward an open submenu keeps it open.
 
 ## `Scrollbar`
 
@@ -723,6 +813,12 @@ Live scroll metrics along one axis of a container.
 Kind: type. Source: [packages/wheel/src/kit/layout/split-tree.ts:8](../../../packages/wheel/src/kit/layout/split-tree.ts#L8).
 
 The app-owned workspace tree behind `Frame.Dock`. Plain JSON: it lives in an application atom, persists with application persistence, and stores only ids — components come from the app's render prop, never from here.
+
+## `SubmenuStyle`
+
+Kind: type. Source: [packages/wheel/src/kit/context-menu.tsx:360](../../../packages/wheel/src/kit/context-menu.tsx#L360).
+
+How a data menu draws its submenus.
 
 ## `TextArgField`
 
